@@ -86,11 +86,11 @@ Every draft must include:
 | TI-003 | 1 | needs_review | docs/content/drafts/product/trade-review-app.md | /trade-review-app/ | product_page | trade review app | Trader Intelligence | Review-focused product page |
 | TI-004 | 1 | needs_review | docs/content/drafts/features/execution-analysis.md | /features/execution-analysis/ | feature_page | trade execution analysis | Trader Intelligence | Core feature |
 | TI-005 | 1 | needs_review | docs/content/drafts/features/trading-mistake-tracker.md | /features/trading-mistake-tracker/ | feature_page | trading mistake tracker | Trader Intelligence | Core feature |
-| TI-006 | 1 | not_started | docs/content/drafts/features/broker-execution-import.md | /features/broker-execution-import/ | feature_page | broker execution import | Trader Intelligence | Import feature |
-| TI-007 | 1 | not_started | docs/content/drafts/features/trade-management-feedback.md | /features/trade-management-feedback/ | feature_page | trade management feedback | Trader Intelligence | Trade management feature |
-| TI-008 | 1 | not_started | docs/content/drafts/features/support-resistance-trade-review.md | /features/support-resistance-trade-review/ | feature_page | support and resistance trade review | Trader Intelligence | Levels-based review |
-| TI-009 | 2 | not_started | docs/content/drafts/product/day-trading-journal.md | /day-trading-journal/ | product_page | day trading journal | Trader Intelligence | Commercial page |
-| TI-010 | 2 | not_started | docs/content/drafts/features/session-time-analysis.md | /features/session-time-analysis/ | feature_page | session time analysis trading | Trader Intelligence | Session review |
+| TI-006 | 1 | needs_review | docs/content/drafts/features/broker-execution-import.md | /features/broker-execution-import/ | feature_page | broker execution import | Trader Intelligence | Import feature |
+| TI-007 | 1 | needs_review | docs/content/drafts/features/trade-management-feedback.md | /features/trade-management-feedback/ | feature_page | trade management feedback | Trader Intelligence | Trade management feature |
+| TI-008 | 1 | needs_review | docs/content/drafts/features/support-resistance-trade-review.md | /features/support-resistance-trade-review/ | feature_page | support and resistance trade review | Trader Intelligence | Levels-based review |
+| TI-009 | 2 | needs_review | docs/content/drafts/product/day-trading-journal.md | /day-trading-journal/ | product_page | day trading journal | Trader Intelligence | Commercial page |
+| TI-010 | 2 | needs_review | docs/content/drafts/features/session-time-analysis.md | /features/session-time-analysis/ | feature_page | session time analysis trading | Trader Intelligence | Session review |
 | TI-011 | 2 | not_started | docs/content/drafts/features/entry-review.md | /features/entry-review/ | feature_page | trade entry review | Trader Intelligence | Entry analysis |
 | TI-012 | 2 | not_started | docs/content/drafts/features/exit-review.md | /features/exit-review/ | feature_page | trade exit review | Trader Intelligence | Exit analysis |
 | TI-013 | 2 | not_started | docs/content/drafts/features/scaling-analysis.md | /features/scaling-analysis/ | feature_page | scaling in and out trading | Trader Intelligence | Scaling review |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. TI-006
-2. TI-007
-3. TI-008
-4. TI-009
-5. TI-010
+1. TI-011
+2. TI-012
+3. TI-013
+4. TI-014
+5. TI-015
