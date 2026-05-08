@@ -101,11 +101,11 @@ Every draft must include:
 | BLOG-002 | 3 | needs_review | docs/content/drafts/blog/trading-journal-for-day-traders.md | /blog/trading-journal-for-day-traders/ | blog_article | trading journal for day traders | Education | Supports journal pages |
 | BLOG-003 | 3 | needs_review | docs/content/drafts/blog/how-to-analyze-trade-entries-and-exits.md | /blog/how-to-analyze-trade-entries-and-exits/ | blog_article | how to analyze trade entries and exits | Education | Supports execution analysis |
 | BLOG-004 | 3 | needs_review | docs/content/drafts/blog/how-to-track-trading-mistakes.md | /blog/how-to-track-trading-mistakes/ | blog_article | how to track trading mistakes | Education | Supports mistake tracker |
-| BLOG-005 | 3 | not_started | docs/content/drafts/blog/why-p-and-l-alone-is-not-enough.md | /blog/why-p-and-l-alone-is-not-enough/ | blog_article | why P&L alone is not enough | Education | Core philosophy |
-| BLOG-006 | 3 | not_started | docs/content/drafts/blog/how-to-review-trade-management.md | /blog/how-to-review-trade-management/ | blog_article | how to review trade management | Education | Supports trade management |
-| BLOG-007 | 3 | not_started | docs/content/drafts/blog/trading-journal-template-for-day-traders.md | /blog/trading-journal-template-for-day-traders/ | blog_article | trading journal template for day traders | Education | Template intent |
-| BLOG-008 | 3 | not_started | docs/content/drafts/blog/daily-trade-review-checklist.md | /blog/daily-trade-review-checklist/ | checklist | daily trade review checklist | Education | Checklist intent |
-| LEARN-001 | 3 | not_started | docs/content/drafts/learn/small-cap-stocks.md | /learn/small-cap-stocks/ | guide | small cap stocks | Education | Small-cap hub |
+| BLOG-005 | 3 | needs_review | docs/content/drafts/blog/why-p-and-l-alone-is-not-enough.md | /blog/why-p-and-l-alone-is-not-enough/ | blog_article | why P&L alone is not enough | Education | Core philosophy |
+| BLOG-006 | 3 | needs_review | docs/content/drafts/blog/how-to-review-trade-management.md | /blog/how-to-review-trade-management/ | blog_article | how to review trade management | Education | Supports trade management |
+| BLOG-007 | 3 | needs_review | docs/content/drafts/blog/trading-journal-template-for-day-traders.md | /blog/trading-journal-template-for-day-traders/ | blog_article | trading journal template for day traders | Education | Template intent |
+| BLOG-008 | 3 | needs_review | docs/content/drafts/blog/daily-trade-review-checklist.md | /blog/daily-trade-review-checklist/ | checklist | daily trade review checklist | Education | Checklist intent |
+| LEARN-001 | 3 | needs_review | docs/content/drafts/learn/small-cap-stocks.md | /learn/small-cap-stocks/ | guide | small cap stocks | Education | Small-cap hub |
 | LEARN-002 | 3 | not_started | docs/content/drafts/learn/penny-stocks.md | /learn/penny-stocks/ | guide | penny stocks | Education | Penny stock hub |
 | LEARN-003 | 3 | not_started | docs/content/drafts/learn/low-float-stocks.md | /learn/low-float-stocks/ | guide | low float stocks | Education | Float education |
 | LEARN-004 | 3 | not_started | docs/content/drafts/learn/stock-float.md | /learn/stock-float/ | guide | stock float | Education | Core term |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. BLOG-005
-2. BLOG-006
-3. BLOG-007
-4. BLOG-008
-5. LEARN-001
+1. LEARN-002
+2. LEARN-003
+3. LEARN-004
+4. LEARN-005
+5. SEC-001
