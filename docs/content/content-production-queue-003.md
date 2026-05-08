@@ -35,14 +35,18 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 | SR-003 | 3 | needs_review | docs/content/drafts/learn/resistance-levels.md | /learn/resistance-levels/ | guide | resistance levels | Education | Resistance concept guide |
 | SR-004 | 3 | needs_review | docs/content/drafts/learn/support-levels.md | /learn/support-levels/ | guide | support levels | Education | Support concept guide |
 | SR-005 | 3 | needs_review | docs/content/drafts/learn/swing-highs-and-swing-lows.md | /learn/swing-highs-and-swing-lows/ | guide | swing highs and swing lows | Education | Market structure guide |
-| SR-006 | 3 | not_started | docs/content/drafts/learn/pivot-levels.md | /learn/pivot-levels/ | guide | pivot levels | Education | Pivot level guide |
-| SR-007 | 3 | not_started | docs/content/drafts/learn/key-levels-trading.md | /learn/key-levels-trading/ | guide | key levels trading | Education | Key level guide |
-| SR-008 | 3 | not_started | docs/content/drafts/learn/previous-day-high-low.md | /learn/previous-day-high-low/ | guide | previous day high low | Education | Previous day levels guide |
-| SR-009 | 3 | not_started | docs/content/drafts/learn/premarket-high-low.md | /learn/premarket-high-low/ | guide | premarket high low | Education | Premarket levels guide |
-| SR-010 | 3 | not_started | docs/content/drafts/learn/high-of-day.md | /learn/high-of-day/ | guide | high of day | Education | HOD concept guide |
+| SR-006 | 3 | needs_review | docs/content/drafts/learn/pivot-levels.md | /learn/pivot-levels/ | guide | pivot levels | Education | Pivot level guide |
+| SR-007 | 3 | needs_review | docs/content/drafts/learn/key-levels-trading.md | /learn/key-levels-trading/ | guide | key levels trading | Education | Key level guide |
+| SR-008 | 3 | needs_review | docs/content/drafts/learn/previous-day-high-low.md | /learn/previous-day-high-low/ | guide | previous day high low | Education | Previous day levels guide |
+| SR-009 | 3 | needs_review | docs/content/drafts/learn/premarket-high-low.md | /learn/premarket-high-low/ | guide | premarket high low | Education | Premarket levels guide |
+| SR-010 | 3 | needs_review | docs/content/drafts/learn/high-of-day.md | /learn/high-of-day/ | guide | high of day | Education | HOD concept guide |
 
 ## Next Run Instruction
 
-Draft SR-006 through SR-010 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+All currently queued Queue 003 items are drafted and marked `needs_review`.
 
-SR-001 through SR-005 are drafted and ready for review.
+Next step options:
+
+1. Review and approve existing drafts.
+2. Expand the support and resistance cluster with the next master-plan items.
+3. Start Queue 004 for another SEO cluster.
