@@ -111,11 +111,11 @@ Every draft must include:
 | LEARN-004 | 3 | needs_review | docs/content/drafts/learn/stock-float.md | /learn/stock-float/ | guide | stock float | Education | Core term |
 | LEARN-005 | 3 | needs_review | docs/content/drafts/learn/relative-volume.md | /learn/relative-volume/ | guide | relative volume | Education | Scanner concept |
 | SEC-001 | 3 | needs_review | docs/content/drafts/learn/sec-filings.md | /learn/sec-filings/ | cluster_hub | SEC filings | Education | SEC hub |
-| SEC-002 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-8-k.md | /learn/sec-filings/form-8-k/ | guide | Form 8-K | Education | Filing explainer |
-| SEC-003 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-s-1.md | /learn/sec-filings/form-s-1/ | guide | Form S-1 | Education | Filing explainer |
-| SEC-004 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-s-3.md | /learn/sec-filings/form-s-3/ | guide | Form S-3 | Education | Filing explainer |
-| SEC-005 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-424b5.md | /learn/sec-filings/form-424b5/ | guide | Form 424B5 | Education | Filing explainer |
-| SEC-006 | 3 | not_started | docs/content/drafts/learn/reverse-split.md | /learn/reverse-split/ | guide | reverse stock split | Education | Dilution/risk education |
+| SEC-002 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-8-k.md | /learn/sec-filings/form-8-k/ | guide | Form 8-K | Education | Filing explainer |
+| SEC-003 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-s-1.md | /learn/sec-filings/form-s-1/ | guide | Form S-1 | Education | Filing explainer |
+| SEC-004 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-s-3.md | /learn/sec-filings/form-s-3/ | guide | Form S-3 | Education | Filing explainer |
+| SEC-005 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-424b5.md | /learn/sec-filings/form-424b5/ | guide | Form 424B5 | Education | Filing explainer |
+| SEC-006 | 3 | needs_review | docs/content/drafts/learn/reverse-split.md | /learn/reverse-split/ | guide | reverse stock split | Education | Dilution/risk education |
 | SEC-007 | 3 | not_started | docs/content/drafts/learn/how-to-spot-dilution-risk.md | /learn/how-to-spot-dilution-risk/ | guide | how to spot dilution risk | Education | Dilution education |
 | CHART-001 | 4 | not_started | docs/content/drafts/learn/chart-patterns.md | /learn/chart-patterns/ | cluster_hub | chart patterns | Education | Chart hub |
 | CHART-002 | 4 | not_started | docs/content/drafts/learn/chart-patterns/bull-flag.md | /learn/chart-patterns/bull-flag/ | guide | bull flag pattern | Education | Pattern guide |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. SEC-002
-2. SEC-003
-3. SEC-004
-4. SEC-005
-5. SEC-006
+1. SEC-007
+2. CHART-001
+3. CHART-002
+4. CHART-003
+5. CHART-004
