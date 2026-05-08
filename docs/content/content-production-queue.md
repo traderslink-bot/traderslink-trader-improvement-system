@@ -106,11 +106,11 @@ Every draft must include:
 | BLOG-007 | 3 | needs_review | docs/content/drafts/blog/trading-journal-template-for-day-traders.md | /blog/trading-journal-template-for-day-traders/ | blog_article | trading journal template for day traders | Education | Template intent |
 | BLOG-008 | 3 | needs_review | docs/content/drafts/blog/daily-trade-review-checklist.md | /blog/daily-trade-review-checklist/ | checklist | daily trade review checklist | Education | Checklist intent |
 | LEARN-001 | 3 | needs_review | docs/content/drafts/learn/small-cap-stocks.md | /learn/small-cap-stocks/ | guide | small cap stocks | Education | Small-cap hub |
-| LEARN-002 | 3 | not_started | docs/content/drafts/learn/penny-stocks.md | /learn/penny-stocks/ | guide | penny stocks | Education | Penny stock hub |
-| LEARN-003 | 3 | not_started | docs/content/drafts/learn/low-float-stocks.md | /learn/low-float-stocks/ | guide | low float stocks | Education | Float education |
-| LEARN-004 | 3 | not_started | docs/content/drafts/learn/stock-float.md | /learn/stock-float/ | guide | stock float | Education | Core term |
-| LEARN-005 | 3 | not_started | docs/content/drafts/learn/relative-volume.md | /learn/relative-volume/ | guide | relative volume | Education | Scanner concept |
-| SEC-001 | 3 | not_started | docs/content/drafts/learn/sec-filings.md | /learn/sec-filings/ | cluster_hub | SEC filings | Education | SEC hub |
+| LEARN-002 | 3 | needs_review | docs/content/drafts/learn/penny-stocks.md | /learn/penny-stocks/ | guide | penny stocks | Education | Penny stock hub |
+| LEARN-003 | 3 | needs_review | docs/content/drafts/learn/low-float-stocks.md | /learn/low-float-stocks/ | guide | low float stocks | Education | Float education |
+| LEARN-004 | 3 | needs_review | docs/content/drafts/learn/stock-float.md | /learn/stock-float/ | guide | stock float | Education | Core term |
+| LEARN-005 | 3 | needs_review | docs/content/drafts/learn/relative-volume.md | /learn/relative-volume/ | guide | relative volume | Education | Scanner concept |
+| SEC-001 | 3 | needs_review | docs/content/drafts/learn/sec-filings.md | /learn/sec-filings/ | cluster_hub | SEC filings | Education | SEC hub |
 | SEC-002 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-8-k.md | /learn/sec-filings/form-8-k/ | guide | Form 8-K | Education | Filing explainer |
 | SEC-003 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-s-1.md | /learn/sec-filings/form-s-1/ | guide | Form S-1 | Education | Filing explainer |
 | SEC-004 | 3 | not_started | docs/content/drafts/learn/sec-filings/form-s-3.md | /learn/sec-filings/form-s-3/ | guide | Form S-3 | Education | Filing explainer |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. LEARN-002
-2. LEARN-003
-3. LEARN-004
-4. LEARN-005
-5. SEC-001
+1. SEC-002
+2. SEC-003
+3. SEC-004
+4. SEC-005
+5. SEC-006
