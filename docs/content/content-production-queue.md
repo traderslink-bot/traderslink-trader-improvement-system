@@ -121,11 +121,11 @@ Every draft must include:
 | CHART-002 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/bull-flag.md | /learn/chart-patterns/bull-flag/ | guide | bull flag pattern | Education | Pattern guide |
 | CHART-003 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/ascending-triangle.md | /learn/chart-patterns/ascending-triangle/ | guide | ascending triangle pattern | Education | Pattern guide |
 | CHART-004 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/double-top.md | /learn/chart-patterns/double-top/ | guide | double top pattern | Education | Pattern guide |
-| CANDLE-001 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns.md | /learn/candlestick-patterns/ | cluster_hub | candlestick patterns | Education | Candle hub |
-| CANDLE-002 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns/doji.md | /learn/candlestick-patterns/doji/ | guide | doji candle | Education | Candle guide |
-| CANDLE-003 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns/hammer.md | /learn/candlestick-patterns/hammer/ | guide | hammer candlestick | Education | Candle guide |
-| CANDLE-004 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns/engulfing-candle.md | /learn/candlestick-patterns/engulfing-candle/ | guide | engulfing candle | Education | Candle guide |
-| RISK-001 | 4 | not_started | docs/content/drafts/learn/risk-management.md | /learn/risk-management/ | guide | trading risk management | Education | Risk hub |
+| CANDLE-001 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns.md | /learn/candlestick-patterns/ | cluster_hub | candlestick patterns | Education | Candle hub |
+| CANDLE-002 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns/doji.md | /learn/candlestick-patterns/doji/ | guide | doji candle | Education | Candle guide |
+| CANDLE-003 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns/hammer.md | /learn/candlestick-patterns/hammer/ | guide | hammer candlestick | Education | Candle guide |
+| CANDLE-004 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns/engulfing-candle.md | /learn/candlestick-patterns/engulfing-candle/ | guide | engulfing candle | Education | Candle guide |
+| RISK-001 | 4 | needs_review | docs/content/drafts/learn/risk-management.md | /learn/risk-management/ | guide | trading risk management | Education | Risk hub |
 | RISK-002 | 4 | not_started | docs/content/drafts/learn/position-sizing.md | /learn/position-sizing/ | guide | position sizing | Education | Risk guide |
 | RISK-003 | 4 | not_started | docs/content/drafts/learn/revenge-trading.md | /learn/revenge-trading/ | guide | revenge trading | Education | Psychology guide |
 | RISK-004 | 4 | not_started | docs/content/drafts/learn/overtrading.md | /learn/overtrading/ | guide | overtrading | Education | Psychology guide |
@@ -136,8 +136,6 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. CANDLE-001
-2. CANDLE-002
-3. CANDLE-003
-4. CANDLE-004
-5. RISK-001
+1. RISK-002
+2. RISK-003
+3. RISK-004
