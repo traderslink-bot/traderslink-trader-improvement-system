@@ -35,14 +35,18 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 | SR-013 | 3 | needs_review | docs/content/drafts/learn/break-of-structure.md | /learn/break-of-structure/ | guide | break of structure | Education | Market structure shift guide |
 | SR-014 | 3 | needs_review | docs/content/drafts/learn/higher-highs-higher-lows.md | /learn/higher-highs-higher-lows/ | guide | higher highs higher lows | Education | Uptrend structure guide |
 | SR-015 | 3 | needs_review | docs/content/drafts/learn/lower-highs-lower-lows.md | /learn/lower-highs-lower-lows/ | guide | lower highs lower lows | Education | Downtrend structure guide |
-| SR-016 | 3 | not_started | docs/content/drafts/learn/consolidation.md | /learn/consolidation/ | guide | consolidation trading | Education | Consolidation guide |
-| SR-017 | 3 | not_started | docs/content/drafts/learn/compression.md | /learn/compression/ | guide | compression trading | Education | Compression guide |
-| SR-018 | 3 | not_started | docs/content/drafts/learn/price-rejection.md | /learn/price-rejection/ | guide | price rejection | Education | Rejection guide |
-| SR-019 | 3 | not_started | docs/content/drafts/learn/level-breakout.md | /learn/level-breakout/ | guide | level breakout | Education | Breakout around levels guide |
-| SR-020 | 3 | not_started | docs/content/drafts/learn/level-reclaim.md | /learn/level-reclaim/ | guide | level reclaim | Education | Reclaim around levels guide |
+| SR-016 | 3 | needs_review | docs/content/drafts/learn/consolidation.md | /learn/consolidation/ | guide | consolidation trading | Education | Consolidation guide |
+| SR-017 | 3 | needs_review | docs/content/drafts/learn/compression.md | /learn/compression/ | guide | compression trading | Education | Compression guide |
+| SR-018 | 3 | needs_review | docs/content/drafts/learn/price-rejection.md | /learn/price-rejection/ | guide | price rejection | Education | Rejection guide |
+| SR-019 | 3 | needs_review | docs/content/drafts/learn/level-breakout.md | /learn/level-breakout/ | guide | level breakout | Education | Breakout around levels guide |
+| SR-020 | 3 | needs_review | docs/content/drafts/learn/level-reclaim.md | /learn/level-reclaim/ | guide | level reclaim | Education | Reclaim around levels guide |
 
 ## Next Run Instruction
 
-Draft SR-016 through SR-020 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+All currently queued Queue 004 items are drafted and marked `needs_review`.
 
-SR-011 through SR-015 are drafted and ready for review.
+Next step options:
+
+1. Review and approve existing drafts.
+2. Start Queue 005 with the next SEO cluster from the master plan.
+3. Expand the support and resistance cluster with more advanced level review topics if needed.
