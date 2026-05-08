@@ -96,11 +96,11 @@ Every draft must include:
 | TI-013 | 2 | needs_review | docs/content/drafts/features/scaling-analysis.md | /features/scaling-analysis/ | feature_page | scaling in and out trading | Trader Intelligence | Scaling review |
 | TI-014 | 2 | needs_review | docs/content/drafts/features/average-down-tracking.md | /features/average-down-tracking/ | feature_page | average down tracking | Trader Intelligence | Adverse add behavior |
 | TI-015 | 2 | needs_review | docs/content/drafts/features/profit-protection-review.md | /features/profit-protection-review/ | feature_page | profit protection trading | Trader Intelligence | Profit giveback review |
-| TI-016 | 2 | not_started | docs/content/drafts/features/performance-insights.md | /features/performance-insights/ | feature_page | trading performance insights | Trader Intelligence | Performance review |
-| BLOG-001 | 3 | not_started | docs/content/drafts/blog/how-to-review-your-trades.md | /blog/how-to-review-your-trades/ | blog_article | how to review your trades | Education | Foundational blog |
-| BLOG-002 | 3 | not_started | docs/content/drafts/blog/trading-journal-for-day-traders.md | /blog/trading-journal-for-day-traders/ | blog_article | trading journal for day traders | Education | Supports journal pages |
-| BLOG-003 | 3 | not_started | docs/content/drafts/blog/how-to-analyze-trade-entries-and-exits.md | /blog/how-to-analyze-trade-entries-and-exits/ | blog_article | how to analyze trade entries and exits | Education | Supports execution analysis |
-| BLOG-004 | 3 | not_started | docs/content/drafts/blog/how-to-track-trading-mistakes.md | /blog/how-to-track-trading-mistakes/ | blog_article | how to track trading mistakes | Education | Supports mistake tracker |
+| TI-016 | 2 | needs_review | docs/content/drafts/features/performance-insights.md | /features/performance-insights/ | feature_page | trading performance insights | Trader Intelligence | Performance review |
+| BLOG-001 | 3 | needs_review | docs/content/drafts/blog/how-to-review-your-trades.md | /blog/how-to-review-your-trades/ | blog_article | how to review your trades | Education | Foundational blog |
+| BLOG-002 | 3 | needs_review | docs/content/drafts/blog/trading-journal-for-day-traders.md | /blog/trading-journal-for-day-traders/ | blog_article | trading journal for day traders | Education | Supports journal pages |
+| BLOG-003 | 3 | needs_review | docs/content/drafts/blog/how-to-analyze-trade-entries-and-exits.md | /blog/how-to-analyze-trade-entries-and-exits/ | blog_article | how to analyze trade entries and exits | Education | Supports execution analysis |
+| BLOG-004 | 3 | needs_review | docs/content/drafts/blog/how-to-track-trading-mistakes.md | /blog/how-to-track-trading-mistakes/ | blog_article | how to track trading mistakes | Education | Supports mistake tracker |
 | BLOG-005 | 3 | not_started | docs/content/drafts/blog/why-p-and-l-alone-is-not-enough.md | /blog/why-p-and-l-alone-is-not-enough/ | blog_article | why P&L alone is not enough | Education | Core philosophy |
 | BLOG-006 | 3 | not_started | docs/content/drafts/blog/how-to-review-trade-management.md | /blog/how-to-review-trade-management/ | blog_article | how to review trade management | Education | Supports trade management |
 | BLOG-007 | 3 | not_started | docs/content/drafts/blog/trading-journal-template-for-day-traders.md | /blog/trading-journal-template-for-day-traders/ | blog_article | trading journal template for day traders | Education | Template intent |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. TI-016
-2. BLOG-001
-3. BLOG-002
-4. BLOG-003
-5. BLOG-004
+1. BLOG-005
+2. BLOG-006
+3. BLOG-007
+4. BLOG-008
+5. LEARN-001
