@@ -126,16 +126,16 @@ Every draft must include:
 | CANDLE-003 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns/hammer.md | /learn/candlestick-patterns/hammer/ | guide | hammer candlestick | Education | Candle guide |
 | CANDLE-004 | 4 | needs_review | docs/content/drafts/learn/candlestick-patterns/engulfing-candle.md | /learn/candlestick-patterns/engulfing-candle/ | guide | engulfing candle | Education | Candle guide |
 | RISK-001 | 4 | needs_review | docs/content/drafts/learn/risk-management.md | /learn/risk-management/ | guide | trading risk management | Education | Risk hub |
-| RISK-002 | 4 | not_started | docs/content/drafts/learn/position-sizing.md | /learn/position-sizing/ | guide | position sizing | Education | Risk guide |
-| RISK-003 | 4 | not_started | docs/content/drafts/learn/revenge-trading.md | /learn/revenge-trading/ | guide | revenge trading | Education | Psychology guide |
-| RISK-004 | 4 | not_started | docs/content/drafts/learn/overtrading.md | /learn/overtrading/ | guide | overtrading | Education | Psychology guide |
+| RISK-002 | 4 | needs_review | docs/content/drafts/learn/position-sizing.md | /learn/position-sizing/ | guide | position sizing | Education | Risk guide |
+| RISK-003 | 4 | needs_review | docs/content/drafts/learn/revenge-trading.md | /learn/revenge-trading/ | guide | revenge trading | Education | Psychology guide |
+| RISK-004 | 4 | needs_review | docs/content/drafts/learn/overtrading.md | /learn/overtrading/ | guide | overtrading | Education | Psychology guide |
 
 ## Next Run Instruction
 
-When continuing the queue, start with the lowest priority number and earliest table order where `Status` is `not_started`.
+All currently queued items are drafted and marked `needs_review`.
 
-Next default batch:
+Next step options:
 
-1. RISK-002
-2. RISK-003
-3. RISK-004
+1. Review and approve existing drafts.
+2. Expand the queue with more topics from `docs/content/trader-intelligence-seo-master-plan.md`.
+3. Start a new content production queue for another cluster.
