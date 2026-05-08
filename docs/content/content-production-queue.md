@@ -81,11 +81,11 @@ Every draft must include:
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| TI-001 | 1 | not_started | docs/content/drafts/product/trading-journal-app.md | /trading-journal-app/ | product_page | trading journal app | Trader Intelligence | Main money page |
-| TI-002 | 1 | not_started | docs/content/drafts/product/trader-intelligence.md | /trader-intelligence/ | product_page | trader intelligence | Trader Intelligence | Main product hub |
-| TI-003 | 1 | not_started | docs/content/drafts/product/trade-review-app.md | /trade-review-app/ | product_page | trade review app | Trader Intelligence | Review-focused product page |
-| TI-004 | 1 | not_started | docs/content/drafts/features/execution-analysis.md | /features/execution-analysis/ | feature_page | trade execution analysis | Trader Intelligence | Core feature |
-| TI-005 | 1 | not_started | docs/content/drafts/features/trading-mistake-tracker.md | /features/trading-mistake-tracker/ | feature_page | trading mistake tracker | Trader Intelligence | Core feature |
+| TI-001 | 1 | needs_review | docs/content/drafts/product/trading-journal-app.md | /trading-journal-app/ | product_page | trading journal app | Trader Intelligence | Main money page |
+| TI-002 | 1 | needs_review | docs/content/drafts/product/trader-intelligence.md | /trader-intelligence/ | product_page | trader intelligence | Trader Intelligence | Main product hub |
+| TI-003 | 1 | needs_review | docs/content/drafts/product/trade-review-app.md | /trade-review-app/ | product_page | trade review app | Trader Intelligence | Review-focused product page |
+| TI-004 | 1 | needs_review | docs/content/drafts/features/execution-analysis.md | /features/execution-analysis/ | feature_page | trade execution analysis | Trader Intelligence | Core feature |
+| TI-005 | 1 | needs_review | docs/content/drafts/features/trading-mistake-tracker.md | /features/trading-mistake-tracker/ | feature_page | trading mistake tracker | Trader Intelligence | Core feature |
 | TI-006 | 1 | not_started | docs/content/drafts/features/broker-execution-import.md | /features/broker-execution-import/ | feature_page | broker execution import | Trader Intelligence | Import feature |
 | TI-007 | 1 | not_started | docs/content/drafts/features/trade-management-feedback.md | /features/trade-management-feedback/ | feature_page | trade management feedback | Trader Intelligence | Trade management feature |
 | TI-008 | 1 | not_started | docs/content/drafts/features/support-resistance-trade-review.md | /features/support-resistance-trade-review/ | feature_page | support and resistance trade review | Trader Intelligence | Levels-based review |
@@ -134,10 +134,10 @@ Every draft must include:
 
 When continuing the queue, start with the lowest priority number and earliest table order where `Status` is `not_started`.
 
-Default first batch:
+Next default batch:
 
-1. TI-001
-2. TI-002
-3. TI-003
-4. TI-004
-5. TI-005
+1. TI-006
+2. TI-007
+3. TI-008
+4. TI-009
+5. TI-010
