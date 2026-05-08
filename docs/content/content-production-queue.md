@@ -91,11 +91,11 @@ Every draft must include:
 | TI-008 | 1 | needs_review | docs/content/drafts/features/support-resistance-trade-review.md | /features/support-resistance-trade-review/ | feature_page | support and resistance trade review | Trader Intelligence | Levels-based review |
 | TI-009 | 2 | needs_review | docs/content/drafts/product/day-trading-journal.md | /day-trading-journal/ | product_page | day trading journal | Trader Intelligence | Commercial page |
 | TI-010 | 2 | needs_review | docs/content/drafts/features/session-time-analysis.md | /features/session-time-analysis/ | feature_page | session time analysis trading | Trader Intelligence | Session review |
-| TI-011 | 2 | not_started | docs/content/drafts/features/entry-review.md | /features/entry-review/ | feature_page | trade entry review | Trader Intelligence | Entry analysis |
-| TI-012 | 2 | not_started | docs/content/drafts/features/exit-review.md | /features/exit-review/ | feature_page | trade exit review | Trader Intelligence | Exit analysis |
-| TI-013 | 2 | not_started | docs/content/drafts/features/scaling-analysis.md | /features/scaling-analysis/ | feature_page | scaling in and out trading | Trader Intelligence | Scaling review |
-| TI-014 | 2 | not_started | docs/content/drafts/features/average-down-tracking.md | /features/average-down-tracking/ | feature_page | average down tracking | Trader Intelligence | Adverse add behavior |
-| TI-015 | 2 | not_started | docs/content/drafts/features/profit-protection-review.md | /features/profit-protection-review/ | feature_page | profit protection trading | Trader Intelligence | Profit giveback review |
+| TI-011 | 2 | needs_review | docs/content/drafts/features/entry-review.md | /features/entry-review/ | feature_page | trade entry review | Trader Intelligence | Entry analysis |
+| TI-012 | 2 | needs_review | docs/content/drafts/features/exit-review.md | /features/exit-review/ | feature_page | trade exit review | Trader Intelligence | Exit analysis |
+| TI-013 | 2 | needs_review | docs/content/drafts/features/scaling-analysis.md | /features/scaling-analysis/ | feature_page | scaling in and out trading | Trader Intelligence | Scaling review |
+| TI-014 | 2 | needs_review | docs/content/drafts/features/average-down-tracking.md | /features/average-down-tracking/ | feature_page | average down tracking | Trader Intelligence | Adverse add behavior |
+| TI-015 | 2 | needs_review | docs/content/drafts/features/profit-protection-review.md | /features/profit-protection-review/ | feature_page | profit protection trading | Trader Intelligence | Profit giveback review |
 | TI-016 | 2 | not_started | docs/content/drafts/features/performance-insights.md | /features/performance-insights/ | feature_page | trading performance insights | Trader Intelligence | Performance review |
 | BLOG-001 | 3 | not_started | docs/content/drafts/blog/how-to-review-your-trades.md | /blog/how-to-review-your-trades/ | blog_article | how to review your trades | Education | Foundational blog |
 | BLOG-002 | 3 | not_started | docs/content/drafts/blog/trading-journal-for-day-traders.md | /blog/trading-journal-for-day-traders/ | blog_article | trading journal for day traders | Education | Supports journal pages |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. TI-011
-2. TI-012
-3. TI-013
-4. TI-014
-5. TI-015
+1. TI-016
+2. BLOG-001
+3. BLOG-002
+4. BLOG-003
+5. BLOG-004
