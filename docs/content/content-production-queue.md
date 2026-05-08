@@ -116,11 +116,11 @@ Every draft must include:
 | SEC-004 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-s-3.md | /learn/sec-filings/form-s-3/ | guide | Form S-3 | Education | Filing explainer |
 | SEC-005 | 3 | needs_review | docs/content/drafts/learn/sec-filings/form-424b5.md | /learn/sec-filings/form-424b5/ | guide | Form 424B5 | Education | Filing explainer |
 | SEC-006 | 3 | needs_review | docs/content/drafts/learn/reverse-split.md | /learn/reverse-split/ | guide | reverse stock split | Education | Dilution/risk education |
-| SEC-007 | 3 | not_started | docs/content/drafts/learn/how-to-spot-dilution-risk.md | /learn/how-to-spot-dilution-risk/ | guide | how to spot dilution risk | Education | Dilution education |
-| CHART-001 | 4 | not_started | docs/content/drafts/learn/chart-patterns.md | /learn/chart-patterns/ | cluster_hub | chart patterns | Education | Chart hub |
-| CHART-002 | 4 | not_started | docs/content/drafts/learn/chart-patterns/bull-flag.md | /learn/chart-patterns/bull-flag/ | guide | bull flag pattern | Education | Pattern guide |
-| CHART-003 | 4 | not_started | docs/content/drafts/learn/chart-patterns/ascending-triangle.md | /learn/chart-patterns/ascending-triangle/ | guide | ascending triangle pattern | Education | Pattern guide |
-| CHART-004 | 4 | not_started | docs/content/drafts/learn/chart-patterns/double-top.md | /learn/chart-patterns/double-top/ | guide | double top pattern | Education | Pattern guide |
+| SEC-007 | 3 | needs_review | docs/content/drafts/learn/how-to-spot-dilution-risk.md | /learn/how-to-spot-dilution-risk/ | guide | how to spot dilution risk | Education | Dilution education |
+| CHART-001 | 4 | needs_review | docs/content/drafts/learn/chart-patterns.md | /learn/chart-patterns/ | cluster_hub | chart patterns | Education | Chart hub |
+| CHART-002 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/bull-flag.md | /learn/chart-patterns/bull-flag/ | guide | bull flag pattern | Education | Pattern guide |
+| CHART-003 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/ascending-triangle.md | /learn/chart-patterns/ascending-triangle/ | guide | ascending triangle pattern | Education | Pattern guide |
+| CHART-004 | 4 | needs_review | docs/content/drafts/learn/chart-patterns/double-top.md | /learn/chart-patterns/double-top/ | guide | double top pattern | Education | Pattern guide |
 | CANDLE-001 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns.md | /learn/candlestick-patterns/ | cluster_hub | candlestick patterns | Education | Candle hub |
 | CANDLE-002 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns/doji.md | /learn/candlestick-patterns/doji/ | guide | doji candle | Education | Candle guide |
 | CANDLE-003 | 4 | not_started | docs/content/drafts/learn/candlestick-patterns/hammer.md | /learn/candlestick-patterns/hammer/ | guide | hammer candlestick | Education | Candle guide |
@@ -136,8 +136,8 @@ When continuing the queue, start with the lowest priority number and earliest ta
 
 Next default batch:
 
-1. SEC-007
-2. CHART-001
-3. CHART-002
-4. CHART-003
-5. CHART-004
+1. CANDLE-001
+2. CANDLE-002
+3. CANDLE-003
+4. CANDLE-004
+5. RISK-001
