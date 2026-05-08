@@ -30,11 +30,11 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| VOL-001 | 3 | not_started | docs/content/drafts/learn/volume.md | /learn/volume/ | guide | stock volume | Education | Core volume concept |
-| VOL-002 | 3 | not_started | docs/content/drafts/learn/relative-volume-rvol.md | /learn/relative-volume-rvol/ | guide | relative volume RVOL | Education | RVOL guide |
-| VOL-003 | 3 | not_started | docs/content/drafts/learn/liquidity.md | /learn/liquidity/ | guide | stock liquidity | Education | Liquidity guide |
-| VOL-004 | 3 | not_started | docs/content/drafts/learn/spread.md | /learn/spread/ | guide | bid ask spread | Education | Spread guide |
-| VOL-005 | 3 | not_started | docs/content/drafts/learn/bid-and-ask.md | /learn/bid-and-ask/ | guide | bid and ask | Education | Bid ask guide |
+| VOL-001 | 3 | needs_review | docs/content/drafts/learn/volume.md | /learn/volume/ | guide | stock volume | Education | Core volume concept |
+| VOL-002 | 3 | needs_review | docs/content/drafts/learn/relative-volume-rvol.md | /learn/relative-volume-rvol/ | guide | relative volume RVOL | Education | RVOL guide |
+| VOL-003 | 3 | needs_review | docs/content/drafts/learn/liquidity.md | /learn/liquidity/ | guide | stock liquidity | Education | Liquidity guide |
+| VOL-004 | 3 | needs_review | docs/content/drafts/learn/spread.md | /learn/spread/ | guide | bid ask spread | Education | Spread guide |
+| VOL-005 | 3 | needs_review | docs/content/drafts/learn/bid-and-ask.md | /learn/bid-and-ask/ | guide | bid and ask | Education | Bid ask guide |
 | VOL-006 | 3 | not_started | docs/content/drafts/learn/level-2.md | /learn/level-2/ | guide | Level 2 trading | Education | Level 2 guide |
 | VOL-007 | 3 | not_started | docs/content/drafts/learn/time-and-sales.md | /learn/time-and-sales/ | guide | time and sales | Education | Tape reading guide |
 | VOL-008 | 3 | not_started | docs/content/drafts/learn/market-orders-vs-limit-orders.md | /learn/market-orders-vs-limit-orders/ | guide | market orders vs limit orders | Education | Order type guide |
@@ -43,6 +43,6 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 ## Next Run Instruction
 
-Draft VOL-001 through VOL-005 first, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+Draft VOL-006 through VOL-010 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
 
-Leave VOL-006 through VOL-010 as `not_started` until the next batch.
+VOL-001 through VOL-005 are drafted and ready for review.
