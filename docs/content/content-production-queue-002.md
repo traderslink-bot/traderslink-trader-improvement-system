@@ -35,20 +35,18 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 | DT-003 | 3 | needs_review | docs/content/drafts/learn/premarket-trading.md | /learn/premarket-trading/ | guide | premarket trading | Education | Session guide |
 | DT-004 | 3 | needs_review | docs/content/drafts/learn/after-hours-trading.md | /learn/after-hours-trading/ | guide | after hours trading | Education | Session guide |
 | DT-005 | 3 | needs_review | docs/content/drafts/learn/market-open-trading.md | /learn/market-open-trading/ | guide | market open trading | Education | Session guide |
-| DT-006 | 3 | not_started | docs/content/drafts/learn/midday-trading.md | /learn/midday-trading/ | guide | midday trading | Education | Session guide |
-| DT-007 | 3 | not_started | docs/content/drafts/learn/power-hour-trading.md | /learn/power-hour-trading/ | guide | power hour trading | Education | Session guide |
-| DT-008 | 3 | not_started | docs/content/drafts/learn/scalping-stocks.md | /learn/scalping-stocks/ | guide | scalping stocks | Education | Strategy guide |
-| DT-009 | 3 | not_started | docs/content/drafts/learn/momentum-trading.md | /learn/momentum-trading/ | guide | momentum trading | Education | Strategy guide |
-| DT-010 | 3 | not_started | docs/content/drafts/learn/breakout-trading.md | /learn/breakout-trading/ | guide | breakout trading | Education | Strategy guide |
+| DT-006 | 3 | needs_review | docs/content/drafts/learn/midday-trading.md | /learn/midday-trading/ | guide | midday trading | Education | Session guide |
+| DT-007 | 3 | needs_review | docs/content/drafts/learn/power-hour-trading.md | /learn/power-hour-trading/ | guide | power hour trading | Education | Session guide |
+| DT-008 | 3 | needs_review | docs/content/drafts/learn/scalping-stocks.md | /learn/scalping-stocks/ | guide | scalping stocks | Education | Strategy guide |
+| DT-009 | 3 | needs_review | docs/content/drafts/learn/momentum-trading.md | /learn/momentum-trading/ | guide | momentum trading | Education | Strategy guide |
+| DT-010 | 3 | needs_review | docs/content/drafts/learn/breakout-trading.md | /learn/breakout-trading/ | guide | breakout trading | Education | Strategy guide |
 
 ## Next Run Instruction
 
-Start with the lowest priority number and earliest table order where `Status` is `not_started`.
+All currently queued items are drafted and marked `needs_review`.
 
-Next default batch:
+Next step options:
 
-1. DT-006
-2. DT-007
-3. DT-008
-4. DT-009
-5. DT-010
+1. Review and approve existing drafts.
+2. Expand the queue with another SEO cluster from `docs/content/trader-intelligence-seo-master-plan.md`.
+3. Start a new content production queue for another cluster.
