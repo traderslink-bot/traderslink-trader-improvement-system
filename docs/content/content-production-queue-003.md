@@ -30,11 +30,11 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| SR-001 | 3 | not_started | docs/content/drafts/learn/support-and-resistance.md | /learn/support-and-resistance/ | guide | support and resistance | Education | Support and resistance hub |
-| SR-002 | 3 | not_started | docs/content/drafts/learn/how-to-draw-support-and-resistance.md | /learn/how-to-draw-support-and-resistance/ | guide | how to draw support and resistance | Education | Practical level drawing guide |
-| SR-003 | 3 | not_started | docs/content/drafts/learn/resistance-levels.md | /learn/resistance-levels/ | guide | resistance levels | Education | Resistance concept guide |
-| SR-004 | 3 | not_started | docs/content/drafts/learn/support-levels.md | /learn/support-levels/ | guide | support levels | Education | Support concept guide |
-| SR-005 | 3 | not_started | docs/content/drafts/learn/swing-highs-and-swing-lows.md | /learn/swing-highs-and-swing-lows/ | guide | swing highs and swing lows | Education | Market structure guide |
+| SR-001 | 3 | needs_review | docs/content/drafts/learn/support-and-resistance.md | /learn/support-and-resistance/ | guide | support and resistance | Education | Support and resistance hub |
+| SR-002 | 3 | needs_review | docs/content/drafts/learn/how-to-draw-support-and-resistance.md | /learn/how-to-draw-support-and-resistance/ | guide | how to draw support and resistance | Education | Practical level drawing guide |
+| SR-003 | 3 | needs_review | docs/content/drafts/learn/resistance-levels.md | /learn/resistance-levels/ | guide | resistance levels | Education | Resistance concept guide |
+| SR-004 | 3 | needs_review | docs/content/drafts/learn/support-levels.md | /learn/support-levels/ | guide | support levels | Education | Support concept guide |
+| SR-005 | 3 | needs_review | docs/content/drafts/learn/swing-highs-and-swing-lows.md | /learn/swing-highs-and-swing-lows/ | guide | swing highs and swing lows | Education | Market structure guide |
 | SR-006 | 3 | not_started | docs/content/drafts/learn/pivot-levels.md | /learn/pivot-levels/ | guide | pivot levels | Education | Pivot level guide |
 | SR-007 | 3 | not_started | docs/content/drafts/learn/key-levels-trading.md | /learn/key-levels-trading/ | guide | key levels trading | Education | Key level guide |
 | SR-008 | 3 | not_started | docs/content/drafts/learn/previous-day-high-low.md | /learn/previous-day-high-low/ | guide | previous day high low | Education | Previous day levels guide |
@@ -43,6 +43,6 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 ## Next Run Instruction
 
-Draft SR-001 through SR-005 first, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+Draft SR-006 through SR-010 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
 
-Leave SR-006 through SR-010 as `not_started` until the next batch.
+SR-001 through SR-005 are drafted and ready for review.
