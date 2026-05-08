@@ -76,7 +76,7 @@ Use `availability: "educational"` for general learning content.
 
 ## Voice And Style
 
-Write in plain, direct language.
+Write in plain, direct language with a human trading-community feel.
 
 The reader may be a newer trader, but do not talk down to them.
 
@@ -91,6 +91,26 @@ Avoid generic filler.
 Answer the search intent early.
 
 Make the article useful even if the reader never buys anything.
+
+Do not sound robotic or like a generic AI article.
+
+Use natural transitions and practical trader wording.
+
+Use occasional grounded phrasing like:
+
+- "This is where traders can get into trouble."
+- "That sounds simple, but it matters."
+- "The headline is only the start."
+- "The chart can look exciting, but the filing details still matter."
+- "This is not about predicting the move. It is about understanding the risk."
+
+Do not overdo personality. Keep it professional, but make it feel written by someone who understands active trading.
+
+Prefer specific examples over abstract explanations.
+
+Avoid repeating the same paragraph pattern across pages.
+
+Vary sentence rhythm so the content feels natural.
 
 ## Site-Wide Guardrails
 
@@ -347,3 +367,4 @@ Before saving a draft:
 4. Check there are no financial-advice claims.
 5. Check there are no buy or sell signal claims.
 6. Check the coming-soon status is clear for Trader Intelligence pages.
+7. Check the content sounds natural and not overly templated.
