@@ -35,14 +35,18 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 | VOL-003 | 3 | needs_review | docs/content/drafts/learn/liquidity.md | /learn/liquidity/ | guide | stock liquidity | Education | Liquidity guide |
 | VOL-004 | 3 | needs_review | docs/content/drafts/learn/spread.md | /learn/spread/ | guide | bid ask spread | Education | Spread guide |
 | VOL-005 | 3 | needs_review | docs/content/drafts/learn/bid-and-ask.md | /learn/bid-and-ask/ | guide | bid and ask | Education | Bid ask guide |
-| VOL-006 | 3 | not_started | docs/content/drafts/learn/level-2.md | /learn/level-2/ | guide | Level 2 trading | Education | Level 2 guide |
-| VOL-007 | 3 | not_started | docs/content/drafts/learn/time-and-sales.md | /learn/time-and-sales/ | guide | time and sales | Education | Tape reading guide |
-| VOL-008 | 3 | not_started | docs/content/drafts/learn/market-orders-vs-limit-orders.md | /learn/market-orders-vs-limit-orders/ | guide | market orders vs limit orders | Education | Order type guide |
-| VOL-009 | 3 | not_started | docs/content/drafts/learn/slippage.md | /learn/slippage/ | guide | trading slippage | Education | Slippage guide |
-| VOL-010 | 3 | not_started | docs/content/drafts/learn/volume-spike.md | /learn/volume-spike/ | guide | volume spike | Education | Volume spike guide |
+| VOL-006 | 3 | needs_review | docs/content/drafts/learn/level-2.md | /learn/level-2/ | guide | Level 2 trading | Education | Level 2 guide |
+| VOL-007 | 3 | needs_review | docs/content/drafts/learn/time-and-sales.md | /learn/time-and-sales/ | guide | time and sales | Education | Tape reading guide |
+| VOL-008 | 3 | needs_review | docs/content/drafts/learn/market-orders-vs-limit-orders.md | /learn/market-orders-vs-limit-orders/ | guide | market orders vs limit orders | Education | Order type guide |
+| VOL-009 | 3 | needs_review | docs/content/drafts/learn/slippage.md | /learn/slippage/ | guide | trading slippage | Education | Slippage guide |
+| VOL-010 | 3 | needs_review | docs/content/drafts/learn/volume-spike.md | /learn/volume-spike/ | guide | volume spike | Education | Volume spike guide |
 
 ## Next Run Instruction
 
-Draft VOL-006 through VOL-010 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+All currently queued Queue 005 items are drafted and marked `needs_review`.
 
-VOL-001 through VOL-005 are drafted and ready for review.
+Next step options:
+
+1. Review and approve existing drafts.
+2. Start Queue 006 with the next SEO cluster from the master plan.
+3. Expand the volume, liquidity, and order-flow cluster with the remaining master-plan items.
