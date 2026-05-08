@@ -30,11 +30,11 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| SR-011 | 3 | not_started | docs/content/drafts/learn/low-of-day.md | /learn/low-of-day/ | guide | low of day | Education | LOD concept guide |
-| SR-012 | 3 | not_started | docs/content/drafts/learn/new-high-of-day.md | /learn/new-high-of-day/ | guide | new high of day | Education | NHOD concept guide |
-| SR-013 | 3 | not_started | docs/content/drafts/learn/break-of-structure.md | /learn/break-of-structure/ | guide | break of structure | Education | Market structure shift guide |
-| SR-014 | 3 | not_started | docs/content/drafts/learn/higher-highs-higher-lows.md | /learn/higher-highs-higher-lows/ | guide | higher highs higher lows | Education | Uptrend structure guide |
-| SR-015 | 3 | not_started | docs/content/drafts/learn/lower-highs-lower-lows.md | /learn/lower-highs-lower-lows/ | guide | lower highs lower lows | Education | Downtrend structure guide |
+| SR-011 | 3 | needs_review | docs/content/drafts/learn/low-of-day.md | /learn/low-of-day/ | guide | low of day | Education | LOD concept guide |
+| SR-012 | 3 | needs_review | docs/content/drafts/learn/new-high-of-day.md | /learn/new-high-of-day/ | guide | new high of day | Education | NHOD concept guide |
+| SR-013 | 3 | needs_review | docs/content/drafts/learn/break-of-structure.md | /learn/break-of-structure/ | guide | break of structure | Education | Market structure shift guide |
+| SR-014 | 3 | needs_review | docs/content/drafts/learn/higher-highs-higher-lows.md | /learn/higher-highs-higher-lows/ | guide | higher highs higher lows | Education | Uptrend structure guide |
+| SR-015 | 3 | needs_review | docs/content/drafts/learn/lower-highs-lower-lows.md | /learn/lower-highs-lower-lows/ | guide | lower highs lower lows | Education | Downtrend structure guide |
 | SR-016 | 3 | not_started | docs/content/drafts/learn/consolidation.md | /learn/consolidation/ | guide | consolidation trading | Education | Consolidation guide |
 | SR-017 | 3 | not_started | docs/content/drafts/learn/compression.md | /learn/compression/ | guide | compression trading | Education | Compression guide |
 | SR-018 | 3 | not_started | docs/content/drafts/learn/price-rejection.md | /learn/price-rejection/ | guide | price rejection | Education | Rejection guide |
@@ -43,6 +43,6 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 ## Next Run Instruction
 
-Draft SR-011 through SR-015 first, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
+Draft SR-016 through SR-020 next, then update those rows to `needs_review` after checking against `docs/content/seo-quality-checklist.md`.
 
-Leave SR-016 through SR-020 as `not_started` until the next batch.
+SR-011 through SR-015 are drafted and ready for review.
