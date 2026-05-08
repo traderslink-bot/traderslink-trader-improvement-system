@@ -1,28 +1,39 @@
-# Trader Intelligence SEO Master Content Plan
+# TradersLink Complete SEO Master Content Plan
 
 ## Purpose
 
-This document is the master SEO content plan for the Trader Intelligence side of TradersLink.
+This document is the long-term SEO content roadmap for TradersLink, with Trader Intelligence as the main commercial anchor and a broader education library around small-cap trading, day trading, swing trading, SEC filings, press releases, chart reading, candles, risk management, trading psychology, and trader improvement.
 
-The goal is to build a large, organized SEO footprint before the public website is fully created. This plan is for content strategy and markdown draft production only. Codex or the website build system can later turn these markdown files into production pages.
+The goal is not to publish a few pages. The goal is to build a durable topical authority system that can grow into hundreds of useful pages over time.
 
-This plan focuses only on Trader Intelligence, not the full TradersLink platform homepage, scanner pages, press release tools, Discord beta pages, or chart-following platform pages.
+This plan is for strategy and markdown draft production only. Codex or the website build system should later convert markdown content into production pages.
+
+## Core Strategy
+
+TradersLink should become a trader tools and trader education brand.
+
+The strongest SEO strategy is to combine three content lanes:
+
+1. Product SEO for Trader Intelligence and TradersLink tools.
+2. Educational SEO for new and developing traders.
+3. Niche authority SEO for small-cap, penny stock, low-float, news-driven, and volatile stock trading topics.
+
+Trader Intelligence is the main conversion path. Educational content should naturally point readers toward better trade review, journaling, execution analysis, mistake tracking, and risk awareness.
 
 ## Working Roles
 
 ### ChatGPT Role
 
-ChatGPT is the SEO and content system.
+ChatGPT is the SEO and content strategist.
 
 Responsibilities:
 
 - Build SEO content strategy.
-- Create keyword clusters.
+- Create keyword clusters and content maps.
 - Write markdown drafts with frontmatter.
-- Maintain topical structure.
+- Maintain topical structure and internal linking.
 - Avoid unsupported product claims.
-- Keep all pages aligned with Trader Intelligence positioning.
-- Write clear, useful content for active traders.
+- Keep writing plain, useful, and search-intent focused.
 - Produce markdown only unless explicitly asked otherwise.
 
 ### Codex Role
@@ -37,11 +48,17 @@ Responsibilities:
 - Keep the content-driven setup clean.
 - Avoid changing SEO intent unless requested.
 
-## Product Focus
+## Brand Positioning
 
-Trader Intelligence is a coming trade review and trader improvement tool inside TradersLink.
+TradersLink is a trading tools platform for active traders, especially small-cap and day traders.
 
-It should be positioned as:
+Trader Intelligence is a coming trading journal and trade review app inside TradersLink.
+
+TradersLink content should be useful to traders even before they buy anything. The education library should build trust by explaining market mechanics, trade review, risk, filings, news, charts, and trader behavior in plain English.
+
+## Product Positioning
+
+Trader Intelligence should be positioned as:
 
 - A trading journal app.
 - A day trading journal.
@@ -49,11 +66,11 @@ It should be positioned as:
 - An execution analysis system.
 - A trading mistake tracker.
 - A trader improvement system.
-- A performance insights tool.
 - A broker execution import and review system.
+- A trade management feedback tool.
 - A support and resistance based trade review tool when market context is available.
 
-It should not be positioned as:
+Trader Intelligence should not be positioned as:
 
 - A stock alert service.
 - A buy or sell signal tool.
@@ -63,51 +80,20 @@ It should not be positioned as:
 - A fully automated trading system.
 - A tool that tells traders what to buy.
 
-## Core SEO Positioning
-
-Trader Intelligence helps active traders review trades with more structure, context, and evidence.
-
-The main SEO position:
-
-> A smarter trading journal for active day traders who want to review executions, analyze entries and exits, track repeated mistakes, and understand trade management behavior.
-
-Supporting positioning:
-
-> Trader Intelligence goes beyond manual notes by turning broker executions and trade context into structured review data, helping traders study how they entered, managed, scaled, exited, and repeated behavior across trades.
-
-## Audience
-
-Primary audience:
-
-- Active day traders.
-- Small-cap traders.
-- Penny stock traders.
-- Low-float momentum traders.
-- Traders who already take trades but struggle with review discipline.
-- Traders who need more than basic P&L tracking.
-- Traders who want structured review of entries, exits, adds, reductions, timing, and mistakes.
-
-Secondary audience:
-
-- Newer day traders learning how to journal.
-- Traders comparing trading journal apps.
-- Traders searching for a better trade review workflow.
-- Traders who currently use spreadsheets and want more automation.
-
-## Claims To Avoid
+## Site-Wide Claims To Avoid
 
 Avoid saying:
 
-- Trader Intelligence gives buy and sell signals.
-- Trader Intelligence guarantees better results.
-- Trader Intelligence guarantees profitable trades.
-- Trader Intelligence replaces trader judgment.
-- Trader Intelligence provides financial advice.
-- Trader Intelligence automatically knows every setup.
-- Trader Intelligence calls live trades.
-- Trader Intelligence is a human trading room.
-- Trader Intelligence prevents losses.
-- Trader Intelligence predicts the market.
+- Guaranteed profits.
+- Guaranteed alerts.
+- Win more trades.
+- Buy this stock.
+- Sell this stock.
+- This setup always works.
+- This filing means the stock will go up.
+- This pattern guarantees a move.
+- TradersLink provides financial advice.
+- Trader Intelligence tells users what to trade.
 
 Use careful wording:
 
@@ -116,26 +102,88 @@ Use careful wording:
 - Helps analyze.
 - Helps identify patterns.
 - Helps surface behavior.
-- Helps traders study execution.
-- Can support.
-- Designed to.
-- Coming soon.
-- When data is available.
-- Based on imported executions and available market context.
+- Can support better review.
+- Designed to help traders study their decisions.
+- Educational only.
+- Not financial advice.
+- Context for traders to evaluate.
 
-## Markdown Draft Rules
+## Audience Segments
 
-All pages should be written as markdown files with YAML frontmatter.
+### Primary Audiences
 
-Do not write:
+- Active day traders.
+- Small-cap traders.
+- Penny stock traders.
+- Low-float momentum traders.
+- Traders who use scanners and news catalysts.
+- Traders who need better trade review discipline.
+- Traders comparing trading journal apps.
+- Traders who want to understand execution behavior.
 
-- JSX
-- HTML
-- CSS
-- Next.js files
-- React components
+### Secondary Audiences
 
-Codex will handle the website build.
+- New traders learning market basics.
+- Swing traders learning catalysts, filings, and technical levels.
+- Traders learning SEC filings and dilution risk.
+- Traders learning chart patterns and candlestick basics.
+- Traders who want checklists, definitions, and practical guides.
+
+## SEO Architecture Overview
+
+The long-term website should have these content areas:
+
+1. Trader Intelligence product pages.
+2. Trader Intelligence feature pages.
+3. Trading journal and trade review blog cluster.
+4. Small-cap and penny stock trading education.
+5. SEC filings and dilution education.
+6. Press release and catalyst education.
+7. Stock market basics for newer traders.
+8. Day trading education.
+9. Swing trading education.
+10. Chart pattern education.
+11. Candlestick education.
+12. Support and resistance education.
+13. Volume, float, and liquidity education.
+14. Risk management and trading psychology.
+15. Broker, tools, scanner, and workflow guides.
+16. Glossary and definition library.
+17. Comparison and alternatives pages.
+
+## URL Structure Recommendation
+
+Use simple, readable URL folders.
+
+Suggested structure:
+
+```text
+docs/content/
+  seo-master-plan.md
+  drafts/
+    product/
+    features/
+    blog/
+    learn/
+    glossary/
+    comparisons/
+```
+
+Suggested public URL structure:
+
+```text
+/trader-intelligence/
+/trading-journal-app/
+/day-trading-journal/
+/trade-review-app/
+/features/execution-analysis/
+/features/trading-mistake-tracker/
+/blog/how-to-review-your-trades/
+/learn/sec-filings/
+/learn/candlestick-patterns/
+/glossary/reverse-split/
+/comparisons/trading-journal-app-vs-spreadsheet/
+```
 
 ## Standard Frontmatter Template
 
@@ -147,12 +195,12 @@ primary_keyword: ""
 secondary_keywords: []
 search_intent: ""
 status: "draft"
-product_area: "Trader Intelligence"
-availability: "coming_soon"
+product_area: ""
+availability: "live | beta | coming_soon | educational"
 content_type: ""
 funnel_stage: ""
 priority: ""
-cta: "Join the TradersLink beta"
+cta: ""
 internal_links: []
 schema:
   - "FAQPage"
@@ -168,11 +216,13 @@ Use these content_type values:
 
 - product_page
 - feature_page
-- comparison_page
 - blog_article
 - guide
 - glossary
 - cluster_hub
+- comparison_page
+- checklist
+- explainer
 
 ## Funnel Stages
 
@@ -183,1721 +233,756 @@ Use these funnel_stage values:
 - conversion
 - retention
 
-## Main SEO Clusters
+## Schema Recommendations
 
-Trader Intelligence should be planned as a large SEO cluster, not a small starter set.
+Use only when supported by the content:
 
-Primary clusters:
+- SoftwareApplication for product pages.
+- FAQPage for pages with real FAQ sections.
+- BlogPosting for blog articles.
+- Article for educational guides and glossary pages.
+- BreadcrumbList for all published pages.
+- Organization for brand-level pages.
+- Offer only for real offer pages.
 
-1. Trading journal app
-2. Day trading journal
-3. Trade review
-4. Execution analysis
-5. Trading mistake tracking
-6. Broker execution import
-7. Trade management review
-8. Entry and exit analysis
-9. Session timing analysis
-10. Support and resistance trade review
-11. Small-cap and penny stock journaling
-12. Trader improvement and coaching
-13. Trading psychology and behavior mistakes
-14. Comparisons and alternatives
-15. Glossary and beginner education
+Do not use review or rating schema unless real reviews exist.
 
-## Phase Overview
+## Priority Model
 
-### Phase 1: Core Commercial Pages
+### Priority 1
 
-Goal: build the main product and conversion pages.
+High-intent pages that can convert users or define the product.
 
-Estimated pages: 10 to 12.
+### Priority 2
 
-### Phase 2: Feature Support Pages
+Support pages that strengthen product SEO and internal linking.
 
-Goal: explain individual product capabilities and build long-tail SEO around specific trade review features.
+### Priority 3
 
-Estimated pages: 15 to 25.
+Educational articles that answer common trader searches and point toward product pages.
 
-### Phase 3: Blog Education Cluster
+### Priority 4
 
-Goal: answer common trading journal, trade review, and trader improvement searches.
+Large glossary and definition pages that build topical authority over time.
 
-Estimated articles: 30 to 50.
+## Long-Term Size Target
 
-### Phase 4: Small-Cap Trade Review Cluster
+This should become a 250 to 500 page content system over time.
 
-Goal: own a niche around reviewing volatile small-cap and penny stock trades.
+Suggested long-term distribution:
 
-Estimated articles: 15 to 25.
+- 15 to 25 product and conversion pages.
+- 30 to 50 feature and workflow pages.
+- 80 to 150 trading education articles.
+- 60 to 120 glossary pages.
+- 30 to 60 SEC filings and dilution pages.
+- 30 to 60 chart pattern and candle pages.
+- 20 to 40 comparison pages.
+- 20 to 40 checklists and templates.
 
-### Phase 5: Comparison and Alternative Pages
+## Master Hub Pages
 
-Goal: capture commercial investigation searches.
+These pages should act as major internal-linking hubs.
 
-Estimated pages: 10 to 20.
-
-Total long-term target: 80 to 130 pages and articles.
-
-## Phase 1: Core Commercial Pages
-
-### 1. Trader Intelligence
+### Trader Intelligence Hub
 
 Slug: `/trader-intelligence/`
 
 Primary keyword: `trader intelligence`
 
-Secondary keywords:
+Purpose: Main product hub for the trading journal, trade review, execution analysis, mistake tracking, and performance insight system.
 
-- trader improvement system
-- trade review tool
-- execution analysis tool
-- trading journal app
-
-Search intent: Learn what Trader Intelligence is and whether it fits the trader's review workflow.
-
-Funnel stage: conversion
-
-Page type: product_page
-
-Purpose: Main overview page for the Trader Intelligence app.
-
-Internal links:
-
-- `/trading-journal-app/`
-- `/day-trading-journal/`
-- `/trade-review-app/`
-- `/features/execution-analysis/`
-- `/features/trading-mistake-tracker/`
-- `/features/broker-execution-import/`
-
-### 2. Trading Journal App
+### Trading Journal Hub
 
 Slug: `/trading-journal-app/`
 
 Primary keyword: `trading journal app`
 
-Secondary keywords:
+Purpose: Main commercial SEO page for traders searching for a journal or review app.
 
-- day trading journal
-- trade review tool
-- execution analysis
-- trading mistake tracker
-
-Search intent: Find a trading journal or review tool for improving trade execution.
-
-Funnel stage: conversion
-
-Page type: product_page
-
-Purpose: Main SEO money page for the broad trading journal app keyword.
-
-### 3. Day Trading Journal
-
-Slug: `/day-trading-journal/`
-
-Primary keyword: `day trading journal`
-
-Secondary keywords:
-
-- trading journal for day traders
-- day trader journal
-- intraday trading journal
-- trade review for day traders
-
-Search intent: Find a journal specifically for active intraday traders.
-
-Funnel stage: conversion
-
-Page type: product_page
-
-Purpose: Capture day trading journal intent separately from the broader trading journal app page.
-
-### 4. Trade Review App
+### Trade Review Hub
 
 Slug: `/trade-review-app/`
 
 Primary keyword: `trade review app`
 
-Secondary keywords:
+Purpose: Position Trader Intelligence as more than manual notes by focusing on post-trade review.
 
-- trade review tool
-- review trades
-- analyze trades
-- trading performance review
+### Learn Trading Hub
 
-Search intent: Find a tool to review trades after execution.
+Slug: `/learn/`
 
-Funnel stage: conversion
+Primary keyword: `learn trading`
 
-Page type: product_page
+Purpose: Education hub for market basics, trading terms, chart patterns, filings, risk, and trade review.
 
-Purpose: Position Trader Intelligence as a review system, not just a note-taking journal.
+### Small-Cap Trading Hub
 
-### 5. Execution Analysis Tool
+Slug: `/learn/small-cap-stocks/`
 
-Slug: `/features/execution-analysis/`
+Primary keyword: `small cap stocks`
 
-Primary keyword: `trade execution analysis`
+Purpose: Educational hub for small-cap stock trading concepts.
 
-Secondary keywords:
+### SEC Filings Hub
 
-- execution analysis tool
-- analyze trade entries and exits
-- trading execution review
-- trading performance analysis
+Slug: `/learn/sec-filings/`
 
-Search intent: Understand or find a tool for analyzing entries, exits, adds, reductions, and trade management.
+Primary keyword: `SEC filings`
 
-Funnel stage: consideration
+Purpose: Explain SEC filings that traders commonly see.
 
-Page type: feature_page
+### Chart Patterns Hub
 
-Purpose: Explain execution analysis as a core feature.
+Slug: `/learn/chart-patterns/`
 
-### 6. Trading Mistake Tracker
+Primary keyword: `chart patterns`
 
-Slug: `/features/trading-mistake-tracker/`
+Purpose: Hub for pattern definitions and review-based education.
 
-Primary keyword: `trading mistake tracker`
+### Candlestick Patterns Hub
 
-Secondary keywords:
+Slug: `/learn/candlestick-patterns/`
 
-- track trading mistakes
-- trading mistakes journal
-- trading behavior tracker
-- repeated trading mistakes
+Primary keyword: `candlestick patterns`
 
-Search intent: Find a way to track repeated trading mistakes and behavior patterns.
+Purpose: Hub for candle types and candlestick pattern education.
 
-Funnel stage: consideration
+### Trading Glossary Hub
 
-Page type: feature_page
+Slug: `/glossary/`
+
+Primary keyword: `trading glossary`
+
+Purpose: Definition library for trading terms.
+
+## Cluster 1: Trader Intelligence Product Pages
+
+These are conversion and product SEO pages.
+
+1. `/trader-intelligence/` | trader intelligence | Main product hub.
+2. `/trading-journal-app/` | trading journal app | Main money page.
+3. `/day-trading-journal/` | day trading journal | Day trader focused journal page.
+4. `/trade-review-app/` | trade review app | Review-focused commercial page.
+5. `/trading-performance-analysis/` | trading performance analysis | Analytics and performance review page.
+6. `/trader-improvement-system/` | trader improvement system | Product positioning around improvement.
+7. `/small-cap-trading-journal/` | small cap trading journal | Niche product page.
+8. `/penny-stock-trading-journal/` | penny stock trading journal | Niche product page.
+9. `/broker-execution-import/` | broker execution import | Import-focused product page.
+10. `/trading-journal-for-active-traders/` | trading journal for active traders | Active trader positioning.
 
-Purpose: Explain mistake tracking and repeated behavior detection.
+## Cluster 2: Trader Intelligence Feature Pages
 
-### 7. Broker Execution Import
+These explain specific product capabilities and should link back to `/trader-intelligence/` and `/trading-journal-app/`.
 
-Slug: `/features/broker-execution-import/`
-
-Primary keyword: `broker execution import`
-
-Secondary keywords:
-
-- import trades from broker
-- broker CSV trading journal
-- trading journal CSV import
-- execution import trading journal
-
-Search intent: Find a journal that can import broker executions or CSV files.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain how imported executions improve review quality compared with manual journaling.
-
-### 8. Support and Resistance Trade Review
-
-Slug: `/features/support-resistance-trade-review/`
-
-Primary keyword: `support and resistance trade review`
-
-Secondary keywords:
-
-- review trades with support and resistance
-- trading journal support resistance
-- bought near resistance
-- sold near support
-
-Search intent: Learn how to review trades around support and resistance levels.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain how market context and generated levels can support review when available.
-
-### 9. Session Time Analysis
-
-Slug: `/features/session-time-analysis/`
-
-Primary keyword: `session time analysis trading`
-
-Secondary keywords:
-
-- premarket trade review
-- market open trade review
-- hourly trading performance
-- trading journal time of day
-
-Search intent: Understand how trading performance changes by session or time of day.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain review by premarket, open, midday, afternoon, after-hours, and overnight behavior.
-
-### 10. Trade Management Feedback
-
-Slug: `/features/trade-management-feedback/`
-
-Primary keyword: `trade management feedback`
-
-Secondary keywords:
-
-- review trade management
-- trade management mistakes
-- scaling in and out trading
-- profit protection review
-
-Search intent: Find feedback on how trades were managed after entry.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain review of holding behavior, scaling, reductions, adds, exits, and profit protection.
-
-### 11. Performance Insights
-
-Slug: `/features/performance-insights/`
-
-Primary keyword: `trading performance insights`
-
-Secondary keywords:
-
-- trading performance analysis
-- trading analytics
-- trade review analytics
-- trading journal performance metrics
-
-Search intent: Find analytics that help traders understand performance beyond P&L.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain performance breakdowns by behavior, session, trade type, and execution patterns.
-
-### 12. Evidence-Backed Coaching
-
-Slug: `/features/evidence-backed-coaching/`
-
-Primary keyword: `trading coaching app`
-
-Secondary keywords:
-
-- evidence backed trading feedback
-- trading improvement app
-- trade review coaching
-- trader behavior coaching
-
-Search intent: Find a tool that gives feedback based on trade evidence.
-
-Funnel stage: consideration
-
-Page type: feature_page
-
-Purpose: Explain coaching carefully as review feedback, not financial advice or trade instruction.
-
-## Phase 2: Feature Support Pages
-
-### Entry Review
-
-Slug: `/features/entry-review/`
-
-Primary keyword: `trade entry review`
-
-Secondary keywords:
-
-- analyze trading entries
-- review stock entries
-- bad trade entry
-- late trade entry
-
-Purpose: Review entry timing, extension, support/resistance context, and what happened after entry.
-
-### Exit Review
-
-Slug: `/features/exit-review/`
-
-Primary keyword: `trade exit review`
-
-Secondary keywords:
-
-- analyze trading exits
-- sold too early trading
-- missed exit trading
-- exit timing review
-
-Purpose: Review exits, missed continuation, defensive exits, late exits, and exits into weakness.
-
-### Scaling Analysis
-
-Slug: `/features/scaling-analysis/`
-
-Primary keyword: `scaling in and out trading`
-
-Secondary keywords:
-
-- scale in trading journal
-- scale out trade review
-- trading position sizing review
-- partial exits trading
-
-Purpose: Explain how adds, trims, reductions, and position changes can be reviewed.
-
-### Average Down Tracking
-
-Slug: `/features/average-down-tracking/`
-
-Primary keyword: `average down trading mistake`
-
-Secondary keywords:
-
-- averaging down stocks
-- average down journal
-- adverse adds trading
-- adding to losing trades
-
-Purpose: Target a high-pain trading behavior and explain how review can surface it.
-
-### Re-Entry Review
-
-Slug: `/features/re-entry-review/`
-
-Primary keyword: `trade re-entry review`
-
-Secondary keywords:
-
-- re-entering trades
-- trading re-entry mistakes
-- re-add after exit
-- trade re-entry analysis
-
-Purpose: Review whether re-entries improved or damaged trade outcomes.
-
-### Profit Protection Review
-
-Slug: `/features/profit-protection-review/`
-
-Primary keyword: `profit protection trading`
-
-Secondary keywords:
-
-- gave back profits trading
-- protect trading profits
-- trading journal profit giveback
-- trade management review
-
-Purpose: Review whether traders protected gains or gave back open profit.
-
-### Holding Behavior Review
-
-Slug: `/features/holding-behavior-review/`
-
-Primary keyword: `holding losers too long`
-
-Secondary keywords:
-
-- holding winners too short
-- trade holding behavior
-- holding behavior trading journal
-- trade duration analysis
-
-Purpose: Review whether holding time helped or hurt the trade.
-
-### Open Position Review
-
-Slug: `/features/open-position-review/`
-
-Primary keyword: `open position review`
-
-Secondary keywords:
-
-- open trades trading journal
-- review open trades
-- position review trading
-- trade risk review
-
-Purpose: Explain review for active or unresolved positions when supported.
-
-### Trade Timing Review
-
-Slug: `/features/trade-timing-review/`
-
-Primary keyword: `trade timing review`
-
-Secondary keywords:
-
-- timing trades
-- entry timing analysis
-- exit timing analysis
-- trading journal timing
-
-Purpose: Broader feature page around timing quality.
-
-### Risk Behavior Review
-
-Slug: `/features/risk-behavior-review/`
-
-Primary keyword: `trading risk behavior`
-
-Secondary keywords:
-
-- risk management journal
-- trading risk review
-- position risk analysis
-- risk behavior trading
-
-Purpose: Explain review of risk decisions and repeated risk patterns.
-
-### Trade Outcome Analysis
-
-Slug: `/features/trade-outcome-analysis/`
-
-Primary keyword: `trade outcome analysis`
-
-Secondary keywords:
-
-- post trade analysis
-- trading outcome review
-- outcome based trading review
-- trade result analysis
-
-Purpose: Explain outcome-based validation, not judging a trade only by P&L.
-
-### Pattern Detection
-
-Slug: `/features/pattern-detection/`
-
-Primary keyword: `trading pattern detection`
-
-Secondary keywords:
-
-- trader behavior patterns
-- repeated trading patterns
-- trading journal patterns
-- trade review patterns
-
-Purpose: Explain repeated behavior patterns carefully without overclaiming setup detection.
-
-### Review Queue
-
-Slug: `/features/trade-review-queue/`
-
-Primary keyword: `trade review queue`
-
-Secondary keywords:
-
-- saved trade reviews
-- trading journal workflow
-- trade review workflow
-- review trades later
-
-Purpose: Explain saved reviews and organized review workflow.
-
-### Rule Candidate Tracking
-
-Slug: `/features/rule-candidate-tracking/`
-
-Primary keyword: `trading rules journal`
-
-Secondary keywords:
-
-- trading rule tracker
-- trading rule candidates
-- build trading rules
-- review trading rules
-
-Purpose: Explain turning repeated issues into possible personal rules.
-
-### Trade Notes With Evidence
-
-Slug: `/features/evidence-backed-trade-notes/`
-
-Primary keyword: `trade notes`
-
-Secondary keywords:
-
-- trading journal notes
-- evidence backed trade notes
-- execution notes trading
-- trade review notes
-
-Purpose: Explain notes supported by execution and market context.
-
-## Phase 3: Blog Education Cluster
-
-### How To Review Your Trades
-
-Slug: `/blog/how-to-review-your-trades/`
-
-Primary keyword: `how to review your trades`
-
-Secondary keywords:
-
-- trade review process
-- post trade review
-- how to analyze trades
-- trading journal review
-
-Purpose: Foundational educational post that links to trading journal app, trade review, and execution analysis pages.
-
-### Trading Journal For Day Traders
-
-Slug: `/blog/trading-journal-for-day-traders/`
-
-Primary keyword: `trading journal for day traders`
-
-Secondary keywords:
-
-- day trading journal
-- day trader journal
-- intraday trading journal
-- trading journal app
-
-Purpose: Educational post for day traders comparing what a journal should track.
-
-### How To Analyze Trade Entries And Exits
-
-Slug: `/blog/how-to-analyze-trade-entries-and-exits/`
-
-Primary keyword: `how to analyze trade entries and exits`
-
-Secondary keywords:
-
-- entry and exit analysis
-- trade execution analysis
-- review entries and exits
-- trading execution review
-
-Purpose: Support execution analysis and entry/exit feature pages.
-
-### How To Track Trading Mistakes
-
-Slug: `/blog/how-to-track-trading-mistakes/`
-
-Primary keyword: `how to track trading mistakes`
-
-Secondary keywords:
-
-- trading mistakes journal
-- track trading errors
-- repeated trading mistakes
-- trading mistake tracker
-
-Purpose: Support the mistake tracker feature page.
-
-### Why P&L Alone Is Not Enough
-
-Slug: `/blog/why-p-and-l-alone-is-not-enough/`
-
-Primary keyword: `p&l trading journal`
-
-Secondary keywords:
-
-- trading journal beyond profit and loss
-- review trades beyond P&L
-- execution quality vs P&L
-- trading performance review
-
-Purpose: Explain the philosophy behind Trader Intelligence.
-
-### How To Review Trade Management
-
-Slug: `/blog/how-to-review-trade-management/`
-
-Primary keyword: `how to review trade management`
-
-Secondary keywords:
-
-- trade management review
-- trade management mistakes
-- scaling in and out review
-- profit protection trading
-
-Purpose: Support trade management feedback page.
-
-### Broker Execution Import Vs Manual Journaling
-
-Slug: `/blog/broker-execution-import-vs-manual-journaling/`
-
-Primary keyword: `broker execution import vs manual journaling`
-
-Secondary keywords:
-
-- broker CSV trading journal
-- manual trading journal
-- execution import trading journal
-- trading journal CSV import
-
-Purpose: Support broker execution import feature page.
-
-### How To Use Support And Resistance In Trade Review
-
-Slug: `/blog/how-to-use-support-and-resistance-in-trade-review/`
-
-Primary keyword: `how to use support and resistance in trade review`
-
-Secondary keywords:
-
-- support and resistance trade review
-- review trades around levels
-- bought near resistance
-- sold near support
-
-Purpose: Support support/resistance review feature page.
-
-### Premarket Vs Market Open Trade Review
-
-Slug: `/blog/premarket-vs-market-open-trade-review/`
-
-Primary keyword: `premarket vs market open trading`
-
-Secondary keywords:
-
-- premarket trade review
-- market open trading review
-- session time analysis trading
-- trading journal time of day
-
-Purpose: Support session time analysis.
-
-### What To Include In A Trading Journal
-
-Slug: `/blog/what-to-include-in-a-trading-journal/`
-
-Primary keyword: `what to include in a trading journal`
-
-Secondary keywords:
-
-- trading journal fields
-- day trading journal template
-- trading journal checklist
-- trade review notes
-
-Purpose: Awareness post for people starting a trading journal.
-
-### How To Keep A Trading Journal
-
-Slug: `/blog/how-to-keep-a-trading-journal/`
-
-Primary keyword: `how to keep a trading journal`
-
-Secondary keywords:
-
-- trading journal process
-- trade journaling
-- day trading journal
-- trading journal app
-
-Purpose: Beginner guide with soft product tie-in.
-
-### Trading Journal Template For Day Traders
-
-Slug: `/blog/trading-journal-template-for-day-traders/`
-
-Primary keyword: `trading journal template for day traders`
-
-Secondary keywords:
-
-- day trading journal template
-- trade review template
-- trading journal spreadsheet
-- trading journal fields
-
-Purpose: Capture template searches and explain limitations of templates.
-
-### How To Improve Trade Execution
-
-Slug: `/blog/how-to-improve-trade-execution/`
-
-Primary keyword: `how to improve trade execution`
-
-Secondary keywords:
-
-- improve trading execution
-- trade execution analysis
-- review trade execution
-- trading mistakes
-
-Purpose: Support execution analysis and trade review pages.
-
-### How To Analyze A Losing Trade
-
-Slug: `/blog/how-to-analyze-a-losing-trade/`
-
-Primary keyword: `how to analyze a losing trade`
-
-Secondary keywords:
-
-- review losing trades
-- trading loss review
-- losing trade journal
-- trade review process
-
-Purpose: Help traders separate bad outcome from bad process.
-
-### How To Analyze A Winning Trade
-
-Slug: `/blog/how-to-analyze-a-winning-trade/`
-
-Primary keyword: `how to analyze a winning trade`
-
-Secondary keywords:
-
-- review winning trades
-- trading win review
-- did I trade well
-- trading journal review
-
-Purpose: Explain why winning trades still need review.
-
-### How To Build A Trade Review Routine
-
-Slug: `/blog/trade-review-routine/`
-
-Primary keyword: `trade review routine`
-
-Secondary keywords:
-
-- post trade review routine
-- trading journal routine
-- weekly trade review
-- day trading review process
-
-Purpose: Support repeat use and workflow content.
-
-### Daily Trade Review Checklist
-
-Slug: `/blog/daily-trade-review-checklist/`
-
-Primary keyword: `daily trade review checklist`
-
-Secondary keywords:
-
-- trading journal checklist
-- day trading checklist
-- post trade checklist
-- trade review checklist
-
-Purpose: Checklist style blog post for practical SEO.
-
-### Weekly Trading Review Process
-
-Slug: `/blog/weekly-trading-review-process/`
-
-Primary keyword: `weekly trading review`
-
-Secondary keywords:
-
-- weekly trade review
-- trading performance review
-- trading journal weekly review
-- trader improvement process
-
-Purpose: Build recurring review workflow content.
-
-### Trading Journal Metrics That Matter
-
-Slug: `/blog/trading-journal-metrics-that-matter/`
-
-Primary keyword: `trading journal metrics`
-
-Secondary keywords:
-
-- trading performance metrics
-- trading journal statistics
-- trading analytics
-- trade review metrics
-
-Purpose: Explain metrics beyond win rate and P&L.
-
-### Execution Quality Vs Profit And Loss
-
-Slug: `/blog/execution-quality-vs-profit-and-loss/`
-
-Primary keyword: `execution quality vs profit and loss`
-
-Secondary keywords:
-
-- execution quality trading
-- P&L trading journal
-- trade review analysis
-- trading performance review
-
-Purpose: Reinforce core philosophy.
-
-## Phase 4: Small-Cap And Penny Stock Review Cluster
-
-### Penny Stock Trading Journal
-
-Slug: `/blog/penny-stock-trading-journal/`
-
-Primary keyword: `penny stock trading journal`
-
-Secondary keywords:
-
-- small cap trading journal
-- low float trading journal
-- penny stock trade review
-- day trading journal
-
-Purpose: Target the niche audience most aligned with TradersLink.
-
-### Small-Cap Trading Journal
-
-Slug: `/blog/small-cap-trading-journal/`
-
-Primary keyword: `small cap trading journal`
-
-Secondary keywords:
-
-- small cap trade review
-- trading journal for small cap stocks
-- low float trading journal
-- volatile stock trade review
-
-Purpose: Broader version of penny stock journaling.
-
-### How To Review Low Float Stock Trades
-
-Slug: `/blog/how-to-review-low-float-stock-trades/`
-
-Primary keyword: `how to review low float stock trades`
-
-Secondary keywords:
-
-- low float stock trading
-- low float trade review
-- penny stock journal
-- volatile stock trading review
-
-Purpose: Niche educational article.
-
-### How To Journal Small-Cap Momentum Trades
-
-Slug: `/blog/how-to-journal-small-cap-momentum-trades/`
-
-Primary keyword: `small cap momentum trading journal`
-
-Secondary keywords:
-
-- momentum trade review
-- small cap momentum trades
-- day trading journal
-- trade management review
-
-Purpose: Target active momentum traders.
-
-### How To Review Trades After A Press Release
-
-Slug: `/blog/how-to-review-trades-after-a-press-release/`
-
-Primary keyword: `review trades after press release`
-
-Secondary keywords:
-
-- news trading journal
-- press release trading review
-- small cap press release trading
-- catalyst trade review
-
-Purpose: Connect journal content to news-driven small-cap behavior.
-
-### How To Review Trades Around High Volume Spikes
-
-Slug: `/blog/review-trades-around-volume-spikes/`
-
-Primary keyword: `review trades around volume spikes`
-
-Secondary keywords:
-
-- high volume stock trade review
-- volume spike trading
-- small cap volume review
-- momentum trade review
-
-Purpose: Target volatile intraday behavior.
-
-### How To Review Premarket Small-Cap Trades
-
-Slug: `/blog/review-premarket-small-cap-trades/`
-
-Primary keyword: `premarket small cap trading review`
-
-Secondary keywords:
-
-- premarket trade review
-- small cap premarket trading
-- premarket trading journal
-- day trading review
-
-Purpose: Support session analysis and small-cap niche content.
-
-### Float And Volume In Trade Review
-
-Slug: `/blog/float-and-volume-in-trade-review/`
-
-Primary keyword: `float and volume trade review`
-
-Secondary keywords:
-
-- low float stock volume
-- float trading journal
-- volume trading journal
-- small cap trade review
-
-Purpose: Explain why market context matters when reviewing trades.
-
-### How To Review Failed Breakout Trades
-
-Slug: `/blog/how-to-review-failed-breakout-trades/`
-
-Primary keyword: `failed breakout trade review`
-
-Secondary keywords:
-
-- failed breakout trading
-- breakout chase mistake
-- trade review breakout
-- trading journal breakout trades
-
-Purpose: Capture common small-cap mistake intent.
-
-### How To Review Gap Up Trades
-
-Slug: `/blog/how-to-review-gap-up-trades/`
-
-Primary keyword: `gap up trade review`
-
-Secondary keywords:
-
-- gap up trading journal
-- review gap trades
-- small cap gap up trading
-- premarket gap trade review
-
-Purpose: Support premarket/open trade content.
-
-### How To Review Halted Stock Trades
-
-Slug: `/blog/how-to-review-halted-stock-trades/`
-
-Primary keyword: `halted stock trade review`
-
-Secondary keywords:
-
-- stock halt trading journal
-- review halt trades
-- small cap halt trading
-- volatile stock review
-
-Purpose: Small-cap specific behavior and risk review.
-
-### How To Review Dilution Risk Trades
-
-Slug: `/blog/how-to-review-dilution-risk-trades/`
-
-Primary keyword: `dilution risk trade review`
-
-Secondary keywords:
-
-- offering risk trading
-- small cap dilution risk
-- penny stock offering risk
-- review trades after offering
-
-Purpose: Niche article for small-cap traders without making specific trading advice claims.
-
-## Phase 5: Mistake And Behavior Cluster
-
-### How To Stop Chasing Stocks
-
-Slug: `/blog/how-to-stop-chasing-stocks/`
-
-Primary keyword: `how to stop chasing stocks`
-
-Secondary keywords:
-
-- chasing stocks
-- trading FOMO
-- chasing breakouts
-- trading mistake tracker
-
-Purpose: High-pain behavior article linking to mistake tracker and execution analysis.
-
-### How To Stop Averaging Down Bad Trades
-
-Slug: `/blog/how-to-stop-averaging-down-bad-trades/`
-
-Primary keyword: `how to stop averaging down`
-
-Secondary keywords:
-
-- averaging down mistake
-- adding to losing trades
-- adverse adds trading
-- trading mistake tracker
-
-Purpose: Support average down tracking.
-
-### How To Stop Cutting Winners Too Early
-
-Slug: `/blog/how-to-stop-cutting-winners-too-early/`
-
-Primary keyword: `cutting winners too early`
-
-Secondary keywords:
-
-- selling winners too soon
-- trading profit taking mistakes
-- trade exit review
-- profit protection review
-
-Purpose: Support exit review and profit protection content.
-
-### How To Stop Holding Losers Too Long
-
-Slug: `/blog/how-to-stop-holding-losers-too-long/`
-
-Primary keyword: `holding losers too long`
-
-Secondary keywords:
-
-- holding losing trades
-- trading loss mistake
-- trade exit review
-- risk behavior review
-
-Purpose: Support holding behavior and risk behavior review.
-
-### How To Stop Revenge Trading
-
-Slug: `/blog/how-to-stop-revenge-trading/`
-
-Primary keyword: `how to stop revenge trading`
-
-Secondary keywords:
-
-- revenge trading
-- trading psychology mistakes
-- trading mistake tracker
-- trader improvement
-
-Purpose: Awareness post for trading psychology search intent.
-
-### How To Stop Overtrading
-
-Slug: `/blog/how-to-stop-overtrading/`
-
-Primary keyword: `how to stop overtrading`
-
-Secondary keywords:
-
-- overtrading
-- trading too much
-- trading journal mistakes
-- trader behavior tracker
-
-Purpose: Support behavior tracking and session review.
-
-### How To Review Missed Exits
-
-Slug: `/blog/how-to-review-missed-exits/`
-
-Primary keyword: `missed exit trading`
-
-Secondary keywords:
-
-- bad exits trading
-- exit review trading
-- sold too late trading
-- trade management review
-
-Purpose: Support exit review.
-
-### How To Review Bad Entries
-
-Slug: `/blog/how-to-review-bad-entries/`
-
-Primary keyword: `bad trade entry`
-
-Secondary keywords:
-
-- bad entries trading
-- entry review trading
-- bought too high trading
-- chasing stocks
-
-Purpose: Support entry review and chasing article.
-
-### How To Know If You Sold Too Early
-
-Slug: `/blog/how-to-know-if-you-sold-too-early/`
-
-Primary keyword: `sold too early trading`
-
-Secondary keywords:
-
-- selling too early stocks
-- exit review trading
-- missed continuation trading
-- trade review
-
-Purpose: Exit behavior article.
-
-### How To Know If You Entered Too Late
-
-Slug: `/blog/how-to-know-if-you-entered-too-late/`
-
-Primary keyword: `entered too late trading`
-
-Secondary keywords:
-
-- late entry trading
-- chasing stocks
-- entry timing review
-- trade execution analysis
-
-Purpose: Entry behavior article.
-
-### Why Traders Repeat The Same Mistakes
-
-Slug: `/blog/why-traders-repeat-the-same-mistakes/`
-
-Primary keyword: `repeated trading mistakes`
-
-Secondary keywords:
-
-- trading behavior patterns
-- trading mistake tracker
-- trading journal mistakes
-- trader improvement
-
-Purpose: Support mistake tracker and behavior pattern pages.
-
-### How To Turn Trading Mistakes Into Rules
-
-Slug: `/blog/turn-trading-mistakes-into-rules/`
-
-Primary keyword: `trading rules from mistakes`
-
-Secondary keywords:
-
-- trading rule tracker
-- trading mistake journal
-- trading improvement system
-- trading journal rules
-
-Purpose: Support rule candidate tracking.
-
-## Phase 6: Comparison And Alternatives Cluster
-
-### Trading Journal App Vs Spreadsheet
-
-Slug: `/blog/trading-journal-app-vs-spreadsheet/`
-
-Primary keyword: `trading journal app vs spreadsheet`
-
-Secondary keywords:
-
-- trading journal spreadsheet
-- trading journal app
-- trading journal software
-- broker execution import
-
-Purpose: Commercial comparison article.
-
-### Manual Trading Journal Vs Execution Import
-
-Slug: `/blog/manual-trading-journal-vs-execution-import/`
-
-Primary keyword: `manual trading journal vs execution import`
-
-Secondary keywords:
-
-- broker execution import
-- trading journal CSV import
-- manual trade journal
-- execution analysis
-
-Purpose: Support broker execution import.
-
-### Trade Review App Vs Trading Journal
-
-Slug: `/blog/trade-review-app-vs-trading-journal/`
-
-Primary keyword: `trade review app vs trading journal`
-
-Secondary keywords:
-
-- trade review app
-- trading journal app
-- trade analysis software
-- trading performance review
-
-Purpose: Explain why Trader Intelligence is more than notes.
-
-### Best Trading Journal Features For Day Traders
-
-Slug: `/blog/best-trading-journal-features-for-day-traders/`
-
-Primary keyword: `best trading journal features for day traders`
-
-Secondary keywords:
-
-- trading journal features
-- day trading journal app
-- execution analysis
-- trading mistake tracker
-
-Purpose: Commercial investigation post.
-
-### What Makes A Good Trading Journal App
-
-Slug: `/blog/what-makes-a-good-trading-journal-app/`
-
-Primary keyword: `good trading journal app`
-
-Secondary keywords:
-
-- trading journal app features
-- trade review tool
-- day trading journal
-- trading analytics
-
-Purpose: Consideration stage post.
-
-### Why Execution Data Matters In A Trading Journal
-
-Slug: `/blog/why-execution-data-matters-in-a-trading-journal/`
-
-Primary keyword: `execution data trading journal`
-
-Secondary keywords:
-
-- broker executions
-- trade execution analysis
-- trading journal import
-- trade review app
-
-Purpose: Support execution import and execution analysis.
-
-### Trading Journal Software For Active Traders
-
-Slug: `/blog/trading-journal-software-for-active-traders/`
-
-Primary keyword: `trading journal software for active traders`
-
-Secondary keywords:
-
-- active trader journal
-- day trading journal app
-- trade review software
-- execution analysis tool
-
-Purpose: Commercial SEO page.
-
-### Trading Journal For Small Accounts
-
-Slug: `/blog/trading-journal-for-small-accounts/`
-
-Primary keyword: `trading journal for small accounts`
-
-Secondary keywords:
-
-- small account trading journal
-- day trading journal
-- trading mistake tracker
-- risk management journal
-
-Purpose: Awareness and consideration content for newer traders.
-
-### Free Trading Journal Vs Paid Trading Journal
-
-Slug: `/blog/free-trading-journal-vs-paid-trading-journal/`
-
-Primary keyword: `free trading journal vs paid trading journal`
-
-Secondary keywords:
-
-- free trading journal
-- paid trading journal app
-- trading journal software
-- trading journal features
-
-Purpose: Commercial comparison content.
-
-### Trading Journal App For Penny Stocks
-
-Slug: `/blog/trading-journal-app-for-penny-stocks/`
-
-Primary keyword: `trading journal app for penny stocks`
-
-Secondary keywords:
-
-- penny stock trading journal
-- small cap trading journal
-- low float trading journal
-- day trading journal
-
-Purpose: Commercial niche article.
-
-## Phase 7: Glossary And Beginner Education
-
-### Trading Journal
-
-Slug: `/learn/trading-journal/`
-
-Primary keyword: `trading journal`
-
-Secondary keywords:
-
-- what is a trading journal
-- trading journal meaning
-- trade journal
-- day trading journal
-
-Purpose: Glossary and beginner SEO.
-
-### Trade Review
-
-Slug: `/learn/trade-review/`
-
-Primary keyword: `trade review`
-
-Secondary keywords:
-
-- what is trade review
-- review trades
-- post trade review
-- trading review
-
-Purpose: Define trade review and link to product pages.
-
-### Execution Analysis
-
-Slug: `/learn/execution-analysis/`
-
-Primary keyword: `execution analysis trading`
-
-Secondary keywords:
-
-- trade execution analysis
-- trading execution
-- analyze entries and exits
-- execution quality trading
-
-Purpose: Define execution analysis.
-
-### Risk Management Journal
-
-Slug: `/learn/risk-management-journal/`
-
-Primary keyword: `risk management journal trading`
-
-Secondary keywords:
-
-- trading risk journal
-- risk management trading
-- trading mistake tracker
-- trade review
-
-Purpose: Educational support content.
-
-### Average Down
-
-Slug: `/learn/average-down/`
-
-Primary keyword: `average down trading`
-
-Secondary keywords:
-
-- averaging down stocks
-- average down mistake
-- adding to losing trades
-- trading journal
-
-Purpose: Define average down behavior and link to mistake tracking.
-
-### Scaling In And Out
-
-Slug: `/learn/scaling-in-and-out-trading/`
-
-Primary keyword: `scaling in and out trading`
-
-Secondary keywords:
-
-- scaling into trades
-- scaling out trades
-- partial exits trading
-- trade management
-
-Purpose: Define scaling and link to scaling analysis.
-
-### Profit Giveback
-
-Slug: `/learn/profit-giveback/`
-
-Primary keyword: `profit giveback trading`
-
-Secondary keywords:
-
-- gave back profits trading
-- profit protection
-- trade management review
-- exit review
-
-Purpose: Define profit giveback behavior.
-
-### Chasing Stocks
-
-Slug: `/learn/chasing-stocks/`
-
-Primary keyword: `chasing stocks`
-
-Secondary keywords:
-
-- chasing breakouts
-- trading FOMO
-- late entry trading
-- trade entry mistakes
-
-Purpose: Define chasing and link to mistake content.
+1. `/features/execution-analysis/` | trade execution analysis.
+2. `/features/trading-mistake-tracker/` | trading mistake tracker.
+3. `/features/trade-review/` | trade review tool.
+4. `/features/broker-execution-import/` | broker execution import.
+5. `/features/session-time-analysis/` | session time analysis trading.
+6. `/features/support-resistance-trade-review/` | support and resistance trade review.
+7. `/features/trade-management-feedback/` | trade management feedback.
+8. `/features/entry-review/` | trade entry review.
+9. `/features/exit-review/` | trade exit review.
+10. `/features/scaling-analysis/` | scaling in and out trading.
+11. `/features/average-down-tracking/` | average down tracking.
+12. `/features/re-entry-review/` | trade re-entry review.
+13. `/features/profit-protection-review/` | profit protection trading.
+14. `/features/holding-behavior-review/` | trade holding behavior.
+15. `/features/open-position-review/` | open position review.
+16. `/features/risk-behavior-review/` | trading risk behavior.
+17. `/features/pattern-detection/` | trading behavior pattern detection.
+18. `/features/trade-review-queue/` | trade review workflow.
+19. `/features/rule-candidate-tracking/` | trading rules journal.
+20. `/features/evidence-backed-trade-notes/` | trade notes.
+21. `/features/performance-insights/` | trading performance insights.
+22. `/features/evidence-backed-coaching/` | trading coaching app.
+23. `/features/mfe-mae-review/` | MFE MAE trading review.
+24. `/features/trade-duration-analysis/` | trade duration analysis.
+25. `/features/position-sizing-review/` | position sizing review.
+
+## Cluster 3: Trading Journal And Trade Review Blog Content
+
+These articles support the product pages.
+
+1. `/blog/how-to-review-your-trades/` | how to review your trades.
+2. `/blog/trading-journal-for-day-traders/` | trading journal for day traders.
+3. `/blog/how-to-analyze-trade-entries-and-exits/` | how to analyze trade entries and exits.
+4. `/blog/how-to-track-trading-mistakes/` | how to track trading mistakes.
+5. `/blog/why-p-and-l-alone-is-not-enough/` | why P&L alone is not enough.
+6. `/blog/how-to-review-trade-management/` | how to review trade management.
+7. `/blog/broker-execution-import-vs-manual-journaling/` | broker execution import vs manual journaling.
+8. `/blog/how-to-use-support-and-resistance-in-trade-review/` | support and resistance trade review.
+9. `/blog/premarket-vs-market-open-trade-review/` | premarket vs market open trading.
+10. `/blog/what-to-include-in-a-trading-journal/` | what to include in a trading journal.
+11. `/blog/how-to-keep-a-trading-journal/` | how to keep a trading journal.
+12. `/blog/trading-journal-template-for-day-traders/` | trading journal template for day traders.
+13. `/blog/how-to-improve-trade-execution/` | how to improve trade execution.
+14. `/blog/how-to-analyze-a-losing-trade/` | how to analyze a losing trade.
+15. `/blog/how-to-analyze-a-winning-trade/` | how to analyze a winning trade.
+16. `/blog/trade-review-routine/` | trade review routine.
+17. `/blog/daily-trade-review-checklist/` | daily trade review checklist.
+18. `/blog/weekly-trading-review-process/` | weekly trading review.
+19. `/blog/trading-journal-metrics-that-matter/` | trading journal metrics.
+20. `/blog/execution-quality-vs-profit-and-loss/` | execution quality vs profit and loss.
+21. `/blog/how-to-review-a-breakout-trade/` | how to review a breakout trade.
+22. `/blog/how-to-review-a-scalp-trade/` | scalp trade review.
+23. `/blog/how-to-review-a-swing-trade/` | swing trade review.
+24. `/blog/how-to-review-a-red-day/` | review losing trading day.
+25. `/blog/how-to-review-a-green-day/` | review winning trading day.
+
+## Cluster 4: Small-Cap And Penny Stock Education
+
+These are broader SEO pages for the TradersLink audience.
+
+1. `/learn/small-cap-stocks/` | small cap stocks.
+2. `/learn/penny-stocks/` | penny stocks.
+3. `/learn/nano-cap-stocks/` | nano cap stocks.
+4. `/learn/micro-cap-stocks/` | micro cap stocks.
+5. `/learn/low-float-stocks/` | low float stocks.
+6. `/learn/high-float-vs-low-float-stocks/` | high float vs low float stocks.
+7. `/learn/stock-float/` | stock float.
+8. `/learn/market-cap/` | market cap.
+9. `/learn/relative-volume/` | relative volume.
+10. `/learn/share-structure/` | share structure.
+11. `/learn/authorized-shares-vs-outstanding-shares/` | authorized shares vs outstanding shares.
+12. `/learn/outstanding-shares-vs-float/` | outstanding shares vs float.
+13. `/learn/short-interest/` | short interest.
+14. `/learn/short-squeeze/` | short squeeze.
+15. `/learn/borrow-fee/` | borrow fee stocks.
+16. `/learn/days-to-cover/` | days to cover.
+17. `/learn/gap-up-stocks/` | gap up stocks.
+18. `/learn/premarket-movers/` | premarket movers.
+19. `/learn/stock-runners/` | stock runners.
+20. `/learn/low-float-runners/` | low float runners.
+21. `/learn/news-driven-stocks/` | news driven stocks.
+22. `/learn/catalyst-stocks/` | stock catalysts.
+23. `/learn/small-cap-volume-spikes/` | small cap volume spikes.
+24. `/learn/small-cap-risk/` | small cap trading risk.
+25. `/learn/penny-stock-dilution-risk/` | penny stock dilution risk.
+
+## Cluster 5: SEC Filings And Dilution Education
+
+This can become one of the most valuable SEO libraries because small-cap traders constantly search filing terms.
+
+### Hub Page
+
+`/learn/sec-filings/` | SEC filings.
+
+### Filing Explainers
+
+1. `/learn/sec-filings/form-8-k/` | Form 8-K.
+2. `/learn/sec-filings/form-10-k/` | Form 10-K.
+3. `/learn/sec-filings/form-10-q/` | Form 10-Q.
+4. `/learn/sec-filings/form-s-1/` | Form S-1.
+5. `/learn/sec-filings/form-s-3/` | Form S-3.
+6. `/learn/sec-filings/form-s-4/` | Form S-4.
+7. `/learn/sec-filings/form-f-1/` | Form F-1.
+8. `/learn/sec-filings/form-f-3/` | Form F-3.
+9. `/learn/sec-filings/form-424b3/` | Form 424B3.
+10. `/learn/sec-filings/form-424b5/` | Form 424B5.
+11. `/learn/sec-filings/form-424b4/` | Form 424B4.
+12. `/learn/sec-filings/form-def-14a/` | DEF 14A proxy statement.
+13. `/learn/sec-filings/form-pre-14a/` | PRE 14A proxy statement.
+14. `/learn/sec-filings/schedule-13d/` | Schedule 13D.
+15. `/learn/sec-filings/schedule-13g/` | Schedule 13G.
+16. `/learn/sec-filings/form-4/` | Form 4 insider transactions.
+17. `/learn/sec-filings/form-3/` | Form 3.
+18. `/learn/sec-filings/form-5/` | Form 5.
+19. `/learn/sec-filings/form-6-k/` | Form 6-K.
+20. `/learn/sec-filings/form-20-f/` | Form 20-F.
+21. `/learn/sec-filings/form-25/` | Form 25 delisting.
+22. `/learn/sec-filings/nt-10-q/` | NT 10-Q.
+23. `/learn/sec-filings/nt-10-k/` | NT 10-K.
+24. `/learn/sec-filings/s-8-registration/` | Form S-8.
+25. `/learn/sec-filings/effect-notice/` | EFFECT notice.
+
+### Dilution And Offering Topics
+
+1. `/learn/stock-offerings/` | stock offering.
+2. `/learn/public-offering/` | public offering stock.
+3. `/learn/registered-direct-offering/` | registered direct offering.
+4. `/learn/private-placement/` | private placement stock.
+5. `/learn/at-the-market-offering/` | at the market offering.
+6. `/learn/shelf-registration/` | shelf registration.
+7. `/learn/resale-registration-statement/` | resale registration statement.
+8. `/learn/warrants/` | stock warrants.
+9. `/learn/pre-funded-warrants/` | pre-funded warrants.
+10. `/learn/convertible-notes/` | convertible notes.
+11. `/learn/preferred-stock/` | preferred stock.
+12. `/learn/reverse-split/` | reverse stock split.
+13. `/learn/forward-split/` | forward stock split.
+14. `/learn/atm-offering-vs-public-offering/` | ATM offering vs public offering.
+15. `/learn/shelf-registration-vs-offering/` | shelf registration vs offering.
+16. `/learn/does-an-s-3-mean-dilution/` | does S-3 mean dilution.
+17. `/learn/does-a-424b5-mean-dilution/` | does 424B5 mean dilution.
+18. `/learn/how-to-read-offering-filings/` | how to read offering filings.
+19. `/learn/how-to-spot-dilution-risk/` | how to spot dilution risk.
+20. `/learn/reverse-split-risk-small-caps/` | reverse split risk.
+
+## Cluster 6: Press Releases And Catalyst Education
+
+1. `/learn/press-releases/` | stock press releases.
+2. `/learn/how-to-read-stock-press-releases/` | how to read stock press releases.
+3. `/learn/stock-catalysts/` | stock catalysts.
+4. `/learn/clinical-trial-news/` | clinical trial stock news.
+5. `/learn/fda-news-stocks/` | FDA news stocks.
+6. `/learn/earnings-news/` | earnings news stocks.
+7. `/learn/revenue-guidance/` | revenue guidance.
+8. `/learn/contract-news-stocks/` | contract news stocks.
+9. `/learn/merger-news-stocks/` | merger news stocks.
+10. `/learn/partnership-news-stocks/` | partnership news stocks.
+11. `/learn/ai-news-stocks/` | AI stock news.
+12. `/learn/bitcoin-crypto-treasury-stocks/` | crypto treasury stocks.
+13. `/learn/biotech-data-readouts/` | biotech data readouts.
+14. `/learn/phase-1-phase-2-phase-3-trials/` | Phase 1 Phase 2 Phase 3 trials.
+15. `/learn/fda-fast-track/` | FDA Fast Track.
+16. `/learn/orphan-drug-designation/` | orphan drug designation.
+17. `/learn/pdufa-date/` | PDUFA date.
+18. `/learn/news-fade/` | news fade trading.
+19. `/learn/sell-the-news/` | sell the news.
+20. `/learn/how-to-review-news-trades/` | how to review news trades.
+
+## Cluster 7: Day Trading Education
+
+1. `/learn/day-trading/` | day trading.
+2. `/learn/day-trading-for-beginners/` | day trading for beginners.
+3. `/learn/premarket-trading/` | premarket trading.
+4. `/learn/after-hours-trading/` | after hours trading.
+5. `/learn/market-open-trading/` | market open trading.
+6. `/learn/midday-trading/` | midday trading.
+7. `/learn/power-hour-trading/` | power hour trading.
+8. `/learn/scalping-stocks/` | scalping stocks.
+9. `/learn/momentum-trading/` | momentum trading.
+10. `/learn/breakout-trading/` | breakout trading.
+11. `/learn/breakdown-trading/` | breakdown trading.
+12. `/learn/reversal-trading/` | reversal trading.
+13. `/learn/dip-buying/` | dip buying.
+14. `/learn/chasing-stocks/` | chasing stocks.
+15. `/learn/failed-breakout/` | failed breakout.
+16. `/learn/fake-breakout/` | fake breakout.
+17. `/learn/reclaim-trading/` | reclaim trading.
+18. `/learn/rejection-trading/` | rejection trading.
+19. `/learn/trading-halts/` | trading halts.
+20. `/learn/circuit-breaker-halts/` | circuit breaker halts.
+21. `/learn/volume-halts/` | stock halt volatility.
+22. `/learn/how-to-prepare-for-the-trading-day/` | trading day preparation.
+23. `/learn/day-trading-checklist/` | day trading checklist.
+24. `/learn/risk-management-for-day-traders/` | risk management for day traders.
+25. `/learn/common-day-trading-mistakes/` | day trading mistakes.
+
+## Cluster 8: Swing Trading Education
+
+1. `/learn/swing-trading/` | swing trading.
+2. `/learn/swing-trading-for-beginners/` | swing trading for beginners.
+3. `/learn/day-trading-vs-swing-trading/` | day trading vs swing trading.
+4. `/learn/swing-trading-small-caps/` | small cap swing trading.
+5. `/learn/swing-trading-risk-management/` | swing trading risk management.
+6. `/learn/swing-trading-catalysts/` | swing trading catalysts.
+7. `/learn/swing-trading-earnings/` | swing trading earnings.
+8. `/learn/swing-trading-news-risk/` | swing trading news risk.
+9. `/learn/swing-trading-support-resistance/` | swing trading support resistance.
+10. `/learn/swing-trading-volume/` | swing trading volume.
+11. `/learn/gap-fill-trading/` | gap fill trading.
+12. `/learn/multi-day-runner/` | multi-day runner.
+13. `/learn/overnight-risk/` | overnight risk.
+14. `/learn/holding-through-news/` | holding through news.
+15. `/learn/swing-trade-journal/` | swing trade journal.
+
+## Cluster 9: Chart Patterns
+
+Create a chart pattern hub and individual pattern pages. Each pattern page should explain what the pattern is, how traders interpret it, what can go wrong, and how to review trades involving it.
+
+Hub: `/learn/chart-patterns/` | chart patterns.
+
+Pattern pages:
+
+1. `/learn/chart-patterns/bull-flag/` | bull flag pattern.
+2. `/learn/chart-patterns/bear-flag/` | bear flag pattern.
+3. `/learn/chart-patterns/pennant/` | pennant pattern.
+4. `/learn/chart-patterns/ascending-triangle/` | ascending triangle pattern.
+5. `/learn/chart-patterns/descending-triangle/` | descending triangle pattern.
+6. `/learn/chart-patterns/symmetrical-triangle/` | symmetrical triangle pattern.
+7. `/learn/chart-patterns/cup-and-handle/` | cup and handle pattern.
+8. `/learn/chart-patterns/double-top/` | double top pattern.
+9. `/learn/chart-patterns/double-bottom/` | double bottom pattern.
+10. `/learn/chart-patterns/head-and-shoulders/` | head and shoulders pattern.
+11. `/learn/chart-patterns/inverse-head-and-shoulders/` | inverse head and shoulders pattern.
+12. `/learn/chart-patterns/wedge-pattern/` | wedge pattern.
+13. `/learn/chart-patterns/falling-wedge/` | falling wedge pattern.
+14. `/learn/chart-patterns/rising-wedge/` | rising wedge pattern.
+15. `/learn/chart-patterns/rectangle-pattern/` | rectangle pattern.
+16. `/learn/chart-patterns/channel-pattern/` | channel pattern.
+17. `/learn/chart-patterns/parabolic-move/` | parabolic move.
+18. `/learn/chart-patterns/base-breakout/` | base breakout.
+19. `/learn/chart-patterns/failed-breakout-pattern/` | failed breakout pattern.
+20. `/learn/chart-patterns/vwap-reclaim/` | VWAP reclaim.
+
+## Cluster 10: Candlestick Patterns And Candle Types
+
+Hub: `/learn/candlestick-patterns/` | candlestick patterns.
+
+Pages:
+
+1. `/learn/candlestick-patterns/doji/` | doji candle.
+2. `/learn/candlestick-patterns/hammer/` | hammer candlestick.
+3. `/learn/candlestick-patterns/inverted-hammer/` | inverted hammer.
+4. `/learn/candlestick-patterns/shooting-star/` | shooting star candlestick.
+5. `/learn/candlestick-patterns/engulfing-candle/` | engulfing candle.
+6. `/learn/candlestick-patterns/bullish-engulfing/` | bullish engulfing.
+7. `/learn/candlestick-patterns/bearish-engulfing/` | bearish engulfing.
+8. `/learn/candlestick-patterns/morning-star/` | morning star candlestick.
+9. `/learn/candlestick-patterns/evening-star/` | evening star candlestick.
+10. `/learn/candlestick-patterns/marubozu/` | marubozu candle.
+11. `/learn/candlestick-patterns/spinning-top/` | spinning top candle.
+12. `/learn/candlestick-patterns/inside-bar/` | inside bar trading.
+13. `/learn/candlestick-patterns/outside-bar/` | outside bar trading.
+14. `/learn/candlestick-patterns/pin-bar/` | pin bar candle.
+15. `/learn/candlestick-patterns/long-wick-candle/` | long wick candle.
+16. `/learn/candlestick-patterns/topping-tail/` | topping tail candle.
+17. `/learn/candlestick-patterns/bottoming-tail/` | bottoming tail candle.
+18. `/learn/candlestick-patterns/red-to-green-move/` | red to green move.
+19. `/learn/candlestick-patterns/green-to-red-move/` | green to red move.
+20. `/learn/candlestick-patterns/candle-volume-confirmation/` | candle volume confirmation.
+
+## Cluster 11: Support, Resistance, Levels, And Market Structure
+
+1. `/learn/support-and-resistance/` | support and resistance.
+2. `/learn/how-to-draw-support-and-resistance/` | how to draw support and resistance.
+3. `/learn/resistance-levels/` | resistance levels.
+4. `/learn/support-levels/` | support levels.
+5. `/learn/swing-highs-and-swing-lows/` | swing highs and swing lows.
+6. `/learn/pivot-levels/` | pivot levels.
+7. `/learn/key-levels-trading/` | key levels trading.
+8. `/learn/previous-day-high-low/` | previous day high low.
+9. `/learn/premarket-high-low/` | premarket high low.
+10. `/learn/high-of-day/` | high of day.
+11. `/learn/low-of-day/` | low of day.
+12. `/learn/new-high-of-day/` | new high of day.
+13. `/learn/break-of-structure/` | break of structure.
+14. `/learn/higher-highs-higher-lows/` | higher highs higher lows.
+15. `/learn/lower-highs-lower-lows/` | lower highs lower lows.
+16. `/learn/consolidation/` | consolidation trading.
+17. `/learn/compression/` | compression trading.
+18. `/learn/price-rejection/` | price rejection.
+19. `/learn/level-breakout/` | level breakout.
+20. `/learn/level-reclaim/` | level reclaim.
+
+## Cluster 12: Volume, Liquidity, And Order Flow Concepts
+
+1. `/learn/volume/` | stock volume.
+2. `/learn/relative-volume-rvol/` | relative volume RVOL.
+3. `/learn/liquidity/` | stock liquidity.
+4. `/learn/spread/` | bid ask spread.
+5. `/learn/bid-and-ask/` | bid and ask.
+6. `/learn/level-2/` | Level 2 trading.
+7. `/learn/time-and-sales/` | time and sales.
+8. `/learn/market-orders-vs-limit-orders/` | market orders vs limit orders.
+9. `/learn/slippage/` | trading slippage.
+10. `/learn/volume-spike/` | volume spike.
+11. `/learn/dollar-volume/` | dollar volume.
+12. `/learn/float-rotation/` | float rotation.
+13. `/learn/volume-by-price/` | volume by price.
+14. `/learn/accumulation-and-distribution/` | accumulation distribution.
+15. `/learn/unusual-volume/` | unusual volume stocks.
+
+## Cluster 13: Risk Management And Trading Psychology
+
+1. `/learn/risk-management/` | trading risk management.
+2. `/learn/risk-reward-ratio/` | risk reward ratio.
+3. `/learn/position-sizing/` | position sizing.
+4. `/learn/stop-loss/` | stop loss.
+5. `/learn/max-loss/` | max loss trading.
+6. `/learn/daily-loss-limit/` | daily loss limit.
+7. `/learn/overtrading/` | overtrading.
+8. `/learn/revenge-trading/` | revenge trading.
+9. `/learn/fomo-trading/` | FOMO trading.
+10. `/learn/chasing-stocks/` | chasing stocks.
+11. `/learn/averaging-down/` | averaging down.
+12. `/learn/cutting-winners-too-early/` | cutting winners too early.
+13. `/learn/holding-losers-too-long/` | holding losers too long.
+14. `/learn/trading-discipline/` | trading discipline.
+15. `/learn/trading-plan/` | trading plan.
+16. `/learn/trading-rules/` | trading rules.
+17. `/learn/trade-management/` | trade management.
+18. `/learn/profit-protection/` | profit protection.
+19. `/learn/mental-stop-vs-hard-stop/` | mental stop vs hard stop.
+20. `/learn/trading-mistake-review/` | trading mistake review.
+
+## Cluster 14: Stock Market Basics For New Traders
+
+1. `/learn/stock-market/` | stock market.
+2. `/learn/how-stocks-work/` | how stocks work.
+3. `/learn/stock-exchange/` | stock exchange.
+4. `/learn/nasdaq-vs-nyse/` | NASDAQ vs NYSE.
+5. `/learn/market-hours/` | stock market hours.
+6. `/learn/premarket-and-after-hours/` | premarket and after hours.
+7. `/learn/ticker-symbol/` | ticker symbol.
+8. `/learn/share-price/` | share price.
+9. `/learn/market-capitalization/` | market capitalization.
+10. `/learn/ipo/` | IPO.
+11. `/learn/spac/` | SPAC.
+12. `/learn/merger/` | merger.
+13. `/learn/acquisition/` | acquisition.
+14. `/learn/stock-split/` | stock split.
+15. `/learn/reverse-stock-split/` | reverse stock split.
+16. `/learn/dividend/` | dividend.
+17. `/learn/earnings-report/` | earnings report.
+18. `/learn/analyst-ratings/` | analyst ratings.
+19. `/learn/short-selling/` | short selling.
+20. `/learn/options-basics/` | options basics.
+
+## Cluster 15: Scanner, Alerts, And Workflow Education
+
+These can support TradersLink platform pages later without turning the brand into a trade-call room.
+
+1. `/learn/stock-scanner/` | stock scanner.
+2. `/learn/day-trading-scanner/` | day trading scanner.
+3. `/learn/small-cap-stock-scanner/` | small cap stock scanner.
+4. `/learn/premarket-scanner/` | premarket scanner.
+5. `/learn/news-scanner/` | news scanner stocks.
+6. `/learn/sec-filing-alerts/` | SEC filing alerts.
+7. `/learn/press-release-alerts/` | press release alerts.
+8. `/learn/stock-alerts-vs-trade-signals/` | stock alerts vs trade signals.
+9. `/learn/how-to-use-stock-alerts-responsibly/` | how to use stock alerts.
+10. `/learn/scanner-watchlist-workflow/` | scanner watchlist workflow.
+11. `/learn/how-to-filter-stock-scanner-alerts/` | filter stock scanner alerts.
+12. `/learn/news-filtering-for-traders/` | news filtering for traders.
+13. `/learn/trading-watchlist/` | trading watchlist.
+14. `/learn/catalyst-watchlist/` | catalyst watchlist.
+15. `/learn/post-market-review-workflow/` | post market review workflow.
+
+## Cluster 16: Comparison And Alternative Pages
+
+These should be careful, fair, and avoid attacking competitors.
+
+1. `/comparisons/trading-journal-app-vs-spreadsheet/` | trading journal app vs spreadsheet.
+2. `/comparisons/manual-trading-journal-vs-execution-import/` | manual trading journal vs execution import.
+3. `/comparisons/trade-review-app-vs-trading-journal/` | trade review app vs trading journal.
+4. `/comparisons/free-trading-journal-vs-paid-trading-journal/` | free trading journal vs paid trading journal.
+5. `/comparisons/trading-journal-software-for-active-traders/` | trading journal software for active traders.
+6. `/comparisons/trading-journal-for-small-accounts/` | trading journal for small accounts.
+7. `/comparisons/best-trading-journal-features-for-day-traders/` | best trading journal features.
+8. `/comparisons/stock-scanner-vs-news-scanner/` | stock scanner vs news scanner.
+9. `/comparisons/sec-filing-alerts-vs-press-release-alerts/` | SEC filing alerts vs press release alerts.
+10. `/comparisons/day-trading-vs-swing-trading-journal/` | day trading vs swing trading journal.
+
+## Cluster 17: Glossary Library
+
+The glossary should be large and internally linked. Each glossary page should be short, clear, and connected to deeper guides.
+
+Initial glossary terms:
+
+1. Float.
+2. Market cap.
+3. Outstanding shares.
+4. Authorized shares.
+5. Public float.
+6. Short interest.
+7. Relative volume.
+8. Gap up.
+9. Gap down.
+10. Breakout.
+11. Breakdown.
+12. Reclaim.
+13. Rejection.
+14. Support.
+15. Resistance.
+16. VWAP.
+17. EMA.
+18. Moving average.
+19. Liquidity.
+20. Bid.
+21. Ask.
+22. Spread.
+23. Slippage.
+24. Halt.
+25. Reverse split.
+26. Offering.
+27. Shelf registration.
+28. Warrant.
+29. Convertible note.
+30. ATM offering.
+31. Form 8-K.
+32. Form 10-Q.
+33. Form 10-K.
+34. Form S-1.
+35. Form S-3.
+36. Form 424B5.
+37. Schedule 13D.
+38. Schedule 13G.
+39. Form 4.
+40. Press release.
+41. Catalyst.
+42. Dilution.
+43. Momentum.
+44. Scalping.
+45. Swing trade.
+46. Day trade.
+47. Position size.
+48. Stop loss.
+49. Risk reward.
+50. Profit taking.
 
 ## Internal Linking Strategy
 
-### Main Product Hub
+### Product Pages Should Link To
 
-`/trader-intelligence/` should link to:
+- Trader Intelligence hub.
+- Trading Journal App page.
+- Trade Review App page.
+- Execution Analysis feature page.
+- Trading Mistake Tracker feature page.
+- Broker Execution Import feature page.
+- Relevant blog articles.
 
-- `/trading-journal-app/`
-- `/day-trading-journal/`
-- `/trade-review-app/`
-- `/features/execution-analysis/`
-- `/features/trading-mistake-tracker/`
-- `/features/broker-execution-import/`
-- `/features/session-time-analysis/`
-- `/features/support-resistance-trade-review/`
-- `/features/trade-management-feedback/`
-- `/features/performance-insights/`
+### Educational Pages Should Link To
 
-### Trading Journal App Page
+- Closest glossary definition.
+- Closest deeper guide.
+- Relevant trading journal or trade review page.
+- Relevant feature page if the topic relates to Trader Intelligence.
 
-`/trading-journal-app/` should link to:
+### SEC Filing Pages Should Link To
 
-- `/day-trading-journal/`
-- `/trade-review-app/`
-- `/features/execution-analysis/`
-- `/features/broker-execution-import/`
-- `/features/trading-mistake-tracker/`
-- `/blog/what-to-include-in-a-trading-journal/`
-- `/blog/trading-journal-app-vs-spreadsheet/`
+- SEC filings hub.
+- Dilution risk guide.
+- Offering guide.
+- Trading journal page when discussing reviewing trades around filings.
 
-### Execution Analysis Page
+### Chart And Candle Pages Should Link To
 
-`/features/execution-analysis/` should link to:
+- Chart patterns hub.
+- Candlestick patterns hub.
+- Support and resistance guide.
+- Trade review pages explaining how to review trades involving that pattern.
 
-- `/features/entry-review/`
-- `/features/exit-review/`
-- `/features/scaling-analysis/`
-- `/features/trade-management-feedback/`
-- `/blog/how-to-analyze-trade-entries-and-exits/`
-- `/blog/how-to-improve-trade-execution/`
-
-### Trading Mistake Tracker Page
-
-`/features/trading-mistake-tracker/` should link to:
-
-- `/features/average-down-tracking/`
-- `/features/risk-behavior-review/`
-- `/blog/how-to-track-trading-mistakes/`
-- `/blog/how-to-stop-chasing-stocks/`
-- `/blog/how-to-stop-averaging-down-bad-trades/`
-- `/blog/why-traders-repeat-the-same-mistakes/`
-
-### Support And Resistance Review Page
-
-`/features/support-resistance-trade-review/` should link to:
-
-- `/blog/how-to-use-support-and-resistance-in-trade-review/`
-- `/blog/how-to-review-failed-breakout-trades/`
-- `/blog/how-to-know-if-you-entered-too-late/`
-- `/features/entry-review/`
-- `/features/exit-review/`
-
-### Blog Articles
-
-Every blog article should link to at least two relevant product or feature pages.
-
-Common product links:
-
-- `/trading-journal-app/`
-- `/trade-review-app/`
-- `/features/execution-analysis/`
-- `/features/trading-mistake-tracker/`
-- `/features/broker-execution-import/`
-- `/features/trade-management-feedback/`
-
-## Suggested Draft Storage Structure
-
-```text
-docs/content/
-  trader-intelligence-seo-master-plan.md
-  drafts/
-    trader-intelligence.md
-    trading-journal-app.md
-    day-trading-journal.md
-    trade-review-app.md
-    execution-analysis.md
-    trading-mistake-tracker.md
-    broker-execution-import.md
-    support-resistance-trade-review.md
-    session-time-analysis.md
-    trade-management-feedback.md
-    performance-insights.md
-    evidence-backed-coaching.md
-  drafts/blog/
-    how-to-review-your-trades.md
-    trading-journal-for-day-traders.md
-    how-to-analyze-trade-entries-and-exits.md
-    how-to-track-trading-mistakes.md
-    why-p-and-l-alone-is-not-enough.md
-    how-to-review-trade-management.md
-```
-
-## Page Draft Structure
-
-Each product or feature page should use this general structure:
+## Page Draft Structure For Product Pages
 
 ```markdown
 # H1
 
-Short intro that targets the primary keyword naturally.
+Intro targeting the primary keyword naturally.
 
-## What This Page Covers
+## What This Tool Does
 
-Briefly define the problem and product promise.
+## Why It Matters
 
-## What Trader Intelligence Does
-
-Explain the feature or product clearly.
-
-## Why This Matters For Active Traders
-
-Explain the pain point and value.
-
-## How The Review Works
-
-Plain-language description of inputs and outputs.
+## How It Works
 
 ## Key Features
 
-Bulleted feature list.
+## Who It Is For
 
-## What This Is Not
+## What It Is Not
 
-Guardrail section to avoid financial advice and signal claims.
-
-## Related Trader Intelligence Features
-
-Internal links.
+## Related Features
 
 ## FAQ
 
-SEO-focused FAQ.
-
 ## Call To Action
-
-Careful beta or coming-soon CTA.
 ```
 
-## Blog Draft Structure
-
-Each blog article should use this general structure:
+## Page Draft Structure For Educational Guides
 
 ```markdown
 # H1
 
-Intro that answers the search intent quickly.
+Direct answer to the search query.
 
-## Direct Answer
+## Quick Definition
 
-Give the user the practical answer early.
+## Why It Matters To Traders
 
-## Why This Matters
+## How It Works
 
-Explain the trading review problem.
-
-## Step-By-Step Review Process
-
-Actionable guidance.
+## Example Scenario
 
 ## Common Mistakes
 
-List the mistakes related to the topic.
+## How To Review This In Your Trading Journal
 
-## How A Trading Journal Helps
-
-Natural connection to Trader Intelligence.
+## Related Terms
 
 ## FAQ
 
-Search-focused FAQ.
-
 ## Conclusion
-
-Simple summary and CTA.
 ```
 
-## FAQ Topics To Reuse
+## Page Draft Structure For SEC Filing Pages
 
-Use only when relevant:
+```markdown
+# H1
 
-- What is Trader Intelligence?
-- Is Trader Intelligence live yet?
-- Is Trader Intelligence a trading journal?
-- How is Trader Intelligence different from a normal trading journal?
-- Does Trader Intelligence provide financial advice?
-- Does Trader Intelligence give buy or sell signals?
-- Can I import broker executions?
-- What is execution analysis?
-- What is trade review?
-- What is a trading mistake tracker?
-- Why is P&L alone not enough?
-- How can support and resistance help trade review?
-- What kind of traders is Trader Intelligence built for?
-- Is Trader Intelligence useful for small-cap traders?
-- Can Trader Intelligence help me review premarket trades?
+Plain-English explanation of the filing.
 
-## Schema Suggestions
+## What This Filing Means
 
-Use only when the page content supports it.
+## Why Companies File It
 
-Product and feature pages:
+## What Traders Usually Look For
 
-- `SoftwareApplication`
-- `FAQPage`
+## What It Does Not Automatically Mean
 
-Blog articles:
+## Dilution Or Risk Considerations
 
-- `BlogPosting`
-- `FAQPage`
+## How To Review Trades Around This Filing
 
-Glossary pages:
+## Related SEC Filings
 
-- `Article`
-- `FAQPage`
+## FAQ
 
-Do not use review or rating schema unless real reviews exist.
+## Educational Disclaimer
+```
 
-## Priority Production Order
+## Page Draft Structure For Chart Pattern Pages
 
-### Priority 1
+```markdown
+# H1
+
+Plain-English description of the pattern.
+
+## What The Pattern Looks Like
+
+## Why Traders Watch It
+
+## What Can Go Wrong
+
+## Volume And Context
+
+## Small-Cap Considerations
+
+## How To Review Trades Involving This Pattern
+
+## Related Patterns
+
+## FAQ
+
+## Educational Disclaimer
+```
+
+## Editorial Rules
+
+Keep the writing:
+
+- Plain.
+- Direct.
+- Useful.
+- SEO-focused.
+- Honest about beta and coming-soon status.
+- Helpful for newer traders without sounding childish.
+- Focused on education, review, and decision support.
+- Free of profit promises.
+- Free of trade-call language.
+- Free of financial-advice claims.
+
+Every educational page should avoid pretending a single pattern, filing, press release, or metric is enough to make a trade decision.
+
+## First 90-Day Publishing Plan
+
+### Month 1: Commercial Foundation
+
+Publish:
 
 1. `/trading-journal-app/`
 2. `/trader-intelligence/`
@@ -1908,18 +993,9 @@ Do not use review or rating schema unless real reviews exist.
 7. `/features/trade-management-feedback/`
 8. `/features/support-resistance-trade-review/`
 
-### Priority 2
+### Month 2: Trade Review And Journal Authority
 
-1. `/day-trading-journal/`
-2. `/features/session-time-analysis/`
-3. `/features/entry-review/`
-4. `/features/exit-review/`
-5. `/features/scaling-analysis/`
-6. `/features/average-down-tracking/`
-7. `/features/profit-protection-review/`
-8. `/features/performance-insights/`
-
-### Priority 3
+Publish:
 
 1. `/blog/how-to-review-your-trades/`
 2. `/blog/trading-journal-for-day-traders/`
@@ -1927,55 +1003,41 @@ Do not use review or rating schema unless real reviews exist.
 4. `/blog/how-to-track-trading-mistakes/`
 5. `/blog/why-p-and-l-alone-is-not-enough/`
 6. `/blog/how-to-review-trade-management/`
-7. `/blog/broker-execution-import-vs-manual-journaling/`
-8. `/blog/how-to-use-support-and-resistance-in-trade-review/`
+7. `/blog/trading-journal-template-for-day-traders/`
+8. `/blog/daily-trade-review-checklist/`
 
-### Priority 4
+### Month 3: Small-Cap And Filing Authority
 
-1. Small-cap and penny stock cluster.
-2. Trading behavior mistake cluster.
-3. Comparison cluster.
-4. Glossary cluster.
+Publish:
+
+1. `/learn/small-cap-stocks/`
+2. `/learn/penny-stocks/`
+3. `/learn/low-float-stocks/`
+4. `/learn/stock-float/`
+5. `/learn/relative-volume/`
+6. `/learn/sec-filings/`
+7. `/learn/sec-filings/form-8-k/`
+8. `/learn/sec-filings/form-s-1/`
+9. `/learn/sec-filings/form-s-3/`
+10. `/learn/sec-filings/form-424b5/`
+11. `/learn/reverse-split/`
+12. `/learn/how-to-spot-dilution-risk/`
 
 ## First Draft Batch Recommendation
 
-The first writing batch should include:
+Start by drafting these markdown files:
 
 1. `/trading-journal-app/`
 2. `/trader-intelligence/`
 3. `/trade-review-app/`
 4. `/features/execution-analysis/`
+5. `/features/trading-mistake-tracker/`
+6. `/blog/how-to-review-your-trades/`
 
-The second writing batch should include:
+This creates the first commercial and educational foundation before expanding into the full learning library.
 
-1. `/features/trading-mistake-tracker/`
-2. `/features/broker-execution-import/`
-3. `/features/trade-management-feedback/`
-4. `/features/support-resistance-trade-review/`
+## Final Strategic Note
 
-The third writing batch should include:
+The long-term SEO win is not only ranking for `trading journal app`. The bigger opportunity is to make TradersLink a trusted resource for active traders who search questions about small caps, filings, catalysts, chart levels, trading mistakes, and trade review.
 
-1. `/blog/how-to-review-your-trades/`
-2. `/blog/trading-journal-for-day-traders/`
-3. `/blog/how-to-analyze-trade-entries-and-exits/`
-4. `/blog/how-to-track-trading-mistakes/`
-
-## Final Editorial Rules
-
-Keep the writing:
-
-- Plain.
-- Direct.
-- Useful.
-- SEO-focused.
-- Honest about coming-soon status.
-- Focused on trader review and improvement.
-- Free of profit promises.
-- Free of trade-call language.
-- Free of financial-advice claims.
-
-Do not over-hype the product.
-
-The best content angle is:
-
-> Trader Intelligence helps traders review how they actually traded, not just whether the trade made or lost money.
+The content should consistently lead readers from learning a concept to reviewing their own trades more intelligently.
