@@ -6,6 +6,8 @@ This is the continuation queue after `docs/content/content-production-queue-009.
 
 This queue starts the risk management and trading psychology expansion cluster from the master plan.
 
+Important note: `risk-management.md` and `position-sizing.md` already existed from an earlier content batch and were preserved. Queue 010 adds the missing companion drafts and records the full first risk-management set together.
+
 When the user says `continue the SEO content queue`, ChatGPT should:
 
 1. Check this continuation queue first.
@@ -30,11 +32,11 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| RISK-001 | 3 | needs_review | docs/content/drafts/learn/risk-management.md | /learn/risk-management/ | guide | trading risk management | Education | Core risk management guide |
-| RISK-002 | 3 | needs_review | docs/content/drafts/learn/risk-reward-ratio.md | /learn/risk-reward-ratio/ | guide | risk reward ratio | Education | Risk reward guide |
-| RISK-003 | 3 | needs_review | docs/content/drafts/learn/position-sizing.md | /learn/position-sizing/ | guide | position sizing | Education | Position sizing guide |
-| RISK-004 | 3 | needs_review | docs/content/drafts/learn/stop-loss.md | /learn/stop-loss/ | guide | stop loss | Education | Stop loss guide |
-| RISK-005 | 3 | needs_review | docs/content/drafts/learn/max-loss.md | /learn/max-loss/ | guide | max loss trading | Education | Max loss guide |
+| RISK-001 | 3 | needs_review | docs/content/drafts/learn/risk-management.md | /learn/risk-management/ | guide | trading risk management | Education | Existing draft preserved from earlier batch |
+| RISK-002 | 3 | needs_review | docs/content/drafts/learn/risk-reward-ratio.md | /learn/risk-reward-ratio/ | guide | risk reward ratio | Education | New Queue 010 draft |
+| RISK-003 | 3 | needs_review | docs/content/drafts/learn/position-sizing.md | /learn/position-sizing/ | guide | position sizing | Education | Existing draft preserved from earlier batch |
+| RISK-004 | 3 | needs_review | docs/content/drafts/learn/stop-loss.md | /learn/stop-loss/ | guide | stop loss | Education | New Queue 010 draft |
+| RISK-005 | 3 | needs_review | docs/content/drafts/learn/max-loss.md | /learn/max-loss/ | guide | max loss trading | Education | New Queue 010 draft |
 
 ## Next Run Instruction
 
