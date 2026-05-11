@@ -6,6 +6,8 @@ This is the continuation queue after `docs/content/content-production-queue-010.
 
 This queue continues the risk management and trading psychology expansion cluster from the master plan.
 
+Important note: `overtrading.md` and `revenge-trading.md` already existed from an earlier content batch and were preserved. Queue 011 adds the missing companion drafts and records the next risk/psychology set together.
+
 When the user says `continue the SEO content queue`, ChatGPT should:
 
 1. Check this continuation queue first.
@@ -30,11 +32,11 @@ Do not write JSX, HTML, CSS, React, or Next.js files.
 
 | ID | Priority | Status | Draft Path | Slug | Type | Primary Keyword | Product Area | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| RISK-006 | 3 | needs_review | docs/content/drafts/learn/daily-loss-limit.md | /learn/daily-loss-limit/ | guide | daily loss limit | Education | Daily loss limit guide |
-| RISK-007 | 3 | needs_review | docs/content/drafts/learn/overtrading.md | /learn/overtrading/ | guide | overtrading | Education | Overtrading guide |
-| RISK-008 | 3 | needs_review | docs/content/drafts/learn/revenge-trading.md | /learn/revenge-trading/ | guide | revenge trading | Education | Revenge trading guide |
-| RISK-009 | 3 | needs_review | docs/content/drafts/learn/fomo-trading.md | /learn/fomo-trading/ | guide | FOMO trading | Education | FOMO trading guide |
-| RISK-010 | 3 | needs_review | docs/content/drafts/learn/chasing-stocks.md | /learn/chasing-stocks/ | guide | chasing stocks | Education | Chasing stocks guide |
+| RISK-006 | 3 | needs_review | docs/content/drafts/learn/daily-loss-limit.md | /learn/daily-loss-limit/ | guide | daily loss limit | Education | New Queue 011 draft |
+| RISK-007 | 3 | needs_review | docs/content/drafts/learn/overtrading.md | /learn/overtrading/ | guide | overtrading | Education | Existing draft preserved from earlier batch |
+| RISK-008 | 3 | needs_review | docs/content/drafts/learn/revenge-trading.md | /learn/revenge-trading/ | guide | revenge trading | Education | Existing draft preserved from earlier batch |
+| RISK-009 | 3 | needs_review | docs/content/drafts/learn/fomo-trading.md | /learn/fomo-trading/ | guide | FOMO trading | Education | New Queue 011 draft |
+| RISK-010 | 3 | needs_review | docs/content/drafts/learn/chasing-stocks.md | /learn/chasing-stocks/ | guide | chasing stocks | Education | New Queue 011 draft |
 
 ## Next Run Instruction
 
