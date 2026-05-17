@@ -22,6 +22,7 @@ export const SCALED_INTO_POSITION: PatternDefinition = {
   name: "Scaled Into Position",
   family: PATTERN_FAMILIES.POSITION_BUILDING,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =
@@ -45,6 +46,7 @@ export const SINGLE_BUILD_POSITION: PatternDefinition = {
   name: "Single Build Position",
   family: PATTERN_FAMILIES.POSITION_BUILDING,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =

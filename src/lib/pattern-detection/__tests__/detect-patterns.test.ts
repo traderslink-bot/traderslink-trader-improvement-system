@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { PatternInput } from "../../pattern-input/types/pattern-input";
+import {
+  normalizePatternInputShape,
+  type LegacyPatternInputShape,
+  type PatternInput,
+} from "../../pattern-input/types/pattern-input";
 import { detectPatterns } from "../detect-patterns";
 
 function createBasePatternInput(
-  overrides: Partial<PatternInput> = {},
+  overrides: Partial<LegacyPatternInputShape> = {},
 ): PatternInput {
-  return {
+  return normalizePatternInputShape({
     symbol: "ABCD",
     tradeDirection: "long",
     sessionBucket: "market_open",
@@ -176,7 +180,7 @@ function createBasePatternInput(
     addsWithRecentRunUpCount: 1,
     addsWithRecentDropCount: 0,
     ...overrides,
-  };
+  });
 }
 
 describe("detectPatterns", () => {
@@ -553,15 +557,20 @@ describe("detectPatterns", () => {
         firstEntryToWorstMovePct: 0.035,
         firstEntryRecentRunUpPctBeforeEntry: 0.1,
         firstEntryRecentDropPctBeforeEntry: 0.01,
-        firstEntryRecentNetMovePctBeforeEntry: 0.07,
+        firstEntryRecentNetMovePctBeforeEntry: 0.05,
         firstEntryBullishCandlesBeforeEntryCount: 4,
         firstEntryBearishCandlesBeforeEntryCount: 1,
       }),
     );
     const ids = result.detectedPatterns.map((pattern) => pattern.patternId);
+    const breakoutChase = result.detectedPatterns.find(
+      (pattern) => pattern.patternId === "breakout_chase_entry_structure",
+    );
 
     expect(ids).toContain("breakout_chase_entry_structure");
-    expect(ids).toContain("overextended_chase_entry_structure");
+    expect(ids).not.toContain("overextended_chase_entry_structure");
+    expect(breakoutChase?.thresholdsUsed.minNetMovePct).toBe(0.03);
+    expect(breakoutChase?.thresholdsUsed.maxNetMovePct).toBeUndefined();
   });
 
   it("detects failed breakout entry structure when a measured favorable extension still led to weak post-entry structure", () => {
@@ -4096,6 +4105,194 @@ describe("detectPatterns", () => {
     );
   });
 
+  it("detects trim into resistance with constructive final exit when a partial exit happens near resistance and the final exit still avoids later damage", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "trim_into_resistance_with_constructive_final_exit",
+    );
+  });
+
+  it("detects trim into resistance with premature final exit when a partial exit happens near resistance but the final exit still comes before breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "trim_into_resistance_with_premature_final_exit",
+    );
+  });
+
+  it("detects recovery with trim into resistance and constructive final exit when early adversity recovers and the resistance-aware trim still finishes well", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_trim_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects recovery with trim into resistance and premature final exit when early adversity recovers but the final exit still comes before breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_trim_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects balanced management with take profit into resistance and constructive final exit when balanced management still includes reductions into nearby resistance before a disciplined finish", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects balanced management with take profit into resistance and premature final exit when balanced management still includes reductions into nearby resistance before missed breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        totalPositionDecreaseCount: 1,
+        realizedReturnPct: 0.05,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects recovery with balanced management and take profit into resistance and constructive final exit when early adversity recovers into a disciplined resistance-aware finish", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects recovery with balanced management and take profit into resistance and premature final exit when early adversity recovers but the final exit still comes before breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+    );
+  });
+
   it("detects breakout with room above when entry clears nearby resistance and still has room overhead", () => {
     const result = detectPatterns(
       createBasePatternInput({
@@ -4161,6 +4358,58 @@ describe("detectPatterns", () => {
     );
   });
 
+  it("detects recovery with breakout with room above and constructive final exit when early adversity recovers and the breakout still finishes constructively", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.03,
+        hadSupportResistanceContextAvailable: true,
+        firstEntryClearedNearestResistanceBelow: true,
+        firstEntryHadRoomAboveAfterClearingResistance: true,
+        firstEntryDistanceAboveNearestResistanceBelowPct: 0.006,
+        firstEntryDistanceToNearestResistancePct: 0.028,
+        firstEntryOccurredNearResistance: false,
+        firstEntryCapturedPercentOfTradeMfe: 0.8,
+        firstEntryToWorstMovePct: 0.01,
+        maxGivebackFromPeakOpenProfitPct: 0.2,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_breakout_with_room_above_and_constructive_final_exit",
+    );
+  });
+
+  it("detects recovery with breakout with room above and failed profit protection when early adversity recovers but the breakout still later gives too much back", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadSupportResistanceContextAvailable: true,
+        firstEntryClearedNearestResistanceBelow: true,
+        firstEntryHadRoomAboveAfterClearingResistance: true,
+        firstEntryDistanceAboveNearestResistanceBelowPct: 0.006,
+        firstEntryDistanceToNearestResistancePct: 0.028,
+        firstEntryOccurredNearResistance: false,
+        firstEntryCapturedPercentOfTradeMfe: 0.8,
+        firstEntryToWorstMovePct: 0.01,
+        maxGivebackFromPeakOpenProfitPct: 0.6,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_breakout_with_room_above_and_failed_profit_protection",
+    );
+  });
+
   it("detects breakout into overhead resistance when entry clears nearby resistance directly into stacked overhead levels", () => {
     const result = detectPatterns(
       createBasePatternInput({
@@ -4215,12 +4464,62 @@ describe("detectPatterns", () => {
         firstEntryCapturedPercentOfTradeMfe: 0.2,
         firstEntryToWorstMovePct: 0.03,
         maxGivebackFromPeakOpenProfitPct: 0.6,
-        peakOpenProfitPctOfBasis: 0.08,
       }),
     );
 
     expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
       "breakout_into_overhead_resistance_with_failed_profit_protection",
+    );
+  });
+
+  it("detects recovery with breakout into overhead resistance and defensive final exit when early adversity recovers but the weak breakout still later needs a disciplined save", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.03,
+        hadSupportResistanceContextAvailable: true,
+        firstEntryClearedNearestResistanceBelow: true,
+        firstEntryHadRoomAboveAfterClearingResistance: false,
+        firstEntryHasStackedResistanceAbove: true,
+        firstEntryResistanceLevelsAboveWithinClusterCount: 2,
+        firstEntryCapturedPercentOfTradeMfe: 0.2,
+        firstEntryToWorstMovePct: 0.03,
+        closedToFlat: true,
+        totalPositionDecreaseCount: 1,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+        maxGivebackFromPeakOpenProfitPct: 0.2,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit",
+    );
+  });
+
+  it("detects recovery with breakout into overhead resistance and failed profit protection when early adversity recovers but the weak breakout still later gives too much back", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadSupportResistanceContextAvailable: true,
+        firstEntryClearedNearestResistanceBelow: true,
+        firstEntryHadRoomAboveAfterClearingResistance: false,
+        firstEntryHasStackedResistanceAbove: true,
+        firstEntryResistanceLevelsAboveWithinClusterCount: 2,
+        firstEntryCapturedPercentOfTradeMfe: 0.2,
+        firstEntryToWorstMovePct: 0.03,
+        maxGivebackFromPeakOpenProfitPct: 0.6,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection",
     );
   });
 
@@ -4491,6 +4790,392 @@ describe("detectPatterns", () => {
 
     expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
       "stabilized_recovery_with_exit_into_thin_support_before_breakdown",
+    );
+  });
+
+  it("detects exit into resistance with reversal after exit when the final exit occurs into nearby resistance and price later reverses lower", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.001,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "exit_into_resistance_with_reversal_after_exit",
+    );
+  });
+
+  it("detects exit into resistance before breakout when the final exit occurs into nearby resistance but price later breaks higher", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.001,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "exit_into_resistance_before_breakout",
+    );
+  });
+
+  it("detects stabilized recovery with exit into resistance and reversal when early adversity stabilizes and the final exit lands into resistance before price reverses lower", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        closedToFlat: true,
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
+        secondsFromPeakOpenProfitToFirstReduction: 30,
+        maxGivebackFromPeakOpenProfitPct: 0.2,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.001,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "stabilized_recovery_with_exit_into_resistance_and_reversal",
+    );
+  });
+
+  it("detects stabilized recovery with exit into resistance before breakout when early adversity stabilizes but the final exit still lands into resistance before price breaks higher", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        closedToFlat: true,
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
+        secondsFromPeakOpenProfitToFirstReduction: 30,
+        maxGivebackFromPeakOpenProfitPct: 0.2,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.001,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "stabilized_recovery_with_exit_into_resistance_before_breakout",
+    );
+  });
+
+  it("detects repeated balanced management with exit into stacked support and relief when repeated trim-readd management later exits into denser support that relieves", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        closedToFlat: true,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearSupport: true,
+        finalExitSupportLevelsBelowWithinClusterCount: 2,
+        finalExitHasStackedSupportBelow: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_exit_into_stacked_support_and_relief",
+    );
+  });
+
+  it("detects repeated balanced management with trim into resistance and constructive final exit when repeated trim-readd management keeps trimming into nearby resistance and still finishes constructively", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects repeated balanced management with take profit into resistance and constructive final exit when repeated balanced management includes nearby-resistance profit taking and still finishes constructively", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects repeated balanced management with trim into resistance and premature final exit when repeated trim-readd management keeps trimming into nearby resistance but the final exit still comes before breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects repeated balanced management with take profit into resistance and premature final exit when repeated balanced management includes nearby-resistance profit taking but the final exit still comes before breakout continuation", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects repeated balanced management with exit into thin support before breakdown when repeated trim-readd management later exits into thinner support that fails", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        closedToFlat: true,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearSupport: true,
+        finalExitSupportLevelsBelowWithinClusterCount: 1,
+        finalExitHasStackedSupportBelow: false,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.005,
+        maxAdverseMovePctAfterExit: 0.03,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_balanced_management_with_exit_into_thin_support_before_breakdown",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and exit into stacked support and relief when early adversity still leads to repeated balanced management before a denser-support relief exit", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        closedToFlat: true,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearSupport: true,
+        finalExitSupportLevelsBelowWithinClusterCount: 2,
+        finalExitHasStackedSupportBelow: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and trim into resistance and constructive final exit when early adversity still leads to repeated resistance-aware trimming before a constructive finish", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and take profit into resistance and constructive final exit when early adversity still leads to repeated balanced management with nearby-resistance profit taking before a constructive finish", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and trim into resistance and premature final exit when early adversity still leads to repeated resistance-aware trimming before a premature breakout miss", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and take profit into resistance and premature final exit when early adversity still leads to repeated balanced management with nearby-resistance profit taking before a premature breakout miss", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+    );
+  });
+
+  it("detects repeated rescue attempts with balanced management and exit into thin support before breakdown when early adversity still leads to repeated balanced management before a thin-support failure exit", () => {
+    const result = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        closedToFlat: true,
+        hadSupportResistanceContextAvailable: true,
+        finalExitOccurredNearSupport: true,
+        finalExitSupportLevelsBelowWithinClusterCount: 1,
+        finalExitHasStackedSupportBelow: false,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.005,
+        maxAdverseMovePctAfterExit: 0.03,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    expect(result.detectedPatterns.map((pattern) => pattern.patternId)).toContain(
+      "repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown",
     );
   });
 });

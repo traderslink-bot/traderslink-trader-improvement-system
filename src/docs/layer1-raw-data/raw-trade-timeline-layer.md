@@ -1,242 +1,271 @@
 # Raw Trade Timeline Layer
 
-// 2026-04-12 America/Toronto
-// PURPOSE:
-// Defines the complete raw data and derived factual signal layer for the
-// Trader Intelligence System. This layer is the foundation of the system
-// and must remain strictly deterministic, factual, and interpretation-free.
+Updated: 2026-04-14 America/Toronto
 
----
+## Purpose
 
-## Overview
+This document defines the current Layer 1 foundation of the Trader
+Intelligence System.
 
-The Raw Trade Timeline Layer is responsible for capturing and structuring:
+Layer 1 is responsible for building deterministic, factual trade and market
+context from normalized executions and candles.
 
-- Market data (candles)
-- Trader actions (executions)
-- Timeline structure
-- Deterministic trade state
-- Derived factual signals
+It is the base truth that later layers depend on.
 
-This layer represents **objective truth only**.
+## Core Rule
 
-It does NOT perform:
-- pattern detection
-- behavior labeling
-- scoring
-- coaching
-- subjective interpretation
+Layer 1 must remain:
 
----
+- deterministic
+- factual
+- reproducible
+- interpretation-free
 
-## Core Philosophy
+That means Layer 1 can build structural facts, but it should not:
 
-This layer must:
+- label behavior as good or bad
+- claim named pattern families
+- generate coaching
+- infer trader intent
 
-- Preserve the full timeline of a trade
-- Capture what happened before, during, and after executions
-- Represent both market behavior and trader behavior
-- Remain deterministic and reproducible
-- Serve as the single source of truth for all higher layers
+## What Layer 1 Includes Now
 
----
+Layer 1 is broader than just a raw timeline file.
 
-## Data Sources
+It currently includes:
 
-The system currently operates on:
+1. normalized candle and execution ingestion
+2. trade timeline construction
+3. trade state tracking
+4. execution context windows
+5. derived trade and execution facts
+6. session normalization
+7. support/resistance structural context
+8. insufficient-data signaling
 
-### 1. Execution Data
-- Buy and sell actions
-- Timestamped
-- Price and share size
+In repo terms, Layer 1 currently spans:
 
-### 2. Candle Data (Yahoo)
-- OHLCV candles
-- Time-based aggregation (e.g. 1m)
+- `src/lib/raw-trade-timeline/`
+- `src/lib/support-resistance/`
 
----
+## Layer 1 Inputs
 
-## Layer Structure
+### Execution input
 
-### 1. Raw Timeline
+Executions are normalized into the internal execution contract before the raw
+timeline is built.
 
-Files:
-- `build-trade-timeline.ts`
-- `trade-timeline.ts`
-- `trade-timeline-segments.ts`
+Source boundary:
+- `src/lib/execution-sources/`
 
-Responsibilities:
-- Combine candles and executions into a unified structure
-- Maintain strict chronological ordering
-- Segment timeline into:
-  - pre-trade
-  - between executions
-  - post-trade
+### Candle input
 
----
+Candles are normalized into the internal candle contract before the raw
+timeline is built.
 
-### 2. Trade State
+Source boundary:
+- `src/lib/market-data-sources/`
 
-Files:
-- `build-trade-state-series.ts`
-- `trade-state-snapshot.ts`
+Important rule:
 
-Responsibilities:
-- Track position size over time
-- Track average entry price
-- Track realized PnL
-- Determine flat vs active position
+Layer 1 should consume normalized internal data, not provider-specific Yahoo or
+future-provider response shapes directly.
 
----
+## Main Layer 1 Responsibilities
 
-### 3. Execution Context Windows
+### 1. Timeline construction
 
-Files:
-- `build-execution-context-windows.ts`
-- `execution-context-window.ts`
+Layer 1 combines candles and executions into a chronological trade model.
 
-Responsibilities:
-- Capture candles before and after each execution
-- Provide localized market context
+This includes:
 
----
+- pre-trade context
+- between-execution context
+- in-trade state
+- post-exit followthrough
 
-## Derived Signal Layers
+Primary files:
+- `raw-trade-timeline/builders/create-raw-trade-timeline.ts`
+- `raw-trade-timeline/builders/build-trade-timeline.ts`
 
-These layers transform raw data into structured, factual signals.
+### 2. Trade state
 
----
+Layer 1 tracks deterministic state such as:
 
-### 4. Execution Derived Signals
+- position size
+- average entry
+- realized PnL
+- open vs flat state
+- state changes across the timeline
 
-File:
-- `build-execution-derived-signals.ts`
+Primary files:
+- `raw-trade-timeline/state/build-trade-state-series.ts`
+- `raw-trade-timeline/types/trade-state-series.ts`
+- `raw-trade-timeline/types/trade-state-snapshot.ts`
 
-Captures:
-- Maximum favorable movement (MFE)
-- Maximum adverse movement (MAE)
-- Percentage-based movement
-- Price behavior after each execution
+### 3. Execution context windows
 
----
+Layer 1 builds localized windows around executions so later derived builders can
+reason about what happened around entries, adds, reductions, and exits.
 
-### 5. Position Change Derived Signals
+Primary files:
+- `raw-trade-timeline/windows/build-execution-context-windows.ts`
+- `raw-trade-timeline/types/execution-context-window.ts`
 
-File:
-- `build-position-change-derived-signals.ts`
+### 4. Derived factual signals
 
-Captures:
-- Position size changes
-- Size increase / decrease
-- Flat → open transitions
-- Open → flat transitions
-- Realized PnL changes
-- Relative size changes
+Layer 1 now contains a substantial set of derived builders, including:
 
----
+- entry context
+- add context
+- reduction context
+- re-add and reduction/re-add structure
+- profit-protection context
+- danger windows
+- execution-local outcomes
+- partial-exit outcomes
+- post-exit behavior
+- trade lifecycle facts
+- timeline relationships
+- trade-level summary facts
 
-### 6. Timeline Relationship Signals
+These remain factual outputs, not named pattern claims.
 
-File:
-- `build-timeline-relationship-signals.ts`
+Primary folder:
+- `raw-trade-timeline/derived/`
 
-Captures:
-- Time between executions
-- Candles between executions
-- Execution pacing
-- Execution density
+### 5. Session normalization
 
----
+Layer 1 normalizes session labels into canonical internal session buckets so
+provider differences do not leak into higher layers.
 
-### 7. Trade Derived Signals
+Primary file:
+- `raw-trade-timeline/session/normalize-session-bucket.ts`
 
-File:
-- `build-trade-derived-signals.ts`
+### 6. Support/resistance structural context
 
-Captures:
-- Full trade MFE / MAE
-- Peak and worst price
-- Trade duration
-- Trade candle count
-- Entry and exit price
+Support/resistance now extends Layer 1 truth.
 
----
+This includes:
 
-## Output Contract
+- structural context windows
+- reference levels
+- dynamic levels
+- pivots
+- merge logic
+- touch and reaction measurement
+- level scoring
+- support/resistance ladders
+- gap structure
+- execution-to-level relations
 
-Primary output type:
+Primary entry point:
+- `support-resistance/build-support-resistance-context.ts`
+
+Important rule:
+
+The support/resistance module should build structural truth and relations, not
+final setup labels by itself.
+
+### 7. Insufficient-data handling
+
+Layer 1 is also responsible for signaling when there is not enough candle data
+to build parts of the factual context reliably.
+
+This matters both for:
+
+- internal honesty
+- future user-facing feedback like "there was not enough candle data to assess this reliably"
+
+## Main Layer 1 Outputs
+
+The primary Layer 1 output is:
 
 - `RawTradeTimelineBuildResult`
 
-Contains:
+This output now contains more than a simple timeline. It includes:
 
-- raw timeline
-- execution-derived signals
-- position-change signals
-- timeline relationship signals
-- trade-level signals
+- timeline structure
+- state and lifecycle facts
+- execution-local and trade-level derived facts
+- session context
+- structural context availability
+- support/resistance evidence and execution-level relations
 
-This is the **complete factual representation of a trade**.
+This is the complete factual handoff into the next stage.
 
----
+## Relationship To PatternInput
 
-## What This Layer Does NOT Do
+Layer 1 is not the same as `PatternInput`.
 
-This layer explicitly avoids:
+The flow is:
 
-- labeling behavior (e.g. "chase", "good trade")
-- classifying setups
-- assigning quality or performance scores
-- generating coaching suggestions
-- interpreting intent
+1. Layer 1 builds the full factual result
+2. `PatternInput` aggregates the subset needed for pattern detection
+3. Layer 2 detects named patterns
+4. Layer 3 normalizes and prioritizes those patterns
 
----
+So Layer 1 is the factual foundation, and `PatternInput` is the bridge.
 
-## System Boundary
+## What Layer 1 Explicitly Does Not Do
 
-This layer is the **final step before intelligence begins**.
+Layer 1 should not:
 
-Everything above this layer must:
+- detect `breakout_entry_structure`
+- detect `stop_like_forced_exit_after_breakdown`
+- detect `trim_into_resistance_with_constructive_final_exit`
+- decide which pattern is primary
+- produce coaching text
 
-- consume this data
-- not modify it
-- not reinterpret raw values
+Those belong to later layers.
 
----
+## Why Layer 1 Matters
 
-## Future Enhancements (Optional)
+If Layer 1 truth is weak:
 
-These are not required but may be added later:
+- pattern detection becomes noisy
+- normalization becomes misleading
+- coaching later becomes untrustworthy
 
-- tick-level data
-- order book data
-- bid/ask spread
-- slippage modeling
-- volatility indicators (ATR, range)
-- multi-timeframe context
+If Layer 1 truth is strong:
 
-These are **data enhancements**, not structural requirements.
+- higher layers can stay cleaner
+- support/resistance-aware reasoning stays honest
+- provider swaps stay safer
 
----
+## Honest Current Status
 
-## Final Status
+Layer 1 is no longer just a planned raw timeline concept.
 
-The Raw Trade Timeline Layer is:
+It is already a substantial working foundation with:
 
-- complete
-- fully tested
-- deterministic
-- stable
+- normalized provider boundaries
+- session normalization
+- broad derived factual signal coverage
+- support/resistance structural context
+- tests across the raw timeline and structural-evidence pipeline
 
-It is safe to build all higher layers on top of this foundation.
+That said, Layer 1 is still an active development area whenever the system
+needs new factual contracts to unlock stronger later-layer detection.
 
----
+## Best Supporting Docs
+
+Use this file together with:
+
+1. `src/docs/layer1-raw-data/raw-trade-timeline-layer-files.md`
+2. `src/docs/layer1-raw-data/raw-trade-timeline-plan.md`
+3. `src/docs/layer1-raw-data/layer1-remaining-raw-detector-roadmap.md`
+4. `src/docs/layer1-raw-data/support-resistance-implementation-plan.md`
+5. `src/docs/support-resistance-plan.md`
+6. `src/docs/system-file-structure.md`
 
 ## Next Layer
 
-The next layer is:
+The next step above Layer 1 is not pattern detection directly.
 
-👉 Pattern Input Layer
+It is:
 
-This layer aggregates raw derived signals into a simplified structure
-for pattern detection.
+- `PatternInput` aggregation in `src/lib/pattern-input/`
+
+That bridge packages the larger Layer 1 truth into the pattern-ready contract
+used by Layer 2.

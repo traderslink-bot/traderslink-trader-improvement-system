@@ -11,15 +11,18 @@ import type { Candle } from "../types/candle";
 import type { Execution } from "../types/execution";
 import type { RawTradeTimelineBuildResult } from "../types/raw-trade-timeline-build-result";
 import type { SessionContext } from "../types/session-context";
-import type { TradeTimelineInput } from "../types/trade-timeline-input";
+import type {
+  TradeTimelineInput,
+  TradeTimelineInputBuildSource,
+} from "../types/trade-timeline-input";
 import type { TradeTimeline } from "../types/trade-timeline";
-import { normalizeSessionBucketValue } from "../session/normalize-session-bucket";
+import { normalizeRequiredSessionBucketValue } from "../session/normalize-session-bucket";
 import { validateTradeTimeline } from "../validators/validate-trade-timeline";
 import { validateTradeTimelineInput } from "../validators/validate-trade-timeline-input";
 import { buildExecutionContextWindows } from "../windows/build-execution-context-windows";
 
 export interface BuildTradeTimelineArgs {
-  input: TradeTimelineInput;
+  input: TradeTimelineInputBuildSource;
   executionWindowCandlesBeforeCount?: number;
   executionWindowCandlesAfterCount?: number;
 }
@@ -55,7 +58,7 @@ export function buildTradeTimeline(
   const symbol = args.input.symbol.trim().toUpperCase();
   const timeframe = args.input.timeframe.trim();
   const sessionContext: SessionContext = {
-    sessionBucket: normalizeSessionBucketValue(
+    sessionBucket: normalizeRequiredSessionBucketValue(
       args.input.sessionContext.sessionBucket,
     ),
     sessionDate: args.input.sessionContext.sessionDate.trim(),

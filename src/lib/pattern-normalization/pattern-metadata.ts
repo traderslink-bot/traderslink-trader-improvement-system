@@ -30,6 +30,7 @@
 // - scoring-facing metadata
 //
 
+import { PATTERN_DEFINITIONS } from "../pattern-detection/registry/pattern-definitions";
 import type { PatternType } from "../pattern-detection/types/pattern-detection-types";
 import { PATTERN_FAMILIES } from "../pattern-detection/types/pattern-detection-types";
 
@@ -38,10 +39,90 @@ export type NormalizationRole =
   | "supporting_candidate"
   | "context_only";
 
+export const PATTERN_JOURNEY_SCOPES = [
+  "atomic",
+  "one_cycle",
+  "repeated_cycle",
+  "whole_trade",
+] as const;
+
+export type PatternJourneyScope = (typeof PATTERN_JOURNEY_SCOPES)[number];
+
+export const PATTERN_OUTCOME_FLAVORS = [
+  "none",
+  "constructive",
+  "premature",
+  "fearful",
+  "defensive",
+  "failed_protection",
+  "stop_like",
+  "missed_opportunity",
+  "adverse",
+  "balanced",
+] as const;
+
+export type PatternOutcomeFlavor = (typeof PATTERN_OUTCOME_FLAVORS)[number];
+
+export const PATTERN_LANES = [
+  "execution_pacing",
+  "position_building",
+  "position_reduction",
+  "position_structure",
+  "trade_duration",
+  "trade_excursion",
+  "trade_closure",
+  "entry_location",
+  "entry_setup",
+  "entry_breakout",
+  "entry_pullback",
+  "entry_reclaim",
+  "entry_mean_reversion",
+  "entry_session",
+  "entry_support_resistance",
+  "exit_capture",
+  "exit_post_exit",
+  "exit_risk_response",
+  "exit_support_resistance",
+  "management_setup",
+  "management_add_quality",
+  "management_reduction_quality",
+  "management_profit_protection",
+  "management_risk_response",
+  "management_readd",
+  "management_reentry",
+  "management_recovery",
+  "management_repeated_cycle",
+  "management_support_resistance",
+  "management_whole_trade",
+  "management_failure",
+  "management_context",
+] as const;
+
+export type PatternLane = (typeof PATTERN_LANES)[number];
+
+interface InferredPatternSemantics {
+  lane: PatternLane;
+  subFamily: string;
+  journeyScope: PatternJourneyScope;
+  outcomeFlavor: PatternOutcomeFlavor;
+  isRecoveryAware: boolean;
+  isSupportResistanceAware: boolean;
+  broaderPatternIds: string[];
+  lineageRoot: string;
+}
+
 export interface PatternMetadata {
   patternId: string;
   family: string;
   patternType: PatternType;
+  lane: PatternLane;
+  subFamily: string;
+  journeyScope: PatternJourneyScope;
+  outcomeFlavor: PatternOutcomeFlavor;
+  isRecoveryAware: boolean;
+  isSupportResistanceAware: boolean;
+  broaderPatternIds: string[];
+  lineageRoot: string;
 
   // 2026-04-12 07:18 PM America/Toronto
   // Higher means more specific / structurally richer.
@@ -64,13 +145,278 @@ export interface PatternMetadata {
   notes?: string;
 }
 
-function definePatternMetadata(
-  metadata: PatternMetadata,
-): PatternMetadata {
-  return metadata;
+type PatternMetadataInput = Omit<
+  PatternMetadata,
+  | "lane"
+  | "subFamily"
+  | "journeyScope"
+  | "outcomeFlavor"
+  | "isRecoveryAware"
+  | "isSupportResistanceAware"
+  | "broaderPatternIds"
+  | "lineageRoot"
+> &
+  Partial<InferredPatternSemantics>;
+
+const OUTCOME_SUFFIXES = [
+  "_with_constructive_final_exit",
+  "_with_premature_final_exit",
+  "_with_missed_final_continuation",
+  "_with_failed_profit_protection",
+  "_with_stop_like_forced_exit_after_breakdown",
+  "_with_stop_like_forced_exit_before_rebound",
+  "_with_defensive_final_exit_after_deterioration",
+  "_with_fearful_final_exit",
+  "_with_relief_after_exit",
+  "_before_breakdown",
+  "_with_reversal_after_exit",
+  "_before_breakout",
+] as const;
+
+const RECOVERY_PREFIXES = [
+  "recovery_with_",
+  "recovery_to_",
+  "recovery_after_early_adversity_with_",
+  "stabilized_recovery_with_",
+  "constructive_recovery_after_early_adversity",
+  "recovery_after_early_adversity_",
+  "repeated_rescue_attempts_with_",
+] as const;
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
-export const PATTERN_METADATA: PatternMetadata[] = [
+function inferOutcomeFlavor(patternId: string): PatternOutcomeFlavor {
+  if (patternId.includes("constructive")) return "constructive";
+  if (patternId.includes("premature")) return "premature";
+  if (patternId.includes("fearful")) return "fearful";
+  if (patternId.includes("defensive")) return "defensive";
+  if (patternId.includes("failed_profit_protection")) return "failed_protection";
+  if (patternId.includes("stop_like")) return "stop_like";
+  if (patternId.includes("missed_final_continuation")) return "missed_opportunity";
+  if (patternId.includes("failed_") || patternId.includes("deteriorat")) return "adverse";
+  if (patternId.includes("balanced_management")) return "balanced";
+  return "none";
+}
+
+function inferJourneyScope(patternId: string, patternType: PatternType): PatternJourneyScope {
+  if (patternType === "atomic") {
+    return "atomic";
+  }
+
+  if (patternId.startsWith("repeated_") || patternId.includes("repeated_")) {
+    return "repeated_cycle";
+  }
+
+  if (
+    patternId.includes("balanced_management") ||
+    patternId.includes("underutilized_winner") ||
+    patternId.includes("timely_profit_protection") ||
+    patternId.includes("trim_into_strength") ||
+    patternId.includes("add_into_strength_with_") ||
+    patternId.includes("timely_risk_response_with_")
+  ) {
+    return "whole_trade";
+  }
+
+  return "one_cycle";
+}
+
+function inferLane(args: {
+  family: string;
+  patternId: string;
+}): PatternLane {
+  const { family, patternId } = args;
+
+  switch (family) {
+    case PATTERN_FAMILIES.EXECUTION_FREQUENCY:
+      return "execution_pacing";
+    case PATTERN_FAMILIES.POSITION_BUILDING:
+      return "position_building";
+    case PATTERN_FAMILIES.POSITION_REDUCTION:
+      return "position_reduction";
+    case PATTERN_FAMILIES.POSITION_STRUCTURE:
+      return "position_structure";
+    case PATTERN_FAMILIES.TRADE_DURATION:
+      return "trade_duration";
+    case PATTERN_FAMILIES.TRADE_EXCURSION:
+      return "trade_excursion";
+    case PATTERN_FAMILIES.TRADE_CLOSURE:
+      return "trade_closure";
+    case PATTERN_FAMILIES.ENTRY_CONTEXT:
+      return "entry_location";
+    case PATTERN_FAMILIES.ENTRY_QUALITY:
+      if (
+        patternId.includes("opening_range") ||
+        patternId.includes("market_open")
+      ) {
+        return "entry_session";
+      }
+      if (
+        patternId.includes("room_above") ||
+        patternId.includes("overhead_resistance") ||
+        patternId.includes("near_support") ||
+        patternId.includes("under_resistance") ||
+        patternId.includes("far_from_support")
+      ) {
+        return "entry_support_resistance";
+      }
+      if (patternId.includes("breakout")) return "entry_breakout";
+      if (patternId.includes("pullback")) return "entry_pullback";
+      if (patternId.includes("reclaim")) return "entry_reclaim";
+      if (patternId.includes("mean_reversion")) return "entry_mean_reversion";
+      return "entry_setup";
+    case PATTERN_FAMILIES.EXIT_QUALITY:
+      if (patternId.includes("support") || patternId.includes("resistance")) {
+        return "exit_support_resistance";
+      }
+      if (
+        patternId.includes("risk_response") ||
+        patternId.includes("profit_protection") ||
+        patternId.includes("giveback")
+      ) {
+        return "exit_risk_response";
+      }
+      if (patternId.includes("exit") || patternId.includes("continuation")) {
+        return "exit_post_exit";
+      }
+      return "exit_capture";
+    case PATTERN_FAMILIES.SCALING_QUALITY:
+      if (patternId.includes("support") || patternId.includes("resistance")) {
+        return "management_support_resistance";
+      }
+      if (patternId.includes("reentry")) return "management_reentry";
+      if (patternId.includes("readd")) return "management_readd";
+      if (patternId.includes("recovery") || patternId.includes("rescue")) {
+        return "management_recovery";
+      }
+      if (patternId.includes("repeated_")) return "management_repeated_cycle";
+      if (
+        patternId.includes("profit_protection") ||
+        patternId.includes("giveback")
+      ) {
+        return "management_profit_protection";
+      }
+      if (patternId.includes("risk_response")) return "management_risk_response";
+      if (patternId.includes("add_") || patternId.includes("adding")) {
+        return "management_add_quality";
+      }
+      if (patternId.includes("reduction") || patternId.includes("trim")) {
+        return "management_reduction_quality";
+      }
+      if (
+        patternId.includes("balanced_management") ||
+        patternId.includes("underutilized_winner")
+      ) {
+        return "management_whole_trade";
+      }
+      if (patternId.includes("failed") || patternId.includes("revenge")) {
+        return "management_failure";
+      }
+      return "management_setup";
+    default:
+      return "management_context";
+  }
+}
+
+function inferSubFamily(patternId: string): string {
+  if (patternId.includes("opening_range")) return "opening_range";
+  if (patternId.includes("market_open")) return "market_open";
+  if (patternId.includes("breakout")) return "breakout";
+  if (patternId.includes("pullback")) return "pullback";
+  if (patternId.includes("reclaim")) return "reclaim";
+  if (patternId.includes("mean_reversion")) return "mean_reversion";
+  if (patternId.includes("support")) return "support";
+  if (patternId.includes("resistance")) return "resistance";
+  if (patternId.includes("reentry")) return "reentry";
+  if (patternId.includes("readd")) return "readd";
+  if (patternId.includes("trim")) return "trim";
+  if (patternId.includes("risk_response")) return "risk_response";
+  if (patternId.includes("profit_protection")) return "profit_protection";
+  if (patternId.includes("balanced_management")) return "balanced_management";
+  if (patternId.includes("underutilized_winner")) return "underutilized_winner";
+  if (patternId.includes("recovery") || patternId.includes("rescue")) {
+    return "recovery";
+  }
+  return "generic";
+}
+
+function stripVariantAffixes(patternId: string): string[] {
+  const candidates = new Set<string>();
+  let current = patternId;
+  candidates.add(current);
+
+  for (const prefix of RECOVERY_PREFIXES) {
+    if (current.startsWith(prefix)) {
+      current = current.slice(prefix.length);
+      candidates.add(current);
+    }
+  }
+
+  if (current.startsWith("repeated_")) {
+    candidates.add(current.slice("repeated_".length));
+  }
+
+  for (const suffix of OUTCOME_SUFFIXES) {
+    for (const candidate of [...candidates]) {
+      if (candidate.endsWith(suffix)) {
+        candidates.add(candidate.slice(0, -suffix.length));
+      }
+    }
+  }
+
+  return [...candidates];
+}
+
+function inferBroaderPatternIds(patternId: string): string[] {
+  const candidates = stripVariantAffixes(patternId);
+  const broaderCandidates = candidates.filter((candidate) => candidate !== patternId);
+  return uniqueStrings(broaderCandidates);
+}
+
+function inferLineageRoot(patternId: string): string {
+  const candidates = stripVariantAffixes(patternId);
+  return candidates[candidates.length - 1] ?? patternId;
+}
+
+function inferPatternSemantics(args: {
+  family: string;
+  patternId: string;
+  patternType: PatternType;
+}): InferredPatternSemantics {
+  const { family, patternId, patternType } = args;
+
+  return {
+    lane: inferLane({ family, patternId }),
+    subFamily: inferSubFamily(patternId),
+    journeyScope: inferJourneyScope(patternId, patternType),
+    outcomeFlavor: inferOutcomeFlavor(patternId),
+    isRecoveryAware: RECOVERY_PREFIXES.some((prefix) => patternId.startsWith(prefix)),
+    isSupportResistanceAware:
+      patternId.includes("support") ||
+      patternId.includes("resistance") ||
+      patternId.includes("room_above") ||
+      patternId.includes("overhead_resistance"),
+    broaderPatternIds: inferBroaderPatternIds(patternId),
+    lineageRoot: inferLineageRoot(patternId),
+  };
+}
+
+function definePatternMetadata(
+  metadata: PatternMetadataInput,
+): PatternMetadata {
+  const inferred = inferPatternSemantics(metadata);
+
+  return {
+    ...inferred,
+    ...metadata,
+    broaderPatternIds: metadata.broaderPatternIds ?? inferred.broaderPatternIds,
+    lineageRoot: metadata.lineageRoot ?? inferred.lineageRoot,
+  };
+}
+
+const RAW_PATTERN_METADATA: PatternMetadata[] = [
   // =========================
   // EXECUTION FREQUENCY
   // =========================
@@ -427,6 +773,28 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     notes: "Support/resistance-aware breakout storyline when the initial breakout cleared resistance with room above but later profit protection still failed.",
   }),
   definePatternMetadata({
+    patternId:
+      "recovery_with_breakout_with_room_above_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 92,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware breakout storyline when the trade first recovered from early adversity, then the initial breakout still cleared resistance with room above and finished constructively.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "recovery_with_breakout_with_room_above_and_failed_profit_protection",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 92,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware breakout storyline when the trade first recovered from early adversity, then the initial breakout still cleared resistance with room above but later profit protection still failed.",
+  }),
+  definePatternMetadata({
     patternId: "breakout_into_overhead_resistance_with_defensive_final_exit",
     family: PATTERN_FAMILIES.ENTRY_QUALITY,
     patternType: "composite",
@@ -445,6 +813,28 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Support/resistance-aware weak breakout storyline when the initial breakout cleared nearby resistance directly into stacked overhead resistance and later profit protection still failed.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 92,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware weak breakout storyline when the trade first recovered from early adversity, then the breakout still cleared into stacked overhead resistance and later needed a disciplined defensive exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 92,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware weak breakout storyline when the trade first recovered from early adversity, then the breakout still cleared into stacked overhead resistance and later profit protection still failed.",
   }),
   definePatternMetadata({
     patternId: "entry_near_support_structure",
@@ -931,6 +1321,26 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     notes: "Richer support-aware exit pattern when the final exit occurred into thin support and price still broke lower afterward.",
   }),
   definePatternMetadata({
+    patternId: "exit_into_resistance_with_reversal_after_exit",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    specificityRank: 10,
+    defaultPriority: 86,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Richer resistance-aware exit pattern when the final exit occurred into nearby resistance and price later reversed lower afterward.",
+  }),
+  definePatternMetadata({
+    patternId: "exit_into_resistance_before_breakout",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    specificityRank: 10,
+    defaultPriority: 86,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Richer resistance-aware exit pattern when the final exit occurred into nearby resistance but price later broke higher afterward.",
+  }),
+  definePatternMetadata({
     patternId: "stabilized_recovery_with_exit_into_stacked_support_and_relief",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
@@ -939,6 +1349,26 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Recovery-aware support exit storyline when early adversity stabilized, the final exit occurred into stacked support, and price relieved higher afterward.",
+  }),
+  definePatternMetadata({
+    patternId: "stabilized_recovery_with_exit_into_resistance_and_reversal",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 87,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware resistance exit storyline when early adversity stabilized, the final exit occurred into nearby resistance, and price later reversed lower afterward.",
+  }),
+  definePatternMetadata({
+    patternId: "stabilized_recovery_with_exit_into_resistance_before_breakout",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 87,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware resistance exit storyline when early adversity stabilized, the final exit occurred into nearby resistance, but price later broke higher afterward.",
   }),
   definePatternMetadata({
     patternId: "stabilized_recovery_with_exit_into_thin_support_before_breakdown",
@@ -1493,6 +1923,28 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     notes: "Recovery-aware whole-trade storyline when early adversity was followed by balanced management and a disciplined constructive final exit.",
   }),
   definePatternMetadata({
+    patternId:
+      "balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 10,
+    defaultPriority: 90,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Support-aware whole-trade storyline when balanced management included profit-taking into nearby resistance and still ended with a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 91,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware support-aware whole-trade storyline when early adversity was followed by balanced management, profit-taking into nearby resistance, and a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
     patternId: "balanced_management_with_missed_final_continuation",
     family: PATTERN_FAMILIES.SCALING_QUALITY,
     patternType: "composite",
@@ -1551,6 +2003,28 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Recovery-aware whole-trade storyline when early adversity was followed by balanced management but the final exit still came before meaningful continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 10,
+    defaultPriority: 90,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Support-aware whole-trade storyline when balanced management included profit-taking into nearby resistance but the final exit still came before breakout continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 91,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware support-aware whole-trade storyline when early adversity was followed by balanced management, profit-taking into nearby resistance, but the final exit still came before breakout continuation persisted.",
   }),
   definePatternMetadata({
     patternId:
@@ -1635,6 +2109,26 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Cross-family whole-trade storyline when a trim happened into strength but the final exit still came before meaningful continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId: "trim_into_resistance_with_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 91,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Support-aware constructive whole-trade storyline when a trim happened into nearby resistance and the final exit still avoided later damage.",
+  }),
+  definePatternMetadata({
+    patternId: "trim_into_resistance_with_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 11,
+    defaultPriority: 91,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Support-aware whole-trade storyline when a trim happened into nearby resistance but the final exit still came before the breakout continuation persisted.",
   }),
   definePatternMetadata({
     patternId: "timely_profit_protection_with_constructive_final_exit",
@@ -1760,6 +2254,26 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Recovery-aware whole-trade storyline when early adversity was followed by a trim into strength but the final exit still came before meaningful continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId: "recovery_with_trim_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware support-aware constructive whole-trade storyline when early adversity was followed by a trim into nearby resistance and a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
+    patternId: "recovery_with_trim_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware support-aware whole-trade storyline when early adversity was followed by a trim into nearby resistance but the final exit still came before breakout continuation persisted.",
   }),
   definePatternMetadata({
     patternId: "timely_trim_into_strength_with_constructive_final_exit",
@@ -2033,6 +2547,17 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     notes: "Broad repeated-cycle whole-trade storyline when repeated trim-and-readd management still ended with a disciplined constructive final exit.",
   }),
   definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Broad repeated-cycle support-aware whole-trade storyline when repeated balanced management included nearby-resistance profit taking and still ended with a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
     patternId: "repeated_balanced_management_with_missed_final_continuation",
     family: PATTERN_FAMILIES.SCALING_QUALITY,
     patternType: "composite",
@@ -2041,6 +2566,61 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Broad repeated-cycle whole-trade storyline when repeated trim-and-readd management still left meaningful continuation after the final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Repeated-cycle support-aware storyline when repeated trim-and-readd management kept trimming into nearby resistance and still ended with a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Repeated-cycle support-aware storyline when repeated trim-and-readd management kept trimming into nearby resistance but the final exit still came before breakout continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Broad repeated-cycle support-aware whole-trade storyline when repeated balanced management included nearby-resistance profit taking but the final exit still came before breakout continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_exit_into_stacked_support_and_relief",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Broad repeated-cycle storyline when repeated trim-and-readd management still later exited into denser stacked support and price relieved higher after the exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_balanced_management_with_exit_into_thin_support_before_breakdown",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 12,
+    defaultPriority: 93,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Broad repeated-cycle storyline when repeated trim-and-readd management still later exited into thinner support that failed afterward.",
   }),
   definePatternMetadata({
     patternId: "repeated_balanced_management_with_fearful_final_exit",
@@ -2151,6 +2731,17 @@ export const PATTERN_METADATA: PatternMetadata[] = [
   }),
   definePatternMetadata({
     patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware broad repeated-cycle support-aware storyline when repeated rescue attempts and balanced management included nearby-resistance profit taking and still ended with a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
       "repeated_rescue_attempts_with_balanced_management_and_missed_final_continuation",
     family: PATTERN_FAMILIES.SCALING_QUALITY,
     patternType: "composite",
@@ -2159,6 +2750,61 @@ export const PATTERN_METADATA: PatternMetadata[] = [
     canBePrimary: true,
     defaultRole: "primary_candidate",
     notes: "Recovery-aware broad repeated-cycle storyline when repeated rescue attempts and balanced management still left meaningful continuation after the final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware repeated-cycle support-aware storyline when repeated rescue attempts and balanced management kept trimming into nearby resistance and still ended with a disciplined constructive final exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware repeated-cycle support-aware storyline when repeated rescue attempts and balanced management kept trimming into nearby resistance but the final exit still came before breakout continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware broad repeated-cycle support-aware storyline when repeated rescue attempts and balanced management included nearby-resistance profit taking but the final exit still came before breakout continuation persisted.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware repeated-cycle storyline when repeated rescue attempts and balanced management still later exited into denser stacked support and price relieved higher after the exit.",
+  }),
+  definePatternMetadata({
+    patternId:
+      "repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown",
+    family: PATTERN_FAMILIES.SCALING_QUALITY,
+    patternType: "composite",
+    specificityRank: 13,
+    defaultPriority: 94,
+    canBePrimary: true,
+    defaultRole: "primary_candidate",
+    notes: "Recovery-aware repeated-cycle storyline when repeated rescue attempts and balanced management still later exited into thinner support that failed afterward.",
   }),
   definePatternMetadata({
     patternId:
@@ -2431,6 +3077,121 @@ export const PATTERN_METADATA: PatternMetadata[] = [
   }),
 ];
 
+export interface PatternMetadataValidationIssue {
+  patternId: string;
+  message: string;
+}
+
+export function validatePatternMetadataRegistry(): PatternMetadataValidationIssue[] {
+  const issues: PatternMetadataValidationIssue[] = [];
+  const registeredPatternIds = PATTERN_DEFINITIONS.map((pattern) => pattern.id);
+  const registeredPatternIdSet = new Set(registeredPatternIds);
+  const seenMetadataIds = new Set<string>();
+  const supportedFamilies = new Set<string>(
+    Object.values(PATTERN_FAMILIES) as string[],
+  );
+  const supportedLanes = new Set<string>(PATTERN_LANES);
+  const supportedJourneyScopes = new Set<string>(PATTERN_JOURNEY_SCOPES);
+  const supportedOutcomeFlavors = new Set<string>(PATTERN_OUTCOME_FLAVORS);
+
+  for (const metadata of PATTERN_METADATA) {
+    if (seenMetadataIds.has(metadata.patternId)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: "Duplicate metadata entry.",
+      });
+      continue;
+    }
+
+    seenMetadataIds.add(metadata.patternId);
+
+    if (!registeredPatternIdSet.has(metadata.patternId)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: "Metadata references an unknown pattern id.",
+      });
+    }
+
+    if (!supportedFamilies.has(metadata.family)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: `Unsupported family: ${metadata.family}`,
+      });
+    }
+
+    if (!supportedLanes.has(metadata.lane)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: `Unsupported lane: ${metadata.lane}`,
+      });
+    }
+
+    if (!supportedJourneyScopes.has(metadata.journeyScope)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: `Unsupported journey scope: ${metadata.journeyScope}`,
+      });
+    }
+
+    if (!supportedOutcomeFlavors.has(metadata.outcomeFlavor)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: `Unsupported outcome flavor: ${metadata.outcomeFlavor}`,
+      });
+    }
+
+    if (!metadata.subFamily) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: "Missing subFamily metadata.",
+      });
+    }
+
+    for (const broaderPatternId of metadata.broaderPatternIds) {
+      if (!registeredPatternIdSet.has(broaderPatternId)) {
+        issues.push({
+          patternId: metadata.patternId,
+          message: `Unknown broaderPatternId reference: ${broaderPatternId}`,
+        });
+      }
+    }
+
+    if (!registeredPatternIdSet.has(metadata.lineageRoot)) {
+      issues.push({
+        patternId: metadata.patternId,
+        message: `Unknown lineageRoot reference: ${metadata.lineageRoot}`,
+      });
+    }
+  }
+
+  for (const pattern of PATTERN_DEFINITIONS) {
+    if (!seenMetadataIds.has(pattern.id)) {
+      issues.push({
+        patternId: pattern.id,
+        message: "Pattern is missing metadata.",
+      });
+    }
+  }
+
+  return issues;
+}
+
+export const PATTERN_METADATA: PatternMetadata[] = (() => {
+  const knownPatternIds = new Set(
+    RAW_PATTERN_METADATA.map((metadata) => metadata.patternId),
+  );
+
+  return RAW_PATTERN_METADATA.map((metadata) => ({
+    ...metadata,
+    broaderPatternIds: metadata.broaderPatternIds.filter((patternId) =>
+      knownPatternIds.has(patternId),
+    ),
+    lineageRoot: knownPatternIds.has(metadata.lineageRoot)
+      ? metadata.lineageRoot
+      : metadata.patternId,
+  }));
+})();
+
 export const PATTERN_METADATA_BY_ID: Record<string, PatternMetadata> =
   Object.fromEntries(
     PATTERN_METADATA.map((metadata) => [metadata.patternId, metadata]),
@@ -2440,4 +3201,17 @@ export function getPatternMetadata(
   patternId: string,
 ): PatternMetadata | undefined {
   return PATTERN_METADATA_BY_ID[patternId];
+}
+
+const PATTERN_METADATA_VALIDATION_ISSUES = validatePatternMetadataRegistry();
+
+if (PATTERN_METADATA_VALIDATION_ISSUES.length > 0) {
+  throw new Error(
+    [
+      "Pattern metadata registry validation failed.",
+      ...PATTERN_METADATA_VALIDATION_ISSUES.map(
+        (issue) => `- ${issue.patternId}: ${issue.message}`,
+      ),
+    ].join("\n"),
+  );
 }

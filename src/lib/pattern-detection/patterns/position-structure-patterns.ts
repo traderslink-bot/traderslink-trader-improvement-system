@@ -30,6 +30,7 @@ export const AGGRESSIVE_SCALE_IN: PatternDefinition = {
   name: "Aggressive Scale In",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minIncreaseEvents =
@@ -63,6 +64,7 @@ export const PASSIVE_SCALE_IN: PatternDefinition = {
   name: "Passive Scale In",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minIncreaseEvents =
@@ -96,6 +98,7 @@ export const SINGLE_BUILD_FULL_EXIT: PatternDefinition = {
   name: "Single Build Full Exit",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -122,6 +125,7 @@ export const MULTI_BUILD_FULL_EXIT: PatternDefinition = {
   name: "Multi Build Full Exit",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minIncreaseEvents =
@@ -151,6 +155,7 @@ export const MULTI_BUILD_PARTIAL_EXIT: PatternDefinition = {
   name: "Multi Build Partial Exit",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minIncreaseEvents =
@@ -182,6 +187,7 @@ export const SCALE_IN_THEN_REDUCE: PatternDefinition = {
   name: "Scale In Then Reduce",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minIncreaseEvents =
@@ -212,6 +218,7 @@ export const ONE_AND_DONE_ROUND_TRIP: PatternDefinition = {
   name: "One And Done Round Trip",
   family: PATTERN_FAMILIES.POSITION_STRUCTURE,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =

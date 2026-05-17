@@ -8,11 +8,12 @@ export function buildPatternScoringInput(
     normalizedPatternResult,
     topOverallAnchorPattern:
       normalizedPatternResult.topOverallAnchorPattern,
+    primaryPatterns: normalizedPatternResult.primaryPatterns,
+    prioritizedPatterns: normalizedPatternResult.prioritizedPatterns,
     primaryPatternsByFamily:
       normalizedPatternResult.primaryPatternsByFamily,
-    primaryPatterns: normalizedPatternResult.primaryPatterns,
     supportingPatterns: normalizedPatternResult.supportingPatterns,
     contextualPatterns: normalizedPatternResult.contextualPatterns,
-    prioritizedPatterns: normalizedPatternResult.prioritizedPatterns,
+    patternsByFamily: normalizedPatternResult.patternsByFamily,
   };
 }

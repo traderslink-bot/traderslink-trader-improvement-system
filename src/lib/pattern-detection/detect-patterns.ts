@@ -50,6 +50,7 @@ export function detectPatterns(
       patternName: pattern.name,
       family: pattern.family,
       patternType: pattern.patternType,
+      structuralLevel: pattern.structuralLevel,
       evidence: result.evidence,
       thresholdsUsed: result.thresholdsUsed,
     });

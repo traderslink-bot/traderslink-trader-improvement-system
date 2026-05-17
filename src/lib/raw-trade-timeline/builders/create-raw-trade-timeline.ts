@@ -27,14 +27,14 @@ import {
   normalizeCandles,
   type NormalizeCandleInput,
 } from "../normalizers/normalize-candle";
-import { normalizeSessionBucketValue } from "../session/normalize-session-bucket";
+import { normalizeRequiredSessionBucketValue } from "../session/normalize-session-bucket";
 import { buildSupportResistanceContext } from "../../support-resistance/build-support-resistance-context";
 import {
   normalizeExecutions,
   type NormalizeExecutionInput,
 } from "../normalizers/normalize-execution";
 import type { RawTradeTimelineBuildResult } from "../types/raw-trade-timeline-build-result";
-import type { SessionContext } from "../types/session-context";
+import type { SessionContext, SessionContextInput } from "../types/session-context";
 import type { TradeDirection } from "../types/trade-timeline-input";
 import { buildTradeTimeline } from "./build-trade-timeline";
 
@@ -46,14 +46,14 @@ export interface CreateRawTradeTimelineArgs {
   tradeCandles: NormalizeCandleInput[];
   postTradeCandles: NormalizeCandleInput[];
   executions: NormalizeExecutionInput[];
-  sessionContext: SessionContext;
+  sessionContext: SessionContextInput;
   executionWindowCandlesBeforeCount?: number;
   executionWindowCandlesAfterCount?: number;
 }
 
-function normalizeSessionContext(sessionContext: SessionContext): SessionContext {
+function normalizeSessionContext(sessionContext: SessionContextInput): SessionContext {
   return {
-    sessionBucket: normalizeSessionBucketValue(sessionContext.sessionBucket),
+    sessionBucket: normalizeRequiredSessionBucketValue(sessionContext.sessionBucket),
     sessionDate: sessionContext.sessionDate.trim(),
   };
 }
@@ -73,10 +73,6 @@ export function createRawTradeTimeline(
   }
 
   const normalizedSessionContext = normalizeSessionContext(args.sessionContext);
-
-  if (!normalizedSessionContext.sessionBucket) {
-    throw new Error("createRawTradeTimeline session bucket cannot be empty.");
-  }
 
   if (!normalizedSessionContext.sessionDate) {
     throw new Error("createRawTradeTimeline session date cannot be empty.");

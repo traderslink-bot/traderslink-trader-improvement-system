@@ -22,6 +22,13 @@ Roadmap and handoff docs live in:
 - [src/docs/behavior-coverage-audit.md](src/docs/behavior-coverage-audit.md)
 - [src/docs/trader-feedback-capabilities.md](src/docs/trader-feedback-capabilities.md)
 - [src/docs/support-resistance-plan.md](src/docs/support-resistance-plan.md)
+- [code-updates-april-15.md](code-updates-april-15.md)
+
+Resume/read-first guidance:
+- start with [src/docs/codex-project-log.md](src/docs/codex-project-log.md) for the current resume point and next recommended work
+- use [code-updates-april-15.md](code-updates-april-15.md) if you want the detailed handoff for the April 15, 2026 session
+- use the project log as the running Codex continuity log instead of creating a separate routine changelog
+- then consult the behavior audit and pattern catalog before making roadmap decisions
 
 ## Scripts
 

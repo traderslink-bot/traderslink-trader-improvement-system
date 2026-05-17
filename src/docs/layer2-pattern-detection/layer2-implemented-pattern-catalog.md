@@ -8,7 +8,7 @@ It lists every implemented Layer 2 pattern, grouped by family, and explains:
 
 1. what the pattern means structurally
 2. what causes it to trigger
-3. whether it is atomic or composite
+3. whether it is atomic, structural composite, or storyline composite
 4. what kind of evidence it uses
 5. any important notes or future caveats
 
@@ -53,17 +53,22 @@ Layer 2 is designed to preserve structural truth, not reduce everything to one l
 
 ---
 
-## 3. Atomic vs composite matters
+## 3. Structural level matters
 
-Layer 2 patterns are classified as either:
+Layer 2 patterns now carry a structural-level classification:
 
 ### Atomic
 A narrow isolated structural fact
 
-### Composite
+### Structural composite
 A higher-order structure built from multiple conditions
 
-This distinction exists now so later layers can prioritize more intelligently.
+### Storyline composite
+A multi-phase trade interpretation such as recovery, repeated-cycle, or richer
+final-outcome structure
+
+This classification exists now so later layers can prioritize more
+intelligently without changing the core Layer 2 detection boundary.
 
 ---
 
@@ -1482,10 +1487,16 @@ At the end of Layer 2, family naming is now considered standardized and ready fo
 
 ---
 
-## Support/Resistance-Aware First Slice
+## Update: Support-Aware Pattern Surface
 
-Layer 2 now also includes the first support/resistance-aware patterns built from
-the new Layer 1 structural-context bridge.
+Layer 2 now includes a fully aligned support/resistance-aware surface built
+from the Layer 1 structural-context bridge.
+
+That surface now follows the same hierarchy used elsewhere in Layer 2:
+
+- base support-aware patterns
+- recovery-aware variants
+- repeated-cycle variants
 
 ### `entry_near_support_structure`
 
@@ -1628,6 +1639,56 @@ back.
 - `maxGivebackFromPeakOpenProfitPct`
 - `peakOpenProfitPctOfBasis`
 
+### `recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity, but the initial breakout still
+cleared into stacked overhead resistance and later needed a disciplined
+defensive final exit.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `firstEntryClearedNearestResistanceBelow`
+- `firstEntryHasStackedResistanceAbove`
+- `firstEntryResistanceLevelsAboveWithinClusterCount`
+- `firstEntryCapturedPercentOfTradeMfe`
+- `firstEntryToWorstMovePct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity, but the initial breakout still
+cleared into stacked overhead resistance and later gave too much open profit
+back.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `hadSupportResistanceContextAvailable`
+- `firstEntryClearedNearestResistanceBelow`
+- `firstEntryHasStackedResistanceAbove`
+- `firstEntryResistanceLevelsAboveWithinClusterCount`
+- `firstEntryCapturedPercentOfTradeMfe`
+- `firstEntryToWorstMovePct`
+- `maxGivebackFromPeakOpenProfitPct`
+
 ### `breakout_with_room_above_and_failed_profit_protection`
 
 ### Pattern type
@@ -1648,6 +1709,58 @@ still was not protected well enough later in the trade.
 - `firstEntryToWorstMovePct`
 - `maxGivebackFromPeakOpenProfitPct`
 - `peakOpenProfitPctOfBasis`
+
+### `recovery_with_breakout_with_room_above_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity, then the initial breakout still
+cleared resistance with real room above and finished with constructive
+final-exit structure.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `firstEntryClearedNearestResistanceBelow`
+- `firstEntryHadRoomAboveAfterClearingResistance`
+- `firstEntryDistanceAboveNearestResistanceBelowPct`
+- `firstEntryDistanceToNearestResistancePct`
+- `firstEntryCapturedPercentOfTradeMfe`
+- `firstEntryToWorstMovePct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `recovery_with_breakout_with_room_above_and_failed_profit_protection`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity, then the initial breakout still
+cleared resistance with real room above, but later gave too much open profit
+back.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `hadSupportResistanceContextAvailable`
+- `firstEntryClearedNearestResistanceBelow`
+- `firstEntryHadRoomAboveAfterClearingResistance`
+- `firstEntryDistanceAboveNearestResistanceBelowPct`
+- `firstEntryDistanceToNearestResistancePct`
+- `firstEntryCapturedPercentOfTradeMfe`
+- `firstEntryToWorstMovePct`
+- `maxGivebackFromPeakOpenProfitPct`
 
 ### `entry_far_from_support_structure`
 
@@ -1751,6 +1864,44 @@ and price still broke lower after the exit.
 - `maxAdverseMovePctAfterExit`
 - `netMovePctAtEndOfPostExitWindow`
 
+### `exit_into_resistance_with_reversal_after_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The final exit occurred into nearby resistance and price reversed lower after
+the exit instead of continuing through that overhead structure.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearResistance`
+- `finalExitDistanceToNearestResistancePct`
+- `finalExitResistanceLevelsAboveWithinClusterCount`
+- `finalExitHasStackedResistanceAbove`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `exit_into_resistance_before_breakout`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The final exit occurred into nearby resistance, but price later broke higher
+through that overhead structure after the exit.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearResistance`
+- `finalExitDistanceToNearestResistancePct`
+- `finalExitResistanceLevelsAboveWithinClusterCount`
+- `finalExitHasStackedResistanceAbove`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
 ### `stabilized_recovery_with_exit_into_stacked_support_and_relief`
 
 ### Pattern type
@@ -1773,6 +1924,56 @@ afterward.
 - `finalExitOccurredNearSupport`
 - `finalExitSupportLevelsBelowWithinClusterCount`
 - `finalExitHasStackedSupportBelow`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `stabilized_recovery_with_exit_into_resistance_and_reversal`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity with timely stabilization, then
+the final exit occurred into nearby resistance and price reversed lower
+afterward.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `hadReductionAfterPeakOpenProfitBeforeWorstDrawdown`
+- `secondsFromPeakOpenProfitToFirstReduction`
+- `maxGivebackFromPeakOpenProfitPct`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearResistance`
+- `finalExitResistanceLevelsAboveWithinClusterCount`
+- `finalExitHasStackedResistanceAbove`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `stabilized_recovery_with_exit_into_resistance_before_breakout`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first recovered from early adversity with timely stabilization, then
+the final exit occurred into nearby resistance and price later broke higher
+afterward.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `hadReductionAfterPeakOpenProfitBeforeWorstDrawdown`
+- `secondsFromPeakOpenProfitToFirstReduction`
+- `maxGivebackFromPeakOpenProfitPct`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearResistance`
+- `finalExitResistanceLevelsAboveWithinClusterCount`
+- `finalExitHasStackedResistanceAbove`
 - `maxFavorableMovePctAfterExit`
 - `netMovePctAtEndOfPostExitWindow`
 
@@ -1801,6 +2002,96 @@ afterward.
 - `maxAdverseMovePctAfterExit`
 - `netMovePctAtEndOfPostExitWindow`
 
+### `repeated_balanced_management_with_exit_into_stacked_support_and_relief`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management still later exited into denser stacked
+support, and price relieved higher after the exit.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `closedToFlat`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearSupport`
+- `finalExitSupportLevelsBelowWithinClusterCount`
+- `finalExitHasStackedSupportBelow`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_balanced_management_with_exit_into_thin_support_before_breakdown`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management still later exited into thinner support, and
+price still broke lower afterward.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `closedToFlat`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearSupport`
+- `finalExitSupportLevelsBelowWithinClusterCount`
+- `finalExitHasStackedSupportBelow`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts and balanced repeated management still later exited
+into denser stacked support, and price relieved higher after the exit.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `closedToFlat`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearSupport`
+- `finalExitSupportLevelsBelowWithinClusterCount`
+- `finalExitHasStackedSupportBelow`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts and balanced repeated management still later exited
+into thinner support, and price still broke lower afterward.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `closedToFlat`
+- `hadSupportResistanceContextAvailable`
+- `finalExitOccurredNearSupport`
+- `finalExitSupportLevelsBelowWithinClusterCount`
+- `finalExitHasStackedSupportBelow`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
 ### `add_into_resistance_structure`
 
 ### Pattern type
@@ -1816,6 +2107,366 @@ One or more later adds occurred near nearby resistance or directly above it.
 - `addsNearResistanceCount`
 - `addsAboveResistanceCount`
 - `averageAddDistanceToNearestResistancePct`
+
+### `trim_into_resistance_with_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+One or more partial exits trimmed into nearby resistance, and the final exit
+still avoided later damage.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `hadPartialExit`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `averageReductionPriceVsPreviousAverageEntryPct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `trim_into_resistance_with_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+One or more partial exits trimmed into nearby resistance, but the final exit
+still came before breakout continuation persisted.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `hadPartialExit`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `averageReductionPriceVsPreviousAverageEntryPct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `recovery_with_trim_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first had meaningful early adversity, later recovered, then partial
+exits still trimmed into nearby resistance and the final exit remained
+constructive.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `hadPartialExit`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `averageReductionPriceVsPreviousAverageEntryPct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `recovery_with_trim_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first had meaningful early adversity, later recovered, then partial
+exits still trimmed into nearby resistance but the final exit still came before
+breakout continuation persisted.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `hadPartialExit`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `averageReductionPriceVsPreviousAverageEntryPct`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Balanced whole-trade management included one or more nearby-resistance profit
+takes, and the final exit still avoided later damage.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `balanced_position_management`
+- `constructive_final_exit`
+
+### `balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Balanced whole-trade management included one or more nearby-resistance profit
+takes, but the final exit still came before continuation fully played out.
+
+### Main evidence used
+
+- `hadSupportResistanceContextAvailable`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `balanced_position_management`
+- `premature_final_exit`
+
+### `recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first had meaningful early adversity, later stabilized into balanced
+management, took profit into nearby resistance, and still finished with a
+constructive final exit.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `balanced_position_management`
+- `constructive_final_exit`
+
+### `recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+The trade first had meaningful early adversity, later stabilized into balanced
+management, took profit into nearby resistance, but the final exit still came
+before continuation fully played out.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `peakOpenProfitPctOfBasis`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `totalPositionDecreaseCount`
+- `reductionsNearResistanceCount`
+- `balanced_position_management`
+- `premature_final_exit`
+
+### `repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management kept trimming into nearby resistance, and
+the final exit still avoided later damage.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management kept trimming into nearby resistance, but
+the final exit still came before breakout continuation persisted.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts still stabilized into balanced repeated management,
+kept trimming into nearby resistance, and still ended with a disciplined
+constructive final exit.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management included nearby-resistance profit taking,
+and the final exit still avoided later damage.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated trim-and-readd management included nearby-resistance profit taking,
+but the final exit still came before breakout continuation persisted.
+
+### Main evidence used
+
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts still stabilized into balanced repeated management,
+kept trimming into nearby resistance, but the final exit still came before
+breakout continuation persisted.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts still stabilized into balanced repeated management,
+included nearby-resistance profit taking, and still ended with a disciplined
+constructive final exit.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxAdverseMovePctAfterExit`
+- `maxFavorableMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
+
+### `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
+
+### Pattern type
+Composite
+
+### Structural meaning
+Repeated rescue attempts still stabilized into balanced repeated management,
+included nearby-resistance profit taking, but the final exit still came before
+breakout continuation persisted.
+
+### Main evidence used
+
+- `hadOpenLossBeforePeakOpenProfit`
+- `hadPeakOpenProfitBeforeWorstDrawdown`
+- `peakOpenProfitPctOfBasis`
+- `partialExitCount`
+- `readdAfterReductionCount`
+- `realizedReturnPct`
+- `hadSupportResistanceContextAvailable`
+- `reductionsNearResistanceCount`
+- `maxGivebackFromPeakOpenProfitPct`
+- `closedToFlat`
+- `maxFavorableMovePctAfterExit`
+- `maxAdverseMovePctAfterExit`
+- `netMovePctAtEndOfPostExitWindow`
 
 ### `add_above_resistance_structure`
 
@@ -1961,7 +2612,7 @@ protection still failed afterward.
 
 ### Important note
 
-These are the first honest support/resistance-aware patterns.
+These are the current honest support/resistance-aware patterns.
 
 They do not yet imply:
 

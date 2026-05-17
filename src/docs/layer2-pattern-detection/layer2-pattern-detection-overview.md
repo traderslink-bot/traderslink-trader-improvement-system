@@ -1,300 +1,230 @@
 # Layer 2 Pattern Detection Overview
 
+Updated: 2026-04-14 America/Toronto
+
 ## Purpose
 
-Layer 2 is the Pattern Detection Layer.
+Layer 2 is the pattern detection layer.
 
-Its job is to transform a clean normalized trade level input object into a structured set of detected trading patterns.
+Its job is to transform the normalized `PatternInput` contract into a set of
+detected structural patterns.
 
-This layer does not score trades.
-This layer does not coach traders.
-This layer does not generate narratives.
-This layer does not interpret whether a trader was right or wrong.
+Layer 2 answers:
 
-Its responsibility is only to answer:
+- what structural patterns are present in this trade?
 
-What structural patterns are present in this trade?
+It does not answer:
 
-Layer 2 is the first layer where the system moves beyond raw factual signals and begins producing reusable behavioral and execution structure outputs.
+- which pattern matters most
+- whether the trade was good or bad overall
+- what feedback should be shown to the trader
 
-That said, it still remains strictly non interpretive.
+## Position In The System
 
-It is a detection layer, not a judgment layer.
+The current architecture is:
 
----
+1. external data boundary
+2. Layer 1 factual trade and market context
+3. support/resistance structural context
+4. `PatternInput` aggregation
+5. Layer 2 pattern detection
+6. Layer 3 normalization and prioritization
+7. downstream scoring / later interpretation
 
-## Position of Layer 2 in the System
-
-The architecture now looks like this:
-
-### Layer 1
-Raw data and signal extraction
-
-### Layer 2
-Pattern detection
-
-### Layer 3
-Pattern normalization and prioritization
-
-### Future layers
-Scoring, coaching, narrative, output shaping
-
-Layer 2 depends on Layer 1.
-Future layers will depend on Layer 2.
-
-Layer 2 must never bypass Layer 1 contracts.
-Future layers must never bypass Layer 2 contracts.
-
----
+Layer 2 sits after Layer 1 and before Layer 3.
 
 ## What Layer 2 Consumes
 
-Layer 2 consumes exactly one input type:
+Layer 2 consumes exactly one input contract:
 
-`PatternInput`
+- `PatternInput`
 
-This is a normalized contract built from Layer 1 outputs.
+This is the architecture guardrail.
 
-Pattern detection is not allowed to access raw timeline data directly.
-Pattern detection is not allowed to access raw derived signals directly.
-Pattern detection is not allowed to inspect trade timeline internals directly.
+Pattern detection should not:
 
-All pattern logic must operate only on the `PatternInput` contract.
+- read raw candles directly
+- read executions directly
+- inspect raw timeline internals directly
+- re-derive its own low-level facts from Layer 1 objects
 
-This rule is one of the most important architecture protections in the project.
+All detection logic should operate on the normalized `PatternInput` bridge.
 
-It ensures:
+## Core Design Principles
 
-1. strict layer separation
-2. easier testing
-3. easier future refactoring
-4. lower risk of cross layer contamination
-5. more stable downstream logic
+### 1. Deterministic only
 
----
-
-## Core Design Principles of Layer 2
-
-## 1. Deterministic only
-
-Every pattern in Layer 2 must be deterministic.
+Every pattern must be rule-based and repeatable.
 
 That means:
 
-1. clear thresholds
-2. explicit conditions
-3. explainable evidence
-4. no vague intuition logic
-5. no hidden inference
-6. no machine learning behavior
-7. no fuzzy ranking logic inside detection
+- explicit conditions
+- explicit thresholds
+- explainable evidence
+- no hidden ranking logic inside detection
+- no fuzzy intuition logic
 
-If the same input is passed in, the same patterns must always be returned.
+### 2. No scoring
 
----
+Layer 2 does not assign points, grades, penalties, or severity.
 
-## 2. No scoring
+### 3. No coaching
 
-Layer 2 does not assign points, grades, weights, or penalties.
+Layer 2 does not generate trader advice, lessons, or narrative.
 
-It does not decide whether a pattern is good or bad.
-It only decides whether a pattern is present.
+### 4. Multi-pattern truth is valid
 
----
+A single trade can legitimately trigger multiple patterns at once.
 
-## 3. No coaching
+That is expected.
 
-Layer 2 does not tell the trader what to improve.
-It does not generate lessons, advice, warnings, praise, or action steps.
+Resolving overlap is a Layer 3 responsibility, not a Layer 2 responsibility.
 
-Coaching belongs to later layers.
+## What Layer 2 Produces
 
----
+Layer 2 produces raw detected patterns.
 
-## 4. No narrative
+Those outputs include:
 
-Layer 2 does not produce summaries like:
+- pattern id
+- pattern name
+- family
+- pattern type
+- structural level
+- evidence
+- thresholds used
 
-good entry
-weak exit
-chased the move
-great trade
-poor management
+This makes the output explainable and usable by Layer 3 without turning Layer 2
+into a black box.
 
-Those are later layer responsibilities.
+## Update: Structural Level Classification
 
-Layer 2 only emits structural pattern outputs.
+Layer 2 now carries a separate structural-level classification in addition to
+the older pattern-type field.
 
----
+Current structural levels are:
 
-## 5. Multi pattern truth is allowed
+- `atomic`
+- `structural_composite`
+- `storyline_composite`
 
-A single trade can legitimately trigger multiple patterns.
+This is additive.
 
-For example, a trade can be:
+It does not change the Layer 2 to Layer 3 boundary, but it does make the live
+pattern surface more honest about the difference between:
 
-1. scaled into position
-2. fully closed
-3. high MFE
-4. low range entry
-5. advantaged entry structure
-6. moderate capture exit structure
+- narrow structural facts
+- setup or structure composites
+- richer full-trade storyline composites
 
-This is expected and correct.
+## Current Layer 2 Scope
 
-Layer 2 is allowed to return multiple true patterns at once.
+Layer 2 now covers a substantial set of pattern families, including:
 
-Resolving which patterns matter most is not Layer 2’s job.
-That is the purpose of Layer 3.
+- entry context
+- entry quality
+- execution frequency
+- exit quality
+- position building
+- position reduction
+- position structure
+- scaling quality
+- trade closure
+- trade duration
+- trade excursion
 
----
+Important note:
 
-## Layer 2 Main Responsibilities
+support/resistance-aware detection is now part of the live Layer 2 surface, not
+just a future plan.
 
-Layer 2 now performs four major responsibilities:
+## PatternInput At This Stage
 
-## 1. Consume normalized trade input
+`PatternInput` has grown far beyond a small early contract.
 
-It receives `PatternInput` from the builder layer.
+It now carries enough normalized structure to support detection about:
 
-## 2. Evaluate pattern families
+- execution structure
+- trade structure
+- position behavior
+- price performance
+- entry context
+- exit context
+- timing and pacing
+- profit-protection behavior
+- re-add / reduction sequences
+- recovery and repeated-cycle structure
+- support/resistance-aware entry facts
+- support/resistance-aware add facts
+- support/resistance-aware reduction facts
+- support/resistance-aware exit facts
+- structural-context availability and insufficiency flags
 
-It runs all registered pattern definitions against the input.
+That means Layer 2 can now detect both broad trader-behavior families and a
+meaningful amount of level-aware structure.
 
-## 3. Return matched patterns
+## What Layer 2 Already Does Well
 
-It returns only patterns whose conditions matched.
+Layer 2 is already strong at:
 
-## 4. Preserve evidence and thresholds
+- chase vs constructive entry structure
+- breakout / failed breakout / reclaim / mean-reversion families
+- trade management and scaling quality
+- profit protection vs giveback
+- exit quality
+- recovery and repeated rescue storylines
+- support/resistance-aware entry, add, reduction, and exit patterns
 
-Each detected pattern includes the factual evidence and thresholds used to trigger it.
+Examples of now-live support/resistance-aware detection include:
 
-This is important because downstream layers need explainable pattern outputs, not black box labels.
+- entry near support
+- entry under resistance
+- entry far from support
+- breakout with room above
+- breakout into overhead resistance
+- add into resistance
+- add above resistance
+- exit into support
+- exit into resistance
+- trim into resistance
+- broader take-profit-into-resistance summary branches
 
----
+Update: Support-Aware Pattern Surface
 
-## Layer 2 Inputs
+The support-aware Layer 2 surface is now fully reconciled with the current
+codebase.
 
-The contract for Layer 2 is the `PatternInput` type.
+That means the live pattern files, Layer 3 metadata, suppression rules, tests,
+and implemented-pattern catalog are aligned on the same support-aware families,
+including:
 
-At completion of Layer 2, `PatternInput` contains the following major sections.
+- base support-aware patterns
+- recovery-aware variants
+- repeated-cycle variants
 
-## Execution structure
+## What Layer 2 Must Not Do
 
-Fields describing how many executions occurred and when.
+Layer 2 must not:
 
-Examples:
+- decide which detected pattern is primary
+- suppress broader overlap by itself
+- score a trade
+- generate feedback text
+- narrate a trade
+- infer emotional intent that the factual contract cannot support
 
-1. execution count
-2. execution timestamps
-3. first execution timestamp
-4. last execution timestamp
-
-## Trade structure
-
-Fields describing the full trade length and basic trade span.
-
-Examples:
-
-1. trade duration seconds
-2. trade duration minutes
-3. trade candle count
-
-## Position behavior
-
-Fields describing how size changed.
-
-Examples:
-
-1. total increase count
-2. total decrease count
-3. opened from flat
-4. closed to flat
-5. had multiple increases
-6. had multiple decreases
-7. max position size
-8. final position size
-
-## Price performance
-
-Fields describing favorable and adverse movement.
-
-Examples:
-
-1. entry price
-2. exit price
-3. trade MFE
-4. trade MAE
-5. trade MFE percent
-6. trade MAE percent
-7. peak price during trade
-8. worst price during trade
-
-## Entry context
-
-These fields were added during Layer 2 to support entry aware patterns.
-
-Examples:
-
-1. entry position inside the full trade range
-2. distance from trade low
-3. distance from trade high
-4. favorable move remaining after entry
-5. adverse move after entry
-6. percent of trade MFE still captured from entry onward
-7. near trade low boolean
-8. near trade high boolean
-
-These fields are structural only.
-They do not themselves label the entry as early, late, good, or bad.
-
-## Exit context
-
-These fields were added during Layer 2 to support exit aware patterns.
-
-Examples:
-
-1. realized return percent
-2. realized capture percent of full trade MFE
-3. favorable excursion left on the table
-4. exit position inside full trade range
-5. final exit distance from favorable extreme
-6. near trade high boolean
-7. near trade low boolean
-
-These fields are structural only.
-They do not themselves label the exit as disciplined, weak, early, or late.
-
-## Execution quality aggregates
-
-These include execution level aggregates already available from Layer 1.
-
-Examples:
-
-1. max execution MFE percent
-2. max execution MAE percent
-3. average execution MFE percent
-4. average execution MAE percent
-
-## Timing aggregates
-
-Examples:
-
-1. average time between executions
-2. min time between executions
-3. max time between executions
-4. average candles between executions
-5. executions per minute
-
----
+Those belong later.
 
 ## Layer 2 File Structure
 
-Layer 2 now uses a multi file architecture.
+Layer 2 spans two major areas:
 
+1. the `PatternInput` bridge
+2. the pattern detection engine itself
 
+Current code areas:
 
-
+```text
 src/lib/pattern-input/
   types/
     pattern-input.ts
@@ -319,6 +249,53 @@ src/lib/pattern-detection/
     entry-quality-patterns.ts
     exit-quality-patterns.ts
     scaling-quality-patterns.ts
+```
 
+## Relationship To Layer 3
 
-    
+Layer 2 intentionally returns all true patterns.
+
+Layer 3 then decides:
+
+- which patterns are primary
+- which are supporting
+- which are contextual
+- which broader branches should be demoted under richer ones
+
+That separation is one of the most important architecture protections in the
+repo.
+
+## Honest Current Status
+
+Layer 2 is no longer an early proof-of-concept.
+
+It is already a substantial working detection layer with:
+
+- broad core trade-behavior coverage
+- explicit setup-aware entry families
+- repeated-cycle and recovery-aware families
+- meaningful support/resistance-aware detection
+
+It is still growing, but it is already a real production-shaped layer rather
+than a sketch.
+
+## Best Related Docs
+
+Use this file together with:
+
+1. `src/docs/layer2-pattern-detection/layer2-file-structure-reference.md`
+2. `src/docs/layer2-pattern-detection/layer2-implemented-pattern-catalog.md`
+3. `src/docs/layer2-pattern-detection/layer2-to-layer3-handoff.md`
+4. `src/docs/behavior-coverage-audit.md`
+5. `src/docs/trader-feedback-capabilities.md`
+
+## Short Summary
+
+Layer 2 should be thought of as:
+
+- strict
+- deterministic
+- pattern-focused
+- multi-truth preserving
+- dependent on `PatternInput`
+- intentionally separated from scoring, coaching, and final prioritization

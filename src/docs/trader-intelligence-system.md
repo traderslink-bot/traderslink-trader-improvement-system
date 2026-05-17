@@ -1,508 +1,374 @@
 # Trader Intelligence System (v2)
 
+Updated: 2026-04-14 America/Toronto
+
 ## Overview
 
-This project is a complete rebuild of the trader analysis system.
+This project is a trader-behavior intelligence engine built for intraday,
+small-cap, low-float, high-volatility trading.
 
-The goal is to build a **high-accuracy trade intelligence engine** that evaluates:
+Its goal is to evaluate:
 
-* what the trader did
-* what the market did
-* how those two interacted over time
-* whether decisions improved or damaged the trade
-
-This system is designed specifically for:
-
-* small cap
-* low float
-* highly volatile stocks
-* intraday trading behavior
+- what the trader did
+- what the market did
+- how those interacted over time
+- whether the trader's decisions improved or damaged the trade
 
 The system prioritizes:
 
-* truth over appearance
-* behavioral accuracy over UI
-* execution quality over PnL alone
-* structured reasoning over guesswork
-
----
+- truth over appearance
+- behavioral accuracy over UI
+- execution quality over PnL alone
+- structured reasoning over guesswork
 
 ## Core Philosophy
 
-The system is built on one core idea:
+Trades are not good or bad by default.
 
-**Trades are not good or bad by default.**
+They have to be evaluated through:
 
-Instead, trades must be evaluated based on:
+- trader actions
+- market context
+- timing
+- decision sequence
+- what happened after each decision
 
-* trader actions
-* market context
-* timing
-* sequence of decisions
-* outcomes after each action
+That means:
 
----
+- a risky action can still work
+- a normally constructive action can still fail
+- a profitable trade can still contain weak behavior
+- a losing trade can still contain disciplined execution
 
-## System Direction (Important Shift)
+## Current System Model
 
-This version moves away from:
+The live system is built from the bottom up.
 
-* hardcoded “good vs bad” patterns
-* static labels like “bad trade”
-* PnL-based judgment alone
+Each stage depends on the truth quality of the stage below it.
 
-And moves toward:
+### External Data Boundary
 
-* action-based evaluation
-* outcome-based validation
-* timeline-based reasoning
-* context-aware analysis
+This is the provider and source boundary.
 
----
+It includes:
 
-## Core Intelligence Model
+- market data source mapping
+- execution source mapping
+- provider-specific normalization
 
-The system evaluates trades using three layers of truth:
+Current repo areas:
 
-### 1. Market Baseline Logic
+- `src/lib/market-data-sources/`
+- `src/lib/execution-sources/`
 
-General trading principles such as:
+Design rule:
 
-* buying into weakness is usually risky
-* chasing extension is usually risky
-* locking profit into strength is usually constructive
+provider-specific logic must stay here rather than leaking into the core
+analysis layers.
 
-This provides a **baseline expectation**.
+### Layer 1: Raw Trade Timeline
 
----
+Layer 1 is the factual foundation.
 
-### 2. Trade-Specific Outcome Truth
+It builds the normalized trade timeline and raw structural truth from:
 
-What actually happened in THIS trade.
+- executions
+- candles
+- session context
+- price movement before, during, and after the trade
 
-Examples:
+It currently includes:
 
-* a risky action worked
-* a “good” action failed
-* a trade recovered
-* a trade collapsed
+- trade timeline construction
+- trade state snapshots
+- lifecycle and position-change facts
+- entry/add/reduction/exit context
+- post-exit followthrough facts
+- insufficient-data detection
 
-This prevents false assumptions.
+Current repo areas:
 
----
+- `src/lib/raw-trade-timeline/`
 
-### 3. Trader-Specific Behavioral Truth (Future Layer)
+### Support/Resistance Structural Context
 
-Across many trades:
+Support/resistance currently extends Layer 1 rather than sitting above it.
 
-* what this trader does well
-* what consistently hurts them
-* repeat behavioral mistakes
-* repeat strengths
+This module adds structural market context such as:
 
-This allows personalized coaching.
+- reference levels
+- dynamic levels
+- level ladders
+- execution-to-level relations
+- support/resistance-aware entry/add/reduction/exit facts
 
----
+Current repo area:
 
-## System Architecture
+- `src/lib/support-resistance/`
 
-The system is built from the bottom up.
+Design rule:
 
-Each layer depends on the layer below it.
+the support/resistance engine should remain:
 
-### Layer 1 — Raw Trade Timeline (FOUNDATION)
+- factual
+- deterministic
+- execution-aware
+- execution-independent
 
-This is the most important layer.
+It should not invent final setup labels by itself.
 
-It captures:
+### Pattern Input Bridge
 
-* executions (what the trader did)
-* candles (what the market did)
-* full timeline (before, during, after trade)
-* position state over time
+This is the bridge between raw facts and pattern detection.
 
-This layer contains **no interpretation**.
+It collapses the larger Layer 1 output into the compact `PatternInput`
+contract.
 
-Everything else depends on this.
+Current repo area:
 
----
+- `src/lib/pattern-input/`
 
-### Layer 2 — Derived Signals
+### Layer 2: Pattern Detection
 
-Transforms raw data into structured signals.
+Layer 2 detects named patterns from `PatternInput`.
 
-Examples:
+Update: Structural Level Classification
 
-* entry vs VWAP
-* dip depth
-* adverse move after entry
-* rebound detection
-* scaling behavior
-* average down detection
+Layer 2 now classifies detected patterns across three structural levels:
 
-Still no coaching or judgment.
+- `atomic`
+- `structural_composite`
+- `storyline_composite`
 
-Only structured facts derived from raw data.
+This is where the system turns raw structural truth into things like:
 
----
+- chase entry
+- breakout entry
+- reclaim entry
+- failed breakout
+- stop-like exit
+- profit-protection failure
+- support-aware trim into resistance
+- repeated rescue attempts
 
-### Layer 3 — Action Outcome Evaluation
+Current repo area:
 
-Evaluates trader decisions based on what happened after them.
+- `src/lib/pattern-detection/`
 
-Examples:
+### Layer 3: Pattern Normalization
 
-* add after reduction → did it improve or damage the trade?
-* early exit → did it avoid loss or miss continuation?
-* average down → did it recover or worsen the trade?
+Layer 3 resolves overlap and preserves the richest valid storyline.
 
-This layer introduces:
+It decides things like:
 
-* constructive vs destructive outcomes
-* event-based evaluation
-* post-action analysis
+- which patterns are primary
+- which patterns are supporting
+- which patterns are context only
+- which broader patterns should be demoted when a stricter one is present
 
----
+Current repo area:
 
-### Layer 4 — Pattern Logic
+- `src/lib/pattern-normalization/`
 
-Combines signals and action outcomes into structured patterns.
+### Layer 4: Scoring
 
-Examples:
+The repo now contains a real scoring layer after Layer 3.
 
-* failed dip entry
-* failed breakout chase
-* under-sized winner
-* late exit winner
-* no profit protection
+Current repo area:
 
-Patterns are not raw facts — they are structured interpretations.
+- `src/lib/pattern-scoring/`
 
----
+Current scoring scope:
 
-### Layer 5 — Coaching Layer
+- scoring input preparation from normalized Layer 3 output
+- first-pass trade scoring result building
+- explicit pattern polarity mapping
+- small family-aware influence calibration where evidence was clear
+- inspectable contribution math showing structural weight, role multiplier,
+  bonus application, and family influence steps
+- family calibration reporting
+- dominance / suppression summaries
+- stress-test coverage and scoring invariants
 
-Generates human-readable feedback.
+### Downstream Behavior And Coaching Bridge
 
-Examples:
+The repo now also contains the first deterministic behavior + coaching bridge
+above scoring.
 
-* You entered before confirmation and absorbed unnecessary drawdown
-* You reduced risk correctly, then re-added into weakness and gave back profit
-* You exited early and missed continuation
+Current repo areas:
 
----
+- `src/lib/behavior-analysis/`
+- `src/lib/coaching/`
 
-### Layer 6 — Severity & Scoring
+Current scope:
 
-Determines:
+- translate scoring + trace into named behavior signals
+- prioritize behaviors by trade-shaping importance
+- classify behaviors into mistake / neutral / improving / edge-style outputs
+- generate one primary coaching directive with structured evidence
+- validate scenario expectations for behavior + coaching alignment
 
-* how damaging or constructive behavior was
-* how much impact it had
-* prioritization of mistakes
+Important boundary:
 
----
+- the trade-analysis engine still stops at Layer 3 on purpose
+- scoring, behavior analysis, and coaching are downstream consumers, not part
+  of the Layer 1-3 engine contract
 
-### Layer 7 — Trader Behavior Intelligence (Future)
+### Trader-Level Multi-Trade Intelligence
 
-Tracks behavior across many trades.
+The repo now also contains the first trader-level aggregation layer above
+single-trade feedback.
 
-Examples:
+Current repo area:
 
-* most frequent mistakes
-* most destructive habits
-* strongest skills
-* behavioral identity
+- `src/lib/trader-behavior/`
 
----
+Current scope:
+
+- aggregate behavior frequency, severity, and priority across many trades
+- detect recurring weaknesses and strengths
+- derive first-pass trader identity labels
+- summarize session-segment weaknesses and strengths
+- track improving vs deteriorating behavior trends over ordered trades
+
+## What the System Already Does Well
+
+The system is already strong at structural trade-behavior analysis, including:
+
+- entry quality and timing
+- chase vs constructive entry structure
+- breakout / failed-breakout / reclaim / mean-reversion entry families
+- scaling quality
+- profit protection vs giveback
+- trim / re-add / re-entry behavior
+- exit quality
+- recovery after adversity
+- repeated rescue / repeated deterioration trade journeys
+- support/resistance-aware entry, add, reduction, and exit context
+
+This means the app can already support real trader-facing feedback about:
+
+- chasing
+- cutting winners early
+- bag-holding
+- failed profit protection
+- stop-like exits
+- constructive vs weak scaling
+- support/resistance-aware trimming, breakout, and exit behavior
+
+## What the System Does Not Yet Fully Do
+
+The system is still weaker at broader higher-level feedback layers such as:
+
+- broader coaching coverage beyond the current first deterministic behavior set
+- broader trader-level identity and recurrence coverage beyond the first profile layer
+
+It is also still incomplete in some detection areas, especially where the data
+would require stronger playbook taxonomy or intent inference.
+
+For example:
+
+- emotional intent like true revenge trading is still only partially observable
+- broad session/setup taxonomy is still less complete than core structural trade behavior
 
 ## Critical Design Rules
 
-### Rule 1
+### 1. Bottom-up truth first
 
-The system must be built from the bottom up.
+Higher layers should not outrun the reliability of lower layers.
 
-Never build higher layers on weak lower layers.
+### 2. Raw truth must stay factual
 
----
+Layer 1 should build facts, not coaching language or vague judgments.
 
-### Rule 2
+### 3. Outcomes matter
 
-The raw data layer must be correct before anything else.
+Actions are not automatically good or bad until later outcome context is known.
 
-If raw data is wrong, everything above is wrong.
+### 4. PnL is not enough
 
----
+Trade quality cannot be reduced to win/loss alone.
 
-### Rule 3
+### 5. Timeline matters
 
-Actions are neutral until outcome is measured.
+The system must care about:
 
-Examples:
+- before entry
+- after entry
+- between executions
+- after exit
 
-* re-add is not automatically bad
-* partial profit is not automatically good
-* early exit is not automatically wrong
+### 6. Provider boundaries must stay clean
 
-Only outcome determines quality.
+The core system should depend on normalized internal candle and execution types,
+not Yahoo-specific or provider-specific payload shapes.
 
----
+### 7. Support/resistance must stay factual
 
-### Rule 4
-
-PnL is not enough.
-
-A profitable trade can still contain bad behavior.
-A losing trade can still contain good execution.
-
----
-
-### Rule 5
-
-Timeline matters.
-
-The system must evaluate:
-
-* before entry
-* after entry
-* between executions
-* after exit
-
----
-
-### Rule 6
-
-Data between executions is critical.
-
-The system must not ignore:
-
-* movement between buys
-* movement between sell and re-add
-* movement before exit
-
-This is where most behavioral truth exists.
-
----
-
-### Rule 7
-
-Separation of concerns must be strict.
-
-Raw data layer must not:
-
-* label behavior
-* detect patterns
-* generate coaching
-
----
-
-## Raw Data Layer (Current Focus)
-
-The current stage of the project is:
-
-**building the raw trade timeline layer to completion**
-
-This includes:
-
-* candle model
-* execution model
-* trade timeline model
-* execution context windows
-* trade state snapshots
-
-Nothing else should be built until this is solid.
-
----
-
-## What This System Must Capture
-
-For every trade:
-
-### Before the trade
-
-* setup context
-* trend
-* extension
-* dip behavior
-
-### During the trade
-
-* all executions
-* price movement between executions
-* market reaction to decisions
-
-### After the trade
-
-* continuation
-* reversal
-* missed opportunity
-
----
-
-## What Makes This System Different
-
-Most systems:
-
-* rely on PnL
-* label trades too simply
-* ignore context
-* ignore timing
-
-This system:
-
-* evaluates decisions, not just outcomes
-* evaluates context, not just actions
-* evaluates sequences, not just endpoints
-* evaluates outcomes after each action
-
----
-
-## Development Strategy
-
-This system must be built in this exact order:
-
-1. Raw trade timeline layer
-2. Derived signals
-3. Action outcome evaluation
-4. Pattern logic
-5. Coaching
-6. Severity
-7. Trader-level intelligence
-
-No skipping layers.
-
-No building ahead.
-
----
+Level detection should produce structure and relations.
+Named setup or behavior claims should happen later in pattern detection.
 
 ## Current Status
 
-Completed:
+The project is no longer just at the raw-timeline design stage.
 
-* project reset
-* new architecture direction
-* system blueprint defined
+The repo now has:
 
-In progress:
+- provider-boundary normalization
+- live Layer 1 raw timeline construction
+- live support/resistance structural context
+- live PatternInput aggregation
+- substantial Layer 2 pattern detection
+- substantial Layer 3 normalization and suppression
+- verification scripts for Layer 2 and Layer 3
 
-* raw trade timeline design
+The current active focus has been:
 
-Next step:
+- expanding support/resistance-aware structural truth
+- extending support/resistance-aware pattern families
+- keeping Layer 3 hierarchy honest as richer storylines are added
+- hardening Layer 4 scoring truth, traceability, dominance control, and the
+  first scoring -> behavior -> coaching bridge
+- building the first multi-trade behavior profile and trader-identity layer
 
-* implement raw data types
-* implement timeline structure
-* validate completeness of raw layer
+## Best Mental Model
 
----
+The simplest accurate way to think about the current system is:
+
+1. external sources are normalized
+2. Layer 1 builds factual trade and market context
+3. support/resistance enriches that factual context
+4. `PatternInput` packages it for detection
+5. Layer 2 detects named trade-behavior patterns
+6. Layer 3 decides which pattern story is the richest valid one
+7. Layer 4 scoring decides how much each normalized pattern mattered
+8. downstream behavior analysis decides what the trade behavior actually was
+9. downstream coaching decides what should be fixed or reinforced first
+10. trader-level aggregation decides which behaviors repeat across trades
+
+## Important Supporting Docs
+
+Use this file together with:
+
+1. `src/docs/system-file-structure.md`
+2. `src/docs/codex-project-log.md`
+3. `src/docs/behavior-coverage-audit.md`
+4. `src/docs/trader-feedback-capabilities.md`
+5. `src/docs/support-resistance-plan.md`
 
 ## Final Goal
 
-The final system should be able to say:
+The long-term goal is still the same:
 
-* what the trader did
-* what the market did
-* what decisions helped
-* what decisions hurt
-* what patterns exist
-* what behaviors repeat
-* what the trader must improve
+the system should be able to say, with high accuracy:
 
-With high accuracy and consistency.
+- what the trader did
+- what the market did
+- which decisions helped
+- which decisions hurt
+- what patterns were present
+- what behaviors repeat over time
+- what the trader most needs to improve
 
----
-
-## Locked Principle
-
-If the raw layer is correct:
-
-everything else becomes easier.
-
-If the raw layer is wrong:
-
-everything else becomes unreliable.
-
-This is why the system is being rebuilt from the ground up.
-
-
-## below here is appended after the above was already written
-
-## Market Data Provider Boundary
-
-The raw trade timeline system must be built so that market data providers are replaceable.
-
-### Core rule
-
-The raw trade timeline layer must never depend directly on Yahoo-specific response structures.
-
-### Why this matters
-
-Yahoo is the current candle source, but it is not intended to be a permanent architectural dependency.
-
-The system should be designed so that changing market data providers later does not require redesigning the raw timeline layer.
-
-### Required architecture boundary
-
-The system should keep these layers separate:
-
-1. Source data shape  
-   This is the provider-specific format returned by an external source such as Yahoo.
-
-2. Canonical internal market data shape  
-   This is the system's normalized internal format, such as the `Candle` type.
-
-3. Assembled raw trade timeline  
-   This is the raw truth model built from canonical internal data.
-
-### Correct flow
-
-Provider response -> provider adapter/mapper -> canonical internal types -> raw trade timeline builder
-
-Example:
-
-Yahoo response -> Yahoo adapter -> `Candle` -> raw trade timeline system
-
-Later:
-
-Polygon response -> Polygon adapter -> `Candle` -> raw trade timeline system
-
-### What must not happen
-
-The raw trade timeline layer must not:
-
-- use Yahoo field names directly
-- depend on Yahoo-specific timestamp quirks
-- assume Yahoo-specific optional fields are always present
-- mix provider fetching logic with raw timeline assembly logic
-
-### Current design direction
-
-The current rebuild is moving in the correct direction because the raw layer is being built around normalized internal types such as:
-
-- `Candle`
-- `Execution`
-- `TradeTimelineInput`
-
-rather than around Yahoo response objects.
-
-That makes provider replacement much easier later.
-
-### Future implementation guidance
-
-When provider ingestion is added, it should live in a separate source or adapter layer, not inside the raw trade timeline layer.
-
-Possible future structure:
-
-- `src/lib/market-data-sources/types/`
-- `src/lib/market-data-sources/yahoo/`
-- `src/lib/market-data-sources/adapters/`
-
-Example future files:
-
-- `map-yahoo-candle-to-canonical-candle.ts`
-- `yahoo-candle-adapter.ts`
-
-### Project rule
-
-Yahoo may be the current upstream source, but it must remain an external adapter, not part of the raw timeline foundation.
-
-## writing code
-do not use place holders. only use them if absolutley required and if you do use them label them with a comment that they are placeholders.
+But the current repo is now meaningfully past the blueprint stage and already
+contains a substantial working Layer 1-3 intelligence core.

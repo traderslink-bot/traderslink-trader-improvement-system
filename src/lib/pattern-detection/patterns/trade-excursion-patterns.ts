@@ -21,6 +21,7 @@ export const HIGH_MFE_TRADE: PatternDefinition = {
   name: "High MFE Trade",
   family: PATTERN_FAMILIES.TRADE_EXCURSION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold = THRESHOLDS.TRADE_EXCURSION.HIGH_MFE_MIN_PCT;
@@ -43,6 +44,7 @@ export const HIGH_MAE_TRADE: PatternDefinition = {
   name: "High MAE Trade",
   family: PATTERN_FAMILIES.TRADE_EXCURSION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold = THRESHOLDS.TRADE_EXCURSION.HIGH_MAE_MIN_PCT;

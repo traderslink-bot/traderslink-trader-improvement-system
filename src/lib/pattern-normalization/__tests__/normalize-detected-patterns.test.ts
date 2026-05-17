@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
-import type { PatternInput } from "../../pattern-input/types/pattern-input";
+import {
+  normalizePatternInputShape,
+  type LegacyPatternInputShape,
+  type PatternInput,
+} from "../../pattern-input/types/pattern-input";
 import { detectPatterns } from "../../pattern-detection/detect-patterns";
 import type {
+  DetectedPattern,
   PatternDetectionResult,
   PatternType,
+  StructuralLevel,
 } from "../../pattern-detection/types/pattern-detection-types";
 import sampleDetectedPatterns from "../../../docs/layer2-pattern-detection/sample-detected-patterns.json";
 import { normalizeDetectedPatterns } from "../normalize-detected-patterns";
 
 function createBasePatternInput(
-  overrides: Partial<PatternInput> = {},
+  overrides: Partial<LegacyPatternInputShape> = {},
 ): PatternInput {
-  return {
+  return normalizePatternInputShape({
     symbol: "ABCD",
     tradeDirection: "long",
     sessionBucket: "market_open",
@@ -182,24 +188,36 @@ function createBasePatternInput(
     addsWithRecentRunUpCount: 1,
     addsWithRecentDropCount: 0,
     ...overrides,
-  };
+  });
 }
 
 const canonicalSampleDetectedPatterns: PatternDetectionResult = {
-  detectedPatterns: sampleDetectedPatterns.detectedPatterns.map((pattern) => ({
-    patternId: pattern.patternId,
-    patternName: pattern.patternName,
-    family: pattern.family,
-    patternType: pattern.patternType as PatternType,
-    evidence: pattern.evidence as Record<string, unknown>,
-    thresholdsUsed: Object.fromEntries(
-      Object.entries(pattern.thresholdsUsed).filter(
-        (
-          entry,
-        ): entry is [string, number] => typeof entry[1] === "number",
+  detectedPatterns: sampleDetectedPatterns.detectedPatterns.map((pattern) => {
+    const detectedPattern = pattern as unknown as DetectedPattern & {
+      structuralLevel?: StructuralLevel;
+    };
+
+    return {
+      patternId: pattern.patternId,
+      patternName: pattern.patternName,
+      family: pattern.family,
+      patternType: pattern.patternType as PatternType,
+      structuralLevel: (
+        detectedPattern.structuralLevel ??
+        (pattern.patternType === "atomic"
+          ? "atomic"
+          : "structural_composite")
+      ) as StructuralLevel,
+      evidence: pattern.evidence as Record<string, unknown>,
+      thresholdsUsed: Object.fromEntries(
+        Object.entries(pattern.thresholdsUsed).filter(
+          (
+            entry,
+          ): entry is [string, number] => typeof entry[1] === "number",
+        ),
       ),
-    ),
-  })),
+    };
+  }),
 };
 
 describe("normalizeDetectedPatterns", () => {
@@ -3257,7 +3275,6 @@ describe("normalizeDetectedPatterns", () => {
         hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
         reductionCountAfterPeakOpenProfitBeforeWorstDrawdown: 1,
         secondsFromPeakOpenProfitToFirstReduction: 30,
-        maxGivebackFromPeakOpenProfitPct: 0.18,
         postExitCandleCount: 2,
         maxFavorableMovePctAfterExit: 0.01,
         maxAdverseMovePctAfterExit: 0.04,
@@ -3930,6 +3947,84 @@ describe("normalizeDetectedPatterns", () => {
     ).toBe(true);
   });
 
+  it("demotes broader trim and reduction overlap when the trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearRecentHighCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.01,
+        maxAdverseMovePctAfterExit: 0.04,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimResistanceStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_resistance_with_constructive_final_exit",
+    );
+    const trimStrengthStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_strength_with_constructive_final_exit",
+    );
+
+    expect(trimResistanceStory?.normalizedRole).toBe("primary_candidate");
+    expect(trimStrengthStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("demotes broader trim, premature-exit, and exit-into-resistance overlap when the trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearRecentHighCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.15,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimResistancePrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_resistance_with_premature_final_exit",
+    );
+    const trimStrengthPrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_strength_with_premature_final_exit",
+    );
+    const exitIntoResistance = normalized.prioritizedPatterns.find(
+      (pattern) => pattern.patternId === "exit_into_resistance_before_breakout",
+    );
+
+    expect(trimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(trimStrengthPrematureStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+    expect(exitIntoResistance?.normalizedRole).toBe("supporting_candidate");
+  });
+
   it("demotes weaker recovery-aware trim and timely-protection ingredients when the recovery-aware timely trim storyline is present", () => {
     const detected = detectPatterns(
       createBasePatternInput({
@@ -3972,6 +4067,746 @@ describe("normalizeDetectedPatterns", () => {
     expect(recoveryTimelyTrimStory?.normalizedRole).toBe("primary_candidate");
     expect(recoveryTrimStory?.normalizedRole).toBe("supporting_candidate");
     expect(recoveryTimelyStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("demotes weaker recovery-aware trim ingredients when the recovery-aware trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.06,
+        hadSupportResistanceContextAvailable: true,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearRecentHighCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.01,
+        maxAdverseMovePctAfterExit: 0.04,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const recoveryTrimResistanceStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "recovery_with_trim_into_resistance_and_constructive_final_exit",
+    );
+    const recoveryTrimStrengthStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "recovery_with_trim_into_strength_and_constructive_final_exit",
+    );
+
+    expect(recoveryTrimResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(recoveryTrimStrengthStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes weaker recovery-aware trim and resistance-exit overlap when the recovery-aware trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
+        secondsFromPeakOpenProfitToFirstReduction: 30,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearRecentHighCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        finalExitOccurredNearResistance: true,
+        finalExitDistanceToNearestResistancePct: 0.15,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const recoveryTrimResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_trim_into_resistance_and_premature_final_exit",
+      );
+    const recoveryTrimStrengthPrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_trim_into_strength_and_premature_final_exit",
+      );
+    const recoveryExitIntoResistance = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "stabilized_recovery_with_exit_into_resistance_before_breakout",
+    );
+
+    expect(recoveryTrimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(recoveryTrimStrengthPrematureStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+    expect(recoveryExitIntoResistance?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes the broader constructive take-profit summary when the trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimResistanceStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_resistance_with_constructive_final_exit",
+    );
+    const takeProfitSummary = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    );
+
+    expect(trimResistanceStory?.normalizedRole).toBe("primary_candidate");
+    expect(takeProfitSummary?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("demotes the broader premature take-profit summary when the trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        realizedReturnPct: 0.05,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimResistancePrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "trim_into_resistance_with_premature_final_exit",
+    );
+    const takeProfitPrematureSummary = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    );
+
+    expect(trimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(takeProfitPrematureSummary?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes the broader recovery-aware constructive take-profit summary when the recovery trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxAdverseMovePctAfterExit: 0.04,
+        maxFavorableMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: -0.02,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const recoveryTrimResistanceStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "recovery_with_trim_into_resistance_and_constructive_final_exit",
+    );
+    const recoveryTakeProfitSummary = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    );
+
+    expect(recoveryTrimResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(recoveryTakeProfitSummary?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes the broader recovery-aware premature take-profit summary when the recovery trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        addCountAfterInitialEntry: 1,
+        hadPartialExit: true,
+        partialExitCount: 1,
+        totalPositionDecreaseCount: 1,
+        reductionsNearResistanceCount: 1,
+        averageReductionPriceVsPreviousAverageEntryPct: 0.05,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 2,
+        maxFavorableMovePctAfterExit: 0.05,
+        maxAdverseMovePctAfterExit: 0.01,
+        netMovePctAtEndOfPostExitWindow: 0.03,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const recoveryTrimResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_trim_into_resistance_and_premature_final_exit",
+      );
+    const recoveryTakeProfitPrematureSummary =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+      );
+
+    expect(recoveryTrimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(recoveryTakeProfitPrematureSummary?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated constructive overlap when the repeated trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedTrimResistanceStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit",
+    );
+    const repeatedConstructiveStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "repeated_balanced_management_with_constructive_final_exit",
+    );
+
+    expect(repeatedTrimResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedConstructiveStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated constructive overlap when the repeated take-profit-into-resistance constructive summary is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedTakeProfitResistanceStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+      );
+    const repeatedConstructiveStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "repeated_balanced_management_with_constructive_final_exit",
+    );
+
+    expect(repeatedTakeProfitResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedConstructiveStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated premature overlap when the repeated trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedTrimResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit",
+      );
+    const repeatedPrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "repeated_balanced_management_with_premature_final_exit",
+    );
+
+    expect(repeatedTrimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedPrematureStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("demotes broader repeated premature overlap when the repeated take-profit-into-resistance premature summary is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedTakeProfitResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+      );
+    const repeatedPrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId === "repeated_balanced_management_with_premature_final_exit",
+    );
+
+    expect(repeatedTakeProfitResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedPrematureStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("demotes broader repeated recovery-aware constructive overlap when the repeated recovery trim-into-resistance constructive storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedRecoveryTrimResistanceStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit",
+      );
+    const repeatedRecoveryConstructiveStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_constructive_final_exit",
+      );
+
+    expect(repeatedRecoveryTrimResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedRecoveryConstructiveStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated recovery-aware constructive overlap when the repeated recovery take-profit-into-resistance constructive summary is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedRecoveryTakeProfitResistanceStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+      );
+    const repeatedRecoveryConstructiveStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_constructive_final_exit",
+      );
+
+    expect(repeatedRecoveryTakeProfitResistanceStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedRecoveryConstructiveStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated recovery-aware premature overlap when the repeated recovery trim-into-resistance premature storyline is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedRecoveryTrimResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit",
+      );
+    const repeatedRecoveryPrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_premature_final_exit",
+    );
+
+    expect(repeatedRecoveryTrimResistancePrematureStory?.normalizedRole).toBe(
+      "primary_candidate",
+    );
+    expect(repeatedRecoveryPrematureStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("demotes broader repeated recovery-aware premature overlap when the repeated recovery take-profit-into-resistance premature summary is present", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 1,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const repeatedRecoveryTakeProfitResistancePrematureStory =
+      normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+      );
+    const repeatedRecoveryPrematureStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_premature_final_exit",
+    );
+
+    expect(
+      repeatedRecoveryTakeProfitResistancePrematureStory?.normalizedRole,
+    ).toBe("primary_candidate");
+    expect(repeatedRecoveryPrematureStory?.normalizedRole).toBe(
+      "supporting_candidate",
+    );
+  });
+
+  it("keeps the repeated trim-into-resistance constructive storyline primary over the broader repeated take-profit-into-resistance constructive summary", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit",
+    );
+    const summaryStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit",
+    );
+
+    expect(trimStory?.normalizedRole).toBe("primary_candidate");
+    expect(summaryStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("keeps the repeated trim-into-resistance premature storyline primary over the broader repeated take-profit-into-resistance premature summary", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        realizedReturnPct: 0.05,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit",
+    );
+    const summaryStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit",
+    );
+
+    expect(trimStory?.normalizedRole).toBe("primary_candidate");
+    expect(summaryStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("keeps the repeated recovery trim-into-resistance constructive storyline primary over the broader repeated recovery take-profit-into-resistance constructive summary", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxAdverseMovePctAfterExit: 0.03,
+        maxFavorableMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: -0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit",
+    );
+    const summaryStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit",
+    );
+
+    expect(trimStory?.normalizedRole).toBe("primary_candidate");
+    expect(summaryStory?.normalizedRole).toBe("supporting_candidate");
+  });
+
+  it("keeps the repeated recovery trim-into-resistance premature storyline primary over the broader repeated recovery take-profit-into-resistance premature summary", () => {
+    const detected = detectPatterns(
+      createBasePatternInput({
+        hadOpenLossBeforePeakOpenProfit: true,
+        hadPeakOpenProfitBeforeWorstDrawdown: true,
+        peakOpenProfitPctOfBasis: 0.08,
+        realizedReturnPct: 0.05,
+        partialExitCount: 2,
+        hadPartialExit: true,
+        readdAfterReductionCount: 2,
+        hadReaddAfterReduction: true,
+        hadSupportResistanceContextAvailable: true,
+        reductionsNearResistanceCount: 2,
+        maxGivebackFromPeakOpenProfitPct: 0.18,
+        closedToFlat: true,
+        postExitCandleCount: 1,
+        maxFavorableMovePctAfterExit: 0.03,
+        maxAdverseMovePctAfterExit: 0.005,
+        netMovePctAtEndOfPostExitWindow: 0.01,
+      }),
+    );
+
+    const normalized = normalizeDetectedPatterns(detected);
+
+    const trimStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit",
+    );
+    const summaryStory = normalized.prioritizedPatterns.find(
+      (pattern) =>
+        pattern.patternId ===
+        "repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit",
+    );
+
+    expect(trimStory?.normalizedRole).toBe("primary_candidate");
+    expect(summaryStory?.normalizedRole).toBe("supporting_candidate");
   });
 
   it("demotes broader recovery and premature-exit overlap when the recovery-aware trim-into-strength premature storyline is present", () => {
@@ -6834,6 +7669,80 @@ describe("normalizeDetectedPatterns", () => {
       expect(broader?.normalizedRole).toBe("supporting_candidate");
     });
 
+    it("demotes the non-recovery room-above constructive branch when the recovery-aware constructive variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            realizedReturnPct: 0.03,
+            hadSupportResistanceContextAvailable: true,
+            firstEntryClearedNearestResistanceBelow: true,
+            firstEntryHadRoomAboveAfterClearingResistance: true,
+            firstEntryDistanceAboveNearestResistanceBelowPct: 0.006,
+            firstEntryDistanceToNearestResistancePct: 0.028,
+            firstEntryOccurredNearResistance: false,
+            firstEntryCapturedPercentOfTradeMfe: 0.8,
+            firstEntryToWorstMovePct: 0.01,
+            maxGivebackFromPeakOpenProfitPct: 0.2,
+            closedToFlat: true,
+            postExitCandleCount: 1,
+            maxAdverseMovePctAfterExit: 0.03,
+            maxFavorableMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: -0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_breakout_with_room_above_and_constructive_final_exit",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "breakout_with_room_above_and_constructive_final_exit",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the non-recovery room-above failed-protection branch when the recovery-aware failed-protection variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            hadSupportResistanceContextAvailable: true,
+            firstEntryClearedNearestResistanceBelow: true,
+            firstEntryHadRoomAboveAfterClearingResistance: true,
+            firstEntryDistanceAboveNearestResistanceBelowPct: 0.006,
+            firstEntryDistanceToNearestResistancePct: 0.028,
+            firstEntryOccurredNearResistance: false,
+            firstEntryCapturedPercentOfTradeMfe: 0.8,
+            firstEntryToWorstMovePct: 0.01,
+            maxGivebackFromPeakOpenProfitPct: 0.6,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_breakout_with_room_above_and_failed_profit_protection",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "breakout_with_room_above_and_failed_profit_protection",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
     it("demotes entry-under-resistance when the overhead-resistance breakout variant is present", () => {
       const normalized = normalizeDetectedPatterns(
         detectPatterns(
@@ -6928,6 +7837,81 @@ describe("normalizeDetectedPatterns", () => {
       const broader = normalized.prioritizedPatterns.find(
         (pattern) =>
           pattern.patternId === "breakout_into_overhead_resistance_structure",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the non-recovery overhead-resistance defensive branch when the recovery-aware defensive variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            realizedReturnPct: 0.03,
+            hadSupportResistanceContextAvailable: true,
+            firstEntryClearedNearestResistanceBelow: true,
+            firstEntryHadRoomAboveAfterClearingResistance: false,
+            firstEntryHasStackedResistanceAbove: true,
+            firstEntryResistanceLevelsAboveWithinClusterCount: 2,
+            firstEntryCapturedPercentOfTradeMfe: 0.2,
+            firstEntryToWorstMovePct: 0.03,
+            closedToFlat: true,
+            totalPositionDecreaseCount: 1,
+            postExitCandleCount: 1,
+            maxAdverseMovePctAfterExit: 0.03,
+            maxFavorableMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: -0.01,
+            maxGivebackFromPeakOpenProfitPct: 0.2,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "breakout_into_overhead_resistance_with_defensive_final_exit",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the non-recovery overhead-resistance failed-protection branch when the recovery-aware failed-protection variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            hadSupportResistanceContextAvailable: true,
+            firstEntryClearedNearestResistanceBelow: true,
+            firstEntryHadRoomAboveAfterClearingResistance: false,
+            firstEntryHasStackedResistanceAbove: true,
+            firstEntryResistanceLevelsAboveWithinClusterCount: 2,
+            firstEntryCapturedPercentOfTradeMfe: 0.2,
+            firstEntryToWorstMovePct: 0.03,
+            maxGivebackFromPeakOpenProfitPct: 0.6,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "breakout_into_overhead_resistance_with_failed_profit_protection",
       );
 
       expect(richer?.normalizedRole).toBe("primary_candidate");
@@ -7321,6 +8305,286 @@ describe("normalizeDetectedPatterns", () => {
       );
       const broader = normalized.prioritizedPatterns.find(
         (pattern) => pattern.patternId === "exit_into_thin_support_before_breakdown",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes broad avoided-adverse-followthrough when the resistance-reversal exit variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearResistance: true,
+            finalExitDistanceToNearestResistancePct: 0.001,
+            closedToFlat: true,
+            postExitCandleCount: 1,
+            maxAdverseMovePctAfterExit: 0.03,
+            maxFavorableMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: -0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "exit_into_resistance_with_reversal_after_exit",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) => pattern.patternId === "exit_avoided_adverse_followthrough",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes broad missed-post-exit continuation when the resistance-before-breakout variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearResistance: true,
+            finalExitDistanceToNearestResistancePct: 0.001,
+            closedToFlat: true,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.03,
+            maxAdverseMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: 0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "exit_into_resistance_before_breakout",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) => pattern.patternId === "missed_post_exit_continuation",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the resistance-reversal branch when the stabilized-recovery resistance-reversal variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            closedToFlat: true,
+            hadOpenLossBeforePeakOpenProfit: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
+            secondsFromPeakOpenProfitToFirstReduction: 30,
+            maxGivebackFromPeakOpenProfitPct: 0.2,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearResistance: true,
+            finalExitDistanceToNearestResistancePct: 0.001,
+            postExitCandleCount: 1,
+            maxAdverseMovePctAfterExit: 0.03,
+            maxFavorableMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: -0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "stabilized_recovery_with_exit_into_resistance_and_reversal",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "exit_into_resistance_with_reversal_after_exit",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the resistance-before-breakout branch when the stabilized-recovery resistance-before-breakout variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            closedToFlat: true,
+            hadOpenLossBeforePeakOpenProfit: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            hadReductionAfterPeakOpenProfitBeforeWorstDrawdown: true,
+            secondsFromPeakOpenProfitToFirstReduction: 30,
+            maxGivebackFromPeakOpenProfitPct: 0.2,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearResistance: true,
+            finalExitDistanceToNearestResistancePct: 0.001,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.03,
+            maxAdverseMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: 0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "stabilized_recovery_with_exit_into_resistance_before_breakout",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId === "exit_into_resistance_before_breakout",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the broad repeated missed-continuation summary when the repeated stacked-support relief branch is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            partialExitCount: 2,
+            hadPartialExit: true,
+            readdAfterReductionCount: 2,
+            hadReaddAfterReduction: true,
+            closedToFlat: true,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearSupport: true,
+            finalExitSupportLevelsBelowWithinClusterCount: 2,
+            finalExitHasStackedSupportBelow: true,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.03,
+            maxAdverseMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: 0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_exit_into_stacked_support_and_relief",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_missed_final_continuation",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the broad repeated defensive-save summary when the repeated thin-support breakdown branch is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            partialExitCount: 2,
+            hadPartialExit: true,
+            readdAfterReductionCount: 2,
+            hadReaddAfterReduction: true,
+            realizedReturnPct: 0.03,
+            maxGivebackFromPeakOpenProfitPct: 0.65,
+            closedToFlat: true,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearSupport: true,
+            finalExitSupportLevelsBelowWithinClusterCount: 1,
+            finalExitHasStackedSupportBelow: false,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.005,
+            maxAdverseMovePctAfterExit: 0.03,
+            netMovePctAtEndOfPostExitWindow: -0.02,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_exit_into_thin_support_before_breakdown",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_defensive_final_exit_after_deterioration",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the broad repeated stacked-support branch when the recovery-aware repeated stacked-support variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            partialExitCount: 2,
+            hadPartialExit: true,
+            readdAfterReductionCount: 2,
+            hadReaddAfterReduction: true,
+            closedToFlat: true,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearSupport: true,
+            finalExitSupportLevelsBelowWithinClusterCount: 2,
+            finalExitHasStackedSupportBelow: true,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.03,
+            maxAdverseMovePctAfterExit: 0.005,
+            netMovePctAtEndOfPostExitWindow: 0.01,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_exit_into_stacked_support_and_relief",
+      );
+
+      expect(richer?.normalizedRole).toBe("primary_candidate");
+      expect(broader?.normalizedRole).toBe("supporting_candidate");
+    });
+
+    it("demotes the broad repeated thin-support breakdown branch when the recovery-aware repeated thin-support variant is present", () => {
+      const normalized = normalizeDetectedPatterns(
+        detectPatterns(
+          createBasePatternInput({
+            hadOpenLossBeforePeakOpenProfit: true,
+            hadPeakOpenProfitBeforeWorstDrawdown: true,
+            peakOpenProfitPctOfBasis: 0.08,
+            partialExitCount: 2,
+            hadPartialExit: true,
+            readdAfterReductionCount: 2,
+            hadReaddAfterReduction: true,
+            realizedReturnPct: 0.03,
+            maxGivebackFromPeakOpenProfitPct: 0.65,
+            closedToFlat: true,
+            hadSupportResistanceContextAvailable: true,
+            finalExitOccurredNearSupport: true,
+            finalExitSupportLevelsBelowWithinClusterCount: 1,
+            finalExitHasStackedSupportBelow: false,
+            postExitCandleCount: 1,
+            maxFavorableMovePctAfterExit: 0.005,
+            maxAdverseMovePctAfterExit: 0.03,
+            netMovePctAtEndOfPostExitWindow: -0.02,
+          }),
+        ),
+      );
+
+      const richer = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown",
+      );
+      const broader = normalized.prioritizedPatterns.find(
+        (pattern) =>
+          pattern.patternId ===
+          "repeated_balanced_management_with_exit_into_thin_support_before_breakdown",
       );
 
       expect(richer?.normalizedRole).toBe("primary_candidate");

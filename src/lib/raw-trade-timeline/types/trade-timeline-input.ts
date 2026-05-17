@@ -7,7 +7,7 @@
 
 import type { Candle } from "./candle";
 import type { Execution } from "./execution";
-import type { SessionContext } from "./session-context";
+import type { SessionContext, SessionContextInput } from "./session-context";
 
 export type TradeDirection = "long" | "short";
 
@@ -20,4 +20,15 @@ export interface TradeTimelineInput {
   tradeCandles: Candle[];
   postTradeCandles: Candle[];
   sessionContext: SessionContext;
+}
+
+export interface TradeTimelineInputBuildSource {
+  symbol: string;
+  timeframe: string;
+  tradeDirection: TradeDirection;
+  executions: Execution[];
+  preTradeCandles: Candle[];
+  tradeCandles: Candle[];
+  postTradeCandles: Candle[];
+  sessionContext: SessionContextInput;
 }

@@ -36,6 +36,16 @@ export function normalizeSessionBucketValue(value: string): SessionBucket | "" {
   return SESSION_BUCKET_ALIASES[normalized] ?? "unknown";
 }
 
+export function normalizeRequiredSessionBucketValue(value: string): SessionBucket {
+  const normalized = normalizeSessionBucketValue(value);
+
+  if (!normalized) {
+    throw new Error("Session bucket cannot be empty.");
+  }
+
+  return normalized;
+}
+
 export function normalizeOptionalSessionBucketValue(
   value: string | null | undefined,
 ): SessionBucket | undefined {

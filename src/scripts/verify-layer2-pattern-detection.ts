@@ -30,7 +30,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { detectPatterns } from "../lib/pattern-detection/detect-patterns";
-import type { PatternInput } from "../lib/pattern-input/types/pattern-input";
+import {
+  normalizePatternInputShape,
+  type LegacyPatternInputShape,
+  type PatternInput,
+} from "../lib/pattern-input/types/pattern-input";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -102,9 +106,9 @@ function resolveSampleFilePath(): string {
 
 function readPatternInputFromJson(filePath: string): PatternInput {
   const raw = fs.readFileSync(filePath, "utf8");
-  const parsed = JSON.parse(raw) as PatternInput;
+  const parsed = JSON.parse(raw) as PatternInput | LegacyPatternInputShape;
 
-  return parsed;
+  return normalizePatternInputShape(parsed);
 }
 
 function sortStrings(values: string[]): string[] {

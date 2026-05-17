@@ -21,6 +21,7 @@ export const FULLY_CLOSED_TRADE: PatternDefinition = {
   name: "Fully Closed Trade",
   family: PATTERN_FAMILIES.TRADE_CLOSURE,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     return {
@@ -39,6 +40,7 @@ export const PARTIAL_POSITION_LEFT: PatternDefinition = {
   name: "Partial Position Left",
   family: PATTERN_FAMILIES.TRADE_CLOSURE,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =

@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { PatternInput } from "../../pattern-input/types/pattern-input";
+import {
+  normalizePatternInputShape,
+  type LegacyPatternInputShape,
+  type PatternInput,
+} from "../../pattern-input/types/pattern-input";
 import { detectPatterns } from "../../pattern-detection/detect-patterns";
 import { normalizeDetectedPatterns } from "../../pattern-normalization/normalize-detected-patterns";
 import { buildPatternScoringInput } from "../builders/build-pattern-scoring-input";
 
 function createBasePatternInput(
-  overrides: Partial<PatternInput> = {},
+  overrides: Partial<LegacyPatternInputShape> = {},
 ): PatternInput {
-  return {
+  return normalizePatternInputShape({
     symbol: "ABCD",
     tradeDirection: "long",
     sessionBucket: "market_open",
@@ -178,7 +182,7 @@ function createBasePatternInput(
     addsWithRecentRunUpCount: 1,
     addsWithRecentDropCount: 0,
     ...overrides,
-  };
+  });
 }
 
 describe("buildPatternScoringInput", () => {
@@ -198,8 +202,18 @@ describe("buildPatternScoringInput", () => {
       normalizedResult.primaryPatternsByFamily.exit_quality,
     );
     expect(scoringInput.primaryPatterns).toBe(normalizedResult.primaryPatterns);
+    expect(scoringInput.supportingPatterns).toBe(
+      normalizedResult.supportingPatterns,
+    );
+    expect(scoringInput.contextualPatterns).toBe(
+      normalizedResult.contextualPatterns,
+    );
     expect(scoringInput.prioritizedPatterns).toBe(
       normalizedResult.prioritizedPatterns,
     );
+    expect(scoringInput.patternsByFamily).toBe(
+      normalizedResult.patternsByFamily,
+    );
+    expect(scoringInput.primaryPatterns[0]).toHaveProperty("structuralLevel");
   });
 });

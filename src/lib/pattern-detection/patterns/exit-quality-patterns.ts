@@ -41,6 +41,7 @@ export const HIGH_CAPTURE_EXIT_STRUCTURE: PatternDefinition = {
   name: "High Capture Exit Structure",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const realizedCapture = input.realizedCapturePercentOfTradeMfe;
@@ -83,6 +84,7 @@ export const MODERATE_CAPTURE_EXIT_STRUCTURE: PatternDefinition = {
   name: "Moderate Capture Exit Structure",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const realizedCapture = input.realizedCapturePercentOfTradeMfe;
@@ -122,6 +124,7 @@ export const LOW_CAPTURE_EXIT_STRUCTURE: PatternDefinition = {
   name: "Low Capture Exit Structure",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const realizedCapture = input.realizedCapturePercentOfTradeMfe;
@@ -157,6 +160,7 @@ export const EXIT_WITH_LIMITED_GIVEBACK: PatternDefinition = {
   name: "Exit With Limited Giveback",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const leftOnTable = input.favorableExcursionLeftOnTablePct;
@@ -192,6 +196,7 @@ export const EXIT_WITH_MEANINGFUL_GIVEBACK: PatternDefinition = {
   name: "Exit With Meaningful Giveback",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const leftOnTable = input.favorableExcursionLeftOnTablePct;
@@ -227,6 +232,7 @@ export const EXIT_NEAR_FAVORABLE_EXTREME: PatternDefinition = {
   name: "Exit Near Favorable Extreme",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const exitWasNearTradeHigh = input.exitWasNearTradeHigh;
@@ -253,6 +259,7 @@ export const PEAK_PROFIT_GIVEBACK_STRUCTURE: PatternDefinition = {
   name: "Peak Profit Giveback Structure",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const givebackPct = input.maxGivebackFromPeakOpenProfitPct;
@@ -292,6 +299,7 @@ export const PARTIAL_EXIT_WITH_ADVERSE_FOLLOWTHROUGH: PatternDefinition = {
   name: "Partial Exit With Adverse Followthrough",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const hadPartialExit = input.hadPartialExit;
@@ -327,6 +335,7 @@ export const MISSED_POST_EXIT_CONTINUATION: PatternDefinition = {
   name: "Missed Post-Exit Continuation",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -375,6 +384,7 @@ export const EXIT_AVOIDED_ADVERSE_FOLLOWTHROUGH: PatternDefinition = {
   name: "Exit Avoided Adverse Followthrough",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -425,6 +435,7 @@ export const DEFENSIVE_EXIT_AFTER_DETERIORATION: PatternDefinition = {
   name: "Defensive Exit After Deterioration",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -484,6 +495,7 @@ export const PREMATURE_FINAL_EXIT_AFTER_CONSTRUCTIVE_MANAGEMENT: PatternDefiniti
     name: "Premature Final Exit After Constructive Management",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -543,6 +555,7 @@ export const FEARFUL_EXIT_AFTER_WEAKENING: PatternDefinition = {
   name: "Fearful Exit After Weakening",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "storyline_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -596,6 +609,7 @@ export const EXIT_INTO_SUPPORT_STRUCTURE: PatternDefinition = {
   name: "Exit Into Support Structure",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -621,6 +635,7 @@ export const EXIT_INTO_SUPPORT_WITH_RELIEF_AFTER_EXIT: PatternDefinition = {
   name: "Exit Into Support With Relief After Exit",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -656,6 +671,7 @@ export const EXIT_INTO_SUPPORT_BEFORE_BREAKDOWN: PatternDefinition = {
   name: "Exit Into Support Before Breakdown",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -696,6 +712,7 @@ export const EXIT_INTO_STACKED_SUPPORT_WITH_RELIEF_AFTER_EXIT: PatternDefinition
     name: "Exit Into Stacked Support With Relief After Exit",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const matched =
@@ -736,6 +753,7 @@ export const EXIT_INTO_THIN_SUPPORT_BEFORE_BREAKDOWN: PatternDefinition = {
   name: "Exit Into Thin Support Before Breakdown",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -777,6 +795,7 @@ export const STABILIZED_RECOVERY_WITH_EXIT_INTO_STACKED_SUPPORT_AND_RELIEF: Patt
     name: "Stabilized Recovery With Exit Into Stacked Support And Relief",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -861,6 +880,7 @@ export const STABILIZED_RECOVERY_WITH_EXIT_INTO_THIN_SUPPORT_BEFORE_BREAKDOWN: P
     name: "Stabilized Recovery With Exit Into Thin Support Before Breakdown",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -939,6 +959,253 @@ export const STABILIZED_RECOVERY_WITH_EXIT_INTO_THIN_SUPPORT_BEFORE_BREAKDOWN: P
     },
   };
 
+export const EXIT_INTO_RESISTANCE_WITH_REVERSAL_AFTER_EXIT: PatternDefinition =
+  {
+    id: "exit_into_resistance_with_reversal_after_exit",
+    name: "Exit Into Resistance With Reversal After Exit",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    structuralLevel: "structural_composite",
+
+    evaluate: (input) => {
+      const matched =
+        input.hadSupportResistanceContextAvailable &&
+        input.finalExitOccurredNearResistance &&
+        input.maxAdverseMovePctAfterExit !== null &&
+        input.maxAdverseMovePctAfterExit >= 0.02 &&
+        input.netMovePctAtEndOfPostExitWindow !== null &&
+        input.netMovePctAtEndOfPostExitWindow <= 0 &&
+        input.maxAdverseMovePctAfterExit >
+          (input.maxFavorableMovePctAfterExit ?? Number.NEGATIVE_INFINITY);
+
+      return {
+        matched,
+        evidence: {
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          finalExitOccurredNearResistance:
+            input.finalExitOccurredNearResistance,
+          finalExitDistanceToNearestResistancePct:
+            input.finalExitDistanceToNearestResistancePct,
+          maxAdverseMovePctAfterExit: input.maxAdverseMovePctAfterExit,
+          maxFavorableMovePctAfterExit: input.maxFavorableMovePctAfterExit,
+          netMovePctAtEndOfPostExitWindow:
+            input.netMovePctAtEndOfPostExitWindow,
+        },
+        thresholdsUsed: {
+          minMaxAdverseMovePctAfterExit: 0.02,
+          maxNetMovePctAtEndOfPostExitWindow: 0,
+        },
+      };
+    },
+  };
+
+export const EXIT_INTO_RESISTANCE_BEFORE_BREAKOUT: PatternDefinition = {
+  id: "exit_into_resistance_before_breakout",
+  name: "Exit Into Resistance Before Breakout",
+  family: PATTERN_FAMILIES.EXIT_QUALITY,
+  patternType: "composite",
+  structuralLevel: "structural_composite",
+
+  evaluate: (input) => {
+    const matched =
+      input.hadSupportResistanceContextAvailable &&
+      input.finalExitOccurredNearResistance &&
+      input.maxFavorableMovePctAfterExit !== null &&
+      input.maxFavorableMovePctAfterExit >= 0.02 &&
+      input.netMovePctAtEndOfPostExitWindow !== null &&
+      input.netMovePctAtEndOfPostExitWindow >= 0 &&
+      input.maxFavorableMovePctAfterExit >
+        (input.maxAdverseMovePctAfterExit ?? Number.NEGATIVE_INFINITY);
+
+    return {
+      matched,
+      evidence: {
+        hadSupportResistanceContextAvailable:
+          input.hadSupportResistanceContextAvailable,
+        finalExitOccurredNearResistance:
+          input.finalExitOccurredNearResistance,
+        finalExitDistanceToNearestResistancePct:
+          input.finalExitDistanceToNearestResistancePct,
+        maxFavorableMovePctAfterExit: input.maxFavorableMovePctAfterExit,
+        maxAdverseMovePctAfterExit: input.maxAdverseMovePctAfterExit,
+        netMovePctAtEndOfPostExitWindow:
+          input.netMovePctAtEndOfPostExitWindow,
+      },
+      thresholdsUsed: {
+        minMaxFavorableMovePctAfterExit: 0.02,
+        minNetMovePctAtEndOfPostExitWindow: 0,
+      },
+    };
+  },
+};
+
+export const STABILIZED_RECOVERY_WITH_EXIT_INTO_RESISTANCE_AND_REVERSAL: PatternDefinition =
+  {
+    id: "stabilized_recovery_with_exit_into_resistance_and_reversal",
+    name: "Stabilized Recovery With Exit Into Resistance And Reversal",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const postExitCandleCount = input.postExitCandleCount;
+      const favorablePct = input.maxFavorableMovePctAfterExit;
+      const adversePct = input.maxAdverseMovePctAfterExit;
+      const netEndPct = input.netMovePctAtEndOfPostExitWindow;
+      const givebackPct = input.maxGivebackFromPeakOpenProfitPct;
+
+      const minPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const maxGivebackPct =
+        THRESHOLDS.SCALING_QUALITY.CONSTRUCTIVE_RECOVERY_MAX_GIVEBACK_PCT;
+      const maxSecondsToFirstReduction =
+        THRESHOLDS.POSITION_REDUCTION
+          .TIMELY_RISK_RESPONSE_MAX_SECONDS_TO_FIRST_REDUCTION;
+      const minAdversePct = 0.02;
+      const maxNetEndPct = 0;
+
+      const matched =
+        input.closedToFlat &&
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitPctOfBasis &&
+        input.hadPeakOpenProfitBeforeWorstDrawdown &&
+        input.hadReductionAfterPeakOpenProfitBeforeWorstDrawdown &&
+        input.secondsFromPeakOpenProfitToFirstReduction !== null &&
+        input.secondsFromPeakOpenProfitToFirstReduction <=
+          maxSecondsToFirstReduction &&
+        givebackPct !== null &&
+        givebackPct <= maxGivebackPct &&
+        input.hadSupportResistanceContextAvailable &&
+        input.finalExitOccurredNearResistance &&
+        postExitCandleCount > 0 &&
+        adversePct !== null &&
+        adversePct >= minAdversePct &&
+        netEndPct !== null &&
+        netEndPct <= maxNetEndPct &&
+        adversePct > (favorablePct ?? Number.NEGATIVE_INFINITY);
+
+      return {
+        matched,
+        evidence: {
+          closedToFlat: input.closedToFlat,
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          hadPeakOpenProfitBeforeWorstDrawdown:
+            input.hadPeakOpenProfitBeforeWorstDrawdown,
+          hadReductionAfterPeakOpenProfitBeforeWorstDrawdown:
+            input.hadReductionAfterPeakOpenProfitBeforeWorstDrawdown,
+          secondsFromPeakOpenProfitToFirstReduction:
+            input.secondsFromPeakOpenProfitToFirstReduction,
+          maxGivebackFromPeakOpenProfitPct: givebackPct,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          finalExitOccurredNearResistance:
+            input.finalExitOccurredNearResistance,
+          finalExitDistanceToNearestResistancePct:
+            input.finalExitDistanceToNearestResistancePct,
+          postExitCandleCount,
+          maxFavorableMovePctAfterExit: favorablePct,
+          maxAdverseMovePctAfterExit: adversePct,
+          netMovePctAtEndOfPostExitWindow: netEndPct,
+        },
+        thresholdsUsed: {
+          minPeakOpenProfitPctOfBasis,
+          maxGivebackPct,
+          maxSecondsToFirstReduction,
+          minAdversePct,
+          maxNetEndPct,
+        },
+      };
+    },
+  };
+
+export const STABILIZED_RECOVERY_WITH_EXIT_INTO_RESISTANCE_BEFORE_BREAKOUT: PatternDefinition =
+  {
+    id: "stabilized_recovery_with_exit_into_resistance_before_breakout",
+    name: "Stabilized Recovery With Exit Into Resistance Before Breakout",
+    family: PATTERN_FAMILIES.EXIT_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const postExitCandleCount = input.postExitCandleCount;
+      const favorablePct = input.maxFavorableMovePctAfterExit;
+      const adversePct = input.maxAdverseMovePctAfterExit;
+      const netEndPct = input.netMovePctAtEndOfPostExitWindow;
+      const givebackPct = input.maxGivebackFromPeakOpenProfitPct;
+
+      const minPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const maxGivebackPct =
+        THRESHOLDS.SCALING_QUALITY.CONSTRUCTIVE_RECOVERY_MAX_GIVEBACK_PCT;
+      const maxSecondsToFirstReduction =
+        THRESHOLDS.POSITION_REDUCTION
+          .TIMELY_RISK_RESPONSE_MAX_SECONDS_TO_FIRST_REDUCTION;
+      const minFavorablePct = 0.02;
+      const minNetEndPct = 0;
+
+      const matched =
+        input.closedToFlat &&
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitPctOfBasis &&
+        input.hadPeakOpenProfitBeforeWorstDrawdown &&
+        input.hadReductionAfterPeakOpenProfitBeforeWorstDrawdown &&
+        input.secondsFromPeakOpenProfitToFirstReduction !== null &&
+        input.secondsFromPeakOpenProfitToFirstReduction <=
+          maxSecondsToFirstReduction &&
+        givebackPct !== null &&
+        givebackPct <= maxGivebackPct &&
+        input.hadSupportResistanceContextAvailable &&
+        input.finalExitOccurredNearResistance &&
+        postExitCandleCount > 0 &&
+        favorablePct !== null &&
+        favorablePct >= minFavorablePct &&
+        netEndPct !== null &&
+        netEndPct >= minNetEndPct &&
+        favorablePct > (adversePct ?? Number.NEGATIVE_INFINITY);
+
+      return {
+        matched,
+        evidence: {
+          closedToFlat: input.closedToFlat,
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          hadPeakOpenProfitBeforeWorstDrawdown:
+            input.hadPeakOpenProfitBeforeWorstDrawdown,
+          hadReductionAfterPeakOpenProfitBeforeWorstDrawdown:
+            input.hadReductionAfterPeakOpenProfitBeforeWorstDrawdown,
+          secondsFromPeakOpenProfitToFirstReduction:
+            input.secondsFromPeakOpenProfitToFirstReduction,
+          maxGivebackFromPeakOpenProfitPct: givebackPct,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          finalExitOccurredNearResistance:
+            input.finalExitOccurredNearResistance,
+          finalExitDistanceToNearestResistancePct:
+            input.finalExitDistanceToNearestResistancePct,
+          postExitCandleCount,
+          maxFavorableMovePctAfterExit: favorablePct,
+          maxAdverseMovePctAfterExit: adversePct,
+          netMovePctAtEndOfPostExitWindow: netEndPct,
+        },
+        thresholdsUsed: {
+          minPeakOpenProfitPctOfBasis,
+          maxGivebackPct,
+          maxSecondsToFirstReduction,
+          minFavorablePct,
+          minNetEndPct,
+        },
+      };
+    },
+  };
+
 // =========================
 // DISCIPLINED DEFENSIVE EXIT
 // =========================
@@ -948,6 +1215,7 @@ export const DISCIPLINED_DEFENSIVE_EXIT: PatternDefinition = {
   name: "Disciplined Defensive Exit",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -1007,6 +1275,7 @@ export const STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN: PatternDefinition = {
   name: "Stop-Like Forced Exit After Breakdown",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -1083,6 +1352,7 @@ export const STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND: PatternDefinition = {
   name: "Stop-Like Forced Exit Before Rebound",
   family: PATTERN_FAMILIES.EXIT_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const postExitCandleCount = input.postExitCandleCount;
@@ -1154,6 +1424,7 @@ export const HELD_THROUGH_DANGER_WITH_STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN: Pat
     name: "Held Through Danger With Stop-Like Forced Exit After Breakdown",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const minAdversePct =
@@ -1231,6 +1502,7 @@ export const HELD_THROUGH_DANGER_WITH_STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND: Patt
     name: "Held Through Danger With Stop-Like Forced Exit Before Rebound",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const minFavorablePct =
@@ -1308,6 +1580,7 @@ export const DELAYED_RISK_RESPONSE_WITH_STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN: P
     name: "Delayed Risk Response With Stop-Like Forced Exit After Breakdown",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const minAdversePct =
@@ -1394,6 +1667,7 @@ export const DELAYED_RISK_RESPONSE_WITH_STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND: Pa
     name: "Delayed Risk Response With Stop-Like Forced Exit Before Rebound",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const minFavorablePct =
@@ -1484,6 +1758,7 @@ export const STABILIZED_RECOVERY_WITH_CONSTRUCTIVE_FINAL_EXIT: PatternDefinition
     name: "Stabilized Recovery With Constructive Final Exit",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -1567,6 +1842,7 @@ export const STABILIZED_RECOVERY_WITH_PREMATURE_FINAL_EXIT: PatternDefinition =
     name: "Stabilized Recovery With Premature Final Exit",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -1646,6 +1922,7 @@ export const STABILIZED_RECOVERY_WITH_STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN: Pat
     name: "Stabilized Recovery With Stop-Like Forced Exit After Breakdown",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -1743,6 +2020,7 @@ export const STABILIZED_RECOVERY_WITH_STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND: Patt
     name: "Stabilized Recovery With Stop-Like Forced Exit Before Rebound",
     family: PATTERN_FAMILIES.EXIT_QUALITY,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const postExitCandleCount = input.postExitCandleCount;
@@ -1853,6 +2131,8 @@ export const EXIT_QUALITY_PATTERNS: PatternDefinition[] = [
   EXIT_INTO_SUPPORT_BEFORE_BREAKDOWN,
   EXIT_INTO_STACKED_SUPPORT_WITH_RELIEF_AFTER_EXIT,
   EXIT_INTO_THIN_SUPPORT_BEFORE_BREAKDOWN,
+  EXIT_INTO_RESISTANCE_WITH_REVERSAL_AFTER_EXIT,
+  EXIT_INTO_RESISTANCE_BEFORE_BREAKOUT,
   DISCIPLINED_DEFENSIVE_EXIT,
   STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN,
   STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND,
@@ -1863,6 +2143,8 @@ export const EXIT_QUALITY_PATTERNS: PatternDefinition[] = [
   STABILIZED_RECOVERY_WITH_CONSTRUCTIVE_FINAL_EXIT,
   STABILIZED_RECOVERY_WITH_EXIT_INTO_STACKED_SUPPORT_AND_RELIEF,
   STABILIZED_RECOVERY_WITH_EXIT_INTO_THIN_SUPPORT_BEFORE_BREAKDOWN,
+  STABILIZED_RECOVERY_WITH_EXIT_INTO_RESISTANCE_AND_REVERSAL,
+  STABILIZED_RECOVERY_WITH_EXIT_INTO_RESISTANCE_BEFORE_BREAKOUT,
   STABILIZED_RECOVERY_WITH_PREMATURE_FINAL_EXIT,
   STABILIZED_RECOVERY_WITH_STOP_LIKE_FORCED_EXIT_AFTER_BREAKDOWN,
   STABILIZED_RECOVERY_WITH_STOP_LIKE_FORCED_EXIT_BEFORE_REBOUND,

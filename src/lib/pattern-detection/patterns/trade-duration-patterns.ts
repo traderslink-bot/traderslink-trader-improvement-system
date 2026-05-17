@@ -24,6 +24,7 @@ export const QUICK_TRADE: PatternDefinition = {
   name: "Quick Trade",
   family: PATTERN_FAMILIES.TRADE_DURATION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =
@@ -46,6 +47,7 @@ export const EXTENDED_TRADE: PatternDefinition = {
   name: "Extended Trade",
   family: PATTERN_FAMILIES.TRADE_DURATION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =

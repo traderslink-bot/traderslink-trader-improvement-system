@@ -84,6 +84,129 @@ function getPreEntryDirectionalContext(args: {
   };
 }
 
+interface FavorableExtensionEntryPatternConfig {
+  id: string;
+  name: string;
+  structuralLevel: PatternDefinition["structuralLevel"];
+  rangeThresholdLabel: string;
+  rangeThresholdValue: number;
+  rangeComparator: "min" | "max";
+  captureThresholdLabel: string;
+  captureThresholdValue: number;
+  captureComparator: "min" | "max";
+  adverseThresholdLabel: string;
+  adverseThresholdValue: number;
+  adverseComparator: "min" | "max";
+  directionalMoveThresholdLabel: string;
+  directionalMoveThresholdValue: number;
+  netMoveMinThresholdLabel: string;
+  netMoveMinThresholdValue: number;
+  netMoveMaxThresholdLabel?: string;
+  netMoveMaxThresholdValue?: number;
+}
+
+function satisfiesThreshold(args: {
+  value: number;
+  comparator: "min" | "max";
+  threshold: number;
+}): boolean {
+  const { value, comparator, threshold } = args;
+  return comparator === "min" ? value >= threshold : value <= threshold;
+}
+
+function createFavorableExtensionEntryPattern(
+  config: FavorableExtensionEntryPatternConfig,
+): PatternDefinition {
+  return {
+    id: config.id,
+    name: config.name,
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    structuralLevel: config.structuralLevel,
+
+    evaluate: (input) => {
+      const rangePosition = input.firstEntryPricePositionInTradeRangePct;
+      const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
+      const adverseAfterEntry = input.firstEntryToWorstMovePct;
+      const {
+        favorableMovePct,
+        directionalCandles,
+        counterDirectionalCandles,
+        normalizedNetMovePct,
+      } = getPreEntryDirectionalContext({
+        tradeDirection: input.tradeDirection,
+        recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
+        recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
+        bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
+        bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
+        recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
+      });
+
+      const directionalCandleEdge =
+        THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
+
+      const matched =
+        rangePosition !== null &&
+        capturedMfe !== null &&
+        adverseAfterEntry !== null &&
+        favorableMovePct !== null &&
+        normalizedNetMovePct !== null &&
+        satisfiesThreshold({
+          value: rangePosition,
+          comparator: config.rangeComparator,
+          threshold: config.rangeThresholdValue,
+        }) &&
+        satisfiesThreshold({
+          value: capturedMfe,
+          comparator: config.captureComparator,
+          threshold: config.captureThresholdValue,
+        }) &&
+        satisfiesThreshold({
+          value: adverseAfterEntry,
+          comparator: config.adverseComparator,
+          threshold: config.adverseThresholdValue,
+        }) &&
+        favorableMovePct >= config.directionalMoveThresholdValue &&
+        normalizedNetMovePct >= config.netMoveMinThresholdValue &&
+        (config.netMoveMaxThresholdValue === undefined ||
+          normalizedNetMovePct <= config.netMoveMaxThresholdValue) &&
+        directionalCandles >=
+          counterDirectionalCandles + directionalCandleEdge;
+
+      return {
+        matched,
+        evidence: {
+          tradeDirection: input.tradeDirection,
+          firstEntryPricePositionInTradeRangePct: rangePosition,
+          firstEntryCapturedPercentOfTradeMfe: capturedMfe,
+          firstEntryToWorstMovePct: adverseAfterEntry,
+          favorableMovePctBeforeEntry: favorableMovePct,
+          normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
+          directionalCandlesBeforeEntryCount: directionalCandles,
+          counterDirectionalCandlesBeforeEntryCount:
+            counterDirectionalCandles,
+        },
+        thresholdsUsed: {
+          [config.rangeThresholdLabel]: config.rangeThresholdValue,
+          [config.captureThresholdLabel]: config.captureThresholdValue,
+          [config.adverseThresholdLabel]: config.adverseThresholdValue,
+          [config.directionalMoveThresholdLabel]:
+            config.directionalMoveThresholdValue,
+          [config.netMoveMinThresholdLabel]: config.netMoveMinThresholdValue,
+          ...(config.netMoveMaxThresholdLabel !== undefined &&
+          config.netMoveMaxThresholdValue !== undefined
+            ? {
+                [config.netMoveMaxThresholdLabel]:
+                  config.netMoveMaxThresholdValue,
+              }
+            : {}),
+          directionalCandleEdge,
+        },
+      };
+    },
+  };
+}
+
 // =========================
 // ADVANTAGED ENTRY STRUCTURE
 // =========================
@@ -98,6 +221,7 @@ export const ADVANTAGED_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Advantaged Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -149,6 +273,7 @@ export const DISADVANTAGED_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Disadvantaged Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -203,6 +328,7 @@ export const EFFICIENT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Efficient Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -250,6 +376,7 @@ export const INEFFICIENT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Inefficient Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -296,79 +423,28 @@ export const INEFFICIENT_ENTRY_STRUCTURE: PatternDefinition = {
 // - for shorts, the favorable pre-entry move is a recent drop
 //
 export const LATE_FAVORABLE_EXTENSION_ENTRY_STRUCTURE: PatternDefinition = {
-  id: "late_favorable_extension_entry_structure",
-  name: "Late Favorable Extension Entry Structure",
-  family: PATTERN_FAMILIES.ENTRY_QUALITY,
-  patternType: "composite",
-
-  evaluate: (input) => {
-    const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-    const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-    const adverseAfterEntry = input.firstEntryToWorstMovePct;
-    const {
-      favorableMovePct,
-      directionalCandles,
-      counterDirectionalCandles,
-      normalizedNetMovePct,
-    } = getPreEntryDirectionalContext({
-      tradeDirection: input.tradeDirection,
-      recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-      recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-      bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-      bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-      recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-    });
-
-    const minRangePosition =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_RANGE_POSITION;
-    const maxCapturedMfe =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE;
-    const minAdverseAfterEntry =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT;
-    const minDirectionalMovePct =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-    const minNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT;
-    const directionalCandleEdge =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-    const matched =
-      rangePosition !== null &&
-      capturedMfe !== null &&
-      adverseAfterEntry !== null &&
-      favorableMovePct !== null &&
-      normalizedNetMovePct !== null &&
-      rangePosition >= minRangePosition &&
-      capturedMfe <= maxCapturedMfe &&
-      adverseAfterEntry >= minAdverseAfterEntry &&
-      favorableMovePct >= minDirectionalMovePct &&
-      normalizedNetMovePct >= minNetMovePct &&
-      directionalCandles >=
-        counterDirectionalCandles + directionalCandleEdge;
-
-    return {
-      matched,
-      evidence: {
-        tradeDirection: input.tradeDirection,
-        firstEntryPricePositionInTradeRangePct: rangePosition,
-        firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-        firstEntryToWorstMovePct: adverseAfterEntry,
-        favorableMovePctBeforeEntry: favorableMovePct,
-        normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-        directionalCandlesBeforeEntryCount: directionalCandles,
-        counterDirectionalCandlesBeforeEntryCount:
-          counterDirectionalCandles,
-      },
-      thresholdsUsed: {
-        minRangePosition,
-        maxCapturedMfe,
-        minAdverseAfterEntry,
-        minDirectionalMovePct,
-        minNetMovePct,
-        directionalCandleEdge,
-      },
-    };
-  },
+  ...createFavorableExtensionEntryPattern({
+    id: "late_favorable_extension_entry_structure",
+    name: "Late Favorable Extension Entry Structure",
+    structuralLevel: "structural_composite",
+    rangeThresholdLabel: "minRangePosition",
+    rangeThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_RANGE_POSITION,
+    rangeComparator: "min",
+    captureThresholdLabel: "maxCapturedMfe",
+    captureThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE,
+    captureComparator: "max",
+    adverseThresholdLabel: "minAdverseAfterEntry",
+    adverseThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT,
+    adverseComparator: "min",
+    directionalMoveThresholdLabel: "minDirectionalMovePct",
+    directionalMoveThresholdValue: THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+    netMoveMinThresholdLabel: "minNetMovePct",
+    netMoveMinThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT,
+  }),
 };
 
 // =========================
@@ -391,6 +467,7 @@ export const CONSTRUCTIVE_PULLBACK_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Constructive Pullback Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -473,79 +550,27 @@ export const CONSTRUCTIVE_PULLBACK_ENTRY_STRUCTURE: PatternDefinition = {
 //
 export const DISCIPLINED_FAVORABLE_EXTENSION_ENTRY_STRUCTURE: PatternDefinition =
   {
-    id: "disciplined_favorable_extension_entry_structure",
-    name: "Disciplined Favorable Extension Entry Structure",
-    family: PATTERN_FAMILIES.ENTRY_QUALITY,
-    patternType: "composite",
-
-    evaluate: (input) => {
-      const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-      const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-      const adverseAfterEntry = input.firstEntryToWorstMovePct;
-      const {
-        favorableMovePct,
-        directionalCandles,
-        counterDirectionalCandles,
-        normalizedNetMovePct,
-      } = getPreEntryDirectionalContext({
-        tradeDirection: input.tradeDirection,
-        recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-        recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-        bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-        bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-        recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-      });
-
-      const maxRangePosition =
-        THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION;
-      const minCapturedMfe =
-        THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE;
-      const maxAdverseAfterEntry =
-        THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT;
-      const minDirectionalMovePct =
-        THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-      const minNetMovePct =
-        THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT;
-      const directionalCandleEdge =
-        THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-      const matched =
-        rangePosition !== null &&
-        capturedMfe !== null &&
-        adverseAfterEntry !== null &&
-        favorableMovePct !== null &&
-        normalizedNetMovePct !== null &&
-        rangePosition <= maxRangePosition &&
-        capturedMfe >= minCapturedMfe &&
-        adverseAfterEntry <= maxAdverseAfterEntry &&
-        favorableMovePct >= minDirectionalMovePct &&
-        normalizedNetMovePct >= minNetMovePct &&
-        directionalCandles >=
-          counterDirectionalCandles + directionalCandleEdge;
-
-      return {
-        matched,
-        evidence: {
-          tradeDirection: input.tradeDirection,
-          firstEntryPricePositionInTradeRangePct: rangePosition,
-          firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-          firstEntryToWorstMovePct: adverseAfterEntry,
-          favorableMovePctBeforeEntry: favorableMovePct,
-          normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-          directionalCandlesBeforeEntryCount: directionalCandles,
-          counterDirectionalCandlesBeforeEntryCount:
-            counterDirectionalCandles,
-        },
-        thresholdsUsed: {
-          maxRangePosition,
-          minCapturedMfe,
-          maxAdverseAfterEntry,
-          minDirectionalMovePct,
-          minNetMovePct,
-          directionalCandleEdge,
-        },
-      };
-    },
+    ...createFavorableExtensionEntryPattern({
+      id: "disciplined_favorable_extension_entry_structure",
+      name: "Disciplined Favorable Extension Entry Structure",
+      structuralLevel: "structural_composite",
+      rangeThresholdLabel: "maxRangePosition",
+      rangeThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION,
+      rangeComparator: "max",
+      captureThresholdLabel: "minCapturedMfe",
+      captureThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE,
+      captureComparator: "min",
+      adverseThresholdLabel: "maxAdverseAfterEntry",
+      adverseThresholdValue:
+        THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT,
+      adverseComparator: "max",
+      directionalMoveThresholdLabel: "minDirectionalMovePct",
+      directionalMoveThresholdValue:
+        THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+      netMoveMinThresholdLabel: "minNetMovePct",
+      netMoveMinThresholdValue:
+        THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT,
+    }),
   };
 
 // =========================
@@ -562,83 +587,29 @@ export const DISCIPLINED_FAVORABLE_EXTENSION_ENTRY_STRUCTURE: PatternDefinition 
 // It still uses only the structural facts currently available in Layer 1.
 //
 export const BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
-  id: "breakout_entry_structure",
-  name: "Breakout Entry Structure",
-  family: PATTERN_FAMILIES.ENTRY_QUALITY,
-  patternType: "composite",
-
-  evaluate: (input) => {
-    const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-    const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-    const adverseAfterEntry = input.firstEntryToWorstMovePct;
-    const {
-      favorableMovePct,
-      directionalCandles,
-      counterDirectionalCandles,
-      normalizedNetMovePct,
-    } = getPreEntryDirectionalContext({
-      tradeDirection: input.tradeDirection,
-      recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-      recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-      bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-      bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-      recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-    });
-
-    const maxRangePosition =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION;
-    const minCapturedMfe =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE;
-    const maxAdverseAfterEntry =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT;
-    const minDirectionalMovePct =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-    const minNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.BREAKOUT_ENTRY_MIN_NET_MOVE_PCT;
-    const maxNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.BREAKOUT_ENTRY_MAX_NET_MOVE_PCT;
-    const directionalCandleEdge =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-    const matched =
-      rangePosition !== null &&
-      capturedMfe !== null &&
-      adverseAfterEntry !== null &&
-      favorableMovePct !== null &&
-      normalizedNetMovePct !== null &&
-      rangePosition <= maxRangePosition &&
-      capturedMfe >= minCapturedMfe &&
-      adverseAfterEntry <= maxAdverseAfterEntry &&
-      favorableMovePct >= minDirectionalMovePct &&
-      normalizedNetMovePct >= minNetMovePct &&
-      normalizedNetMovePct <= maxNetMovePct &&
-      directionalCandles >=
-        counterDirectionalCandles + directionalCandleEdge;
-
-    return {
-      matched,
-      evidence: {
-        tradeDirection: input.tradeDirection,
-        firstEntryPricePositionInTradeRangePct: rangePosition,
-        firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-        firstEntryToWorstMovePct: adverseAfterEntry,
-        favorableMovePctBeforeEntry: favorableMovePct,
-        normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-        directionalCandlesBeforeEntryCount: directionalCandles,
-        counterDirectionalCandlesBeforeEntryCount:
-          counterDirectionalCandles,
-      },
-      thresholdsUsed: {
-        maxRangePosition,
-        minCapturedMfe,
-        maxAdverseAfterEntry,
-        minDirectionalMovePct,
-        minNetMovePct,
-        maxNetMovePct,
-        directionalCandleEdge,
-      },
-    };
-  },
+  ...createFavorableExtensionEntryPattern({
+    id: "breakout_entry_structure",
+    name: "Breakout Entry Structure",
+    structuralLevel: "structural_composite",
+    rangeThresholdLabel: "maxRangePosition",
+    rangeThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION,
+    rangeComparator: "max",
+    captureThresholdLabel: "minCapturedMfe",
+    captureThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE,
+    captureComparator: "min",
+    adverseThresholdLabel: "maxAdverseAfterEntry",
+    adverseThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT,
+    adverseComparator: "max",
+    directionalMoveThresholdLabel: "minDirectionalMovePct",
+    directionalMoveThresholdValue: THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+    netMoveMinThresholdLabel: "minNetMovePct",
+    netMoveMinThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.BREAKOUT_ENTRY_MIN_NET_MOVE_PCT,
+    netMoveMaxThresholdLabel: "maxNetMovePct",
+    netMoveMaxThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.BREAKOUT_ENTRY_MAX_NET_MOVE_PCT,
+  }),
 };
 
 // =========================
@@ -652,83 +623,29 @@ export const BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
 // - this is the cleaner continuation counterpart above the broad disciplined extension subtype
 //
 export const MEASURED_FAVORABLE_EXTENSION_ENTRY_STRUCTURE: PatternDefinition = {
-  id: "measured_favorable_extension_entry_structure",
-  name: "Measured Favorable Extension Entry Structure",
-  family: PATTERN_FAMILIES.ENTRY_QUALITY,
-  patternType: "composite",
-
-  evaluate: (input) => {
-    const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-    const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-    const adverseAfterEntry = input.firstEntryToWorstMovePct;
-    const {
-      favorableMovePct,
-      directionalCandles,
-      counterDirectionalCandles,
-      normalizedNetMovePct,
-    } = getPreEntryDirectionalContext({
-      tradeDirection: input.tradeDirection,
-      recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-      recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-      bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-      bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-      recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-    });
-
-    const maxRangePosition =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION;
-    const minCapturedMfe =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE;
-    const maxAdverseAfterEntry =
-      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT;
-    const minDirectionalMovePct =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-    const minNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT;
-    const maxNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.MEASURED_FAVORABLE_EXTENSION_MAX_NET_MOVE_PCT;
-    const directionalCandleEdge =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-    const matched =
-      rangePosition !== null &&
-      capturedMfe !== null &&
-      adverseAfterEntry !== null &&
-      favorableMovePct !== null &&
-      normalizedNetMovePct !== null &&
-      rangePosition <= maxRangePosition &&
-      capturedMfe >= minCapturedMfe &&
-      adverseAfterEntry <= maxAdverseAfterEntry &&
-      favorableMovePct >= minDirectionalMovePct &&
-      normalizedNetMovePct >= minNetMovePct &&
-      normalizedNetMovePct <= maxNetMovePct &&
-      directionalCandles >=
-        counterDirectionalCandles + directionalCandleEdge;
-
-    return {
-      matched,
-      evidence: {
-        tradeDirection: input.tradeDirection,
-        firstEntryPricePositionInTradeRangePct: rangePosition,
-        firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-        firstEntryToWorstMovePct: adverseAfterEntry,
-        favorableMovePctBeforeEntry: favorableMovePct,
-        normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-        directionalCandlesBeforeEntryCount: directionalCandles,
-        counterDirectionalCandlesBeforeEntryCount:
-          counterDirectionalCandles,
-      },
-      thresholdsUsed: {
-        maxRangePosition,
-        minCapturedMfe,
-        maxAdverseAfterEntry,
-        minDirectionalMovePct,
-        minNetMovePct,
-        maxNetMovePct,
-        directionalCandleEdge,
-      },
-    };
-  },
+  ...createFavorableExtensionEntryPattern({
+    id: "measured_favorable_extension_entry_structure",
+    name: "Measured Favorable Extension Entry Structure",
+    structuralLevel: "structural_composite",
+    rangeThresholdLabel: "maxRangePosition",
+    rangeThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_RANGE_POSITION,
+    rangeComparator: "max",
+    captureThresholdLabel: "minCapturedMfe",
+    captureThresholdValue: THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE,
+    captureComparator: "min",
+    adverseThresholdLabel: "maxAdverseAfterEntry",
+    adverseThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT,
+    adverseComparator: "max",
+    directionalMoveThresholdLabel: "minDirectionalMovePct",
+    directionalMoveThresholdValue: THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+    netMoveMinThresholdLabel: "minNetMovePct",
+    netMoveMinThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.LATE_FAVORABLE_EXTENSION_MIN_NET_MOVE_PCT,
+    netMoveMaxThresholdLabel: "maxNetMovePct",
+    netMoveMaxThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.MEASURED_FAVORABLE_EXTENSION_MAX_NET_MOVE_PCT,
+  }),
 };
 
 // =========================
@@ -742,79 +659,27 @@ export const MEASURED_FAVORABLE_EXTENSION_ENTRY_STRUCTURE: PatternDefinition = {
 // - this is the sharper chase-style extreme above the broader late extension subtype
 //
 export const OVEREXTENDED_CHASE_ENTRY_STRUCTURE: PatternDefinition = {
-  id: "overextended_chase_entry_structure",
-  name: "Overextended Chase Entry Structure",
-  family: PATTERN_FAMILIES.ENTRY_QUALITY,
-  patternType: "composite",
-
-  evaluate: (input) => {
-    const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-    const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-    const adverseAfterEntry = input.firstEntryToWorstMovePct;
-    const {
-      favorableMovePct,
-      directionalCandles,
-      counterDirectionalCandles,
-      normalizedNetMovePct,
-    } = getPreEntryDirectionalContext({
-      tradeDirection: input.tradeDirection,
-      recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-      recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-      bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-      bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-      recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-    });
-
-    const minRangePosition =
-      THRESHOLDS.ENTRY_CONTEXT.NEAR_HIGH_MIN_POSITION;
-    const maxCapturedMfe =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE;
-    const minAdverseAfterEntry =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT;
-    const minDirectionalMovePct =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-    const minNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.OVEREXTENDED_CHASE_MIN_NET_MOVE_PCT;
-    const directionalCandleEdge =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-    const matched =
-      rangePosition !== null &&
-      capturedMfe !== null &&
-      adverseAfterEntry !== null &&
-      favorableMovePct !== null &&
-      normalizedNetMovePct !== null &&
-      rangePosition >= minRangePosition &&
-      capturedMfe <= maxCapturedMfe &&
-      adverseAfterEntry >= minAdverseAfterEntry &&
-      favorableMovePct >= minDirectionalMovePct &&
-      normalizedNetMovePct >= minNetMovePct &&
-      directionalCandles >=
-        counterDirectionalCandles + directionalCandleEdge;
-
-    return {
-      matched,
-      evidence: {
-        tradeDirection: input.tradeDirection,
-        firstEntryPricePositionInTradeRangePct: rangePosition,
-        firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-        firstEntryToWorstMovePct: adverseAfterEntry,
-        favorableMovePctBeforeEntry: favorableMovePct,
-        normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-        directionalCandlesBeforeEntryCount: directionalCandles,
-        counterDirectionalCandlesBeforeEntryCount:
-          counterDirectionalCandles,
-      },
-      thresholdsUsed: {
-        minRangePosition,
-        maxCapturedMfe,
-        minAdverseAfterEntry,
-        minDirectionalMovePct,
-        minNetMovePct,
-        directionalCandleEdge,
-      },
-    };
-  },
+  ...createFavorableExtensionEntryPattern({
+    id: "overextended_chase_entry_structure",
+    name: "Overextended Chase Entry Structure",
+    structuralLevel: "structural_composite",
+    rangeThresholdLabel: "minRangePosition",
+    rangeThresholdValue: THRESHOLDS.ENTRY_CONTEXT.NEAR_HIGH_MIN_POSITION,
+    rangeComparator: "min",
+    captureThresholdLabel: "maxCapturedMfe",
+    captureThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE,
+    captureComparator: "max",
+    adverseThresholdLabel: "minAdverseAfterEntry",
+    adverseThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT,
+    adverseComparator: "min",
+    directionalMoveThresholdLabel: "minDirectionalMovePct",
+    directionalMoveThresholdValue: THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+    netMoveMinThresholdLabel: "minNetMovePct",
+    netMoveMinThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.OVEREXTENDED_CHASE_MIN_NET_MOVE_PCT,
+  }),
 };
 
 // =========================
@@ -827,79 +692,27 @@ export const OVEREXTENDED_CHASE_ENTRY_STRUCTURE: PatternDefinition = {
 // - limited move remained and post-entry pain was meaningful
 //
 export const BREAKOUT_CHASE_ENTRY_STRUCTURE: PatternDefinition = {
-  id: "breakout_chase_entry_structure",
-  name: "Breakout Chase Entry Structure",
-  family: PATTERN_FAMILIES.ENTRY_QUALITY,
-  patternType: "composite",
-
-  evaluate: (input) => {
-    const rangePosition = input.firstEntryPricePositionInTradeRangePct;
-    const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
-    const adverseAfterEntry = input.firstEntryToWorstMovePct;
-    const {
-      favorableMovePct,
-      directionalCandles,
-      counterDirectionalCandles,
-      normalizedNetMovePct,
-    } = getPreEntryDirectionalContext({
-      tradeDirection: input.tradeDirection,
-      recentRunUpPct: input.firstEntryRecentRunUpPctBeforeEntry,
-      recentDropPct: input.firstEntryRecentDropPctBeforeEntry,
-      bullishCandles: input.firstEntryBullishCandlesBeforeEntryCount,
-      bearishCandles: input.firstEntryBearishCandlesBeforeEntryCount,
-      recentNetMovePct: input.firstEntryRecentNetMovePctBeforeEntry,
-    });
-
-    const minRangePosition =
-      THRESHOLDS.ENTRY_CONTEXT.NEAR_HIGH_MIN_POSITION;
-    const maxCapturedMfe =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE;
-    const minAdverseAfterEntry =
-      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT;
-    const minDirectionalMovePct =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT;
-    const minNetMovePct =
-      THRESHOLDS.ENTRY_QUALITY.OVEREXTENDED_CHASE_MIN_NET_MOVE_PCT;
-    const directionalCandleEdge =
-      THRESHOLDS.ENTRY_CONTEXT.RECENT_DIRECTIONAL_CANDLE_EDGE;
-
-    const matched =
-      rangePosition !== null &&
-      capturedMfe !== null &&
-      adverseAfterEntry !== null &&
-      favorableMovePct !== null &&
-      normalizedNetMovePct !== null &&
-      rangePosition >= minRangePosition &&
-      capturedMfe <= maxCapturedMfe &&
-      adverseAfterEntry >= minAdverseAfterEntry &&
-      favorableMovePct >= minDirectionalMovePct &&
-      normalizedNetMovePct >= minNetMovePct &&
-      directionalCandles >=
-        counterDirectionalCandles + directionalCandleEdge;
-
-    return {
-      matched,
-      evidence: {
-        tradeDirection: input.tradeDirection,
-        firstEntryPricePositionInTradeRangePct: rangePosition,
-        firstEntryCapturedPercentOfTradeMfe: capturedMfe,
-        firstEntryToWorstMovePct: adverseAfterEntry,
-        favorableMovePctBeforeEntry: favorableMovePct,
-        normalizedRecentNetMovePctBeforeEntry: normalizedNetMovePct,
-        directionalCandlesBeforeEntryCount: directionalCandles,
-        counterDirectionalCandlesBeforeEntryCount:
-          counterDirectionalCandles,
-      },
-      thresholdsUsed: {
-        minRangePosition,
-        maxCapturedMfe,
-        minAdverseAfterEntry,
-        minDirectionalMovePct,
-        minNetMovePct,
-        directionalCandleEdge,
-      },
-    };
-  },
+  ...createFavorableExtensionEntryPattern({
+    id: "breakout_chase_entry_structure",
+    name: "Breakout Chase Entry Structure",
+    structuralLevel: "structural_composite",
+    rangeThresholdLabel: "minRangePosition",
+    rangeThresholdValue: THRESHOLDS.ENTRY_CONTEXT.NEAR_HIGH_MIN_POSITION,
+    rangeComparator: "min",
+    captureThresholdLabel: "maxCapturedMfe",
+    captureThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE,
+    captureComparator: "max",
+    adverseThresholdLabel: "minAdverseAfterEntry",
+    adverseThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT,
+    adverseComparator: "min",
+    directionalMoveThresholdLabel: "minDirectionalMovePct",
+    directionalMoveThresholdValue: THRESHOLDS.ENTRY_CONTEXT.RECENT_RUN_UP_MIN_PCT,
+    netMoveMinThresholdLabel: "minNetMovePct",
+    netMoveMinThresholdValue:
+      THRESHOLDS.ENTRY_QUALITY.BREAKOUT_ENTRY_MIN_NET_MOVE_PCT,
+  }),
 };
 
 // =========================
@@ -916,6 +729,7 @@ export const FAILED_BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Breakout Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -1008,6 +822,7 @@ export const RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1085,6 +900,7 @@ export const FAILED_RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1163,6 +979,7 @@ export const MEAN_REVERSION_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Mean Reversion Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1263,6 +1080,7 @@ export const FAILED_MEAN_REVERSION_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Mean Reversion Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1365,6 +1183,7 @@ export const OPENING_RANGE_BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Opening Range Breakout Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1420,6 +1239,7 @@ export const OPENING_RANGE_BREAKOUT_CHASE_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Opening Range Breakout Chase Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1475,6 +1295,7 @@ export const FAILED_OPENING_RANGE_BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = 
   name: "Failed Opening Range Breakout Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1527,6 +1348,7 @@ export const OPENING_RANGE_RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Opening Range Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1597,6 +1419,7 @@ export const FAILED_OPENING_RANGE_RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Opening Range Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1677,6 +1500,7 @@ export const MARKET_OPEN_BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Market Open Breakout Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1736,6 +1560,7 @@ export const MARKET_OPEN_BREAKOUT_CHASE_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Market Open Breakout Chase Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1795,6 +1620,7 @@ export const FAILED_MARKET_OPEN_BREAKOUT_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Market Open Breakout Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1854,6 +1680,7 @@ export const MARKET_OPEN_RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Market Open Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -1932,6 +1759,7 @@ export const FAILED_MARKET_OPEN_RECLAIM_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Failed Market Open Reclaim Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2000,6 +1828,7 @@ export const BREAKOUT_WITH_ROOM_ABOVE_STRUCTURE: PatternDefinition = {
   name: "Breakout With Room Above Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2050,6 +1879,7 @@ export const BREAKOUT_INTO_OVERHEAD_RESISTANCE_STRUCTURE: PatternDefinition = {
   name: "Breakout Into Overhead Resistance Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2099,6 +1929,7 @@ export const BREAKOUT_WITH_ROOM_ABOVE_AND_CONSTRUCTIVE_FINAL_EXIT: PatternDefini
     name: "Breakout With Room Above And Constructive Final Exit",
     family: PATTERN_FAMILIES.ENTRY_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2175,6 +2006,7 @@ export const BREAKOUT_WITH_ROOM_ABOVE_AND_FAILED_PROFIT_PROTECTION: PatternDefin
     name: "Breakout With Room Above And Failed Profit Protection",
     family: PATTERN_FAMILIES.ENTRY_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2237,6 +2069,7 @@ export const BREAKOUT_INTO_OVERHEAD_RESISTANCE_WITH_DEFENSIVE_FINAL_EXIT: Patter
     name: "Breakout Into Overhead Resistance With Defensive Final Exit",
     family: PATTERN_FAMILIES.ENTRY_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2314,6 +2147,7 @@ export const BREAKOUT_INTO_OVERHEAD_RESISTANCE_WITH_FAILED_PROFIT_PROTECTION: Pa
     name: "Breakout Into Overhead Resistance With Failed Profit Protection",
     family: PATTERN_FAMILIES.ENTRY_QUALITY,
     patternType: "composite",
+    structuralLevel: "storyline_composite",
 
     evaluate: (input) => {
       const capturedMfe = input.firstEntryCapturedPercentOfTradeMfe;
@@ -2369,11 +2203,332 @@ export const BREAKOUT_INTO_OVERHEAD_RESISTANCE_WITH_FAILED_PROFIT_PROTECTION: Pa
     },
   };
 
+export const RECOVERY_WITH_BREAKOUT_WITH_ROOM_ABOVE_AND_CONSTRUCTIVE_FINAL_EXIT: PatternDefinition =
+  {
+    id: "recovery_with_breakout_with_room_above_and_constructive_final_exit",
+    name: "Recovery With Breakout With Room Above And Constructive Final Exit",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const minPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const maxGivebackPct =
+        THRESHOLDS.SCALING_QUALITY
+          .BALANCED_WITH_PROFIT_PROTECTION_MAX_GIVEBACK_PCT;
+      const minAdversePct =
+        THRESHOLDS.EXIT_QUALITY
+          .EXIT_AVOIDED_ADVERSE_FOLLOWTHROUGH_MIN_ADVERSE_PCT;
+      const maxNetEndPct =
+        THRESHOLDS.EXIT_QUALITY
+          .EXIT_AVOIDED_ADVERSE_FOLLOWTHROUGH_MAX_NET_END_PCT;
+
+      const matched =
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitPctOfBasis &&
+        input.realizedReturnPct !== null &&
+        input.realizedReturnPct > 0 &&
+        input.hadSupportResistanceContextAvailable &&
+        input.firstEntryClearedNearestResistanceBelow &&
+        input.firstEntryHadRoomAboveAfterClearingResistance &&
+        !input.firstEntryOccurredNearResistance &&
+        input.firstEntryCapturedPercentOfTradeMfe !== null &&
+        input.firstEntryCapturedPercentOfTradeMfe >=
+          THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE &&
+        input.firstEntryToWorstMovePct !== null &&
+        input.firstEntryToWorstMovePct <=
+          THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT &&
+        input.maxGivebackFromPeakOpenProfitPct !== null &&
+        input.maxGivebackFromPeakOpenProfitPct <= maxGivebackPct &&
+        input.closedToFlat &&
+        input.postExitCandleCount > 0 &&
+        input.maxAdverseMovePctAfterExit !== null &&
+        input.maxAdverseMovePctAfterExit >= minAdversePct &&
+        input.netMovePctAtEndOfPostExitWindow !== null &&
+        input.netMovePctAtEndOfPostExitWindow <= maxNetEndPct &&
+        input.maxAdverseMovePctAfterExit >
+          (input.maxFavorableMovePctAfterExit ?? Number.NEGATIVE_INFINITY);
+
+      return {
+        matched,
+        evidence: {
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          realizedReturnPct: input.realizedReturnPct,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          firstEntryClearedNearestResistanceBelow:
+            input.firstEntryClearedNearestResistanceBelow,
+          firstEntryHadRoomAboveAfterClearingResistance:
+            input.firstEntryHadRoomAboveAfterClearingResistance,
+          firstEntryDistanceAboveNearestResistanceBelowPct:
+            input.firstEntryDistanceAboveNearestResistanceBelowPct,
+          firstEntryDistanceToNearestResistancePct:
+            input.firstEntryDistanceToNearestResistancePct,
+          firstEntryCapturedPercentOfTradeMfe:
+            input.firstEntryCapturedPercentOfTradeMfe,
+          firstEntryToWorstMovePct: input.firstEntryToWorstMovePct,
+          maxGivebackFromPeakOpenProfitPct:
+            input.maxGivebackFromPeakOpenProfitPct,
+          maxAdverseMovePctAfterExit: input.maxAdverseMovePctAfterExit,
+          maxFavorableMovePctAfterExit: input.maxFavorableMovePctAfterExit,
+          netMovePctAtEndOfPostExitWindow:
+            input.netMovePctAtEndOfPostExitWindow,
+        },
+        thresholdsUsed: {
+          minPeakOpenProfitPctOfBasis,
+          minCapturedMfe:
+            THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE,
+          maxAdverseAfterEntry:
+            THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT,
+          maxGivebackPct,
+          minAdversePct,
+          maxNetEndPct,
+        },
+      };
+    },
+  };
+
+export const RECOVERY_WITH_BREAKOUT_WITH_ROOM_ABOVE_AND_FAILED_PROFIT_PROTECTION: PatternDefinition =
+  {
+    id: "recovery_with_breakout_with_room_above_and_failed_profit_protection",
+    name: "Recovery With Breakout With Room Above And Failed Profit Protection",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const minRecoveryPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const minGivebackPct =
+        THRESHOLDS.SCALING_QUALITY
+          .AGGRESSIVE_ADDING_FAILED_PROTECTION_MIN_GIVEBACK_PCT;
+      const minPeakOpenProfitForFailurePctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .AGGRESSIVE_ADDING_FAILED_PROTECTION_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+
+      const matched =
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minRecoveryPeakOpenProfitPctOfBasis &&
+        input.hadSupportResistanceContextAvailable &&
+        input.firstEntryClearedNearestResistanceBelow &&
+        input.firstEntryHadRoomAboveAfterClearingResistance &&
+        !input.firstEntryOccurredNearResistance &&
+        input.firstEntryCapturedPercentOfTradeMfe !== null &&
+        input.firstEntryCapturedPercentOfTradeMfe >=
+          THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE &&
+        input.firstEntryToWorstMovePct !== null &&
+        input.firstEntryToWorstMovePct <=
+          THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT &&
+        input.maxGivebackFromPeakOpenProfitPct !== null &&
+        input.maxGivebackFromPeakOpenProfitPct >= minGivebackPct &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitForFailurePctOfBasis;
+
+      return {
+        matched,
+        evidence: {
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          firstEntryClearedNearestResistanceBelow:
+            input.firstEntryClearedNearestResistanceBelow,
+          firstEntryHadRoomAboveAfterClearingResistance:
+            input.firstEntryHadRoomAboveAfterClearingResistance,
+          firstEntryDistanceAboveNearestResistanceBelowPct:
+            input.firstEntryDistanceAboveNearestResistanceBelowPct,
+          firstEntryDistanceToNearestResistancePct:
+            input.firstEntryDistanceToNearestResistancePct,
+          firstEntryCapturedPercentOfTradeMfe:
+            input.firstEntryCapturedPercentOfTradeMfe,
+          firstEntryToWorstMovePct: input.firstEntryToWorstMovePct,
+          maxGivebackFromPeakOpenProfitPct:
+            input.maxGivebackFromPeakOpenProfitPct,
+        },
+        thresholdsUsed: {
+          minRecoveryPeakOpenProfitPctOfBasis,
+          minCapturedMfe:
+            THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MIN_CAPTURED_MFE,
+          maxAdverseAfterEntry:
+            THRESHOLDS.ENTRY_QUALITY.ADVANTAGED_MAX_ADVERSE_AFTER_ENTRY_PCT,
+          minGivebackPct,
+          minPeakOpenProfitForFailurePctOfBasis,
+        },
+      };
+    },
+  };
+
+export const RECOVERY_WITH_BREAKOUT_INTO_OVERHEAD_RESISTANCE_AND_DEFENSIVE_FINAL_EXIT: PatternDefinition =
+  {
+    id: "recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit",
+    name: "Recovery With Breakout Into Overhead Resistance And Defensive Final Exit",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const minPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const maxCapturedMfe =
+        THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE;
+      const minAdverseAfterEntry =
+        THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT;
+      const minAdversePct =
+        THRESHOLDS.EXIT_QUALITY
+          .EXIT_AVOIDED_ADVERSE_FOLLOWTHROUGH_MIN_ADVERSE_PCT;
+      const maxNetEndPct =
+        THRESHOLDS.EXIT_QUALITY
+          .EXIT_AVOIDED_ADVERSE_FOLLOWTHROUGH_MAX_NET_END_PCT;
+      const maxGivebackPct =
+        THRESHOLDS.EXIT_QUALITY.DISCIPLINED_DEFENSIVE_EXIT_MAX_GIVEBACK_PCT;
+
+      const matched =
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitPctOfBasis &&
+        input.realizedReturnPct !== null &&
+        input.realizedReturnPct > 0 &&
+        input.hadSupportResistanceContextAvailable &&
+        input.firstEntryClearedNearestResistanceBelow &&
+        input.firstEntryHasStackedResistanceAbove &&
+        !input.firstEntryHadRoomAboveAfterClearingResistance &&
+        input.firstEntryCapturedPercentOfTradeMfe !== null &&
+        input.firstEntryCapturedPercentOfTradeMfe <= maxCapturedMfe &&
+        input.firstEntryToWorstMovePct !== null &&
+        input.firstEntryToWorstMovePct >= minAdverseAfterEntry &&
+        input.closedToFlat &&
+        input.totalPositionDecreaseCount > 0 &&
+        input.postExitCandleCount > 0 &&
+        input.maxAdverseMovePctAfterExit !== null &&
+        input.maxAdverseMovePctAfterExit >= minAdversePct &&
+        input.netMovePctAtEndOfPostExitWindow !== null &&
+        input.netMovePctAtEndOfPostExitWindow <= maxNetEndPct &&
+        input.maxAdverseMovePctAfterExit >
+          (input.maxFavorableMovePctAfterExit ?? Number.NEGATIVE_INFINITY) &&
+        input.maxGivebackFromPeakOpenProfitPct !== null &&
+        input.maxGivebackFromPeakOpenProfitPct <= maxGivebackPct;
+
+      return {
+        matched,
+        evidence: {
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          realizedReturnPct: input.realizedReturnPct,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          firstEntryClearedNearestResistanceBelow:
+            input.firstEntryClearedNearestResistanceBelow,
+          firstEntryHasStackedResistanceAbove:
+            input.firstEntryHasStackedResistanceAbove,
+          firstEntryResistanceLevelsAboveWithinClusterCount:
+            input.firstEntryResistanceLevelsAboveWithinClusterCount,
+          firstEntryCapturedPercentOfTradeMfe:
+            input.firstEntryCapturedPercentOfTradeMfe,
+          firstEntryToWorstMovePct: input.firstEntryToWorstMovePct,
+          maxGivebackFromPeakOpenProfitPct:
+            input.maxGivebackFromPeakOpenProfitPct,
+          maxAdverseMovePctAfterExit: input.maxAdverseMovePctAfterExit,
+          maxFavorableMovePctAfterExit: input.maxFavorableMovePctAfterExit,
+          netMovePctAtEndOfPostExitWindow:
+            input.netMovePctAtEndOfPostExitWindow,
+        },
+        thresholdsUsed: {
+          minPeakOpenProfitPctOfBasis,
+          maxCapturedMfe,
+          minAdverseAfterEntry,
+          minAdversePct,
+          maxNetEndPct,
+          maxGivebackPct,
+        },
+      };
+    },
+  };
+
+export const RECOVERY_WITH_BREAKOUT_INTO_OVERHEAD_RESISTANCE_AND_FAILED_PROFIT_PROTECTION: PatternDefinition =
+  {
+    id: "recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection",
+    name: "Recovery With Breakout Into Overhead Resistance And Failed Profit Protection",
+    family: PATTERN_FAMILIES.ENTRY_QUALITY,
+    patternType: "composite",
+    structuralLevel: "storyline_composite",
+
+    evaluate: (input) => {
+      const minRecoveryPeakOpenProfitPctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .CONSTRUCTIVE_RECOVERY_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+      const minGivebackPct =
+        THRESHOLDS.SCALING_QUALITY
+          .AGGRESSIVE_ADDING_FAILED_PROTECTION_MIN_GIVEBACK_PCT;
+      const minPeakOpenProfitForFailurePctOfBasis =
+        THRESHOLDS.SCALING_QUALITY
+          .AGGRESSIVE_ADDING_FAILED_PROTECTION_MIN_PEAK_OPEN_PROFIT_PCT_OF_BASIS;
+
+      const matched =
+        input.hadOpenLossBeforePeakOpenProfit &&
+        input.peakOpenProfitPctOfBasis !== null &&
+        input.peakOpenProfitPctOfBasis >= minRecoveryPeakOpenProfitPctOfBasis &&
+        input.hadSupportResistanceContextAvailable &&
+        input.firstEntryClearedNearestResistanceBelow &&
+        input.firstEntryHasStackedResistanceAbove &&
+        !input.firstEntryHadRoomAboveAfterClearingResistance &&
+        input.firstEntryCapturedPercentOfTradeMfe !== null &&
+        input.firstEntryCapturedPercentOfTradeMfe <=
+          THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE &&
+        input.firstEntryToWorstMovePct !== null &&
+        input.firstEntryToWorstMovePct >=
+          THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT &&
+        input.maxGivebackFromPeakOpenProfitPct !== null &&
+        input.maxGivebackFromPeakOpenProfitPct >= minGivebackPct &&
+        input.peakOpenProfitPctOfBasis >= minPeakOpenProfitForFailurePctOfBasis;
+
+      return {
+        matched,
+        evidence: {
+          hadOpenLossBeforePeakOpenProfit:
+            input.hadOpenLossBeforePeakOpenProfit,
+          peakOpenProfitPctOfBasis: input.peakOpenProfitPctOfBasis,
+          hadSupportResistanceContextAvailable:
+            input.hadSupportResistanceContextAvailable,
+          firstEntryClearedNearestResistanceBelow:
+            input.firstEntryClearedNearestResistanceBelow,
+          firstEntryHasStackedResistanceAbove:
+            input.firstEntryHasStackedResistanceAbove,
+          firstEntryResistanceLevelsAboveWithinClusterCount:
+            input.firstEntryResistanceLevelsAboveWithinClusterCount,
+          firstEntryCapturedPercentOfTradeMfe:
+            input.firstEntryCapturedPercentOfTradeMfe,
+          firstEntryToWorstMovePct: input.firstEntryToWorstMovePct,
+          maxGivebackFromPeakOpenProfitPct:
+            input.maxGivebackFromPeakOpenProfitPct,
+        },
+        thresholdsUsed: {
+          minRecoveryPeakOpenProfitPctOfBasis,
+          maxCapturedMfe:
+            THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MAX_CAPTURED_MFE,
+          minAdverseAfterEntry:
+            THRESHOLDS.ENTRY_QUALITY.DISADVANTAGED_MIN_ADVERSE_AFTER_ENTRY_PCT,
+          minGivebackPct,
+          minPeakOpenProfitForFailurePctOfBasis,
+        },
+      };
+    },
+  };
+
 export const ENTRY_NEAR_SUPPORT_STRUCTURE: PatternDefinition = {
   id: "entry_near_support_structure",
   name: "Entry Near Support Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -2406,6 +2561,7 @@ export const ENTRY_UNDER_RESISTANCE_STRUCTURE: PatternDefinition = {
   name: "Entry Under Resistance Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -2436,6 +2592,7 @@ export const ENTRY_FAR_FROM_SUPPORT_STRUCTURE: PatternDefinition = {
   name: "Entry Far From Support Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const matched =
@@ -2475,6 +2632,7 @@ export const WEAK_PULLBACK_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Weak Pullback Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -2560,6 +2718,7 @@ export const DEEP_CONSTRUCTIVE_PULLBACK_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Deep Constructive Pullback Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -2645,6 +2804,7 @@ export const DEEP_WEAK_PULLBACK_ENTRY_STRUCTURE: PatternDefinition = {
   name: "Deep Weak Pullback Entry Structure",
   family: PATTERN_FAMILIES.ENTRY_QUALITY,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const rangePosition = input.firstEntryPricePositionInTradeRangePct;
@@ -2749,6 +2909,10 @@ export const ENTRY_QUALITY_PATTERNS: PatternDefinition[] = [
   BREAKOUT_WITH_ROOM_ABOVE_AND_FAILED_PROFIT_PROTECTION,
   BREAKOUT_INTO_OVERHEAD_RESISTANCE_WITH_DEFENSIVE_FINAL_EXIT,
   BREAKOUT_INTO_OVERHEAD_RESISTANCE_WITH_FAILED_PROFIT_PROTECTION,
+  RECOVERY_WITH_BREAKOUT_WITH_ROOM_ABOVE_AND_CONSTRUCTIVE_FINAL_EXIT,
+  RECOVERY_WITH_BREAKOUT_WITH_ROOM_ABOVE_AND_FAILED_PROFIT_PROTECTION,
+  RECOVERY_WITH_BREAKOUT_INTO_OVERHEAD_RESISTANCE_AND_DEFENSIVE_FINAL_EXIT,
+  RECOVERY_WITH_BREAKOUT_INTO_OVERHEAD_RESISTANCE_AND_FAILED_PROFIT_PROTECTION,
   ENTRY_NEAR_SUPPORT_STRUCTURE,
   ENTRY_FAR_FROM_SUPPORT_STRUCTURE,
   ENTRY_UNDER_RESISTANCE_STRUCTURE,

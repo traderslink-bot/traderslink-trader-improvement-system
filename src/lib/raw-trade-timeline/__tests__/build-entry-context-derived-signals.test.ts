@@ -476,7 +476,7 @@ describe("buildEntryContextDerivedSignals", () => {
         tradeCandles: [],
         postTradeCandles: [],
         sessionContext: {
-          sessionBucket: "open",
+          sessionBucket: "market_open",
           sessionDate: "2024-04-12",
         },
       },

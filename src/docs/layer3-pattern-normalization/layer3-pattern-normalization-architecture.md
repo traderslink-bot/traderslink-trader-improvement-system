@@ -1,312 +1,262 @@
-# Layer 3 Pattern Normalization and Prioritization Architecture
+# Layer 3 Pattern Normalization Architecture
 
-## Purpose of Layer 3
+Updated: 2026-04-14 America/Toronto
 
-Layer 3 is responsible for transforming raw detected patterns into a structured, prioritized, and usable representation.
+## Purpose
+
+Layer 3 transforms raw Layer 2 detected patterns into a cleaner, prioritized,
+and more usable structure.
 
 Layer 2 answers:
 
-What is true?
+- what is true?
 
 Layer 3 answers:
 
-What matters most?
+- what matters most?
+- which overlapping truths are primary vs supporting vs contextual?
 
----
+## Position In The System
 
-## Position in System Architecture
+The current architecture is:
 
-The system now follows:
-
-### Layer 1
-Raw data and signal extraction
-
-### Layer 2
-Pattern detection (truth generation)
-
-### Layer 3
-Pattern normalization and prioritization (importance structuring)
-
-### Future Layers
-- Layer 4: scoring
-- Layer 5: coaching
-- Layer 6: narrative/output
-
----
-
-## Inputs to Layer 3
-
-Layer 3 consumes only:
-
-```ts
-PatternDetectionResult
-
-Which contains:
-
-DetectedPattern[]
-
-Layer 3 must NOT access:
-
-raw trade timeline
-execution events
-candle data
-PatternInput
+1. external data boundary
+2. Layer 1 factual trade and market context
+3. support/resistance structural context
+4. `PatternInput` aggregation
+5. Layer 2 pattern detection
+6. Layer 3 normalization and prioritization
+7. downstream scoring / later interpretation
 
 Layer 3 is strictly downstream of Layer 2.
 
-Outputs of Layer 3
+## What Layer 3 Consumes
 
-Layer 3 produces a normalized pattern structure.
+Layer 3 consumes only:
 
-Conceptual output:
+- `PatternDetectionResult`
 
-{
-  primaryPatterns: DetectedPattern[]
-  supportingPatterns: DetectedPattern[]
-  contextualPatterns: DetectedPattern[]
+That means Layer 3 should not access:
 
-  prioritizedPatterns: DetectedPattern[]
+- raw candles
+- executions
+- raw timeline objects
+- `PatternInput`
 
-  patternsByFamily: Record<string, DetectedPattern[]>
-  primaryPatternsByFamily: Record<string, DetectedPattern>
-  topOverallAnchorPattern: DetectedPattern | null
-}
+If Layer 3 appears to need raw data, the missing contract likely belongs in
+Layer 1 or Layer 2 instead.
 
-This structure will be used by all later layers.
+## What Layer 3 Produces
 
-`primaryPatternsByFamily` is especially useful for later scoring, coaching, and UI layers that want one family anchor without re-deriving Layer 3 decisions.
+Layer 3 produces normalized pattern output that includes concepts such as:
 
-`topOverallAnchorPattern` is the single trade-level anchor later layers should use when they need one dominant normalized pattern for the whole trade.
+- primary patterns
+- supporting patterns
+- contextual patterns
+- prioritized full pattern order
+- patterns grouped by family
+- one primary anchor per family
+- one top overall anchor pattern
 
-Core Responsibilities
+In practice, Layer 3 is the bridge between "all true detected patterns" and
+"the clearest usable structural story."
 
-Layer 3 performs five critical transformations.
+## Core Responsibilities
 
-1. Prioritization
+### 1. Attach metadata
 
-Layer 3 determines which patterns are most important.
+Layer 3 reads metadata for each detected pattern such as:
 
-This uses:
+- specificity rank
+- default priority
+- whether it can be primary
+- default role
 
-patternType (atomic vs composite)
-specificityRank
-defaultPriority
+This metadata lives in:
 
-General rules:
+- `src/lib/pattern-normalization/pattern-metadata.ts`
 
-composite > atomic
-higher specificity > lower specificity
-higher priority score > lower
-2. Overlap Resolution
+### 2. Sort deterministically
 
-Layer 2 intentionally produces overlapping patterns.
+Layer 3 sorts detected patterns using a stable deterministic order.
 
-Layer 3 must resolve overlap without deleting information.
+Current ordering logic is based on:
 
-Example:
+- default priority
+- specificity rank
+- pattern type rank
+- pattern id as stable tie-breaker
 
-Input:
+This keeps the normalization process reproducible.
 
-low_range_entry
-entry_near_trade_low
-advantaged_entry_structure
+### 3. Apply suppression and dominance rules
 
-Output:
+Layer 3 uses explicit suppression and dominance rules to demote broader or
+weaker overlaps when richer patterns are present.
 
-primary: advantaged_entry_structure
-supporting: entry_near_trade_low
-contextual: low_range_entry
-3. Pattern Classification
+This rule system already exists and is central to the current architecture.
 
-Each pattern must be assigned a role:
+It lives in:
 
-primary
-supporting
-contextual
+- `src/lib/pattern-normalization/pattern-suppression-rules.ts`
 
-Definitions:
+This is not a future enhancement anymore.
+It is one of the core mechanisms Layer 3 already depends on heavily.
 
-primary → main structural signal of the trade
-supporting → meaningful but not dominant
-contextual → background information
-4. Family Grouping
+### 4. Classify normalized roles
 
-Patterns must be grouped by family:
+Layer 3 assigns normalized roles such as:
 
-entry_context
-entry_quality
-exit_quality
-scaling_quality
-position_structure
-etc.
+- `primary_candidate`
+- `supporting_candidate`
+- `context_only`
 
-This allows:
+This preserves information without letting all overlapping truths compete as if
+they were equally important.
 
-per-family prioritization
-structured scoring later
-cleaner UI grouping
-5. Ordering
+### 5. Enforce a single primary per family
 
-Layer 3 produces a fully ordered list:
+Layer 3 keeps one primary family anchor where appropriate so later layers do
+not need to re-solve same-family competition themselves.
 
-prioritizedPatterns
+### 6. Build grouped and ordered outputs
 
-Sorted from most important → least important
+Layer 3 groups patterns by family and also produces a fully prioritized order.
 
-This will drive:
+That makes downstream layers simpler and more consistent.
 
-scoring weights
-coaching focus
-headline generation
-What Layer 3 Must NOT Do
+## Design Principles
 
-This is critical.
+### Deterministic
+
+Same detected input should always produce the same normalized result.
+
+### Metadata-driven
+
+Layer 3 should use metadata and explicit rules, not scattered hidden
+assumptions.
+
+### Non-destructive
+
+Layer 3 should demote or reclassify overlap, not blindly delete useful truth.
+
+### Structural, not narrative
+
+Layer 3 should not become a coaching or storytelling layer.
+
+It organizes structure.
+It does not yet explain it to the user in human coaching language.
+
+## What Layer 3 Must Not Do
 
 Layer 3 must not:
 
-1. Re-detect patterns
+- re-detect patterns
+- create new threshold-based detection logic
+- access raw trade or candle data
+- score trades
+- generate coaching
+- generate narrative summaries
 
-No thresholds, no new detection logic.
+Those belong elsewhere.
 
-2. Access raw data
+## Main Code Files
 
-No timeline, no candles, no executions.
+### `pattern-metadata.ts`
 
-3. Score trades
+Central metadata registry for implemented patterns.
 
-No numeric scoring or grading.
+Responsibilities:
 
-4. Generate coaching
+- define default priority
+- define specificity
+- define primary eligibility
+- define default normalized role
 
-No advice or feedback.
+### `pattern-suppression-rules.ts`
 
-5. Generate narrative
+Central rule registry for overlap handling and richer-vs-broader dominance.
 
-No summaries or descriptions.
+Responsibilities:
 
-Layer 3 is purely structural prioritization.
+- suppression groups
+- explicit dominance rules
+- soft demotion outcomes
 
-Key Concepts Introduced in Layer 3
-Pattern Importance
+### `normalize-detected-patterns.ts`
 
-Not all patterns are equal.
+Layer 3 normalization engine.
 
-Example:
+Responsibilities:
 
-scaled_into_position → low importance
-multi_build_full_exit → medium importance
-advantaged_entry_structure → high importance
+- attach metadata
+- sort patterns
+- apply demotions
+- enforce one primary per family
+- build grouped and prioritized outputs
 
-Layer 3 formalizes this.
-
-Specificity
-
-More specific patterns should dominate broader ones.
-
-Example:
-
-entry_near_trade_low > low_range_entry
-Composite Dominance
-
-Composite patterns usually represent higher-level structure.
-
-Example:
-
-advantaged_entry_structure > entry_near_trade_low
-Non-Destructive Filtering
-
-Layer 3 does NOT delete patterns.
-
-It reclassifies them.
-
-Relationship to Pattern Metadata
-
-Layer 3 relies heavily on:
-
-pattern-metadata.ts
-
-This provides:
-
-specificityRank
-defaultPriority
-canBePrimary
-defaultRole
-
-Layer 3 logic must use metadata, not hardcoded assumptions.
-
-Expected Behavior Example
-
-Layer 2 output:
-
-low_range_entry
-entry_near_trade_low
-advantaged_entry_structure
-efficient_entry_structure
-
-Layer 3 output:
-
-PRIMARY:
-advantaged_entry_structure
-
-SUPPORTING:
-entry_near_trade_low
-efficient_entry_structure
-
-CONTEXTUAL:
-low_range_entry
-Design Philosophy
-
-Layer 3 is:
-
-structural
-deterministic
-explainable
-metadata-driven
-
-It is NOT:
-
-subjective
-heuristic-heavy
-scoring-based
-narrative-based
-Why Layer 3 Matters
+## Why Layer 3 Matters
 
 Without Layer 3:
 
-scoring becomes noisy
-coaching becomes contradictory
-narrative becomes unclear
+- later scoring becomes noisy
+- coaching becomes contradictory
+- multiple overlapping truths compete without structure
+- support/resistance-aware richer stories can get buried under broader branches
 
-Layer 3 is the foundation of:
+Layer 3 is what lets the system preserve truth while still presenting a cleaner
+and more useful result.
 
-clarity
-consistency
-interpretability
-Future Expansion (Layer 3+)
+## Current Reality Of Layer 3
 
-Layer 3 may later expand to include:
+Layer 3 is no longer an early prioritization sketch.
 
-suppression groups
-pattern dependencies
-family-level dominance rules
-conflict resolution rules
-advanced prioritization tuning
+It now has:
 
-But initial version should remain simple and deterministic.
+- a large metadata registry
+- substantial explicit dominance logic
+- broad same-family and cross-family suppression handling
+- heavy use across entry, exit, scaling, recovery, repeated-cycle, and
+  support/resistance-aware branches
 
-Final Summary
+That means Layer 3 is already a mature architectural layer in this repo, not a
+future placeholder.
 
-Layer 2 produces:
+## Honest Current Tension
 
-all true structural patterns
-unfiltered
-overlapping
+The main Layer 3 challenge is not "whether we need overlap logic."
 
-Layer 3 transforms that into:
+We already do.
 
-prioritized
-classified
-grouped
-ordered patterns
+The real challenge is:
 
-This is the bridge between detection and interpretation.
+- keeping hierarchy honest as new richer branches are added
+- preventing broader summary branches from incorrectly outranking stricter local
+  structures
+- keeping the rule set understandable as the pattern surface grows
+
+That is why metadata discipline and explicit rule clarity matter so much here.
+
+## Best Related Docs
+
+Use this file together with:
+
+1. `src/docs/layer3-pattern-normalization/layer3-file-structure-reference.md`
+2. `src/docs/layer2-pattern-detection/layer2-to-layer3-handoff.md`
+3. `src/docs/layer2-pattern-detection/layer2-implemented-pattern-catalog.md`
+4. `src/docs/codex-project-log.md`
+5. `src/docs/behavior-coverage-audit.md`
+
+## Short Summary
+
+Layer 2 preserves all true detected patterns.
+
+Layer 3 turns that raw truth set into:
+
+- ranked
+- grouped
+- role-classified
+- overlap-resolved
+- downstream-usable structure
+
+It is the architectural bridge between detection and later interpretation.

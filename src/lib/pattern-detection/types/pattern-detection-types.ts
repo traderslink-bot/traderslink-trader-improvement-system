@@ -40,6 +40,11 @@ import type { PatternInput } from "../../pattern-input/types/pattern-input";
 
 export type PatternType = "atomic" | "composite";
 
+export type StructuralLevel =
+  | "atomic"
+  | "structural_composite"
+  | "storyline_composite";
+
 export interface PatternMatchResult {
   matched: boolean;
   evidence: Record<string, unknown>;
@@ -51,6 +56,7 @@ export interface PatternDefinition {
   name: string;
   family: string;
   patternType: PatternType;
+  structuralLevel: StructuralLevel;
   evaluate: (input: PatternInput) => PatternMatchResult;
 }
 
@@ -59,6 +65,7 @@ export interface DetectedPattern {
   patternName: string;
   family: string;
   patternType: PatternType;
+  structuralLevel: StructuralLevel;
   evidence: Record<string, unknown>;
   thresholdsUsed: Record<string, number>;
 }

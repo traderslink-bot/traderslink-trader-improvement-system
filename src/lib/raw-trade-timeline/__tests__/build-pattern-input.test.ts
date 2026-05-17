@@ -19,6 +19,10 @@ describe("buildPatternInput", () => {
     expect(patternInput.symbol).toBe("ABCD");
     expect(patternInput.tradeDirection).toBe("long");
     expect(patternInput.sessionBucket).toBe("market_open");
+    expect(patternInput.tradeStructure.executionCount).toBe(3);
+    expect(patternInput.entryContext.firstEntryOccurredDuringMarketOpenSession).toBe(true);
+    expect(patternInput.supportResistanceContext.hadSupportResistanceContextAvailable).toBe(true);
+    expect(patternInput.recoveryContext.hadPeakOpenProfitBeforeWorstDrawdown).toBe(false);
 
     expect(patternInput.executionCount).toBe(3);
     expect(patternInput.tradeDurationSeconds).toBe(340);

@@ -1,5 +1,5 @@
 {
-  "name": "trader-intelligence-v2",
+  "name": "trader-improvement-system",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "verify:layer2": "tsx src/scripts/verify-layer2-pattern-detection.ts",
     "verify:layer3": "tsx src/scripts/verify-layer3-pattern-normalization.ts",
-    "verify:all": "npm test && npm run verify:layer2 && npm run verify:layer3"
+    "verify:all": "npm test && npm run verify:layer2 && npm run verify:layer3",
+    "check": "tsc --noEmit && npm run build"
   },
   "dependencies": {
     "next": "16.2.3",

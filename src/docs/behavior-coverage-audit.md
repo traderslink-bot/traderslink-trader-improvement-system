@@ -39,12 +39,22 @@ The system is now much stronger at:
 - constructive add-into-strength plus constructive final-exit storylines
 - constructive add-into-strength plus timely profit-protection plus constructive final-exit storylines
 - constructive add-into-strength plus missed final-continuation storylines
+- first deterministic behavior-priority and coaching-ready interpretation for:
+  - chasing
+  - adding into weakness
+  - adding into strength
+  - poor profit protection
+  - strong profit protection
+  - flip-flopping
+  - overtrading
+  - structured execution
 
 The system is still less mature at:
 
 - positive management stories that span most of the trade
 - richer cross-family exit journeys beyond the new stop-like branch
 - trade stories that combine trim, re-add, giveback, and final outcome across multiple cycles
+- broader named behavior coverage beyond the first coaching-ready set
 
 ---
 
@@ -228,6 +238,36 @@ That should be done before returning to Layer 1 expansion, unless a concrete new
 
 ---
 
+## Layer 4 Behavior/Coaching Status Update
+
+The repo now also has the first deterministic downstream behavior and coaching slice.
+
+What is now live:
+
+- behavior signals tied to scoring trace evidence
+- behavior prioritization through `behaviorPriorityScore`
+- `primaryBehavior`, `secondaryBehaviors`, and `suppressedBehaviors`
+- mistake-vs-edge style derived behavior classification
+- conflict-aware behavior resolution
+- identity-signal candidates for future cross-trade aggregation
+- one-issue coaching enforcement through `fixFirst`
+- first trader-level behavior profile aggregation
+- recurring weakness / strength ranking across many trades
+- first-pass trader identity labels
+- session-based weakness / strength summaries
+- improving vs deteriorating behavior trends
+
+Important current limitation:
+
+- behavior and coaching coverage are still only as broad as the currently
+  implemented behavior registry
+- this is the first honest behavior/coaching slice, not yet a full trader
+  feedback system across every detected pattern family
+- trader-level insights are now real, but still only as rich as the current
+  single-trade behavior registry and identity rules
+
+---
+
 ## Update Rule
 
 Update this file when:
@@ -281,15 +321,43 @@ The repo now has the first live support/resistance-aware slice.
 - `breakout_into_overhead_resistance_structure`
 - `breakout_with_room_above_and_constructive_final_exit`
 - `breakout_with_room_above_and_failed_profit_protection`
+- `recovery_with_breakout_with_room_above_and_constructive_final_exit`
+- `recovery_with_breakout_with_room_above_and_failed_profit_protection`
 - `breakout_into_overhead_resistance_with_defensive_final_exit`
 - `breakout_into_overhead_resistance_with_failed_profit_protection`
+- `recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit`
+- `recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection`
 - `exit_into_support_structure`
 - `exit_into_support_with_relief_after_exit`
 - `exit_into_support_before_breakdown`
 - `exit_into_stacked_support_with_relief_after_exit`
 - `exit_into_thin_support_before_breakdown`
+- `exit_into_resistance_with_reversal_after_exit`
+- `exit_into_resistance_before_breakout`
+- `trim_into_resistance_with_constructive_final_exit`
+- `trim_into_resistance_with_premature_final_exit`
+- `balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+- `balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
 - `stabilized_recovery_with_exit_into_stacked_support_and_relief`
+- `stabilized_recovery_with_exit_into_resistance_and_reversal`
+- `stabilized_recovery_with_exit_into_resistance_before_breakout`
+- `recovery_with_trim_into_resistance_and_constructive_final_exit`
+- `recovery_with_trim_into_resistance_and_premature_final_exit`
+- `recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+- `recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
 - `stabilized_recovery_with_exit_into_thin_support_before_breakdown`
+- `repeated_balanced_management_with_exit_into_stacked_support_and_relief`
+- `repeated_balanced_management_with_exit_into_thin_support_before_breakdown`
+- `repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief`
+- `repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown`
+- `repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit`
+- `repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit`
+- `repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+- `repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
 - `add_into_resistance_structure`
 - `add_above_resistance_structure`
 - `add_above_resistance_with_constructive_final_exit`
@@ -313,3 +381,6 @@ It is not yet enough to claim:
 - deeper support / resistance-aware add-pattern ladders beyond the first near-vs-above split
 - deeper support / resistance-aware add-pattern ladders beyond the first constructive-vs-failed-protection split
 - deeper support-aware exit ladders beyond the first relief-vs-breakdown split
+- deeper support-aware exit ladders beyond the new repeated broad-summary support-aware exit split
+- deeper support-aware trim / reduction ladders beyond the first trim-into-resistance slice
+- deeper support-aware trim / reduction ladders beyond the first repeated trim-into-resistance slice

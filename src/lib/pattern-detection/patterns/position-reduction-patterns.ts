@@ -21,6 +21,7 @@ export const SCALED_OUT_OF_POSITION: PatternDefinition = {
   name: "Scaled Out of Position",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =
@@ -44,6 +45,7 @@ export const REDUCTION_INTO_STRENGTH: PatternDefinition = {
   name: "Reduction Into Strength",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -83,6 +85,7 @@ export const REDUCTION_INTO_WEAKNESS: PatternDefinition = {
   name: "Reduction Into Weakness",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -122,6 +125,7 @@ export const PROFIT_PROTECTION_PRESENT: PatternDefinition = {
   name: "Profit Protection Present",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -157,6 +161,7 @@ export const FAILED_PROFIT_PROTECTION_STRUCTURE: PatternDefinition = {
   name: "Failed Profit Protection Structure",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -196,6 +201,7 @@ export const REDUCTION_AFTER_RECENT_RUN_UP: PatternDefinition = {
   name: "Reduction After Recent Run-Up",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -232,6 +238,7 @@ export const REDUCTION_AFTER_RECENT_DROP: PatternDefinition = {
   name: "Reduction After Recent Drop",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const reductionCount = input.totalPositionDecreaseCount;
@@ -268,6 +275,7 @@ export const HELD_THROUGH_DANGER_AFTER_PEAK_PROFIT: PatternDefinition = {
   name: "Held Through Danger After Peak Profit",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minDrawdownFromPeakPctOfBasis =
@@ -303,6 +311,7 @@ export const DELAYED_RISK_RESPONSE_AFTER_PEAK_PROFIT: PatternDefinition = {
   name: "Delayed Risk Response After Peak Profit",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minDrawdownFromPeakPctOfBasis =
@@ -347,6 +356,7 @@ export const TIMELY_RISK_RESPONSE_AFTER_PEAK_PROFIT: PatternDefinition = {
   name: "Timely Risk Response After Peak Profit",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minDrawdownFromPeakPctOfBasis =
@@ -391,6 +401,7 @@ export const TIMELY_RISK_RESPONSE_WITH_PROFIT_PROTECTION: PatternDefinition = {
   name: "Timely Risk Response With Profit Protection",
   family: PATTERN_FAMILIES.POSITION_REDUCTION,
   patternType: "composite",
+  structuralLevel: "structural_composite",
 
   evaluate: (input) => {
     const minDrawdownFromPeakPctOfBasis =
@@ -443,6 +454,7 @@ export const DELAYED_RISK_RESPONSE_WITH_FAILED_PROFIT_PROTECTION: PatternDefinit
     name: "Delayed Risk Response With Failed Profit Protection",
     family: PATTERN_FAMILIES.POSITION_REDUCTION,
     patternType: "composite",
+    structuralLevel: "structural_composite",
 
     evaluate: (input) => {
       const minDrawdownFromPeakPctOfBasis =

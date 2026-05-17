@@ -1,6 +1,6 @@
 // 2026-04-12 10:31 AM America/Toronto
 // PURPOSE:
-// Vitest configuration for the trader-intelligence-v2 project.
+// Vitest configuration for the trader-improvement-system project.
 // This enables TypeScript test execution in a jsdom environment.
 
 import { defineConfig } from "vitest/config";

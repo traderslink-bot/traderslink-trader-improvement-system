@@ -26,6 +26,7 @@ export const HIGH_FREQUENCY_EXECUTION: PatternDefinition = {
   name: "High Frequency Execution",
   family: PATTERN_FAMILIES.EXECUTION_FREQUENCY,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =
@@ -49,6 +50,7 @@ export const LOW_FREQUENCY_EXECUTION: PatternDefinition = {
   name: "Low Frequency Execution",
   family: PATTERN_FAMILIES.EXECUTION_FREQUENCY,
   patternType: "atomic",
+  structuralLevel: "atomic",
 
   evaluate: (input) => {
     const threshold =

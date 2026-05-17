@@ -1,6 +1,6 @@
 # Trader Feedback Capabilities
 
-This file summarizes what the current Layer 1 to Layer 3 system can already
+This file summarizes what the current Layer 1 to Layer 4 system can already
 support for trader-facing feedback.
 
 It is not a coaching document.
@@ -34,6 +34,9 @@ It is weaker at named setup taxonomy such as:
 1. reclaim
 2. opening-drive / session-aware setup labels
 3. explicit mean-reversion setup labels
+
+It also now has the first deterministic downstream scoring -> behavior ->
+coaching bridge for a limited but real behavior set.
 
 ---
 
@@ -178,6 +181,35 @@ The system is not yet strong enough to claim a full named setup taxonomy.
 
 That means the app can already say a lot about how the trader traded,
 but it still says structure better than it says playbook names.
+
+## New Behavior/Coaching Capabilities
+
+The repo can now also support a first deterministic behavior/coaching layer for
+the behaviors currently represented in the behavior registry.
+
+What is now possible:
+
+- prioritize one primary behavior instead of treating all detected behavior
+  signals as equally important
+- suppress weaker or contradicted behaviors from the main coaching focus
+- identify whether the most important behavior acted more like:
+  - a destructive mistake
+  - a costly mistake
+  - an improving behavior
+  - an edge
+- emit one primary coaching directive through `fixFirst`
+- keep behavior/coaching claims tied to scored trace evidence instead of
+  generic advice
+- aggregate many trade-feedback outputs into a trader-level behavior profile
+- identify top recurring mistakes and emerging strengths
+- classify first-pass trader identities like chase-prone or weak-profit-protector
+- show which session segment produces the most consistent weakness or strength
+- show whether a behavior is improving or deteriorating over time
+
+Honest current limit:
+
+- this new layer is real, but its coverage is only as broad as the current
+  implemented behavior registry
 
 ---
 

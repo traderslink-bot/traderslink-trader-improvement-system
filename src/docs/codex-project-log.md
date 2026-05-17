@@ -34,6 +34,10 @@ If a future session needs to recover context quickly, use this order:
    - `src/lib/pattern-detection/registry/pattern-definitions.ts`
    - `src/lib/pattern-normalization/normalize-detected-patterns.ts`
    - `src/lib/pattern-scoring/builders/build-pattern-scoring-input.ts`
+   - `src/lib/pattern-scoring/builders/build-pattern-scoring-result.ts`
+   - `src/lib/behavior-analysis/builders/build-behavior-analysis.ts`
+   - `src/lib/coaching/builders/build-trade-coaching-output.ts`
+   - `src/lib/coaching/builders/build-trade-feedback-from-scoring.ts`
 5. Run the fastest verification commands if behavior changed:
    - `npm test`
    - `npm run verify:layer2`
@@ -101,7 +105,110 @@ Important project rule:
 
 ## Current Resume Point
 
-As of `2026-04-13` the repo is no longer just planning the layered architecture.
+### 2026-04-16 Post-Merge Follow-Up Resume Point
+
+The active roadmap branch has shifted from expansion-first work to the
+maintainability-first audit order in `src/docs/audit-report-april-16.md`.
+
+The audit-ordered maintainability pass is complete, and the first dedicated
+post-merge follow-up PR is now complete too.
+
+Completed in this session:
+
+- Phase 1:
+  `PatternInput` now has grouped context sections with a temporary flat
+  compatibility layer, and `PatternMetadata` now carries richer semantics plus
+  registry validation coverage.
+- Phase 2:
+  normalization suppression now splits safe metadata-inferred broader-lineage
+  dominance from true manual exceptions, with integrity tests guarding the
+  rule graph.
+- Phase 3:
+  the scaling-quality family was split into composition-driven lane files plus
+  a final assembly guard, and the redundancy review now lives in
+  `src/docs/scaling-pattern-redundancy-review-april-16.md`.
+- Phase 4:
+  the breakout / chase / extension entry lane was audited, a real bug was
+  fixed where `breakout_chase_entry_structure` had collapsed into the same
+  logic as `overextended_chase_entry_structure`, and threshold diagnostics were
+  made truthful through a shared helper path.
+- Phase 5:
+  focused normalization invariants were added, layer-boundary audit notes were
+  written, and active naming drift was cleaned toward
+  `trader-improvement-system`.
+- Phase 6:
+  the future UI work remains intentionally deferred, with only a lightweight
+  plan captured in `src/docs/future-app-surface-plan.md`.
+
+Completed after the merge-ready audit pass:
+
+- The temporary flat `PatternInput` compatibility layer has been fully removed.
+- Layer 2 production consumers now read grouped context access only.
+- Test helpers, fixtures, and the Layer 2 verify script now use grouped
+  `PatternInput` shape directly.
+- `buildPatternInput(...)` now returns only the grouped contract, and the
+  builder regression test locks that grouped-only runtime shape.
+- `pattern-suppression-rules.ts` is now a thin Layer 3 entrypoint with the
+  suppression registry split into smaller modules for:
+  suppression groups,
+  manual entry dominance,
+  manual position dominance,
+  manual scaling dominance,
+  manual exit dominance,
+  metadata-inferred dominance assembly,
+  and lookup helpers.
+- Follow-up verification passed:
+  `npm test`,
+  `verify:layer2`,
+  `verify:layer3`,
+  `npx tsc --noEmit`.
+
+Best next step from here:
+
+- keep follow-up PRs narrow
+- continue splitting large normalization registries mechanically rather than
+  behaviorally, with `pattern-metadata.ts` the next likely compression target
+- continue shrinking manual suppression only where metadata can prove richer
+  same-lineage dominance safely
+
+Final verification after the full audit pass:
+
+- `npm.cmd test` passed
+- `npm.cmd run verify:layer2` passed
+- `npm.cmd run verify:layer3` passed
+- `npx.cmd tsc --noEmit` passed
+
+PR review follow-up on the same branch is now complete too:
+
+- `pattern-suppression-rules.ts` no longer requires a pre-existing manual pair
+  before metadata can infer safe broader-lineage suppression
+- metadata-driven suppression now explicitly covers:
+  legacy-calibrated broader-lineage pairs,
+  repeated-cycle overlays,
+  recovery overlays,
+  support/resistance overlays,
+  and other safe richer journey-scope overlays
+- true manual exceptions remain for cross-family bridges and asymmetric
+  storyline jumps that metadata still cannot prove safely
+- `PatternInput` now carries an explicit TODO note for removing the temporary
+  flat compatibility layer after grouped-context migration finishes
+- follow-up verification passed again:
+  `npm.cmd test`,
+  `npm.cmd run verify:layer2`,
+  `npm.cmd run verify:layer3`,
+  `npx.cmd tsc --noEmit`
+
+Best next step from here:
+
+1. Keep the current maintainability gains stable and use the new metadata,
+   invariant tests, and scaling-family structure as the baseline before adding
+   more pattern families.
+2. When new work resumes, prefer the current roadmap branch already described in
+   `src/docs/behavior-coverage-audit.md` and the pattern catalog, but only add
+   new interpretation surface if it does not reintroduce rule debt or pattern
+   sprawl.
+
+As of `2026-04-14` the repo is no longer just planning the layered architecture.
 
 The practical state is:
 
@@ -109,14 +216,129 @@ The practical state is:
 - `PatternInput` exists as the Layer 1 -> Layer 2 contract
 - Layer 2 pattern detection is implemented across multiple pattern families
 - Layer 3 normalization is implemented with priority ordering, suppression, and one-primary-per-family behavior
-- Layer 4 is not a scoring engine yet, but its handoff contract has started through `PatternScoringInput`
-- the newest Layer 2 and Layer 3 work has been strengthening constructive whole-trade management, especially around trims into strength, timely profit protection, under-pressed winners, and constructive pressing into strength
+- Layer 4 scoring is now live as a deterministic scoring, trace, and calibration layer
+- the first behavior-analysis bridge now translates scoring truth into named behavior signals
+- the first coaching bridge now produces deterministic structured trade-coaching output from behavior truth
+- the first trader-level multi-trade profile layer now aggregates recurring behaviors, identity, session pressure, and behavior trends across trades
+- the newest Layer 4 work has been strengthening scoring truth, traceability, dominance control, behavior prioritization, one-issue coaching focus enforcement, and trader-level aggregation
 
 This means the current project is best understood as:
 
 not a blank rebuild,
-but an actively working layered detection + normalization system
-that is preparing for scoring and coaching later.
+but an actively working layered detection + normalization + scoring system
+with the first deterministic behavior/coaching bridge now in place.
+
+### 2026-04-15 Trader-Behavior Modular Extraction Resume Point
+
+The main active maintainability branch is now the safe modular extraction of:
+
+- `src/lib/trader-behavior/builders/build-trader-behavior-profile.ts`
+
+Latest session handoff note:
+
+- `code-updates-april-15.md`
+  - use this if a future session wants the detailed list of code/doc changes
+    made during the April 15, 2026 chat before returning to the main roadmap
+
+Completed extraction passes so far:
+
+- `src/lib/trader-behavior/builders/profile-aggregation.ts`
+  - owns:
+    - `aggregatedBehaviors`
+    - `behaviorHistory`
+    - `mostFrequentWeaknesses`
+    - `mostDestructiveBehaviors`
+    - `improvingBehaviors`
+    - `emergingStrengths`
+    - `sessionWeaknesses`
+    - `sessionStrengths`
+    - `improvingTrends`
+    - `deterioratingTrends`
+- `src/lib/trader-behavior/builders/profile-confidence-and-identity.ts`
+  - owns:
+    - `buildProfileConfidence(...)`
+    - `buildIdentity(...)`
+- `src/lib/trader-behavior/builders/profile-development.ts`
+  - owns:
+    - `buildDevelopmentPriorities(...)`
+    - `buildSessionDevelopmentInsights(...)`
+    - `buildDevelopmentPlan(...)`
+    - `buildProfileSummary(...)`
+- `src/lib/trader-behavior/builders/profile-progress.ts`
+  - owns:
+    - analysis windows
+    - behavior progress windows
+    - destructive / improving streak detection
+    - relapse / stabilization detection
+    - regression / emerging-risk / fading-strength detection
+    - progress scoring
+    - intervention readiness and priority-effectiveness signals
+- `src/lib/trader-behavior/builders/profile-interventions.ts`
+  - owns:
+    - intervention-period resolution
+    - before / during / after intervention evaluation windows
+    - intervention effectiveness scoring
+    - focus-cycle construction
+    - plan-adherence, drift, and mismatch signals
+- `src/lib/trader-behavior/builders/profile-adaptive-development.ts`
+  - owns:
+    - adaptive development planning
+    - focus continuation vs rotation decisions
+    - protection / de-escalation / escalation prioritization
+    - intervention summary construction
+
+Important continuity note:
+
+- the development extraction initially broke the main builder because
+  `roundToTwo(...)` was still needed by non-development logic
+- that was fixed in the same pass by restoring the shared helper and the still-used
+  type imports in the main builder
+- the progress extraction then moved the full progress / trend lane into
+  `profile-progress.ts`
+- the intervention extraction then moved the intervention / focus-cycle lane into
+  `profile-interventions.ts`
+- `profile-interventions.ts` intentionally reuses the exported progress-window helpers from
+  `profile-progress.ts` instead of rebuilding that math in a second place
+- the adaptive-planning extraction then moved the focus-rotation / next-focus /
+  intervention-summary lane into `profile-adaptive-development.ts`
+- the final orchestration cleanup then reduced
+  `build-trader-behavior-profile.ts` to a thinner coordinator with:
+  - explicit options type
+  - ordered-feedback normalization helper
+  - computation-vs-assembly separation
+- current state after the latest pass:
+  - `npm.cmd test -- src/lib/trader-behavior/__tests__/build-trader-behavior-profile.test.ts` passes
+  - `npx tsc --noEmit` passes
+  - `npm.cmd run build` passes
+
+What still remains in `build-trader-behavior-profile.ts`:
+
+- thin top-level orchestration only
+
+Best next safe extraction step:
+
+1. trader-behavior modular extraction is now functionally complete for this branch
+2. avoid reopening the extracted modules unless a regression or real simplification opportunity appears
+3. the next decision is whether to:
+   - do small maintainability polish only if a concrete pain point appears, or
+   - return to broader intelligence-system expansion as the higher-value lane
+
+Current likely next implementation direction if resuming after this chat:
+
+1. do not spend another session on trader-behavior modularization unless a real regression or design pain appears
+2. resume higher-value intelligence expansion instead of more structural cleanup
+3. use this order for deciding what to build next:
+   - read this project log first
+   - read `code-updates-april-15.md` for the detailed April 15 session handoff
+   - consult `src/docs/behavior-coverage-audit.md`
+   - if no regression is found, prefer the broader intelligence-expansion lane already called out in the audit/log:
+     richer cross-family lifecycle stories, stronger constructive whole-trade summaries, and stronger exit-side composites
+
+Rule for the next resume:
+
+- do not re-open already completed aggregation / confidence / development passes
+  unless a regression is found
+- continue from the current modular extraction state, not from the earlier monolith
 
 ---
 
@@ -380,20 +602,44 @@ Most recent Layer 3 arbitration tightening focused on:
 - stabilized-recovery exit storylines directly suppressing the broader post-exit descriptors they structurally subsume
 - stop-like rebound storylines beating the broader premature-final-exit variants when the exit was genuinely stop-like rather than just early
 
-### Layer 4 Contract Preparation
+### Layer 4 Scoring + Feedback Bridge
 
-Layer 4 itself is intentionally not being pushed yet.
+Layer 4 is now active and split into clear downstream slices.
 
-But the handoff is now cleaner because:
+What is now live:
 
-- normalized result types were extracted into a dedicated type module
-- `PatternScoringInput` and `buildPatternScoringInput(...)` were added
-- later layers can now consume:
-  - `topOverallAnchorPattern`
-  - `primaryPatternsByFamily`
-  - categorized normalized patterns
+- scoring input preparation:
+  - `PatternScoringInput`
+  - `buildPatternScoringInput(...)`
+- scoring result building:
+  - explicit polarity mapping
+  - structural-level weighting
+  - normalized-role weighting
+  - limited family-aware influence calibration
+  - family trace / dominance / suppression reporting
+  - scoring stress tests and invariants
+- first behavior-analysis bridge:
+  - named behavior signals
+  - `behaviorPriorityScore`
+  - `primaryBehavior`, `secondaryBehaviors`, and `suppressedBehaviors`
+  - `behaviorClass`
+  - conflict resolution
+  - identity-signal candidates
+- first coaching bridge:
+  - deterministic `fixFirst` / `fixNext`
+  - structured evidence-backed coaching output
+  - scenario validation for expected behavior/coaching alignment
+- first multi-trade intelligence bridge:
+  - trader behavior profile aggregation
+  - recurring weakness / strength ranking
+  - trader identity classification
+  - session-segment weakness / strength summaries
+  - improving vs deteriorating behavior trends
 
-This means Layer 4 can wait without losing architecture momentum.
+Important boundary:
+
+- `src/lib/trade-analysis-engine.ts` still stops at Layer 3 on purpose
+- scoring, behavior analysis, and coaching are currently downstream consumers, not yet merged into the trade-analysis engine contract
 
 ---
 
@@ -820,6 +1066,13 @@ Current Layer 2 families in the repo include:
 
 - `src/lib/pattern-scoring/types/pattern-scoring-input.ts`
 - `src/lib/pattern-scoring/builders/build-pattern-scoring-input.ts`
+- `src/lib/pattern-scoring/types/pattern-scoring-result.ts`
+- `src/lib/pattern-scoring/builders/build-pattern-scoring-result.ts`
+- `src/lib/pattern-scoring/builders/build-family-calibration-report.ts`
+- `src/lib/behavior-analysis/builders/build-behavior-analysis.ts`
+- `src/lib/coaching/builders/build-trade-coaching-output.ts`
+- `src/lib/coaching/builders/build-trade-feedback-from-scoring.ts`
+- `src/lib/trader-behavior/builders/build-trader-behavior-profile.ts`
 
 ---
 
@@ -841,8 +1094,251 @@ The repo already has meaningful regression coverage.
 - Layer 3 normalization behavior
 - canonical handoff expectations for downstream layers
 
-If a future session changes behavior in Layers 1 to 3,
+If a future session changes behavior in Layers 1 to 4,
 these checks should be run before claiming the system is still aligned.
+
+---
+
+## 2026-04-14 Layer 4 Resume Instructions
+
+If a future session needs to continue from where this session left off, use this order:
+
+1. Read this section
+2. Read:
+   - `src/lib/pattern-scoring/builders/build-pattern-scoring-result.ts`
+   - `src/lib/pattern-scoring/builders/build-family-calibration-report.ts`
+   - `src/lib/behavior-analysis/builders/build-behavior-analysis.ts`
+   - `src/lib/coaching/builders/build-trade-coaching-output.ts`
+   - `src/lib/coaching/builders/build-trade-feedback-from-scoring.ts`
+   - `src/lib/trader-behavior/builders/build-trader-behavior-profile.ts`
+3. Read the focused tests:
+   - `src/lib/pattern-scoring/__tests__/pattern-scoring-stress.test.ts`
+   - `src/lib/behavior-analysis/__tests__/build-behavior-analysis.test.ts`
+   - `src/lib/coaching/__tests__/build-trade-coaching-output.test.ts`
+   - `src/lib/coaching/__tests__/trade-feedback-scenario-validation.test.ts`
+   - `src/lib/trader-behavior/__tests__/build-trader-behavior-profile.test.ts`
+4. Treat these truths as stable:
+   - scoring is traceable, dominance-aware, and order-independent
+   - `scaling_quality` remains the main scoring watchpoint
+   - `position_structure` is explicit non-directional structural context in scoring
+   - behavior analysis now emits `behaviorPriorityScore`, `behaviorClass`, `primaryBehavior`, `secondaryBehaviors`, `suppressedBehaviors`, and `behaviorIdentityCandidates`
+   - coaching now enforces one main directive through `fixFirst`, with optional `fixNext`
+   - trade feedback now carries explicit trade context: `tradeId`, `tradeIndex`, `sessionBucket`, and `sessionSegment`
+   - trader-level aggregation now exists through `buildTraderBehaviorProfile(...)`
+5. Best next Layer 4 work:
+   - expand behavior registry coverage beyond the first implemented set
+   - widen coaching templates and conflict rules carefully
+   - deepen trader-identity coverage beyond the first deterministic identity set
+   - expand multi-trade aggregation and recurrence logic beyond the first profile layer
+
+### Latest Trader-Level Update
+
+The trader-level profile layer is now materially beyond the first aggregation pass.
+
+What is now live in `buildTraderBehaviorProfile(...)`:
+
+- hardened profile confidence:
+  - `profileConfidence`
+  - `profileConfidenceReason`
+  - `profileConfidenceSupport`
+- stronger recurring-issue prioritization:
+  - `developmentPriorities`
+  - `developmentPriorityScore`
+  - `developmentPriorityReason`
+- deterministic trader development planning:
+  - `developmentPlan.fixFirst`
+  - `developmentPlan.fixSecond`
+  - `developmentPlan.protectStrength`
+  - `developmentPlan.sessionFocus`
+  - `developmentPlan.planReason`
+- streak and relapse intelligence:
+  - `destructiveStreaks`
+  - `improvingStreaks`
+  - `relapseSignals`
+  - `stabilizationSignals`
+- stronger session-specific development output:
+  - `sessionDevelopmentInsights`
+- reporting-ready summary output:
+  - `profileSummary`
+
+Important behavior changes from the earlier first pass:
+
+- trader identity confidence is now capped by profile-level confidence instead of being claimed only from local identity rules
+- low sample size now explicitly reduces confidence
+- scattered mixed destructive signals now reduce confidence
+- repeated high-priority destructive behavior now increases confidence
+- recurring mistake ranking is no longer just frequency-led; it now blends frequency, severity, primary-rate, destructive weight, outcome-cost proxy, deterioration pressure, and session concentration
+- `topRecurringMistake`, `secondRecurringMistake`, and `improvementPriorityOrder` now follow the stronger development-priority model rather than the old simple weakness order
+
+Latest focused verification command:
+
+- `npm.cmd test -- src/lib/pattern-scoring/__tests__/build-pattern-scoring-input.test.ts src/lib/pattern-scoring/__tests__/build-pattern-scoring-result.test.ts src/lib/pattern-scoring/__tests__/build-family-calibration-report.test.ts src/lib/pattern-scoring/__tests__/pattern-scoring-stress.test.ts src/lib/behavior-analysis/__tests__/build-behavior-analysis.test.ts src/lib/coaching/__tests__/build-trade-coaching-output.test.ts src/lib/coaching/__tests__/trade-feedback-scenario-validation.test.ts src/lib/trader-behavior/__tests__/build-trader-behavior-profile.test.ts`
+
+Latest result:
+
+- `8` files passed
+- `41` tests passed
+
+Best next Layer 4 gap after this pass:
+
+- behavior-registry breadth is still the limiting factor
+- the new trader-level planning layer is now much stronger, but it can only reason about the behavior ids the single-trade registry already emits
+
+### Follow-up Trader-Level Update
+
+The trader-level layer now also has explicit progress and regression measurement.
+
+What is now live on top of the profile / planning layer:
+
+- deterministic progress scoring:
+  - `progressScore`
+  - `progressLabel`
+  - `progressReason`
+  - `progressSupport`
+- explicit comparison windows:
+  - `analysisWindows.baseline`
+  - `analysisWindows.recent`
+  - `analysisWindows.fullHistory`
+  - `analysisWindows.lowSampleCaution`
+- behavior-specific progress tracking:
+  - `behaviorProgress`
+  - baseline vs recent frequency / severity / primary-rate windows
+  - direction / confidence / recurrence-stability output
+- broader regression intelligence:
+  - `regressionSignals`
+  - `emergingRisks`
+  - `fadingStrengths`
+- intervention-effectiveness foundation:
+  - `interventionReadiness`
+  - `priorityEffectivenessSignals`
+- adaptive planning feedback loop:
+  - `adaptiveDevelopmentPlan`
+- upgraded summary output:
+  - progress headline
+  - worsening-risk headline
+
+Important design behavior:
+
+- progress is not a naive average; destructive regression is weighted more heavily than weak positive drift
+- low-sample windows now explicitly force caution
+- relapse detection remains narrower, while regression intelligence now also catches worsening recurring issues, new destructive behaviors, and fading strengths
+- adaptive planning can now keep focus, de-escalate improving issues, and surface escalating risks
+
+Latest focused verification result after this pass:
+
+- `8` files passed
+- `46` tests passed
+
+Best next trader-level gap after this follow-up:
+
+- progress and adaptive planning are now real, but they are still behavior-registry limited
+- future value will come most from broadening the single-trade behavior set and later tying plan changes to explicit user-selected intervention periods
+
+### Latest Intervention-Aware Trader-Level Update
+
+The trader-development layer now also supports explicit intervention periods and focus cycles.
+
+What is now live:
+
+- explicit intervention-period contracts:
+  - `interventionPeriods`
+  - explicit `interventionId`
+  - target behavior / focus key
+  - intervention type
+  - goal type
+  - start / end trade references
+- intervention effectiveness measurement:
+  - `interventionEvaluations`
+  - before / during / after comparison windows
+  - deterministic effectiveness label / score / confidence
+- focus-cycle tracking:
+  - `focusCycles`
+  - `currentFocusCycle`
+  - `focusCycleStatus`
+- plan adherence / drift intelligence:
+  - `planAdherenceSignals`
+  - `planDriftSignals`
+  - `focusMismatchWarnings`
+- intervention-aware adaptive planning:
+  - `currentInterventionRecommendation`
+  - `shouldContinueFocus`
+  - `shouldRotateFocus`
+  - `rotationReason`
+  - `tooEarlyToJudge`
+- reporting-ready intervention summary:
+  - `interventionSummary`
+
+Important current assumption:
+
+- explicit intervention periods are passed into `buildTraderBehaviorProfile(...)` as structured input
+- the trader-behavior layer resolves them against trade ids / indexes and evaluates them deterministically
+- no UI or persistence model is assumed yet; this is the analysis contract and evaluation logic only
+
+Latest focused verification result after this pass:
+
+- `8` files passed
+- `51` tests passed
+
+Best next gap after this intervention-aware pass:
+
+- intervention analytics are now explicit, but they still depend on manually supplied intervention periods
+- the next likely value is better upstream behavior coverage plus future workflow support for creating and storing those periods cleanly
+
+### Latest Behavior-Registry Coverage Expansion
+
+The next high-value Layer 4 limiter was the single-trade behavior registry, so the latest pass expanded that registry and carried the new coverage all the way through coaching, profile logic, and intervention-aware planning.
+
+New behavior ids now live:
+
+- destructive:
+  - `failed_breakout_chasing`
+  - `averaging_down`
+  - `premature_exit`
+  - `undersized_winner`
+- strengths:
+  - `strong_loss_containment`
+  - `strong_winner_management`
+
+Why this exact set was chosen:
+
+- it improves trader-development quality more than adding more neutral structural descriptors
+- it adds both mistake-side and strength-side coverage, which matters for adaptive planning and intervention evaluation
+- it hardens several real mixed-trade cases the product cares about:
+  - good entry but poor winner management
+  - weak add quality with disciplined damage control
+  - breakout chase that explicitly fails
+  - clean winner handling vs under-monetized winners
+- it is a better next expansion than adding broader vague buckets, because these behaviors are directly actionable and intervention-targetable
+
+What now flows end-to-end:
+
+- behavior analysis:
+  - deterministic detection, classification, priority, and conflict handling for the new behaviors
+- coaching:
+  - focused templates for each new behavior without collapsing into vague multi-issue advice
+- trader profile layer:
+  - recurring weakness / strength ranking
+  - identity interaction where justified
+  - development priorities
+  - development plan / adaptive development plan
+  - intervention-readiness and intervention-effectiveness signals
+- intervention-aware planning:
+  - explicit intervention periods can now target the new destructive behaviors and measure before/during performance
+
+Important calibration note:
+
+- descriptive structural context alone still should not emit directional behavior labels
+- the new behaviors were wired through directional pattern combinations and conflict rules rather than through neutral structural facts by themselves
+
+Latest focused verification result after this pass:
+
+- `8` files passed
+- `61` tests passed
+
+Best next coverage gap after this pass:
+
+- the system is materially stronger on breakout-chase, rescue-add, winner-management, and defensive-containment behavior
+- the biggest remaining behavior gap is still broader late-management / overholding / de-risk refusal coverage plus richer add-quality subtyping beyond the current average-down lane
 
 ---
 
@@ -992,14 +1488,23 @@ When this file is updated, prefer:
 - high-signal summaries
 - major architecture or pattern additions
 - concrete next priorities
+- one continuity log instead of multiple overlapping mini-logs
 
 Avoid:
 
 - low-value changelog noise
+- creating a second incremental changelog file for routine Codex work when this
+  project log already captures the meaningful resume state
 - repeating the entire detailed architecture
 - listing every tiny edit
 
 This file should stay useful and readable.
+
+Default documentation rule:
+
+- use `src/docs/codex-project-log.md` as the running Codex continuity log
+- only create a separate `CHANGELOG.md` if the repo later needs a true
+  user-facing release history or the user explicitly asks for one
 
 ---
 
@@ -1151,12 +1656,40 @@ What new support/resistance-aware Layer 2 patterns are now live:
 - `repeated_adds_above_resistance_with_failed_profit_protection`
 - `breakout_with_room_above_and_constructive_final_exit`
 - `breakout_with_room_above_and_failed_profit_protection`
+- `recovery_with_breakout_with_room_above_and_constructive_final_exit`
+- `recovery_with_breakout_with_room_above_and_failed_profit_protection`
 - `breakout_into_overhead_resistance_with_defensive_final_exit`
 - `breakout_into_overhead_resistance_with_failed_profit_protection`
+- `recovery_with_breakout_into_overhead_resistance_and_defensive_final_exit`
+- `recovery_with_breakout_into_overhead_resistance_and_failed_profit_protection`
 - `exit_into_stacked_support_with_relief_after_exit`
 - `exit_into_thin_support_before_breakdown`
+- `exit_into_resistance_with_reversal_after_exit`
+- `exit_into_resistance_before_breakout`
+- `trim_into_resistance_with_constructive_final_exit`
+- `trim_into_resistance_with_premature_final_exit`
+- `balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+- `balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
 - `stabilized_recovery_with_exit_into_stacked_support_and_relief`
+- `stabilized_recovery_with_exit_into_resistance_and_reversal`
+- `stabilized_recovery_with_exit_into_resistance_before_breakout`
+- `recovery_with_trim_into_resistance_and_constructive_final_exit`
+- `recovery_with_trim_into_resistance_and_premature_final_exit`
+- `recovery_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+- `recovery_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
 - `stabilized_recovery_with_exit_into_thin_support_before_breakdown`
+- `repeated_balanced_management_with_exit_into_stacked_support_and_relief`
+- `repeated_balanced_management_with_exit_into_thin_support_before_breakdown`
+- `repeated_balanced_management_with_trim_into_resistance_and_constructive_final_exit`
+- `repeated_balanced_management_with_trim_into_resistance_and_premature_final_exit`
+- `repeated_balanced_management_with_take_profit_into_resistance_and_constructive_final_exit`
+- `repeated_balanced_management_with_take_profit_into_resistance_and_premature_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_exit_into_stacked_support_and_relief`
+- `repeated_rescue_attempts_with_balanced_management_and_exit_into_thin_support_before_breakdown`
+- `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_constructive_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_trim_into_resistance_and_premature_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_constructive_final_exit`
+- `repeated_rescue_attempts_with_balanced_management_and_take_profit_into_resistance_and_premature_final_exit`
 
 What got cleaner:
 
@@ -1168,6 +1701,10 @@ Best next move from here:
 
 1. keep deepening raw execution-to-level relation quality before adding many more named patterns
 2. then add the next honest support/resistance-aware families like:
+   - reduction / take-profit into resistance branches beyond the first one-cycle and repeated trim-aware slices
    - deeper breakout-into-stacked-resistance nuance beyond the first branch
-   - repeated-cycle support/resistance-aware add-above-resistance branches if they still add real signal
-   - first repeated exit-into-support branches if the lane still stays high-signal
+   - repeated-cycle support/resistance-aware reduction or add-above-resistance branches if they still add real signal
+3. hierarchy reminder:
+   - the new `balanced_management_with_take_profit_into_resistance_*` summaries sit above broad balanced-management exits
+   - the stricter `trim_into_resistance_*` and `recovery_with_trim_into_resistance_*` branches still outrank those broader summaries when both are present
+   - the same hierarchy now applies in the repeated lane: `repeated_*_take_profit_into_resistance_*` summaries sit above broad repeated balanced-management exits, while the stricter repeated `trim_into_resistance_*` branches still outrank them

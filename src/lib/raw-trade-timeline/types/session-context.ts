@@ -13,6 +13,11 @@ export type SessionBucket =
   | "after_hours"
   | "unknown";
 
+export interface SessionContextInput {
+  sessionBucket: string;
+  sessionDate: string;
+}
+
 export interface SessionContext {
   sessionBucket: SessionBucket;
   sessionDate: string;
