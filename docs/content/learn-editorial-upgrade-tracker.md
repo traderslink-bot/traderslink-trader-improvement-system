@@ -65,9 +65,9 @@ Review
 | Learning journey implementation plan | complete | Created `docs/content/learn-learning-journey-implementation-plan.md`. |
 | Visual content plan | complete | Created `docs/content/learn-visual-content-plan.md`. |
 | Editorial upgrade process | complete | Created `docs/content/learn-editorial-upgrade-process.md`. |
-| Editorial upgrade tracker | in_progress | This file starts the tracking system. |
-| Image asset manifest | not_started | Create when first SVG batch is created. |
-| Gold standard article upgrade | not_started | Recommended first model article: `/learn/support-and-resistance/`. |
+| Editorial upgrade tracker | in_progress | This file tracks the editorial upgrade system. |
+| Image asset manifest | complete | Created `docs/content/learn-image-asset-manifest.md` during the first SVG batch. |
+| Gold standard article upgrade | complete | `/learn/support-and-resistance/` was upgraded as the first model article. |
 | Learn hub website build | not_started | Codex should not build until explicitly requested. |
 
 ## Track Upgrade Order
@@ -75,7 +75,7 @@ Review
 | Order | Learning Track | Status | Priority | Notes |
 |---:|---|---|---:|---|
 | 1 | Start Here For New Traders | not_started | 1 | Foundation path for new users. |
-| 2 | Chart Reading And Market Structure | not_started | 1 | Recommended first full upgrade track. |
+| 2 | Chart Reading And Market Structure | in_progress | 1 | Gold-standard support/resistance article complete. Continue with drawing levels and support/resistance level pages. |
 | 3 | News, Catalysts, Filings, And Dilution | not_started | 1 | High-value TradersLink differentiator. |
 | 4 | Risk, Discipline, And Psychology | not_started | 1 | Important coaching/retention path. |
 | 5 | Execution And Trade Review | not_started | 1 | Strongest Trader Intelligence bridge. |
@@ -89,7 +89,7 @@ Review
 
 ## Gold Standard Article Candidate
 
-Recommended first article to upgrade:
+Completed first model article:
 
 ```text
 /learn/support-and-resistance/
@@ -103,7 +103,7 @@ Reason:
 - Connects naturally to breakouts, fakeouts, reclaims, risk, and trade review.
 - Can become the template for future Learn upgrades.
 
-Alternative:
+Alternative future gold-standard article:
 
 ```text
 /learn/sec-filings/
@@ -122,7 +122,7 @@ Use this table for individual content pieces as they are reviewed and upgraded.
 
 | Article/Slug | Draft Path | Primary Track | Secondary Tracks | Level | Status | Upgrade Decision | Visuals Needed | Gap Article? | Priority | Editor Notes | Last Commit |
 |---|---|---|---|---|---|---|---|---|---:|---|---|
-| /learn/support-and-resistance/ | docs/content/drafts/learn/support-and-resistance.md | Chart Reading And Market Structure | Start Here For New Traders, Execution And Trade Review | Foundation | not_started | full_upgrade | 3 to 4 realistic SVG chart diagrams | No | 1 | Recommended gold-standard article. Add realistic candle examples, common mistakes, journal review prompts, previous/next path, and Trader Intelligence bridge. |  |
+| /learn/support-and-resistance/ | docs/content/drafts/learn/support-and-resistance.md | Chart Reading And Market Structure | Start Here For New Traders, Execution And Trade Review | Foundation | complete | full_upgrade | 4 realistic SVG chart diagrams created and wired to content | No | 1 | Gold-standard article complete. Added learning path note, visual assets, realistic examples, support/resistance role reversal sections, bad-level example, checklist, journal review prompts, Trader Intelligence bridge, related terms, and editor-safe language. | `7c46572524af559e42a53a34531272bd3154dd6f` |
 | /learn/how-to-draw-support-and-resistance/ | docs/content/drafts/learn/how-to-draw-support-and-resistance.md | Chart Reading And Market Structure | Start Here For New Traders | Practical | not_started | full_upgrade | 3 realistic SVG chart diagrams | No | 1 | Should teach zones vs exact lines, good and bad examples, and common beginner mistakes. |  |
 | /learn/sec-filings/ | docs/content/drafts/learn/sec-filings.md | News, Catalysts, Filings, And Dilution | Small-Cap, Float, And Short Squeeze Context | Foundation | not_started | full_upgrade | 2 to 3 filing flow diagrams | No | 1 | Alternative gold-standard article. Needs beginner path, filing map, risk warnings, and links to dilution/offering concepts. |  |
 | /learn/start-here/ | docs/content/drafts/learn/start-here.md | Start Here For New Traders | All Tracks | Foundation | not_started | gap_article_needed | 1 journey map SVG | Yes | 1 | Gap article likely needed to introduce the learning system and guide new users. |  |
@@ -135,14 +135,20 @@ Use this table for individual content pieces as they are reviewed and upgraded.
 
 ## Visual Asset Tracker Table
 
-Use this section until `docs/content/learn-image-asset-manifest.md` exists.
+Canonical image tracking now lives in:
+
+```text
+docs/content/learn-image-asset-manifest.md
+```
+
+Summary of first completed SVG batch:
 
 | Asset File | Related Article/Slug | Learning Track | Visual Type | Purpose | Suggested Placement | Alt Text | Status | Editor Verification | Commit SHA |
 |---|---|---|---|---|---|---|---|---|---|
-| public/images/learn/chart-reading/support-resistance-candlestick-diagram.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show price moving between support and resistance zones. | Intro visual | Candlestick chart showing price bouncing near support and rejecting near resistance. | not_started | Not reviewed yet. |  |
-| public/images/learn/chart-reading/support-breaks-becomes-resistance.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show support breaking and later acting as resistance. | Body section | Candlestick chart showing broken support later acting as resistance. | not_started | Not reviewed yet. |  |
-| public/images/learn/chart-reading/resistance-breaks-becomes-support.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show resistance breaking and later acting as support. | Body section | Candlestick chart showing broken resistance later acting as support. | not_started | Not reviewed yet. |  |
-| public/images/learn/chart-reading/bad-support-resistance-example.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show common bad level drawing mistakes. | Common mistakes section | Chart diagram showing support and resistance levels drawn too randomly or too precisely. | not_started | Not reviewed yet. |  |
+| public/images/learn/chart-reading/support-resistance-candlestick-diagram.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show price moving between support and resistance zones. | Intro visual | Candlestick chart showing price bouncing near support and rejecting near resistance. | editor_verified | Supports the article topic, uses realistic candles and volume, avoids buy/sell language, and treats levels as educational zones. | `8b7d4b28f20c90adf0d3301887dbf67b17c9ca08` |
+| public/images/learn/chart-reading/support-breaks-becomes-resistance.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show support breaking and later acting as resistance. | Body section | Candlestick chart showing broken support later acting as resistance. | editor_verified | Supports role-reversal concept, uses realistic candles, and avoids predictive language. | `9594e68325fcacc512d2f772f2d69dd024c0a8eb` |
+| public/images/learn/chart-reading/resistance-breaks-becomes-support.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show resistance breaking and later acting as support. | Body section | Candlestick chart showing broken resistance later acting as support. | editor_verified | Supports role-reversal concept, uses realistic candles, and avoids guarantee language. | `f0febdfd9eab7b3a5a9ce68595f1787cd7f1c9e4` |
+| public/images/learn/chart-reading/bad-support-resistance-example.svg | /learn/support-and-resistance/ | Chart Reading And Market Structure | realistic candlestick chart | Show common bad level drawing mistakes. | Common mistakes section | Chart diagram showing support and resistance levels drawn too randomly or too precisely. | editor_verified | Supports the common mistakes section and helps users understand chart clutter. | `003b0bbc79cafc546696b32312f6bc83e147bcf4` |
 
 ## Gap Article Tracker
 
@@ -163,19 +169,19 @@ Add a new row after each completed upgrade.
 | Date | Article/Asset | Work Completed | Editor Verification Result | Commit SHA |
 |---|---|---|---|---|
 | 2026-05-17 | Tracker initialization | Created the editorial upgrade tracker. | Pending first content upgrade. |  |
+| 2026-05-17 | /learn/support-and-resistance/ | Completed gold-standard Learn article upgrade and created four supporting realistic SVG assets. | Passed. The article now teaches the concept more clearly, follows the Chart Reading learning path, includes realistic examples, includes four relevant SVGs, avoids buy/sell signals and guarantee language, includes common mistakes, review questions, checklist, and a soft Trader Intelligence bridge. | `7c46572524af559e42a53a34531272bd3154dd6f` |
 
 ## Next Recommended Action
 
-Start the gold-standard upgrade workflow:
+Continue the Chart Reading And Market Structure track:
 
-1. Fetch `/learn/support-and-resistance/` draft.
+1. Fetch `/learn/how-to-draw-support-and-resistance/` draft.
 2. Perform pre-editor review.
-3. Decide exact upgrades.
-4. Create the needed SVG assets or references.
-5. Upgrade the article.
-6. Run editor verification.
-7. Update this tracker.
-8. Update the handoff.
+3. Upgrade it using the support/resistance article as the model.
+4. Create 2 to 3 realistic SVGs focused on zones vs exact lines and good/bad level drawing.
+5. Run editor verification.
+6. Update this tracker.
+7. Update the handoff.
 
 ## Important Reminder
 
