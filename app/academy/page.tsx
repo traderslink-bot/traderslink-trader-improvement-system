@@ -275,7 +275,6 @@ export default async function AcademyHomePage({
                   </span>
                 </div>
                 <h3 className="academy-sidebar-title">{course.course_title}</h3>
-                <p className="academy-sidebar-text">{course.display_model}</p>
               </div>
             ))}
           </section>
