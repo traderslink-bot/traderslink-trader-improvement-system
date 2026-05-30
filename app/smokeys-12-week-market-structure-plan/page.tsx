@@ -141,14 +141,14 @@ const planLessons: PlanLesson[] = [
 export const metadata: Metadata = {
   title: "Smokey's 12 Lesson Market Structure Plan | TradersLink",
   description:
-    "A public outline of Smokey's 12 Lesson Market Structure Plan.",
+    "A view of what is inside the course: price movement, structure confirmation, liquidity, imbalances, multi-timeframe context, entry models, and risk.",
   alternates: {
     canonical: "/smokeys-12-week-market-structure-plan",
   },
   openGraph: {
     title: "Smokey's 12 Lesson Market Structure Plan",
     description:
-      "A public outline covering market structure, liquidity, entries, risk, and live market breakdowns.",
+      "A view of what is inside the course: price movement, structure confirmation, liquidity, imbalances, multi-timeframe context, entry models, and risk.",
     type: "website",
   },
 };
