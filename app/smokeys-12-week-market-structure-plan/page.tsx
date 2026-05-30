@@ -138,17 +138,18 @@ const planLessons: PlanLesson[] = [
   },
 ];
 
+const courseDescription =
+  "A view of what is inside the course: price movement, structure confirmation, liquidity, imbalances, multi-timeframe context, entry models, and risk.";
+
 export const metadata: Metadata = {
   title: "Smokey's 12 Lesson Market Structure Plan | TradersLink",
-  description:
-    "A view of what is inside the course: price movement, structure confirmation, liquidity, imbalances, multi-timeframe context, entry models, and risk.",
+  description: courseDescription,
   alternates: {
     canonical: "/smokeys-12-week-market-structure-plan",
   },
   openGraph: {
     title: "Smokey's 12 Lesson Market Structure Plan",
-    description:
-      "A view of what is inside the course: price movement, structure confirmation, liquidity, imbalances, multi-timeframe context, entry models, and risk.",
+    description: courseDescription,
     type: "website",
   },
 };
@@ -194,11 +195,7 @@ export default function SmokeysMarketStructurePlanPage() {
             <h1 className="academy-title">
               Smokey&apos;s 12 Lesson Market Structure Plan
             </h1>
-            <p className="academy-lede">
-              A view of what is inside the course: price movement, structure
-              confirmation, liquidity, imbalances, multi-timeframe context,
-              entry models, risk, and live market breakdowns.
-            </p>
+            <p className="academy-lede">{courseDescription}</p>
             <p className="academy-lede">
               Available in TraderLink Premium for an additional fee.
             </p>
