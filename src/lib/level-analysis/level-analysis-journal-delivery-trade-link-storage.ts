@@ -29,10 +29,29 @@ export interface SaveJournalLevelAnalysisTradeLinkRecordResult {
 }
 
 export interface TradeLinkIdempotencyQuery {
+  workspaceId: string;
+  accountId: string;
+  userId: string;
   savedTradeId: string;
   deliveryId: string;
   symbol: string;
   provider: string;
+}
+
+export interface TradeLinkJournalScope {
+  workspaceId: string;
+  accountId: string;
+  userId: string;
+}
+
+export interface LatestTradeLinkForSavedTradeQuery
+  extends TradeLinkJournalScope {
+  savedTradeId: string;
+}
+
+export interface LatestTradeLinksForSavedTradesQuery
+  extends TradeLinkJournalScope {
+  savedTradeIds: string[];
 }
 
 export interface JournalLevelAnalysisTradeLinkRepository {
@@ -44,10 +63,10 @@ export interface JournalLevelAnalysisTradeLinkRepository {
     query: TradeLinkIdempotencyQuery,
   ): JournalLevelAnalysisTradeLinkRecord | null;
   getLatestTradeLinkForSavedTrade(
-    savedTradeId: string,
+    query: LatestTradeLinkForSavedTradeQuery,
   ): JournalLevelAnalysisTradeLinkRecord | null;
   getLatestTradeLinksForSavedTrades(
-    savedTradeIds: string[],
+    query: LatestTradeLinksForSavedTradesQuery,
   ): Record<string, JournalLevelAnalysisTradeLinkRecord>;
 }
 
@@ -128,17 +147,26 @@ export function runJournalLevelAnalysisTradeLinkMigrations(
       record_json TEXT NOT NULL
     );
 
-    CREATE UNIQUE INDEX IF NOT EXISTS journal_level_analysis_trade_links_idempotency
-      ON journal_level_analysis_trade_links(saved_trade_id, delivery_id, provider, symbol);
+    DROP INDEX IF EXISTS journal_level_analysis_trade_links_idempotency;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS journal_level_analysis_trade_links_idempotency_scoped
+      ON journal_level_analysis_trade_links(workspace_id, account_id, user_id, saved_trade_id, delivery_id, provider, symbol);
 
     CREATE INDEX IF NOT EXISTS journal_level_analysis_trade_links_trade_latest
       ON journal_level_analysis_trade_links(saved_trade_id, updated_at DESC, id DESC);
+
+    CREATE INDEX IF NOT EXISTS journal_level_analysis_trade_links_scope_trade_latest
+      ON journal_level_analysis_trade_links(workspace_id, account_id, user_id, saved_trade_id, updated_at DESC, id DESC);
 
     CREATE INDEX IF NOT EXISTS journal_level_analysis_trade_links_delivery
       ON journal_level_analysis_trade_links(delivery_id);
 
     CREATE INDEX IF NOT EXISTS journal_level_analysis_trade_links_active
       ON journal_level_analysis_trade_links(saved_trade_id, provider, symbol, updated_at DESC)
+      WHERE link_status = 'linked';
+
+    CREATE INDEX IF NOT EXISTS journal_level_analysis_trade_links_active_scoped
+      ON journal_level_analysis_trade_links(workspace_id, account_id, user_id, saved_trade_id, provider, symbol, updated_at DESC)
       WHERE link_status = 'linked';
   `);
 
@@ -167,6 +195,9 @@ export class SqliteJournalLevelAnalysisTradeLinkRepository
     }
 
     const existing = this.getTradeLinkByIdempotency({
+      workspaceId: record.workspaceId,
+      accountId: record.accountId,
+      userId: record.userId,
       savedTradeId: record.savedTradeId,
       deliveryId: record.deliveryId,
       symbol: record.symbol,
@@ -202,13 +233,19 @@ export class SqliteJournalLevelAnalysisTradeLinkRepository
       .prepare(
         `SELECT record_json
          FROM journal_level_analysis_trade_links
-         WHERE saved_trade_id = ?
+         WHERE workspace_id = ?
+           AND account_id = ?
+           AND user_id = ?
+           AND saved_trade_id = ?
            AND delivery_id = ?
            AND provider = ?
            AND symbol = ?
          LIMIT 1`,
       )
       .get(
+        query.workspaceId,
+        query.accountId,
+        query.userId,
         query.savedTradeId,
         query.deliveryId,
         query.provider,
@@ -219,25 +256,28 @@ export class SqliteJournalLevelAnalysisTradeLinkRepository
   }
 
   getLatestTradeLinkForSavedTrade(
-    savedTradeId: string,
+    query: LatestTradeLinkForSavedTradeQuery,
   ): JournalLevelAnalysisTradeLinkRecord | null {
     const row = this.db
       .prepare(
         `SELECT record_json
          FROM journal_level_analysis_trade_links
-         WHERE saved_trade_id = ?
+         WHERE workspace_id = ?
+           AND account_id = ?
+           AND user_id = ?
+           AND saved_trade_id = ?
          ORDER BY updated_at DESC, id DESC
          LIMIT 1`,
       )
-      .get(savedTradeId);
+      .get(query.workspaceId, query.accountId, query.userId, query.savedTradeId);
 
     return row ? rowJson<JournalLevelAnalysisTradeLinkRecord>(row) : null;
   }
 
   getLatestTradeLinksForSavedTrades(
-    savedTradeIds: string[],
+    query: LatestTradeLinksForSavedTradesQuery,
   ): Record<string, JournalLevelAnalysisTradeLinkRecord> {
-    const uniqueTradeIds = [...new Set(savedTradeIds.filter(Boolean))];
+    const uniqueTradeIds = [...new Set(query.savedTradeIds.filter(Boolean))];
     const latestByTradeId: Record<string, JournalLevelAnalysisTradeLinkRecord> = {};
 
     if (uniqueTradeIds.length === 0) {
@@ -251,10 +291,13 @@ export class SqliteJournalLevelAnalysisTradeLinkRepository
         .prepare(
           `SELECT saved_trade_id, record_json
            FROM journal_level_analysis_trade_links
-           WHERE saved_trade_id IN (${placeholders})
+           WHERE workspace_id = ?
+             AND account_id = ?
+             AND user_id = ?
+             AND saved_trade_id IN (${placeholders})
            ORDER BY saved_trade_id ASC, updated_at DESC, id DESC`,
         )
-        .all(...chunk) as Array<{
+        .all(query.workspaceId, query.accountId, query.userId, ...chunk) as Array<{
         saved_trade_id: string;
         record_json: string;
       }>;

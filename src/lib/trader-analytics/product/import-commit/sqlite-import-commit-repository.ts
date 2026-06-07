@@ -15,6 +15,7 @@ import type {
   SavedTraderAnalyticsSummaryRef,
   TradeReviewChecklistItemId,
   TradeReviewChecklistItemStatus,
+  TraderAnalyticsAccountId,
   TraderAnalyticsUserId,
 } from "../types";
 import type { CsvDryRunPrototypeDecisionReviewInput } from "../functional-readiness";
@@ -84,6 +85,13 @@ export interface PersistedDecisionReviewDiagnostic {
   code: string;
   message: string;
   generatedAt: string;
+}
+
+export interface SavedTradeJournalIdentity {
+  savedTradeId: SavedExecutionTradeId;
+  workspaceId: string;
+  accountId: TraderAnalyticsAccountId;
+  userId: TraderAnalyticsUserId;
 }
 
 export interface ImportBatchHistoryItem {
@@ -595,6 +603,45 @@ export class SqliteImportCommitRepository
       .prepare("SELECT json FROM saved_trades WHERE id = ?")
       .get(tradeId);
     return row ? rowJson<ImportCommitSavedTradeRecord>(row) : null;
+  }
+
+  getSavedTradeJournalIdentity(args: {
+    tradeId: SavedExecutionTradeId;
+    userId?: TraderAnalyticsUserId;
+  }): SavedTradeJournalIdentity | null {
+    const row = args.userId
+      ? this.db
+          .prepare(
+            `SELECT id, workspace_id, account_id, user_id
+             FROM saved_trades
+             WHERE id = ? AND user_id = ?`,
+          )
+          .get(args.tradeId, args.userId)
+      : this.db
+          .prepare(
+            `SELECT id, workspace_id, account_id, user_id
+             FROM saved_trades
+             WHERE id = ?`,
+          )
+          .get(args.tradeId);
+
+    if (!row) {
+      return null;
+    }
+
+    const identity = row as {
+      id: string;
+      workspace_id: string;
+      account_id: TraderAnalyticsAccountId;
+      user_id: TraderAnalyticsUserId;
+    };
+
+    return {
+      savedTradeId: identity.id,
+      workspaceId: identity.workspace_id,
+      accountId: identity.account_id,
+      userId: identity.user_id,
+    };
   }
 
   listDecisionReviewJobs(batchId: string): ImportCommitDecisionReviewJobRecord[] {

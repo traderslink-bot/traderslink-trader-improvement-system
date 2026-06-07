@@ -1,6 +1,7 @@
 import {
   getTradeDetailLevelFactsForApi,
   journalLevelAnalysisTradeLinkErrorResponse,
+  resolveLocalDemoJournalTradeContextForApi,
 } from "../../../../../../src/lib/level-analysis/level-analysis-journal-delivery-trade-link-api-service";
 import { isLevelAnalysisTradeDetailLevelFactsEnabled } from "../../../../../../src/lib/level-analysis/level-analysis-journal-delivery-trade-link-storage";
 
@@ -20,9 +21,19 @@ export async function GET(
   }
 
   const params = await context.params;
+  const journalContext = resolveLocalDemoJournalTradeContextForApi(params.tradeId);
+  if (!journalContext) {
+    return journalLevelAnalysisTradeLinkErrorResponse(
+      404,
+      "trade_context_not_found",
+      "Trade detail level facts require a saved trade in the current journal context.",
+    );
+  }
+
   return Response.json(
     getTradeDetailLevelFactsForApi({
       savedTradeId: params.tradeId,
+      journalScope: journalContext,
       featureEnabled: true,
     }),
   );

@@ -7,7 +7,13 @@ import { POST as persistTradeLink } from "../../../../app/api/level-analysis/tra
 import { POST as resolveTradeLink } from "../../../../app/api/level-analysis/trade-links/resolve/route";
 import { GET as getTradeLevelAnalysis } from "../../../../app/api/trades/[tradeId]/level-analysis/route";
 import { GET as getTradeDetailLevelFacts } from "../../../../app/api/trades/[tradeId]/level-analysis/facts/route";
-import { resetTraderIntelligenceDatabaseForTests } from "../../trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
+  getTraderIntelligenceDatabase,
+  resetTraderIntelligenceDatabaseForTests,
+} from "../../trader-analytics/product/import-commit/sqlite-import-commit-repository";
 import deliveryFixture from "../__fixtures__/level-analysis-journal-delivery-package-v1.compact.json";
 import oldSnapshotFixture from "../__fixtures__/journal-connector-level-analysis-snapshot-v1.json";
 import { ingestJournalLevelAnalysisDeliveryForApi } from "../level-analysis-journal-delivery-api-service";
@@ -38,6 +44,53 @@ function jsonRequest(path: string, body: unknown): Request {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function seedSavedTradeIdentity(args: {
+  id: string;
+  workspaceId?: string;
+  accountId?: string;
+  userId?: string;
+  symbol?: string;
+  importBatchId?: string;
+  openedAt?: string;
+  sessionDate?: string;
+}): void {
+  const workspaceId = args.workspaceId ?? DEMO_WORKSPACE_ID;
+  const accountId = args.accountId ?? DEMO_ACCOUNT_ID;
+  const userId = args.userId ?? DEMO_USER_ID;
+  const symbol = args.symbol ?? "DEVS";
+  const importBatchId = args.importBatchId ?? "import_batch_2026_06_01_001";
+  const openedAt = args.openedAt ?? "2026-06-01T15:30:00.000Z";
+  const sessionDate = args.sessionDate ?? "2026-06-01";
+
+  getTraderIntelligenceDatabase()
+    .prepare(
+      `INSERT OR REPLACE INTO saved_trades (
+        id, workspace_id, account_id, user_id, import_batch_id,
+        trade_fingerprint, symbol, lifecycle_status, opened_at, session_date, json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      args.id,
+      workspaceId,
+      accountId,
+      userId,
+      importBatchId,
+      null,
+      symbol,
+      "closed",
+      openedAt,
+      sessionDate,
+      JSON.stringify({
+        id: args.id,
+        workspaceId,
+        accountId,
+        userId,
+        importBatchId,
+        symbol,
+      }),
+    );
 }
 
 function collectStringValues(value: unknown, out: string[] = []): string[] {
@@ -165,6 +218,14 @@ describe("level-analysis journal trade-link API routes", () => {
       tradeEndedAt: "2026-06-01T16:05:00.000Z",
       createdAt: "2026-06-06T19:45:00.000Z",
     };
+    seedSavedTradeIdentity({
+      id: requestBody.savedTradeId,
+      workspaceId: requestBody.workspaceId,
+      accountId: requestBody.accountId,
+      userId: requestBody.userId,
+      symbol: requestBody.symbol,
+      importBatchId: requestBody.importBatchId,
+    });
 
     const resolveResponse = await resolveTradeLink(
       jsonRequest("/api/level-analysis/trade-links/resolve", requestBody),
@@ -281,6 +342,11 @@ describe("level-analysis journal trade-link API routes", () => {
 
     const disabledModel = getTradeDetailLevelFactsForApi({
       savedTradeId: requestBody.savedTradeId,
+      journalScope: {
+        workspaceId: requestBody.workspaceId,
+        accountId: requestBody.accountId,
+        userId: requestBody.userId,
+      },
       featureEnabled: false,
     });
     expect(disabledModel).toMatchObject({
@@ -356,6 +422,13 @@ describe("level-analysis journal trade-link API routes", () => {
       createdAt: "2026-06-06T19:55:00.000Z",
     });
     expect(delivery.status).toBe("accepted");
+    seedSavedTradeIdentity({
+      id: "trade_SNAP_2026_05_01_001",
+      symbol: "SNAP",
+      importBatchId: "import_batch_2026_05_01_001",
+      openedAt: "2026-05-01T15:30:00.000Z",
+      sessionDate: "2026-05-01",
+    });
 
     const response = await persistTradeLink(
       jsonRequest("/api/level-analysis/trade-links", {
@@ -413,7 +486,12 @@ describe("level-analysis journal trade-link API routes", () => {
     expectNoAdviceLanguage(factsBody);
   });
 
-  it("returns a not-checked facts read model when a trade has no persisted link", async () => {
+  it("returns a not-checked facts read model when a scoped trade has no persisted link", async () => {
+    seedSavedTradeIdentity({
+      id: "trade_MISSING_2026_06_01_001",
+      symbol: "MISS",
+    });
+
     const response = await getTradeDetailLevelFacts(
       new Request(
         "http://localhost/api/trades/trade_MISSING_2026_06_01_001/level-analysis/facts",
@@ -437,6 +515,80 @@ describe("level-analysis journal trade-link API routes", () => {
     expect(body.attachedFacts).toBeUndefined();
     expectNoRawPayload(body);
     expectNoAdviceLanguage(body);
+  });
+
+  it("rejects unresolvable facts route context instead of reading by savedTradeId alone", async () => {
+    const response = await getTradeDetailLevelFacts(
+      new Request(
+        "http://localhost/api/trades/trade_NOT_IN_DEMO_CONTEXT/level-analysis/facts",
+      ),
+      { params: Promise.resolve({ tradeId: "trade_NOT_IN_DEMO_CONTEXT" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body).toMatchObject({
+      ok: false,
+      code: "trade_context_not_found",
+    });
+  });
+
+  it("does not leak same savedTradeId facts across workspace account or user scope", async () => {
+    const delivery = ingestJournalLevelAnalysisDeliveryForApi({
+      payload: clone(deliveryFixture),
+      createdAt: "2026-06-06T20:15:00.000Z",
+    });
+    expect(delivery.status).toBe("accepted");
+
+    const savedTradeId = "trade_SCOPE_COLLISION_2026_06_01_001";
+    seedSavedTradeIdentity({
+      id: savedTradeId,
+      symbol: "DEVS",
+    });
+
+    const foreignPersistBody = await (
+      await persistTradeLink(
+        jsonRequest("/api/level-analysis/trade-links", {
+          savedTradeId,
+          workspaceId: "foreign-workspace",
+          accountId: "foreign-account",
+          userId: "foreign-user",
+          symbol: "DEVS",
+          provider: "ibkr",
+          deliveryId: delivery.deliveryId,
+          linkSource: "manual_review",
+          matchPolicy: {
+            providerMatch: "explicit_provider",
+            asOfPolicy: "manual_delivery_selection",
+          },
+          createdAt: "2026-06-06T20:16:00.000Z",
+        }),
+      )
+    ).json();
+    expect(foreignPersistBody).toMatchObject({
+      status: "linked",
+      savedTradeId,
+    });
+
+    const factsBody = await (
+      await getTradeDetailLevelFacts(
+        new Request(
+          `http://localhost/api/trades/${savedTradeId}/level-analysis/facts`,
+        ),
+        { params: Promise.resolve({ tradeId: savedTradeId }) },
+      )
+    ).json();
+
+    expect(factsBody).toMatchObject({
+      contractVersion: "trade_detail_level_facts_read_model_v1",
+      savedTradeId,
+      availability: {
+        availability: "not_checked",
+      },
+    });
+    expect(factsBody.attachedFacts).toBeUndefined();
+    expectNoRawPayload(factsBody);
+    expectNoAdviceLanguage(factsBody);
   });
 
   it("keeps trade-link routes behind the feature flag", async () => {

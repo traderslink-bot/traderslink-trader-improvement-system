@@ -920,13 +920,22 @@ export default async function TradeReviewPage({
           finalReplayPnl,
         )}.`
       : "This replay shows position movement now. Exact realized P/L progression is waiting until a reduction or closing execution is available.";
+  const levelFactsJournalContext =
+    data.mode === "saved"
+      ? data.repository.getSavedTradeJournalIdentity({
+          tradeId: trade.id,
+          userId: data.userId,
+        })
+      : null;
   const levelFactsUiContract =
     data.mode === "saved" &&
+    levelFactsJournalContext &&
     isLevelAnalysisTradeDetailLevelFactsEnabled() &&
     isLevelAnalysisTradeDetailLevelFactsUiEnabled()
       ? buildTradeDetailLevelFactsUiContract(
           getTradeDetailLevelFactsForApi({
             savedTradeId: trade.id,
+            journalScope: levelFactsJournalContext,
             featureEnabled: true,
           }),
         ).contract

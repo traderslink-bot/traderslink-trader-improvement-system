@@ -45,10 +45,18 @@ describe("level-analysis journal trade-link SQLite persistence", () => {
     expect(saved.status).toBe("stored");
     expect(tradeLinkRepository.getTradeLinkRecord(linkRecord.id)).toEqual(linkRecord);
     expect(
-      tradeLinkRepository.getLatestTradeLinkForSavedTrade(linkRecord.savedTradeId),
+      tradeLinkRepository.getLatestTradeLinkForSavedTrade({
+        savedTradeId: linkRecord.savedTradeId,
+        workspaceId: linkRecord.workspaceId,
+        accountId: linkRecord.accountId,
+        userId: linkRecord.userId,
+      }),
     ).toEqual(linkRecord);
     expect(
       tradeLinkRepository.getTradeLinkByIdempotency({
+        workspaceId: linkRecord.workspaceId,
+        accountId: linkRecord.accountId,
+        userId: linkRecord.userId,
         savedTradeId: linkRecord.savedTradeId,
         deliveryId: linkRecord.deliveryId,
         symbol: "devs",
@@ -87,8 +95,49 @@ describe("level-analysis journal trade-link SQLite persistence", () => {
     expect(saved.record.linkStatus).toBe("blocked");
     expect(saved.record.linkedSymbolSummary).toBeNull();
     expect(
-      tradeLinkRepository.getLatestTradeLinkForSavedTrade(blocked.savedTradeId),
+      tradeLinkRepository.getLatestTradeLinkForSavedTrade({
+        savedTradeId: blocked.savedTradeId,
+        workspaceId: blocked.workspaceId,
+        accountId: blocked.accountId,
+        userId: blocked.userId,
+      }),
     ).toEqual(blocked);
+  });
+
+  it("scopes latest trade-link lookup by saved trade journal identity", () => {
+    const { tradeLinkRepository } = createRepositories();
+    const demoLink =
+      clone(linkedTradeLinkFixture) as unknown as JournalLevelAnalysisTradeLinkRecord;
+    const otherScopeLink = {
+      ...demoLink,
+      id: "jlatl_other_scope_same_saved_trade",
+      workspaceId: "workspace-other",
+      accountId: "account-other",
+      userId: "user-other",
+      updatedAt: "2026-06-06T20:30:00.000Z",
+      rawPayloadHash:
+        "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    } satisfies JournalLevelAnalysisTradeLinkRecord;
+
+    tradeLinkRepository.saveTradeLinkRecord(demoLink);
+    tradeLinkRepository.saveTradeLinkRecord(otherScopeLink);
+
+    expect(
+      tradeLinkRepository.getLatestTradeLinkForSavedTrade({
+        savedTradeId: demoLink.savedTradeId,
+        workspaceId: demoLink.workspaceId,
+        accountId: demoLink.accountId,
+        userId: demoLink.userId,
+      })?.id,
+    ).toBe(demoLink.id);
+    expect(
+      tradeLinkRepository.getLatestTradeLinkForSavedTrade({
+        savedTradeId: otherScopeLink.savedTradeId,
+        workspaceId: otherScopeLink.workspaceId,
+        accountId: otherScopeLink.accountId,
+        userId: otherScopeLink.userId,
+      })?.id,
+    ).toBe(otherScopeLink.id);
   });
 
   it("keeps old LevelAnalysisSnapshot v1 trade links persistable", () => {

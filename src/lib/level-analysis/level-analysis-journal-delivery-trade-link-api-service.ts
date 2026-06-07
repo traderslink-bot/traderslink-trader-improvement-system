@@ -2,6 +2,8 @@ import {
   DEMO_ACCOUNT_ID,
   DEMO_USER_ID,
   DEMO_WORKSPACE_ID,
+  SqliteImportCommitRepository,
+  type SavedTradeJournalIdentity,
 } from "../trader-analytics/product/import-commit/sqlite-import-commit-repository";
 import {
   type JournalLevelAnalysisDeliveryRecord,
@@ -31,6 +33,7 @@ import {
 import {
   SqliteJournalLevelAnalysisTradeLinkRepository,
   type JournalLevelAnalysisTradeLinkRepository,
+  type TradeLinkJournalScope,
 } from "./level-analysis-journal-delivery-trade-link-storage";
 
 type JsonRecord = Record<string, unknown>;
@@ -66,6 +69,8 @@ export interface JournalLevelAnalysisTradeLinkAdminApiResponse {
   rawPayloadHash?: string;
   link?: JournalLevelAnalysisTradeLinkRecord;
 }
+
+export type JournalLevelAnalysisTradeLinkReadScope = TradeLinkJournalScope;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -109,11 +114,34 @@ function nowIso(options: JournalLevelAnalysisTradeLinkServiceOptions): string {
 }
 
 function linkIdFor(args: {
+  workspaceId: string;
+  accountId: string;
+  userId: string;
   savedTradeId: string;
   deliveryId: string;
   symbol: string;
 }): string {
-  return `jlatl_${args.savedTradeId}_${args.deliveryId}_${normalizeSymbol(args.symbol)}`;
+  return `jlatl_${args.workspaceId}_${args.accountId}_${args.userId}_${args.savedTradeId}_${args.deliveryId}_${normalizeSymbol(args.symbol)}`;
+}
+
+function scopeFromRequest(
+  request: JournalLevelAnalysisTradeLinkApiRequest,
+): JournalLevelAnalysisTradeLinkReadScope {
+  return {
+    workspaceId: request.workspaceId ?? DEMO_WORKSPACE_ID,
+    accountId: request.accountId ?? DEMO_ACCOUNT_ID,
+    userId: request.userId ?? DEMO_USER_ID,
+  };
+}
+
+export function resolveLocalDemoJournalTradeContextForApi(
+  savedTradeId: string,
+  repository = new SqliteImportCommitRepository(),
+): SavedTradeJournalIdentity | null {
+  return repository.getSavedTradeJournalIdentity({
+    tradeId: savedTradeId,
+    userId: DEMO_USER_ID,
+  });
 }
 
 function timestampFromRequest(
@@ -381,6 +409,7 @@ export function persistJournalLevelAnalysisTradeLinkForApi(
   const deliveryRepository = deliveryRepositoryFromOptions(options);
   const tradeLinkRepository = tradeLinkRepositoryFromOptions(options);
   const createdAt = request.createdAt ?? nowIso(options);
+  const journalScope = scopeFromRequest(request);
   const policy = createDefaultJournalLevelAnalysisTradeLinkMatchPolicy(
     request.matchPolicy,
   );
@@ -439,14 +468,17 @@ export function persistJournalLevelAnalysisTradeLinkForApi(
 
   const record = createJournalLevelAnalysisTradeLinkRecord({
     id: linkIdFor({
+      workspaceId: journalScope.workspaceId,
+      accountId: journalScope.accountId,
+      userId: journalScope.userId,
       savedTradeId: request.savedTradeId,
       deliveryId: selectedDeliveryRecord.id,
       symbol: selectedSymbolSummary.symbol,
     }),
     createdAt,
-    workspaceId: request.workspaceId ?? DEMO_WORKSPACE_ID,
-    accountId: request.accountId ?? DEMO_ACCOUNT_ID,
-    userId: request.userId ?? DEMO_USER_ID,
+    workspaceId: journalScope.workspaceId,
+    accountId: journalScope.accountId,
+    userId: journalScope.userId,
     savedTradeId: request.savedTradeId,
     importBatchId: request.importBatchId,
     linkSource: request.linkSource ?? "resolver",
@@ -482,12 +514,16 @@ export function persistJournalLevelAnalysisTradeLinkForApi(
 export function getJournalLevelAnalysisForTradeApi(
   args: {
     savedTradeId: string;
+    journalScope: JournalLevelAnalysisTradeLinkReadScope;
   },
   options: JournalLevelAnalysisTradeLinkServiceOptions = {},
 ): JournalTradeLevelAnalysisApiResponse {
-  const link = tradeLinkRepositoryFromOptions(options).getLatestTradeLinkForSavedTrade(
-    args.savedTradeId,
-  );
+  const link = tradeLinkRepositoryFromOptions(
+    options,
+  ).getLatestTradeLinkForSavedTrade({
+    savedTradeId: args.savedTradeId,
+    ...args.journalScope,
+  });
 
   if (!link) {
     return {
@@ -508,15 +544,17 @@ export function getJournalLevelAnalysisForTradeApi(
 export function getTradeDetailLevelFactsForApi(
   args: {
     savedTradeId: string;
+    journalScope: JournalLevelAnalysisTradeLinkReadScope;
     featureEnabled?: boolean;
   },
   options: JournalLevelAnalysisTradeLinkServiceOptions = {},
 ): TradeDetailLevelFactsReadModel {
   const featureEnabled = args.featureEnabled ?? true;
   const link = featureEnabled
-    ? tradeLinkRepositoryFromOptions(options).getLatestTradeLinkForSavedTrade(
-        args.savedTradeId,
-      )
+    ? tradeLinkRepositoryFromOptions(options).getLatestTradeLinkForSavedTrade({
+        savedTradeId: args.savedTradeId,
+        ...args.journalScope,
+      })
     : null;
 
   return buildTradeDetailLevelFactsReadModel({

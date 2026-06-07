@@ -277,9 +277,12 @@ describe("level-analysis review queue linking read model implementation", () => 
     repository.saveTradeLinkRecord(latest);
 
     expect(
-      repository.getLatestTradeLinksForSavedTrades([first.savedTradeId])[
-        first.savedTradeId
-      ]?.id,
+      repository.getLatestTradeLinksForSavedTrades({
+        savedTradeIds: [first.savedTradeId],
+        workspaceId: first.workspaceId,
+        accountId: first.accountId,
+        userId: first.userId,
+      })[first.savedTradeId]?.id,
     ).toBe(latest.id);
   });
 

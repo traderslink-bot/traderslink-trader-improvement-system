@@ -107,6 +107,63 @@ Important project rule:
 
 ## Current Resume Point
 
+### 2026-06-06 Level Analysis Trade Detail Facts Identity Scope Hardening
+
+Gate
+`journal_level_analysis_delivery_trade_detail_level_facts_identity_scope_hardening`
+hardens the trade-detail level facts route/read path so persisted
+level-analysis facts are resolved inside the saved journal context instead of
+by `savedTradeId` alone.
+
+Changed:
+
+- confirmed `saved_trades.id` is only the local SQLite table primary key, while
+  duplicate saved-trade detection is keyed by `(account_id, trade_fingerprint)`
+- scoped latest trade-link and idempotency reads by `workspaceId`, `accountId`,
+  `userId`, and `savedTradeId`
+- scoped the review-queue level-facts read path to the current committed
+  batch/account/user context
+- made `GET /api/trades/[tradeId]/level-analysis/facts` and the compatibility
+  trade-level-analysis route resolve the current local demo saved-trade context
+  before returning data
+- made the trade detail page pass the saved trade journal identity into the
+  level-facts read helper
+- added identity rule documentation at
+  `docs/level-analysis-journal-delivery-trade-detail-level-facts-identity-scope-rule.md`
+
+Behavior:
+
+- a saved trade with no scoped trade link still returns the existing
+  `not_checked` facts model
+- an unresolvable trade route is rejected instead of reading by unscoped
+  `savedTradeId`
+- same `savedTradeId` values in different workspace/account/user scopes cannot
+  leak facts into the current demo journal route
+- old `LevelAnalysisSnapshot` v1 linked facts remain supported
+- raw source payload preservation remains storage/admin-only; UI/read models do
+  not expose raw payloads
+
+Boundaries:
+
+- no levels-system repo changes
+- no LevelEngine behavior changes
+- no new production UI wiring
+- no recommendations, trade advice, coaching, grading, P/L, giveback,
+  behavior scoring, buy/sell/hold decisions, or execution-quality inference
+
+Validation completed:
+
+- `npx vitest run src/lib/level-analysis/__tests__/level-analysis-journal-delivery-trade-link-persistence-storage.test.ts src/lib/level-analysis/__tests__/level-analysis-journal-delivery-trade-link-api-routes.test.ts src/lib/level-analysis/__tests__/level-analysis-review-queue-linking-read-model.test.ts src/lib/level-analysis/__tests__/level-analysis-trade-detail-level-facts-contract.test.ts src/lib/level-analysis/__tests__/level-analysis-trade-detail-level-facts-ui-contract.test.ts src/lib/level-analysis/__tests__/level-analysis-trade-detail-level-facts-ui-implementation.test.ts`
+- `npx tsc --noEmit`
+- focused ESLint for touched route, page, level-analysis, repository, and test
+  files
+- `npx vitest run src/lib/level-analysis/__tests__`
+- `git diff --check`
+
+Best next step:
+
+- commit and push this gate.
+
 ### 2026-06-06 Level Analysis Delivery Trade Detail Level Facts UI Implementation
 
 Gate `journal_level_analysis_delivery_trade_detail_level_facts_ui_implementation`

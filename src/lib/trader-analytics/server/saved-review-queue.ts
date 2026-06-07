@@ -6,6 +6,7 @@ import type {
 import {
   DEMO_ACCOUNT_ID,
   DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
 } from "../product/import-commit/sqlite-import-commit-repository";
 import type {
   ImportCommitDecisionReviewJobRecord,
@@ -545,6 +546,11 @@ export function buildSavedReviewQueueReadModel(args: {
   if (!batch) {
     const levelFacts = buildSavedReviewQueueLevelFactsReadModelFromRepository({
       tradeIds: [],
+      journalScope: {
+        workspaceId: DEMO_WORKSPACE_ID,
+        accountId,
+        userId,
+      },
       featureEnabled: args.levelFactsFeatureEnabled,
       tradeLinkRepository: args.levelFactsTradeLinkRepository,
     });
@@ -577,6 +583,11 @@ export function buildSavedReviewQueueReadModel(args: {
   const levelFacts =
     buildSavedReviewQueueLevelFactsReadModelFromRepository({
       tradeIds: jobs.map((job) => job.savedTradeId),
+      journalScope: {
+        workspaceId: batch.workspaceId,
+        accountId,
+        userId,
+      },
       featureEnabled: args.levelFactsFeatureEnabled,
       tradeLinkRepository: args.levelFactsTradeLinkRepository,
     });
