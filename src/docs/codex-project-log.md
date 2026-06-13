@@ -18354,3 +18354,46 @@ Current best next step:
   run. If deployment is requested, first confirm the intentional target commit
   is still `22f68746` or newer on `origin/main`, then deploy only from
   `C:\Users\jerac\Documents\TraderLink\traderslink.pro`.
+
+# 2026-06-13 production deployment from clean main
+
+- User requested proceeding after the clean-main production checklist.
+- Deployed from `C:\Users\jerac\Documents\TraderLink\traderslink.pro` on clean
+  `main` at `c0131f5eb6bdaaad1a1b05704f226eca34f84651`.
+- Confirmed before deploy:
+  - `origin/main` pointed to the same commit;
+  - the repo remote was
+    `git@github.com:traderslink-bot/traderslink-trader-improvement-system.git`;
+  - `.vercel/project.json` pointed to Vercel project `vercel-landing`
+    (`prj_TFzKcdj4dS6BHv2maWsy7M5AEv2a`);
+  - `npm run validate:academy-registry` passed;
+  - `npx tsc --noEmit --pretty false` passed;
+  - `npm run lint` passed with warnings only.
+- Ran `npx vercel deploy --prod --yes`.
+- Vercel deployment:
+  - id: `dpl_57zRqHc2b92DWykcpZv7gg5RqnXa`;
+  - production URL:
+    `https://vercel-landing-udt4hn61c-jeremylgk20-1197s-projects.vercel.app`;
+  - aliases: `https://traderslink.pro` and `https://www.traderslink.pro`;
+  - ready state: `READY`.
+- Vercel build passed:
+  - `npm ci` completed with the existing 2 high-severity audit findings;
+  - `npm run build:webpack` passed;
+  - academy registry validation passed with the existing 19 markdown registry
+    warning;
+  - Next generated 138 static pages.
+- Post-deploy verification:
+  - `npx vercel inspect vercel-landing-udt4hn61c-jeremylgk20-1197s-projects.vercel.app`
+    reported production status `Ready`;
+  - `https://traderslink.pro/` returned 200;
+  - `https://www.traderslink.pro/` returned 308 then 200 at the canonical
+    domain;
+  - `https://traderslink.pro/intelligence` returned 200;
+  - `https://traderslink.pro/news` returned 200;
+  - `https://traderslink.pro/academy` returned 200.
+
+Current best next step:
+
+- Monitor the live site and Vercel logs for runtime issues. The preserved
+  news-date branch `codex/preserve-production-news-date-work` remains available
+  separately and was not deployed in this pass.
