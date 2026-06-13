@@ -454,8 +454,10 @@ function TickerStoryAnalyticsPanel({
           <div className="mt-2 text-sm leading-6 text-zinc-400">
             These are not extra trades. They group same-symbol re-entries so a
             trader can ask whether a later attempt protected profit, gave back
-            profit, stayed open, or needs chart data before the lesson is
-            written.
+            profit, stayed open,
+            {chartTierEnabled
+              ? " or needs chart data before the lesson is written."
+              : " or needs a saved execution replay before the lesson is written."}
           </div>
         </div>
         {chartTierEnabled ? (

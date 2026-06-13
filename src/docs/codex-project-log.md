@@ -18219,3 +18219,53 @@ Current best next step:
   diff shows new `/intelligence` or v2 behavior work.
 - If the academy `display_model` removal is desired, port it separately as a
   tiny academy UI change; do not take the stale `AGENTS.md` production rules.
+
+# 2026-06-13 final main verification and May route sweep
+
+- Ran the final verification pack on current `main`
+  (`21d8e95e692c5275fc542c8b641554c7bec50ad5` at start of the pass).
+- Found one final free-tier copy leak during the May route sweep:
+  `/intelligence/analytics/ticker-stories` said a ticker story could
+  `need chart data before the lesson is written`.
+- Fixed that analytics ticker-story helper copy so:
+  - chart-context tier keeps `needs chart data before the lesson is written`;
+  - free/execution-only tier says it may need a saved execution replay before
+    the lesson is written.
+
+Verification:
+
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run verify:levels-system -- --reporter=dot` passed: 21 files, 85 tests.
+- Focused trader analytics suite passed: 6 files, 74 tests.
+  - `saved-import-coaching-language-qa-matrix.test.ts`
+  - `saved-import-api-routes.test.ts`
+  - `saved-trade-threads.test.ts`
+  - `analytics-behavior-report.test.ts`
+  - `trader-coach-action-loop.test.ts`
+  - `sqlite-import-commit-repository.test.ts`
+- `npx eslint app/intelligence/analytics/analytics-client.tsx` passed.
+- `npm run build` passed after the analytics copy fix. Existing Turbopack
+  warnings remain for broad academy/news file-tracing paths and are unrelated
+  to this Trader Intelligence change.
+- Final free-tier production May route sweep on `http://127.0.0.1:3135`
+  checked 29 import, review, saved-trade, analytics, coach, and progress pages.
+  Result: 0 forbidden paid-evidence phrase hits and no browser console warnings.
+- Final chart-context production sanity sweep on `http://127.0.0.1:3136`
+  confirmed:
+  - import detail still shows saved May data;
+  - chart evidence analytics still shows chart findings, support/resistance
+    exits, `0 chart data still missing`, and `6 candle basis checks`;
+  - analytics ticker stories keep paid chart-data wording;
+  - coach keeps chart evidence checked and candle-basis checks;
+  - review exposes the candle-basis lane;
+  - progress keeps paid `Study the chart set` language.
+- Final tier Playwright matrix:
+  - `TRADER_INTELLIGENCE_TIER=free_execution npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+    passed: 1 passed, 1 skipped.
+  - `TRADER_INTELLIGENCE_TIER=chart_context npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+    passed: 1 passed, 1 skipped.
+
+Current best next step:
+
+- Commit this final analytics ticker-story wording fix and verification log,
+  open a scoped PR, and let CI verify it before merging.
