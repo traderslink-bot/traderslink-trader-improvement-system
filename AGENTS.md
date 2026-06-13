@@ -34,3 +34,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - The shared top navigation lives in `src/components/site/site-shell.tsx` and is re-exported by `app/site-shell.tsx`. Do not create separate Academy, News, or Intelligence topbars.
 - Canonical feature roots are `app/academy`, `app/news`, and `app/intelligence`. Former workspace routes should redirect in `next.config.ts`; do not recreate duplicate top-level app pages for them.
 - Read `docs/site-architecture.md`, `docs/routes.md`, `docs/deployment.md`, and `docs/auth.md` before structural, deployment, route, or auth changes.
+
+## Trader Intelligence Design Baseline Reconciliation
+
+- Production source of truth is not automatically the preferred local design baseline.
+- Before user-facing Trader Intelligence dashboard redesigns, compare against the light, Material-style dashboard in `C:\Users\jerac\Documents\TraderLink\trader-intelligence-v2` at `/workspace` when that checkout/server is available.
+- That local baseline uses `app/dashboard-shell.tsx`, `app/dashboard-theme-toggle.tsx`, `app/mui-provider.tsx`, and `app/mui-theme.ts`, with Material UI defaulting to light mode.
+- Do not assume this repo's current `/intelligence` route is the user's preferred visual baseline if the user references the light/material dashboard or the version they liked locally.
+- If branch/repo instructions conflict with the visible preferred baseline, pause long enough to identify the target checkout, route, and port before editing UI.
+- Port only intentional product changes into this repo after reconciling against the preferred local dashboard and production routing rules.

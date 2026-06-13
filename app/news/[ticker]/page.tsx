@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { SiteShell } from "@/src/components/site/site-shell";
 import { listNewsArticlesByTicker } from "@/src/lib/news/news-article-store";
+import { formatNewsPublishedDate } from "@/src/lib/news/news-date-format";
 
 type PageProps = {
   params: Promise<{
@@ -12,19 +13,6 @@ type PageProps = {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-
-  if (!Number.isFinite(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export async function generateMetadata({
   params,
@@ -82,7 +70,7 @@ export default async function TickerNewsPage({ params }: PageProps) {
                       ${article.ticker}
                     </span>
                     <span className="news-chip">
-                      {formatDate(article.publishedAt)}
+                      {formatNewsPublishedDate(article.publishedAt)}
                     </span>
                     {article.eventType ? (
                       <span className="news-chip">

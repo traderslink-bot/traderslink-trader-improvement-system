@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { SiteShell } from "@/src/components/site/site-shell";
 import { listRecentNewsArticles } from "@/src/lib/news/news-article-store";
+import { formatNewsPublishedDate } from "@/src/lib/news/news-date-format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,19 +16,6 @@ export const metadata: Metadata = {
     canonical: "/news",
   },
 };
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-
-  if (!Number.isFinite(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export default async function NewsIndexPage() {
   const articles = await listRecentNewsArticles();
@@ -68,7 +56,7 @@ export default async function NewsIndexPage() {
                       ${article.ticker}
                     </span>
                     <span className="news-chip">
-                      {formatDate(article.publishedAt)}
+                      {formatNewsPublishedDate(article.publishedAt)}
                     </span>
                     {article.eventType ? (
                       <span className="news-chip">

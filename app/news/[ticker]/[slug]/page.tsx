@@ -17,6 +17,7 @@ import {
   getNewsArticle,
   type NewsArticle,
 } from "@/src/lib/news/news-article-store";
+import { formatNewsPublishedDate } from "@/src/lib/news/news-date-format";
 
 type PageProps = {
   params: Promise<{
@@ -74,19 +75,6 @@ function boolText(value: unknown): string {
 
 function detailRow(label: string, value: string): [string, string] {
   return [label, value];
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-
-  if (!Number.isFinite(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
 }
 
 function formatLevelsText(value: unknown): string {
@@ -309,7 +297,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
             <div className="news-article-header-copy">
               <div className="news-chip-row">
                 <span className="news-chip news-chip-primary">${article.ticker}</span>
-                <span className="news-chip">{formatDate(article.publishedAt)}</span>
+                <span className="news-chip">{formatNewsPublishedDate(article.publishedAt)}</span>
                 <span className="news-chip">AI processed</span>
                 {filingType !== "N/A" ? (
                   <span className="news-chip">{filingType}</span>
