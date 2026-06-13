@@ -18190,3 +18190,32 @@ Current best next step:
 
 - Commit this coach edge wording fix and log update, open a scoped PR, and let
   CI verify it before merging.
+
+# 2026-06-13 product-pass branch reconnaissance after tier QA
+
+- PR #64 merged into `main` as
+  `e0d2a0947e3bf323f95a5ae16ea720bcb4cec57f`.
+- Compared current `main` to `origin/codex/trader-ui-product-pass` without
+  merging.
+- Current unique product-pass diff is small and not a Trader Intelligence v2
+  payload:
+  - `AGENTS.md` adds stale production-deployment rules that name
+    `origin/codex/trader-ui-product-pass` as the canonical production branch.
+    This conflicts with current project instructions that production handoff
+    belongs in `C:\Users\jerac\Documents\TraderLink\traderslink.pro` on
+    `main`.
+  - `app/academy/page.tsx` removes the academy course `display_model` line.
+- `git merge-tree` still reports both `AGENTS.md` and
+  `app/academy/page.tsx` as changed on both sides, so a direct merge remains
+  inappropriate.
+- No remaining unique `/intelligence` route, v2 candle/levels/coaching, or
+  journal-level-analysis code was found on `codex/trader-ui-product-pass` after
+  the PR #59/#61/#62/#63/#64 port work already merged to `main`.
+
+Current best next step:
+
+- Do not merge `codex/trader-ui-product-pass`.
+- Treat the branch as stale for Trader Intelligence v2 porting unless a future
+  diff shows new `/intelligence` or v2 behavior work.
+- If the academy `display_model` removal is desired, port it separately as a
+  tiny academy UI change; do not take the stale `AGENTS.md` production rules.
