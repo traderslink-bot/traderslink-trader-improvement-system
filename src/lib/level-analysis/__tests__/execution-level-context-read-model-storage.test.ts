@@ -39,7 +39,7 @@ const ATTACHED_AT = Date.parse("2026-05-31T23:00:00-04:00");
 const CREATED_AT = Date.parse("2026-05-31T23:10:00-04:00");
 const UPDATED_AT = Date.parse("2026-05-31T23:15:00-04:00");
 
-type MutableSnapshot = Record<string, any>;
+type MutableSnapshot = Record<string, unknown>;
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

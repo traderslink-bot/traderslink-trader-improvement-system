@@ -14,7 +14,24 @@ import type {
   LevelAnalysisSnapshotV1,
 } from "../level-analysis-snapshot-contract";
 
-type MutableSnapshot = Record<string, any>;
+type MutableLevelEngineOutput = {
+  extensionLevels: {
+    resistance: unknown[];
+    support: unknown[];
+  };
+  metadata: Record<string, unknown>;
+};
+
+type MutableSafety = Record<string, unknown> & {
+  noLookaheadApplied: boolean;
+  syntheticExtensionsClearlyMarked: boolean;
+};
+
+type MutableSnapshot = Record<string, unknown> & {
+  levelEngineOutput: MutableLevelEngineOutput;
+  referencePrice: number;
+  safety: MutableSafety;
+};
 
 function cloneFixture(): MutableSnapshot {
   return JSON.parse(JSON.stringify(fixture)) as MutableSnapshot;
@@ -228,9 +245,13 @@ describe("LevelAnalysisSnapshot adapter", () => {
     ["missing symbol", (snapshot: MutableSnapshot) => delete snapshot.symbol],
     ["missing asOfTimestamp", (snapshot: MutableSnapshot) => delete snapshot.asOfTimestamp],
     ["missing inputSummary", (snapshot: MutableSnapshot) => delete snapshot.inputSummary],
-    ["missing levelEngineOutput", (snapshot: MutableSnapshot) => delete snapshot.levelEngineOutput],
+    ["missing levelEngineOutput", (snapshot: MutableSnapshot) => {
+      delete (snapshot as Partial<MutableSnapshot>).levelEngineOutput;
+    }],
     ["missing diagnostics", (snapshot: MutableSnapshot) => delete snapshot.diagnostics],
-    ["missing safety", (snapshot: MutableSnapshot) => delete snapshot.safety],
+    ["missing safety", (snapshot: MutableSnapshot) => {
+      delete (snapshot as Partial<MutableSnapshot>).safety;
+    }],
     ["unsafe no-lookahead", (snapshot: MutableSnapshot) => {
       snapshot.safety.noLookaheadApplied = false;
     }],

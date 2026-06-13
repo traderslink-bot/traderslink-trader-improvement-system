@@ -31,7 +31,24 @@ const OWNER = { ownerId: "trade-123", ownerType: "trade" };
 const ATTACHED_AT = Date.parse("2026-05-31T17:00:00-04:00");
 const CREATED_AT = Date.parse("2026-05-31T17:05:00-04:00");
 
-type MutableSnapshot = Record<string, any>;
+type MutableLevelEngineOutput = {
+  extensionLevels: {
+    resistance: unknown[];
+    support: unknown[];
+  };
+  metadata: Record<string, unknown>;
+};
+
+type MutableSafety = Record<string, unknown> & {
+  noLookaheadApplied: boolean;
+  syntheticExtensionsClearlyMarked: boolean;
+};
+
+type MutableSnapshot = Record<string, unknown> & {
+  levelEngineOutput: MutableLevelEngineOutput;
+  referencePrice: number;
+  safety: MutableSafety;
+};
 
 function cloneFixture(): MutableSnapshot {
   return JSON.parse(JSON.stringify(fixture)) as MutableSnapshot;

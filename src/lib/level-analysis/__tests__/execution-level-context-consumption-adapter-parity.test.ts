@@ -50,7 +50,7 @@ const ATTACHED_AT = Date.parse("2026-05-31T23:30:00-04:00");
 const CREATED_AT = Date.parse("2026-05-31T23:35:00-04:00");
 const GENERATED_AT = "2026-05-02T18:00:00.000Z";
 
-type MutableRecord = Record<string, any>;
+type MutableRecord = Record<string, unknown>;
 
 interface FactualArtifacts {
   context: ExecutionAnalysisLevelContextInput;

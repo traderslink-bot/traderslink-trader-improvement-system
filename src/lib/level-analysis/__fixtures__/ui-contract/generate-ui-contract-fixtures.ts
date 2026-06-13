@@ -41,7 +41,7 @@ const sourceFixturePath = path.join(
   "journal-connector-level-analysis-snapshot-v1.json",
 );
 
-type MutableSnapshot = Record<string, any>;
+type MutableSnapshot = Record<string, unknown>;
 
 export interface ExecutionLevelContextUiContractFixturePack {
   available: ExecutionLevelContextUiContract;
