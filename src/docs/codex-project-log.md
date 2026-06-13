@@ -18015,3 +18015,85 @@ Current best next step:
 
 - Amend and push PR #61 with the duplicate-key fix and this QA log update.
 - Watch PR #61 CI. If green, mark ready for review or merge after final review.
+
+# 2026-06-12 completed May chart-evidence QA after PR 61 merge
+
+- PR #61 was merged into `main` as
+  `20309cbcc5eddd5398b6785b25494728c15878e5`.
+- Rechecked the isolated May QA DB after the merge:
+  - 93 saved trades.
+  - 244 accepted executions.
+  - 93 completed decision-review snapshots.
+  - 0 chart-data failures or diagnostics.
+  - 87 basis-aligned trades.
+  - 6 candle-basis-check trades.
+- Reconciled the analytics chart-finding count:
+  - The raw snapshots contain 512 saved insights.
+  - The chart-evidence read model exposes 510 chart findings.
+  - The 2 excluded insights are both on trade 19 and map to
+    `execution_only` fallback (`entry_chase_or_late_extension` and
+    `entry_breakout_failed`), so they are intentionally blocked from
+    chart-evidence analytics.
+  - No synthetic findings were added by the thread model.
+- Fresh local smoke on `http://localhost:3027` loaded:
+  - `/intelligence/imports`
+  - `/intelligence/review?queue=highest_priority`
+  - `/intelligence/review?queue=candle_basis_warning`
+  - `/intelligence/analytics?view=chart_evidence`
+  - `/intelligence/analytics?view=behavior`
+  - `/intelligence/coach`
+  - `/intelligence/coach/review-session`
+  - `/intelligence/coach/behavior-sequence`
+  - `/intelligence/coach/review-backlog`
+- The smoked pages returned 200 with no browser console warnings or errors.
+- Chart-context pages showed `0 chart data still missing`, `6 candle basis
+  checks`, and chart-supported coaching/analytics copy only because the May DB
+  now has completed snapshots for all 93 saved trades.
+
+Current best next step:
+
+- Continue final-product QA with a focused free-tier vs paid-tier language pass:
+  execution-only surfaces must avoid chart/levels claims, while chart-context
+  surfaces may use candle and support/resistance evidence only from completed
+  snapshots.
+
+# 2026-06-12 free-tier ticker-story evidence wording fix
+
+- Ran the focused tier Playwright matrix against the rebuilt app with the May
+  isolated DB.
+- The free-tier pass found a real language leak on
+  `/intelligence/trades/ticker-story/[threadId]`:
+  - The page header said `chart evidence`.
+  - Round trips and hold-continuation evidence state said
+    `Chart data still missing`.
+  - The story evidence list included the paid-tier missing-chart prompt
+    `Chart data to check next`.
+- Fixed the ticker-story detail page so:
+  - free/execution-only tier copy says `saved executions` and
+    `Execution replay only`;
+  - paid/chart-context tier keeps chart-evidence and missing-chart-data states;
+  - paid-tier chart-context review prompts are hidden only in the free tier.
+- This preserves the two-tier behavior: free tier remains execution-only, while
+  paid tier can use saved candle/levels evidence when completed snapshots exist.
+
+Verification:
+
+- Opened draft PR #62:
+  https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/62
+- PR #62 CI passed:
+  - `test-and-verify`.
+  - `Seeded trade detail level facts flow`.
+- `npm run build` passed. Existing Turbopack warnings remain for broad
+  academy/news file-tracing paths and are unrelated to this change.
+- `TRADER_INTELLIGENCE_TIER=free_execution npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+- `TRADER_INTELLIGENCE_TIER=chart_context npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+- `npx eslint "app/intelligence/trades/ticker-story/[threadId]/page.tsx"`
+  passed.
+
+Current best next step:
+
+- Commit the scoped ticker-story tier-language fix and log update, then continue
+  a broader free-tier vs chart-context pass on saved-trade detail and review
+  queue pages.

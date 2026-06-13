@@ -206,6 +206,39 @@ function roundTripTiming(roundTrip: SavedTradeThreadRoundTrip): string {
   return `${entry} -> ${exit} ET`;
 }
 
+function roundTripEvidenceSummary(
+  roundTrip: SavedTradeThreadRoundTrip,
+  chartContextAllowed: boolean,
+): string {
+  if (!chartContextAllowed) {
+    return "Execution replay only";
+  }
+
+  return roundTrip.chartContextSummary;
+}
+
+function visibleReviewEvidence(
+  thread: SavedTradeThread,
+  chartContextAllowed: boolean,
+): SavedTradeThread["reviewEvidence"] {
+  if (chartContextAllowed) {
+    return thread.reviewEvidence;
+  }
+
+  const chartContextEvidenceIds = new Set([
+    "chart-context-available",
+    "market-context-insights-available",
+    "post-exit-context-finding",
+    "volume-context-reviewed",
+    "volume-context-to-compare",
+    "chart-context-to-check",
+  ]);
+
+  return thread.reviewEvidence.filter(
+    (item) => !chartContextEvidenceIds.has(item.id),
+  );
+}
+
 function buildTickerStoryModel(): SavedTradeThreadModel {
   const data = buildSavedOrSampleTraderAnalyticsViewModel();
   const chartContextAllowed = canUseChartContext(
@@ -294,6 +327,7 @@ export default async function TickerStoryPage({
       roundTrip.crossedSessionDate,
   );
   const hasHoldContinuation = continuationRoundTrips.length > 0;
+  const reviewEvidence = visibleReviewEvidence(thread, chartContextAllowed);
 
   return (
     <main className="min-h-screen bg-[#05070b] px-4 py-6 text-zinc-100 sm:px-6 lg:px-8">
@@ -326,8 +360,11 @@ export default async function TickerStoryPage({
               </h1>
               <p className="mt-3 max-w-4xl text-sm leading-6 text-zinc-400">
                 This page shows only the {symbol} round trips from this trading
-                day. Use it to compare the first push, re-entries, chart
-                evidence, and the exact round trip that needs a deeper replay.
+                day. Use it to compare the first push, re-entries,{" "}
+                {chartContextAllowed
+                  ? "saved chart evidence,"
+                  : "saved executions,"}{" "}
+                and the exact round trip that needs a deeper replay.
               </p>
             </div>
             <div className="grid gap-2 text-sm lg:min-w-[220px]">
@@ -489,7 +526,9 @@ export default async function TickerStoryPage({
                     <div className="mt-1 text-xs text-zinc-500">
                       {chartContextAllowed && thread.marketContextFindingCount > 0
                         ? "Use chart evidence as prompts, then confirm in the replay."
-                        : "Use saved executions and written notes until chart context is available."}
+                        : chartContextAllowed
+                          ? "Use saved executions and written notes until chart context is available."
+                          : "Use saved executions and written notes for this tier."}
                     </div>
                   </div>
                 </div>
@@ -632,7 +671,10 @@ export default async function TickerStoryPage({
                           {roundTrip.entryHourLabelEt}
                         </p>
                         <p className="mt-2 text-sm leading-6 text-zinc-500">
-                          {roundTrip.chartContextSummary}
+                          {roundTripEvidenceSummary(
+                            roundTrip,
+                            chartContextAllowed,
+                          )}
                         </p>
                       </div>
                       <div className="grid gap-2 md:min-w-[170px] md:text-right">
@@ -728,7 +770,10 @@ export default async function TickerStoryPage({
                                 Evidence state
                               </div>
                               <div className="mt-1 font-semibold text-zinc-100">
-                                {roundTrip.chartContextSummary}
+                                {roundTripEvidenceSummary(
+                                  roundTrip,
+                                  chartContextAllowed,
+                                )}
                               </div>
                             </div>
                             <div className="border border-amber-500/20 bg-zinc-950/30 px-3 py-2">
@@ -782,7 +827,7 @@ export default async function TickerStoryPage({
                 </p>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {thread.reviewEvidence.map((item) => (
+                {reviewEvidence.map((item) => (
                   <div
                     className={`border p-4 ${evidenceToneClass(item.tone)}`}
                     key={item.id}
