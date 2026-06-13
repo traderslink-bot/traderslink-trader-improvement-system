@@ -18269,3 +18269,47 @@ Current best next step:
 
 - Commit this final analytics ticker-story wording fix and verification log,
   open a scoped PR, and let CI verify it before merging.
+
+# 2026-06-13 production repo handoff verification
+
+- Fetched and inspected `C:\Users\jerac\Documents\TraderLink\traderslink.pro`
+  before changing it.
+- Local production `main` was behind `origin/main`
+  (`391f3552` -> `4c390583`) and had pre-existing dirty work only in:
+  - `AGENTS.md`
+  - `app/news/[ticker]/[slug]/page.tsx`
+  - `app/news/[ticker]/page.tsx`
+  - `app/news/page.tsx`
+  - `src/lib/news/__tests__/news-date-format.test.ts`
+  - `src/lib/news/news-date-format.ts`
+- Confirmed those dirty files had no path overlap with the incoming verified
+  Trader Intelligence diff, then fast-forwarded production `main` to
+  `4c390583` with `git merge --ff-only origin/main`.
+- Refreshed production dependencies with `npm ci` because the first local
+  verification used stale `node_modules` and could not resolve
+  `levels-system-v2/support-resistance-engine`.
+- Kept the existing dirty news/AGENTS work uncommitted and untouched.
+
+Production-local verification:
+
+- `npx tsc --noEmit --pretty false` passed after `npm ci`.
+- `npm run verify:levels-system -- --reporter=dot` passed: 21 files, 85 tests.
+- Focused trader analytics suite passed: 6 files, 74 tests.
+- `TRADER_INTELLIGENCE_TIER=free_execution npm run build:webpack` passed,
+  including academy registry validation.
+- `TRADER_INTELLIGENCE_TIER=free_execution npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed after rebuilding the production bundle for the free tier: 1 passed, 1
+  skipped.
+- `TRADER_INTELLIGENCE_TIER=chart_context npm run build:webpack` passed,
+  including academy registry validation.
+- `TRADER_INTELLIGENCE_TIER=chart_context npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+- `npm ci` reported 2 high-severity audit findings; no dependency changes were
+  made in this pass.
+
+Current best next step:
+
+- Do not deploy yet from `traderslink.pro` while it has dirty news/AGENTS work.
+- Preserve that dirty production work on its own branch/commit or stash, rerun
+  the full production pre-deploy checklist from a clean `main` checkout, and
+  deploy only after the user explicitly asks for production deployment.
