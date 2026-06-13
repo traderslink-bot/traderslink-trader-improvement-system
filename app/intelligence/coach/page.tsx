@@ -659,9 +659,11 @@ function TickerStoryCoachPanel({
 }
 
 function SessionStoryCoachPanel({
+  chartTierEnabled,
   story,
   storyCount,
 }: {
+  chartTierEnabled: boolean;
   story: SavedTradeSessionStory | null;
   storyCount: number;
 }) {
@@ -679,8 +681,10 @@ function SessionStoryCoachPanel({
             The coach now checks saved executions across each session for
             green-to-red days, many attempts on one ticker, high trade-count
             sessions, open or overnight exposure, and evidence-backed strengths
-            worth repeating. Execution-only facts stay separate from chart
-            findings.
+            worth repeating.
+            {chartTierEnabled
+              ? " Chart findings stay separate from execution-only facts."
+              : " Free-tier review stays anchored to execution-only facts."}
           </p>
         </div>
         <Link
@@ -1796,11 +1800,9 @@ export default async function CoachPage(props: {
             <span className="rounded-md border border-emerald-900 bg-emerald-950/20 px-2 py-1 text-emerald-300">
               {chartTierEnabled
                 ? "chart evidence checked"
-                : chartDataNeedsAttentionCount > 0
-                  ? "chart data needs review"
-                  : "execution evidence checked"}
+                : "execution evidence checked"}
             </span>
-            {candleBasisWarningCount > 0 ? (
+            {chartTierEnabled && candleBasisWarningCount > 0 ? (
               <Link
                 className="rounded-md border border-amber-900 bg-amber-950/20 px-2 py-1 text-amber-200 transition hover:border-amber-500"
                 href="/intelligence/review?queue=candle_basis_warning"
@@ -2220,6 +2222,7 @@ export default async function CoachPage(props: {
         {activeCoachView === "session_stories" ? (
         <div id="session-story-coach">
           <SessionStoryCoachPanel
+            chartTierEnabled={chartTierEnabled}
             story={prioritySessionStory}
             storyCount={tradeThreadModel.sessionStoryCount}
           />

@@ -18137,3 +18137,56 @@ Current best next step:
 
 - Commit this broader free-tier evidence wording sweep, open a new PR, and let
   CI verify it before merging.
+
+# 2026-06-13 import/resume and coach/analytics edge tier sweep
+
+- After PR #63 merged into `main`, continued the focused tier-language QA on
+  the remaining edge surfaces:
+  - saved import history and import detail/resume route;
+  - analytics subroutes and query-tab views;
+  - coach overview, details, review-session, behavior-sequence, backlog,
+    ticker-stories, session-stories, next-session, and progress;
+  - progress route.
+- Free-tier production sweep initially found one remaining paid-term leak:
+  `/intelligence/coach/session-stories` said
+  `Execution-only facts stay separate from chart findings`.
+- Fixed coach session-story copy so:
+  - free tier says review stays anchored to execution-only facts;
+  - chart-context tier may say chart findings stay separate from execution-only
+    facts;
+  - the coach header always says `execution evidence checked` in free tier and
+    only shows candle-basis links in chart-context tier.
+- Rechecked paid/chart-context mode on May saved data:
+  - chart evidence page still shows chart findings, support/resistance exits,
+    and `0 chart data still missing`;
+  - coach still shows chart evidence checked and candle-basis checks;
+  - candle-basis review queue still exposes the basis-check lane.
+
+Verification:
+
+- `npx eslint app/intelligence/coach/page.tsx` passed with the existing coach
+  page unused-variable warnings only.
+- `npm run build` passed. Existing Turbopack warnings remain for broad
+  academy/news file-tracing paths and are unrelated to this change.
+- Free-tier production edge sweep on `http://127.0.0.1:3133` checked 26 import,
+  analytics, coach, and progress pages. Result: 0 forbidden paid-evidence
+  phrase hits and no browser console warnings.
+- Chart-context production sanity sweep on `http://127.0.0.1:3134` loaded the
+  same May DB and confirmed paid chart evidence/count surfaces still render.
+- `TRADER_INTELLIGENCE_TIER=free_execution npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+- `TRADER_INTELLIGENCE_TIER=chart_context npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+
+Deliberate port/merge note:
+
+- Do not directly merge `codex/trader-ui-product-pass` into `main`.
+- Next port pass should compare that branch against current `main`, then port
+  only shared v2 candle/levels/coaching/analytics behavior first.
+- UI changes should be ported second and adapted to the current `/intelligence`
+  route namespace while preserving journal-level-analysis work.
+
+Current best next step:
+
+- Commit this coach edge wording fix and log update, open a scoped PR, and let
+  CI verify it before merging.
