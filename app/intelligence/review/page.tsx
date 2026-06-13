@@ -33,6 +33,25 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 const REVIEW_QUEUE_VISIBLE_COUNT = 6;
+const CHART_CONTEXT_EVIDENCE_IDS = new Set([
+  "chart-context-available",
+  "market-context-insights-available",
+  "post-exit-context-finding",
+  "volume-context-reviewed",
+  "volume-context-to-compare",
+  "chart-context-to-check",
+]);
+
+function visibleStoryEvidence<T extends { id: string }>(
+  items: T[],
+  chartContextAllowed: boolean,
+): T[] {
+  if (chartContextAllowed) {
+    return items;
+  }
+
+  return items.filter((item) => !CHART_CONTEXT_EVIDENCE_IDS.has(item.id));
+}
 
 function savedReviewToneClass(status: string): string {
   return status === "completed"
@@ -281,6 +300,25 @@ export default async function GuidedReviewPage({
           count: marketGapCount,
           href: "/intelligence/review?queue=market_context_unavailable",
         };
+  const reviewFollowUp =
+    chartContextAllowed && candleBasisWarningCount > 0
+      ? {
+          label: "Candle basis check",
+          count: candleBasisWarningCount,
+          href: "/intelligence/review?queue=candle_basis_warning",
+          tone: "warning" as const,
+        }
+      : chartContextAllowed
+        ? {
+            ...chartDataFollowUp,
+            tone: "warning" as const,
+          }
+        : {
+            label: "Execution reviews",
+            count: savedReviewQueue?.allItems.length ?? 0,
+            href: "/intelligence/review?queue=all",
+            tone: "info" as const,
+          };
 
   return (
     <main className="ti-dashboard-bg min-h-screen px-5 py-8 text-zinc-100 sm:px-8">
@@ -352,7 +390,11 @@ export default async function GuidedReviewPage({
                 summary: "Checklist and lesson draft.",
               },
             ]}
-            summary="Work this page like a review queue while chart-data checks stay in the background."
+            summary={
+              chartContextAllowed
+                ? "Work this page like a review queue while chart-data checks stay in the background."
+                : "Work this page like a saved execution review queue."
+            }
           />
           <div className="grid min-w-0 gap-6">
             <div id="review-first">
@@ -381,19 +423,10 @@ export default async function GuidedReviewPage({
                   tone: "warning" as const,
                 },
                 {
-                  label:
-                    candleBasisWarningCount > 0
-                      ? "Candle basis check"
-                      : chartDataFollowUp.label,
-                  count:
-                    candleBasisWarningCount > 0
-                      ? candleBasisWarningCount
-                      : chartDataFollowUp.count,
-                  href:
-                    candleBasisWarningCount > 0
-                      ? "/intelligence/review?queue=candle_basis_warning"
-                      : chartDataFollowUp.href,
-                  tone: "warning" as const,
+                  label: reviewFollowUp.label,
+                  count: reviewFollowUp.count,
+                  href: reviewFollowUp.href,
+                  tone: reviewFollowUp.tone,
                 },
                 {
                   label: "Open or Swing",
@@ -452,7 +485,9 @@ export default async function GuidedReviewPage({
                 {
                   label: "2. Replay",
                   title: "What happened",
-                  body: "Replay entries, adds, reductions, exits, timing, and P/L before using chart or level findings.",
+                  body: chartContextAllowed
+                    ? "Replay entries, adds, reductions, exits, timing, and P/L before using chart or level findings."
+                    : "Replay entries, adds, reductions, exits, timing, and P/L before writing the lesson.",
                   href: primaryReviewItem
                     ? withPageAnchor(primaryReviewItem.href, "execution")
                     : "#flow",
@@ -599,7 +634,12 @@ export default async function GuidedReviewPage({
                       </p>
                     </div>
                     <div className="grid gap-2 md:grid-cols-2">
-                      {prioritySessionStory.reviewEvidence.slice(0, 2).map((item) => (
+                      {visibleStoryEvidence(
+                        prioritySessionStory.reviewEvidence,
+                        chartContextAllowed,
+                      )
+                        .slice(0, 2)
+                        .map((item) => (
                         <div
                           className="border border-zinc-900 bg-zinc-950/60 p-3"
                           key={item.id}
@@ -918,6 +958,7 @@ export default async function GuidedReviewPage({
         )}
 
         <section id="queue-status" className="grid gap-6 xl:grid-cols-2">
+          {chartContextAllowed ? (
           <AdvancedDisclosure
             summary="Advanced queue status and technical limits"
             testId="saved-decision-review-status"
@@ -1032,6 +1073,7 @@ export default async function GuidedReviewPage({
               )}
             </div>
           </AdvancedDisclosure>
+          ) : null}
 
           <div className="ti-panel p-4">
             <h2 className="text-sm font-semibold text-zinc-100">

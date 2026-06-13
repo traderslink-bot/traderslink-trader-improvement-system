@@ -82,6 +82,19 @@ function timeLabelEt(value: string | null): string {
   });
 }
 
+function roundTripEvidenceSummary(
+  roundTrip: ReturnType<
+    typeof buildSavedTradeThreadReadModel
+  >["threads"][number]["roundTrips"][number],
+  chartTierEnabled: boolean,
+): string {
+  if (!chartTierEnabled) {
+    return "Execution replay only";
+  }
+
+  return roundTrip.chartContextSummary;
+}
+
 function lifecycleToneClass(classification: string): string {
   if (
     classification === "day_trade_turned_swing" ||
@@ -1970,7 +1983,10 @@ export default async function TradeReviewPage({
                               : ""}
                         </span>
                         <span className="text-xs text-zinc-500 md:col-span-2">
-                          {roundTrip.chartContextSummary}
+                          {roundTripEvidenceSummary(
+                            roundTrip,
+                            chartTierEnabled,
+                          )}
                         </span>
                         <span
                           className={`font-medium md:text-right ${

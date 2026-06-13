@@ -76,6 +76,39 @@ function daySessionHrefFor(sessionDate: string): string {
   return `/intelligence/trades/day-session/${encodeURIComponent(sessionDate)}`;
 }
 
+const CHART_CONTEXT_EVIDENCE_IDS = new Set([
+  "chart-context-available",
+  "market-context-insights-available",
+  "post-exit-context-finding",
+  "volume-context-reviewed",
+  "volume-context-to-compare",
+  "chart-context-to-check",
+]);
+
+function visibleStoryEvidence<T extends { id: string }>(
+  items: T[],
+  chartTierEnabled: boolean,
+): T[] {
+  if (chartTierEnabled) {
+    return items;
+  }
+
+  return items.filter((item) => !CHART_CONTEXT_EVIDENCE_IDS.has(item.id));
+}
+
+function roundTripEvidenceSummary(
+  roundTrip: ReturnType<
+    typeof buildSavedTradeThreadReadModel
+  >["threads"][number]["roundTrips"][number],
+  chartTierEnabled: boolean,
+): string {
+  if (!chartTierEnabled) {
+    return "Execution replay only";
+  }
+
+  return roundTrip.chartContextSummary;
+}
+
 function normalizeReviewLane(value: string | undefined): SavedReviewQueueFilter | "none" {
   const allowed = new Set([
     "all",
@@ -1683,7 +1716,9 @@ export default async function TradesPage({
                     </div>
                   </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
-                    {thread.reviewEvidence.slice(0, 4).map((item) => (
+                    {visibleStoryEvidence(thread.reviewEvidence, chartTierEnabled)
+                      .slice(0, 4)
+                      .map((item) => (
                       <div
                         key={item.id}
                         className={`border px-3 py-2 ${
@@ -1742,7 +1777,10 @@ export default async function TradesPage({
                               : ""}
                         </span>
                         <span className="text-xs text-zinc-500 sm:col-span-2">
-                          {roundTrip.chartContextSummary}
+                          {roundTripEvidenceSummary(
+                            roundTrip,
+                            chartTierEnabled,
+                          )}
                         </span>
                         <span
                           className={`font-medium sm:text-right ${
@@ -1890,7 +1928,9 @@ export default async function TradesPage({
                     </div>
                   </div>
                   <div className="mt-4 grid gap-2 md:grid-cols-2">
-                    {story.reviewEvidence.slice(0, 2).map((item) => (
+                    {visibleStoryEvidence(story.reviewEvidence, chartTierEnabled)
+                      .slice(0, 2)
+                      .map((item) => (
                       <div
                         key={item.id}
                         className="border border-zinc-900 bg-zinc-950/40 px-3 py-2"
@@ -2026,7 +2066,9 @@ export default async function TradesPage({
                   Find Saved Trades
                 </h2>
                 <div className="mt-1 text-sm text-zinc-500">
-                  Use these filters when you want all saved trades, trades missing chart data, or open trades.
+                  {chartTierEnabled
+                    ? "Use these filters when you want all saved trades, trades missing chart data, or open trades."
+                    : "Use these filters when you want all saved trades, execution reviews, or open trades."}
                 </div>
               </div>
               <Link

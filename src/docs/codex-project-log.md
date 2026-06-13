@@ -18097,3 +18097,43 @@ Current best next step:
 - Commit the scoped ticker-story tier-language fix and log update, then continue
   a broader free-tier vs chart-context pass on saved-trade detail and review
   queue pages.
+
+# 2026-06-12 PR 62 merged and broader free-tier sweep
+
+- Merged PR #62 into `main` as
+  `50c7e8fcd814882ff348beac665225fc911f38b6`.
+- Continued the broader free-tier vs paid-tier language sweep against the May
+  isolated DB.
+- Found remaining free-tier chart-context wording leaks in:
+  - saved trade ticker-story cards on `/intelligence/trades/ticker-stories`;
+  - ticker-thread context cards inside saved trade detail pages;
+  - guided review summary/status cards on `/intelligence/review`.
+- Fixed those surfaces so free tier stays execution-only:
+  - story cards hide chart-context review evidence prompts;
+  - round-trip summaries say `Execution replay only` instead of
+    `Chart data still missing`;
+  - review summary cards show execution-review follow-up instead of
+    candle-basis or chart-data queues;
+  - the advanced chart-data review disclosure is hidden in free tier.
+- Paid/chart-context mode still keeps chart evidence and chart-data status
+  language when chart context is enabled.
+
+Verification:
+
+- Broad free-tier production sweep on `http://127.0.0.1:3132` checked
+  import detail, saved trade lists, saved trade details, review queues,
+  behavior analytics, coach pages, and progress pages. Result: 0 forbidden
+  chart/level/candle phrase hits and no browser console warnings.
+- `npx eslint app/intelligence/trades/page.tsx "app/intelligence/trades/[tradeId]/page.tsx" app/intelligence/review/page.tsx`
+  passed.
+- `npm run build` passed. Existing Turbopack warnings remain for broad
+  academy/news file-tracing paths and are unrelated to this change.
+- `TRADER_INTELLIGENCE_TIER=chart_context npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+- `TRADER_INTELLIGENCE_TIER=free_execution npx playwright test tests/e2e/tier-chart-evidence.spec.ts --project=chromium-desktop --reporter=dot`
+  passed: 1 passed, 1 skipped.
+
+Current best next step:
+
+- Commit this broader free-tier evidence wording sweep, open a new PR, and let
+  CI verify it before merging.
