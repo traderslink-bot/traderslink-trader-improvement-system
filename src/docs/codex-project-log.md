@@ -18313,3 +18313,44 @@ Current best next step:
 - Preserve that dirty production work on its own branch/commit or stash, rerun
   the full production pre-deploy checklist from a clean `main` checkout, and
   deploy only after the user explicitly asks for production deployment.
+
+# 2026-06-13 production clean-main checklist after handoff
+
+- Preserved the pre-existing production news/AGENTS dirty work on
+  `codex/preserve-production-news-date-work` at
+  `62b3a7f0d3a2a268e5f3f81c7f6ac8c796f1d3c2` and pushed the branch to
+  `origin/codex/preserve-production-news-date-work`.
+- The preserved branch contains:
+  - the `AGENTS.md` Trader Intelligence design-baseline reconciliation note;
+  - the centralized `formatNewsPublishedDate(...)` helper;
+  - the three News page imports/call sites;
+  - `src/lib/news/__tests__/news-date-format.test.ts`.
+- While running the clean-main production checklist, `npm run lint` exposed an
+  existing `no-explicit-any` blocker in level-analysis fixture/test aliases.
+- Fixed that blocker in PR #68 by replacing the mutable JSON fixture aliases
+  with `unknown`-backed records and narrow typed mutable fixture sections for
+  `safety` and `levelEngineOutput`.
+- PR #68 merged into `main` as
+  `22f6874679009683bbc680a860e607da9e62006b`.
+
+Clean production `main` verification:
+
+- `npm run validate:academy-registry` passed. The existing warning remains:
+  19 academy markdown files are not represented in the registry.
+- `npx tsc --noEmit` passed.
+- `npm run lint` passed with warnings only; no lint errors remain.
+- `npm test -- --reporter=dot` passed: 146 files, 1330 tests.
+- `npm run build:webpack` passed and generated 138 static pages.
+- Deployment safety checks confirmed:
+  - `traderslink.pro` is on clean `main` at `22f68746`;
+  - `origin/main` points to the same commit;
+  - the remote is `git@github.com:traderslink-bot/traderslink-trader-improvement-system.git`;
+  - `.vercel/project.json` points to Vercel project `vercel-landing`
+    (`prj_TFzKcdj4dS6BHv2maWsy7M5AEv2a`) with Node `24.x`.
+
+Current best next step:
+
+- Production code is locally verified on clean `main`, but no deployment was
+  run. If deployment is requested, first confirm the intentional target commit
+  is still `22f68746` or newer on `origin/main`, then deploy only from
+  `C:\Users\jerac\Documents\TraderLink\traderslink.pro`.
