@@ -18397,3 +18397,49 @@ Current best next step:
 - Monitor the live site and Vercel logs for runtime issues. The preserved
   news-date branch `codex/preserve-production-news-date-work` remains available
   separately and was not deployed in this pass.
+
+# 2026-06-13 post-deploy live smoke excluding News
+
+- User requested a live production smoke pass but explicitly said not to check
+  News because it is not part of the Intelligence app yet.
+- No `/news` route was checked in this smoke pass.
+
+HTTP checks:
+
+- `https://traderslink.pro/` returned 200.
+- `https://www.traderslink.pro/` returned 308 to
+  `https://traderslink.pro/`, then 200.
+- `https://traderslink.pro/academy` returned 200.
+- `https://traderslink.pro/account` returned 200.
+- `https://traderslink.pro/intelligence` returned 200.
+- `https://traderslink.pro/intelligence/analytics` returned 200.
+- `https://traderslink.pro/intelligence/review` returned 200.
+- `https://traderslink.pro/intelligence/coach` returned 200.
+- `https://traderslink.pro/intelligence/progress` returned 200.
+- `https://traderslink.pro/intelligence/upload-csv` returned 200.
+
+Browser checks:
+
+- Headless Chromium loaded the homepage, Academy, Account, Intelligence home,
+  Analytics, Review, Coach, Progress, and Upload CSV routes.
+- All checked routes returned 200 and rendered expected page title/body text.
+- No browser console errors were observed.
+- No page runtime errors were observed.
+- The initial browser assertion for Analytics was too strict because the body
+  renders `ANALYTICS` uppercase while the title is `Analytics | Trader
+  Intelligence`; reran with case-insensitive title/body checks and the pass
+  succeeded.
+
+Vercel log checks:
+
+- `npx vercel logs dpl_57zRqHc2b92DWykcpZv7gg5RqnXa --level error --since 30m`
+  found no logs.
+- `npx vercel logs dpl_57zRqHc2b92DWykcpZv7gg5RqnXa --level warning --since 30m`
+  found no logs.
+- `npx vercel logs dpl_57zRqHc2b92DWykcpZv7gg5RqnXa --status-code 500,501,502,503,504 --since 30m`
+  found no logs.
+
+Current best next step:
+
+- Keep monitoring production after real user traffic. News remains intentionally
+  outside this Intelligence smoke pass.
