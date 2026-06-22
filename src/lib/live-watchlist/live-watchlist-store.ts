@@ -176,6 +176,21 @@ function parseState(raw: string): LiveWatchlistSymbolState | null {
   }
 }
 
+function symbolActivationSortTime(symbol: LiveWatchlistSymbolState): number {
+  return symbol.firstPostedAt ?? symbol.updatedAt;
+}
+
+function sortSymbolsByActivation(
+  left: LiveWatchlistSymbolState,
+  right: LiveWatchlistSymbolState,
+): number {
+  const timeDiff = symbolActivationSortTime(right) - symbolActivationSortTime(left);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+  return left.symbol.localeCompare(right.symbol);
+}
+
 function parseArchiveRow(row: {
   archive_id?: unknown;
   symbol?: unknown;
@@ -619,6 +634,7 @@ export class LiveWatchlistStore {
         .map((row) => (typeof row.state_json === "string" ? parseState(row.state_json) : null))
         .filter(isUserVisibleSymbol);
     }
+    symbols.sort(sortSymbolsByActivation);
 
     return {
       generatedAt: Date.now(),

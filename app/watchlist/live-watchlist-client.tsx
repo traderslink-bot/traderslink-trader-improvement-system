@@ -605,6 +605,21 @@ function WatchlistCardKicker({ label }: { label: string }) {
   );
 }
 
+function symbolActivationSortTime(symbol: LiveWatchlistSymbolState): number {
+  return symbol.firstPostedAt ?? symbol.updatedAt;
+}
+
+function sortSymbolsByActivation(
+  left: LiveWatchlistSymbolState,
+  right: LiveWatchlistSymbolState,
+): number {
+  const timeDiff = symbolActivationSortTime(right) - symbolActivationSortTime(left);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+  return left.symbol.localeCompare(right.symbol);
+}
+
 function mergeSymbol(
   symbols: LiveWatchlistSymbolState[],
   next: LiveWatchlistSymbolState,
@@ -613,7 +628,7 @@ function mergeSymbol(
   if (next.status === "deactivated") {
     return without;
   }
-  return [next, ...without].sort((left, right) => right.updatedAt - left.updatedAt);
+  return [next, ...without].sort(sortSymbolsByActivation);
 }
 
 function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) {

@@ -521,6 +521,35 @@ describe("LiveWatchlistStore", () => {
     expect(updated.updatedAt).toBe(5000);
   });
 
+  it("orders active symbols by first posted time instead of latest update time", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      ...buildCorePatch("OLD", 1000),
+      firstPostedAt: 1000,
+    });
+    await store.upsertPatch({
+      ...buildCorePatch("NEW", 2000),
+      firstPostedAt: 2000,
+    });
+    await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "OLD",
+      status: "live",
+      updatedAt: 9000,
+      latestPrice: 1.2,
+      nearestSupport: 1.1,
+      nearestResistance: 1.3,
+    });
+
+    const state = await store.listSymbols();
+
+    expect(state.symbols.map((symbol) => symbol.symbol)).toEqual(["NEW", "OLD"]);
+    expect(state.symbols.find((symbol) => symbol.symbol === "OLD")?.updatedAt).toBe(1000);
+  });
+
   it("applies status-only patches without clearing ticker content", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
