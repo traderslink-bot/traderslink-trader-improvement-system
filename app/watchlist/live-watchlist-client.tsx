@@ -85,13 +85,6 @@ function formatLevelMapLevel(level: LiveWatchlistLevelMapLevel | null, fallback:
   return `${side} ${formatPrice(level.price)} ${formatSignedPercent(level.distancePct)}`;
 }
 
-function formatOverheadLevel(level: LiveWatchlistLevelMapLevel | null, fallback: string): string {
-  if (!level) {
-    return fallback;
-  }
-  return `O ${formatPrice(level.price)} ${formatSignedPercent(level.distancePct)}`;
-}
-
 function selectIndexNextStrong(levelMap: LiveWatchlistLevelMap): LiveWatchlistLevelMapLevel | null {
   return levelMap.nextStrongResistance ?? levelMap.nextStrongSupport;
 }
@@ -108,25 +101,17 @@ function LevelMapIndexCell({ symbol }: { symbol: LiveWatchlistSymbolState }) {
   }
 
   const nextStrong = selectIndexNextStrong(levelMap);
-  const nearestOverhead = levelMap.nearestOverhead ?? levelMap.nearestResistance;
-  const hasSeparateNextResistance = Boolean(
-    nearestOverhead &&
-      levelMap.nearestResistance &&
-      nearestOverhead.price !== levelMap.nearestResistance.price,
-  );
-  const secondaryLevel = hasSeparateNextResistance ? levelMap.nearestResistance : nextStrong;
+  const secondaryLevel = nextStrong;
   const secondaryText =
-    hasSeparateNextResistance && levelMap.nearestResistance
-      ? `Next resistance: ${formatLevelMapLevel(levelMap.nearestResistance, "R n/a")}`
-      : nextStrong
+    nextStrong
         ? `Next stronger: ${formatLevelMapLevel(nextStrong, "n/a")}`
         : "Next stronger: n/a";
   return (
     <span className="watchlist-level-map-cell">
       <span className="watchlist-level-map-primary">
-        {levelMap.rangeState === "tight" && levelMap.nearestSupport && nearestOverhead
-          ? `Tight zone: S ${formatPrice(levelMap.nearestSupport.price)} / O ${formatPrice(nearestOverhead.price)}`
-          : `${formatLevelMapLevel(levelMap.nearestSupport, "S n/a")} / ${formatOverheadLevel(nearestOverhead, "O n/a")}`}
+        {levelMap.rangeState === "tight" && levelMap.nearestSupport && levelMap.nearestResistance
+          ? `Tight zone: S ${formatPrice(levelMap.nearestSupport.price)} / R ${formatPrice(levelMap.nearestResistance.price)}`
+          : `${formatLevelMapLevel(levelMap.nearestSupport, "S n/a")} / ${formatLevelMapLevel(levelMap.nearestResistance, "R n/a")}`}
       </span>
       <span className="watchlist-level-map-secondary">
         {secondaryText}
@@ -456,40 +441,25 @@ function levelMapCardFromState(symbol: LiveWatchlistSymbolState): LiveWatchlistC
   if (!symbol.levelMap) {
     return null;
   }
-  const nearestOverhead = symbol.levelMap.nearestOverhead ?? symbol.levelMap.nearestResistance;
   const lines: string[] = [];
   if (
     symbol.levelMap.rangeState === "tight" &&
     symbol.levelMap.nearestSupport &&
-    nearestOverhead
+    symbol.levelMap.nearestResistance
   ) {
     lines.push(
-      `Tight decision zone: S ${formatPrice(symbol.levelMap.nearestSupport.price)} / O ${formatPrice(nearestOverhead.price)}`,
+      `Tight decision zone: S ${formatPrice(symbol.levelMap.nearestSupport.price)} / R ${formatPrice(symbol.levelMap.nearestResistance.price)}`,
     );
   } else {
     lines.push(
       `Nearest support: ${symbol.levelMap.nearestSupport?.label ?? "none"}`,
-      `Nearest overhead: ${nearestOverhead?.label ?? "none"}`,
+      `Nearest resistance: ${symbol.levelMap.nearestResistance?.label ?? "none"}`,
     );
-    if (
-      nearestOverhead &&
-      symbol.levelMap.nearestResistance &&
-      nearestOverhead.price !== symbol.levelMap.nearestResistance.price
-    ) {
-      lines.push(`Next resistance: ${symbol.levelMap.nearestResistance.label}`);
-    }
   }
   const nextStrong = selectIndexNextStrong(symbol.levelMap);
   if (nextStrong) {
     lines.push(`Next stronger: ${nextStrong.side === "resistance" ? "R" : "S"} ${nextStrong.label}`);
   }
-  lines.push("", "Overhead:");
-  const overheadLevels = symbol.levelMap.overheadLevels ?? symbol.levelMap.resistanceLevels;
-  lines.push(
-    ...(overheadLevels.length
-      ? overheadLevels.map((level) => level.label)
-      : ["none"]),
-  );
   lines.push("", "Resistance:");
   lines.push(
     ...(symbol.levelMap.resistanceLevels.length
@@ -518,14 +488,7 @@ function closestLevelsCardFromState(symbol: LiveWatchlistSymbolState): LiveWatch
     return null;
   }
 
-  const lines = ["Overhead:"];
-  const overheadLevels = levelMap.overheadLevels ?? levelMap.resistanceLevels;
-  lines.push(
-    ...(overheadLevels.length
-      ? overheadLevels.map((level) => level.label)
-      : ["none"]),
-  );
-  lines.push("", "Resistance:");
+  const lines = ["Resistance:"];
   lines.push(
     ...(levelMap.resistanceLevels.length
       ? levelMap.resistanceLevels.map((level) => level.label)
@@ -546,10 +509,8 @@ function closestLevelsCardFromState(symbol: LiveWatchlistSymbolState): LiveWatch
     source: "live_level_map",
     metadata: {
       nearestSupport: levelMap.nearestSupport?.price ?? null,
-      nearestOverhead: (levelMap.nearestOverhead ?? levelMap.nearestResistance)?.price ?? null,
       nearestResistance: levelMap.nearestResistance?.price ?? null,
       nearestSupportLabel: levelMap.nearestSupport?.label ?? null,
-      nearestOverheadLabel: (levelMap.nearestOverhead ?? levelMap.nearestResistance)?.label ?? null,
       nearestResistanceLabel: levelMap.nearestResistance?.label ?? null,
     },
   };
