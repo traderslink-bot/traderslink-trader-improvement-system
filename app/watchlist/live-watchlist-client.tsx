@@ -50,7 +50,7 @@ const detailCardHelpText: Record<string, string> = {
     "These levels are not price targets. They are nearby support and resistance areas for context, usually mapped roughly 30% from the current price when enough levels are available.",
   "Level Map":
     "A compact map of nearby support and resistance levels, using the existing level ladder with distance, strength, and source labels.",
-  "Live Trader Read":
+  "Trader Read":
     "This read is generated from live market data, levels, and market structure. It is a planning aid, not a prediction or advice. Small-cap stocks are volatile, and the system can be wrong, delayed, or miss context.",
 };
 
@@ -498,7 +498,7 @@ function shouldShowCardTitle(label: string, card: LiveWatchlistCardContent): boo
   if (
     label === "Closest Levels to Watch" ||
     label === "Level Map" ||
-    label === "Live Trader Read" ||
+    label === "Trader Read" ||
     label === "Market Structure" ||
     label === "Company Info" ||
     label === "Full Ladder"
@@ -558,7 +558,7 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
   const cards = [
     ["Level Map", symbol.cards.levelMap ?? levelMapCardFromState(symbol), false],
     ["Closest Levels to Watch", symbol.cards.nearestSupportResistance, false],
-    ["Live Trader Read", symbol.cards.liveTraderRead, false],
+    ["Trader Read", symbol.cards.liveTraderRead, false],
     ["Market Structure", derivedMarketStructureCard, false],
     ["Company Info", symbol.cards.companyInfo, false],
     ["Known Recent News / SEC Filings", symbol.cards.recentNewsFilings, true],
@@ -593,7 +593,7 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
                   <LevelMapDetailCard card={card} />
                 ) : label === "Closest Levels to Watch" ? (
                   <pre>{cleanClosestLevelsBody(card, symbol.cards.liveTraderRead)}</pre>
-                ) : label === "Live Trader Read" ? (
+                ) : label === "Trader Read" ? (
                   <LiveTraderReadCard card={card} />
                 ) : label === "Market Structure" ? (
                   <StructuredMarketStructureCard
