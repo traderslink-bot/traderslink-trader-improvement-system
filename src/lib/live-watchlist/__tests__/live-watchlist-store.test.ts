@@ -481,6 +481,46 @@ describe("LiveWatchlistStore", () => {
     expect(withContent.updatedAt).toBe(2000);
   });
 
+  it("allows a new activation patch to reset a stale first posted time", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "GETY",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        companyInfo: {
+          title: "GETY",
+          body: "Old activation.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "stock_context",
+        },
+      },
+    });
+
+    const updated = await store.upsertPatch({
+      symbol: "GETY",
+      status: "live",
+      updatedAt: 5000,
+      firstPostedAt: 5000,
+      cards: {
+        companyInfo: {
+          title: "GETY",
+          body: "New activation.",
+          updatedAt: 5000,
+          priceWhenPosted: 1.3,
+          source: "stock_context",
+        },
+      },
+    });
+
+    expect(updated.firstPostedAt).toBe(5000);
+    expect(updated.updatedAt).toBe(5000);
+  });
+
   it("applies status-only patches without clearing ticker content", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";

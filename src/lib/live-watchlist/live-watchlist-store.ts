@@ -405,6 +405,7 @@ function applyPatch(
   );
   const patchesNearestCard = Boolean(patch.cards.nearestSupportResistance);
   const patchesLevelMap = Object.prototype.hasOwnProperty.call(patch, "levelMap");
+  const patchesFirstPostedAt = Object.prototype.hasOwnProperty.call(patch, "firstPostedAt");
   for (const [kind, card] of Object.entries(patch.cards)) {
     if (card === null) {
       delete nextCards[kind as keyof typeof nextCards];
@@ -417,7 +418,9 @@ function applyPatch(
     symbol,
     status: nextStatus,
     updatedAt: Math.max(patch.updatedAt, baseExisting?.updatedAt ?? 0),
-    firstPostedAt: baseExisting?.firstPostedAt ?? null,
+    firstPostedAt: patchesFirstPostedAt
+      ? normalizeLiveWatchlistTimestamp(patch.firstPostedAt)
+      : baseExisting?.firstPostedAt ?? null,
     companyName: baseExisting?.companyName ?? null,
     latestPrice: patchesPriceCard ? null : baseExisting?.latestPrice ?? null,
     nearestSupport: patchesNearestCard ? null : baseExisting?.nearestSupport ?? null,

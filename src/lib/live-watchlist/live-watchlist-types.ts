@@ -23,6 +23,7 @@ export type LiveWatchlistCardPatch = {
   symbol: string;
   status?: LiveWatchlistStatus;
   updatedAt: number;
+  firstPostedAt?: number | null;
   levelMap?: LiveWatchlistLevelMap | null;
   cards: Partial<Record<LiveWatchlistCardKind, LiveWatchlistCardContent | null>>;
 };

@@ -332,6 +332,15 @@ function cleanGenericCardBody(card: LiveWatchlistCardContent): string {
     .trim();
 }
 
+function cleanLevelMapCardBody(card: LiveWatchlistCardContent): string {
+  return cleanGenericCardBody(card)
+    .split("\n")
+    .filter((line) => !/^Current price:/i.test(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 type RecentNewsFilingArticle = {
   title: string;
   url: string;
@@ -429,7 +438,7 @@ function levelMapCardFromState(symbol: LiveWatchlistSymbolState): LiveWatchlistC
   if (!symbol.levelMap) {
     return null;
   }
-  const lines = [`Current price: ${formatPrice(symbol.levelMap.currentPrice)}`];
+  const lines: string[] = [];
   if (
     symbol.levelMap.rangeState === "tight" &&
     symbol.levelMap.nearestSupport &&
@@ -471,7 +480,7 @@ function levelMapCardFromState(symbol: LiveWatchlistSymbolState): LiveWatchlistC
 }
 
 function LevelMapDetailCard({ card }: { card: LiveWatchlistCardContent }) {
-  return <pre>{cleanGenericCardBody(card)}</pre>;
+  return <pre>{cleanLevelMapCardBody(card)}</pre>;
 }
 
 function normalizeCardTitle(value: string): string {
