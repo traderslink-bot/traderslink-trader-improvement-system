@@ -55,6 +55,7 @@ export type LiveWatchlistLevelMapLevel = {
   distancePct: number;
   strengthLabel?: "weak" | "moderate" | "strong" | "major";
   sourceLabel?: string | null;
+  roleFlipFromSide?: "support" | "resistance" | null;
   label: string;
 };
 
@@ -63,10 +64,12 @@ export type LiveWatchlistLevelMap = {
   rangeState: LiveWatchlistLevelMapRangeState;
   nearestSupport: LiveWatchlistLevelMapLevel | null;
   nearestResistance: LiveWatchlistLevelMapLevel | null;
+  nearestOverhead?: LiveWatchlistLevelMapLevel | null;
   nextStrongSupport: LiveWatchlistLevelMapLevel | null;
   nextStrongResistance: LiveWatchlistLevelMapLevel | null;
   supportLevels: LiveWatchlistLevelMapLevel[];
   resistanceLevels: LiveWatchlistLevelMapLevel[];
+  overheadLevels?: LiveWatchlistLevelMapLevel[];
 };
 
 export type LiveWatchlistSymbolState = {
