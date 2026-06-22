@@ -1,0 +1,706 @@
+import { afterEach, describe, expect, it } from "vitest";
+
+import {
+  LiveWatchlistStore,
+  normalizeLiveWatchlistTimestamp,
+  resetLiveWatchlistStoreForTests,
+} from "../live-watchlist-store";
+import type { LiveWatchlistCardPatch } from "../live-watchlist-types";
+
+const exampleLevelMap = {
+  currentPrice: 1.18,
+  rangeState: "tight" as const,
+  nearestSupport: {
+    side: "support" as const,
+    price: 1.1,
+    distancePct: -0.0678,
+    strengthLabel: "moderate" as const,
+    sourceLabel: "intraday",
+    label: "1.10 (-6.8%, moderate, intraday)",
+  },
+  nearestResistance: {
+    side: "resistance" as const,
+    price: 1.25,
+    distancePct: 0.0593,
+    strengthLabel: "moderate" as const,
+    sourceLabel: "intraday",
+    label: "1.25 (+5.9%, moderate, intraday)",
+  },
+  nextStrongSupport: null,
+  nextStrongResistance: null,
+  supportLevels: [
+    {
+      side: "support" as const,
+      price: 1.1,
+      distancePct: -0.0678,
+      strengthLabel: "moderate" as const,
+      sourceLabel: "intraday",
+      label: "1.10 (-6.8%, moderate, intraday)",
+    },
+  ],
+  resistanceLevels: [
+    {
+      side: "resistance" as const,
+      price: 1.25,
+      distancePct: 0.0593,
+      strengthLabel: "moderate" as const,
+      sourceLabel: "intraday",
+      label: "1.25 (+5.9%, moderate, intraday)",
+    },
+  ],
+};
+
+function buildCorePatch(symbol: string, updatedAt: number): LiveWatchlistCardPatch {
+  return {
+    symbol,
+    status: "live",
+    updatedAt,
+    levelMap: exampleLevelMap,
+    cards: {
+      levelMap: {
+        title: "Level Map",
+        body: "Tight decision zone: S 1.10 / R 1.25",
+        updatedAt,
+        priceWhenPosted: 1.18,
+        source: "level_snapshot",
+      },
+      nearestSupportResistance: {
+        title: "Closest Levels to Watch",
+        body: "Closest levels to watch:\nResistance:\n1.25\n\nSupport:\n1.10",
+        updatedAt,
+        priceWhenPosted: 1.18,
+        source: "level_snapshot",
+          metadata: {
+            nearestSupport: 1.1,
+            nearestResistance: 1.25,
+            nearestSupportLabel: "1.10 (-6.8%, moderate, intraday)",
+            nearestResistanceLabel: "1.25 (+5.9%, moderate, intraday)",
+          },
+      },
+      liveTraderRead: {
+        title: "Live Trader Read",
+        body: "Trade map:\nCurrent structure: ABCD is holding a range.",
+        updatedAt,
+        priceWhenPosted: 1.18,
+        source: "live_alert",
+      },
+      companyInfo: {
+        title: "Example Corp",
+        body: "Country: United States\nMarket cap: 12M",
+        updatedAt,
+        priceWhenPosted: 1.18,
+        source: "stock_context",
+        metadata: { company: "Example Corp" },
+      },
+      fullLadder: {
+        title: "Full Ladder",
+        body: "Resistance:\n1.25\n\nSupport:\n1.10",
+        updatedAt,
+        priceWhenPosted: 1.18,
+        source: "level_snapshot",
+      },
+    },
+  };
+}
+
+describe("LiveWatchlistStore", () => {
+  const originalStorage = process.env.LIVE_WATCHLIST_STORAGE;
+  const originalPath = process.env.LIVE_WATCHLIST_DB_PATH;
+
+  afterEach(() => {
+    process.env.LIVE_WATCHLIST_STORAGE = originalStorage;
+    process.env.LIVE_WATCHLIST_DB_PATH = originalPath;
+    resetLiveWatchlistStoreForTests();
+  });
+
+  it("normalizes Neon bigint timestamp strings for archive rows", () => {
+    expect(normalizeLiveWatchlistTimestamp("1782069488260")).toBe(1782069488260);
+    expect(normalizeLiveWatchlistTimestamp(1782069488260)).toBe(1782069488260);
+    expect(normalizeLiveWatchlistTimestamp(BigInt(1782069488260))).toBe(1782069488260);
+    expect(normalizeLiveWatchlistTimestamp("not-a-timestamp")).toBeNull();
+  });
+
+  it("replaces only the card section included in a patch", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        companyInfo: {
+          title: "Example Corp",
+          body: "Company: Example Corp",
+          updatedAt: 1000,
+          priceWhenPosted: 1.2,
+          source: "stock_context",
+          metadata: { company: "Example Corp" },
+        },
+      },
+    });
+
+    const updated = await store.upsertPatch({
+      symbol: "ABCD",
+      updatedAt: 2000,
+      cards: {
+        liveTraderRead: {
+          title: "ABCD testing support",
+          body: "Price is testing support.",
+          updatedAt: 2000,
+          priceWhenPosted: 1.1,
+          source: "live_alert",
+        },
+      },
+    });
+
+    expect(updated.cards.companyInfo?.title).toBe("Example Corp");
+    expect(updated.cards.liveTraderRead?.title).toBe("ABCD testing support");
+    expect(updated.companyName).toBe("Example Corp");
+    expect(updated.latestPrice).toBe(1.1);
+    expect(updated.firstPostedAt).toBe(1000);
+  });
+
+  it("stores global market data health without changing ticker cards", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "ABCD testing support",
+          body: "Price is testing support.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "live_alert",
+        },
+      },
+    });
+
+    await store.upsertHealth({
+      type: "health",
+      marketDataStatus: "live",
+      marketDataUpdatedAt: 3000,
+    });
+
+    const state = await store.listSymbols();
+    expect(state.marketDataStatus).toBe("live");
+    expect(state.marketDataUpdatedAt).toBe(3000);
+    expect(state.symbols[0]?.cards.liveTraderRead?.title).toBe("ABCD testing support");
+  });
+
+  it("stores recent news and SEC filings cards independently", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        recentNewsFilings: {
+          title: "Known Recent News / SEC Filings",
+          body: JSON.stringify({
+            articles: [
+              {
+                title: "Example Corp files an 8-K",
+                url: "https://traderslink.pro/news/example-corp-files-8-k",
+                publishedAt: "2026-06-19T14:00:00.000Z",
+                filingType: "8-K",
+              },
+            ],
+          }),
+          updatedAt: 1000,
+          priceWhenPosted: null,
+          source: "website_article_lookup",
+          metadata: { articleCount: 1, businessDays: 5 },
+        },
+      },
+    });
+
+    const stored = await store.getSymbol("ABCD");
+    expect(stored?.cards.recentNewsFilings?.title).toBe("Known Recent News / SEC Filings");
+    expect(stored?.cards.recentNewsFilings?.metadata?.articleCount).toBe(1);
+    expect(stored?.latestTraderReadHeadline).toBeNull();
+  });
+
+  it("updates live ticker data without replacing card content", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "ABCD testing support",
+          body: "Price is testing support.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "live_alert",
+        },
+        nearestSupportResistance: {
+          title: "Nearest support and resistance",
+          body: "Price: 1.10\nNearest support: 1.00\nNearest resistance: 1.20",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "level_snapshot",
+          metadata: {
+            nearestSupport: 1,
+            nearestResistance: 1.2,
+          },
+        },
+      },
+    });
+
+    const updated = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 3000,
+      latestPrice: 1.18,
+      nearestSupport: 1.1,
+      nearestResistance: 1.25,
+    });
+
+    expect(updated.latestPrice).toBe(1.18);
+    expect(updated.nearestSupport).toBe(1.1);
+    expect(updated.nearestResistance).toBe(1.25);
+    expect(updated.nearestSupportLabel).toBeNull();
+    expect(updated.nearestResistanceLabel).toBeNull();
+    expect(updated.levelMap).toBeNull();
+    expect(updated.updatedAt).toBe(1000);
+    expect(updated.latestTraderReadHeadline).toBe("ABCD testing support");
+    expect(updated.cards.liveTraderRead?.body).toBe("Price is testing support.");
+  });
+
+  it("stores nearest support and resistance display labels for the index", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        nearestSupportResistance: {
+          title: "Closest Levels to Watch",
+          body: "Closest levels to watch",
+          updatedAt: 1000,
+          priceWhenPosted: 1.18,
+          source: "level_snapshot",
+          metadata: {
+            nearestSupport: 1.1,
+            nearestResistance: 1.25,
+            nearestSupportLabel: "1.10 (-6.8%, moderate, intraday)",
+            nearestResistanceLabel: "1.25 (+5.9%, moderate, intraday)",
+          },
+        },
+      },
+    });
+
+    let state = await store.listSymbols();
+    expect(state.symbols[0]?.nearestSupportLabel).toBe("1.10 (-6.8%, moderate, intraday)");
+    expect(state.symbols[0]?.nearestResistanceLabel).toBe("1.25 (+5.9%, moderate, intraday)");
+
+    await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 2000,
+      latestPrice: 1.2,
+      nearestSupport: 1.15,
+      nearestResistance: 1.3,
+      nearestSupportLabel: "1.15 (-4.2%, strong, intraday)",
+      nearestResistanceLabel: "1.30 (+8.3%, moderate, 4h structure)",
+      levelMap: {
+        ...exampleLevelMap,
+        currentPrice: 1.2,
+        rangeState: "normal",
+      },
+    });
+
+    state = await store.listSymbols();
+    expect(state.symbols[0]?.nearestSupport).toBe(1.15);
+    expect(state.symbols[0]?.nearestResistance).toBe(1.3);
+    expect(state.symbols[0]?.nearestSupportLabel).toBe("1.15 (-4.2%, strong, intraday)");
+    expect(state.symbols[0]?.nearestResistanceLabel).toBe("1.30 (+8.3%, moderate, 4h structure)");
+    expect(state.symbols[0]?.levelMap?.currentPrice).toBe(1.2);
+    expect(state.symbols[0]?.levelMap?.rangeState).toBe("normal");
+  });
+
+  it("stores level map patches and keeps existing cards visible", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const updated = await store.upsertPatch(buildCorePatch("ABCD", 1000));
+
+    expect(updated.levelMap?.rangeState).toBe("tight");
+    expect(updated.cards.levelMap?.title).toBe("Level Map");
+    expect(updated.cards.nearestSupportResistance?.title).toBe("Closest Levels to Watch");
+    expect(updated.cards.liveTraderRead?.title).toBe("Live Trader Read");
+    expect(updated.cards.fullLadder?.title).toBe("Full Ladder");
+  });
+
+  it("derives nearest level display labels from older closest-level card bodies", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "CAST",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        nearestSupportResistance: {
+          title: "Closest Levels to Watch",
+          body: [
+            "Resistance:",
+            "7.45 (+2.8%, moderate, intraday)",
+            "7.58 (+4.6%, moderate, 4h structure)",
+            "",
+            "Support:",
+            "7.15 (-1.4%, moderate, intraday)",
+            "4.70 (-35.2%, moderate, daily structure)",
+          ].join("\n"),
+          updatedAt: 1000,
+          priceWhenPosted: 7.25,
+          source: "level_snapshot",
+          metadata: {
+            nearestSupport: 7.15,
+            nearestResistance: 7.45,
+          },
+        },
+      },
+    });
+
+    const state = await store.listSymbols();
+    expect(state.symbols[0]?.nearestSupportLabel).toBe("7.15 (-1.4%, moderate, intraday)");
+    expect(state.symbols[0]?.nearestResistanceLabel).toBe("7.45 (+2.8%, moderate, intraday)");
+  });
+
+  it("derives an index headline from generic live trader read cards", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const updated = await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "Live Trader Read",
+          body: [
+            "Trade map:",
+            "Current structure: ABCD is range-bound between support and resistance.",
+            "Useful resistance: buyers need acceptance above resistance.",
+          ].join("\n"),
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "level_snapshot",
+        },
+      },
+    });
+
+    expect(updated.latestTraderReadHeadline).toBe(
+      "Current structure: ABCD is range-bound between support and resistance.",
+    );
+  });
+
+  it("prefers explicit live trader read headline metadata", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const updated = await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "Live Trader Read",
+          body: "Current structure: fallback headline.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "level_snapshot",
+          metadata: {
+            headline: "ABCD is holding the key support area.",
+          },
+        },
+      },
+    });
+
+    expect(updated.latestTraderReadHeadline).toBe(
+      "ABCD is holding the key support area.",
+    );
+  });
+
+  it("does not treat ticker data as the first posted content time", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const dataOnly = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      latestPrice: 1.18,
+      nearestSupport: 1.1,
+      nearestResistance: 1.25,
+    });
+    expect(dataOnly.firstPostedAt).toBeNull();
+
+    const withContent = await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 2000,
+      cards: {
+        liveTraderRead: {
+          title: "ABCD first read",
+          body: "First published trader read.",
+          updatedAt: 2000,
+          priceWhenPosted: 1.2,
+          source: "live_alert",
+        },
+      },
+    });
+
+    expect(withContent.firstPostedAt).toBe(2000);
+    expect(withContent.updatedAt).toBe(2000);
+  });
+
+  it("applies status-only patches without clearing ticker content", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "ABCD testing support",
+          body: "Price is testing support.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.1,
+          source: "live_alert",
+        },
+      },
+    });
+    await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 2000,
+      latestPrice: 1.18,
+      nearestSupport: 1.1,
+      nearestResistance: 1.25,
+    });
+
+    const deactivated = await store.upsertPatch({
+      symbol: "ABCD",
+      status: "deactivated",
+      updatedAt: 3000,
+      cards: {},
+    });
+
+    expect(deactivated.status).toBe("deactivated");
+    expect(deactivated.latestPrice).toBe(1.18);
+    expect(deactivated.nearestSupport).toBe(1.1);
+    expect(deactivated.nearestResistance).toBe(1.25);
+    expect(deactivated.levelMap).toBeNull();
+    expect(deactivated.latestTraderReadHeadline).toBe("ABCD testing support");
+    expect(deactivated.cards.liveTraderRead?.body).toBe("Price is testing support.");
+  });
+
+  it("keeps deactivated symbols out of the user-facing watchlist list", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "LIVE",
+      status: "live",
+      updatedAt: 2000,
+      cards: {
+        liveTraderRead: {
+          title: "LIVE active read",
+          body: "Active ticker content.",
+          updatedAt: 2000,
+          priceWhenPosted: 2,
+          source: "live_alert",
+        },
+      },
+    });
+    await store.upsertPatch({
+      symbol: "GONE",
+      status: "deactivated",
+      updatedAt: 3000,
+      cards: {
+        liveTraderRead: {
+          title: "GONE old read",
+          body: "Old ticker content.",
+          updatedAt: 3000,
+          priceWhenPosted: 3,
+          source: "live_alert",
+        },
+      },
+    });
+
+    const state = await store.listSymbols();
+    expect(state.symbols.map((symbol) => symbol.symbol)).toEqual(["LIVE"]);
+    expect(await store.getSymbol("GONE")).not.toBeNull();
+  });
+
+  it("creates an archive snapshot when a fully loaded ticker is deactivated", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("ABCD", 1000));
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    const archives = await store.listArchives();
+    expect(archives).toHaveLength(1);
+    expect(archives[0]?.archiveId).toBe("ABCD-19700101-000002-000");
+    expect(archives[0]?.symbol).toBe("ABCD");
+    expect(archives[0]?.archivedAt).toBe(2000);
+    expect(archives[0]?.firstPostedAt).toBe(1000);
+    expect(archives[0]?.lastActiveUpdatedAt).toBe(2000);
+    expect(archives[0]?.state.status).toBe("deactivated");
+    expect(archives[0]?.state.levelMap?.rangeState).toBe("tight");
+    expect(archives[0]?.state.cards.levelMap?.title).toBe("Level Map");
+    expect(archives[0]?.state.cards.fullLadder?.title).toBe("Full Ladder");
+    await expect(store.getLatestArchiveForSymbol("ABCD")).resolves.toEqual(archives[0]);
+    await expect(store.getArchive("ABCD-19700101-000002-000")).resolves.toEqual(archives[0]);
+  });
+
+  it("does not archive deactivated tickers until core cards are loaded", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        liveTraderRead: {
+          title: "Live Trader Read",
+          body: "Current structure: only a trader read exists.",
+          updatedAt: 1000,
+          priceWhenPosted: 1.18,
+          source: "live_alert",
+        },
+      },
+    });
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    await expect(store.listArchives()).resolves.toEqual([]);
+  });
+
+  it("archives deactivated tickers with level snapshot cards even before company info arrives", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const patch = buildCorePatch("ABCD", 1000);
+    delete patch.cards.companyInfo;
+    await store.upsertPatch(patch);
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    const archives = await store.listArchives();
+    expect(archives).toHaveLength(1);
+    expect(archives[0]?.state.cards.companyInfo).toBeUndefined();
+    expect(archives[0]?.state.cards.fullLadder?.title).toBe("Full Ladder");
+  });
+
+  it("does not duplicate archives when a deactivation patch is replayed", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("ABCD", 1000));
+    const deactivation = {
+      symbol: "ABCD",
+      status: "deactivated" as const,
+      updatedAt: 2000,
+      cards: {},
+    };
+    await store.upsertPatch(deactivation);
+    await store.upsertPatch(deactivation);
+
+    const archives = await store.listArchives();
+    expect(archives).toHaveLength(1);
+    expect(archives[0]?.archiveId).toBe("ABCD-19700101-000002-000");
+  });
+
+  it("keeps old archive snapshots immutable when the same symbol is reactivated", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("ABCD", 1000));
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+    const firstArchive = await store.getLatestArchiveForSymbol("ABCD");
+
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 3000,
+      cards: {
+        liveTraderRead: {
+          title: "Live Trader Read",
+          body: "Trade map:\nCurrent structure: ABCD is live again.",
+          updatedAt: 3000,
+          priceWhenPosted: 1.3,
+          source: "live_alert",
+        },
+      },
+    });
+
+    const liveState = await store.getSymbol("ABCD");
+    const archives = await store.listArchives();
+    expect(liveState?.status).toBe("live");
+    expect(liveState?.firstPostedAt).toBe(3000);
+    expect(liveState?.updatedAt).toBe(3000);
+    expect(liveState?.cards.liveTraderRead?.body).toContain("live again");
+    expect(liveState?.cards.fullLadder).toBeUndefined();
+    expect(archives).toHaveLength(1);
+    expect(archives[0]).toEqual(firstArchive);
+    expect(archives[0]?.state.cards.liveTraderRead?.body).toContain("holding a range");
+  });
+});
