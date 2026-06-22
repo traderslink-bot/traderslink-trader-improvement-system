@@ -479,6 +479,40 @@ function levelMapCardFromState(symbol: LiveWatchlistSymbolState): LiveWatchlistC
   };
 }
 
+function closestLevelsCardFromState(symbol: LiveWatchlistSymbolState): LiveWatchlistCardContent | null {
+  const levelMap = symbol.levelMap;
+  if (!levelMap) {
+    return null;
+  }
+
+  const lines = ["Resistance:"];
+  lines.push(
+    ...(levelMap.resistanceLevels.length
+      ? levelMap.resistanceLevels.map((level) => level.label)
+      : ["none"]),
+  );
+  lines.push("", "Support:");
+  lines.push(
+    ...(levelMap.supportLevels.length
+      ? levelMap.supportLevels.map((level) => level.label)
+      : ["none"]),
+  );
+
+  return {
+    title: "Closest Levels to Watch",
+    body: lines.join("\n"),
+    updatedAt: symbol.updatedAt,
+    priceWhenPosted: levelMap.currentPrice,
+    source: "live_level_map",
+    metadata: {
+      nearestSupport: levelMap.nearestSupport?.price ?? null,
+      nearestResistance: levelMap.nearestResistance?.price ?? null,
+      nearestSupportLabel: levelMap.nearestSupport?.label ?? null,
+      nearestResistanceLabel: levelMap.nearestResistance?.label ?? null,
+    },
+  };
+}
+
 function LevelMapDetailCard({ card }: { card: LiveWatchlistCardContent }) {
   return <pre>{cleanLevelMapCardBody(card)}</pre>;
 }
@@ -555,9 +589,11 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
           source: "level_snapshot",
         }
       : null);
+  const liveLevelMapCard = levelMapCardFromState(symbol);
+  const liveClosestLevelsCard = closestLevelsCardFromState(symbol);
   const cards = [
-    ["Level Map", symbol.cards.levelMap ?? levelMapCardFromState(symbol), false],
-    ["Closest Levels to Watch", symbol.cards.nearestSupportResistance, false],
+    ["Level Map", liveLevelMapCard ?? symbol.cards.levelMap, false],
+    ["Closest Levels to Watch", liveClosestLevelsCard ?? symbol.cards.nearestSupportResistance, false],
     ["Trader Read", symbol.cards.liveTraderRead, false],
     ["Market Structure", derivedMarketStructureCard, false],
     ["Company Info", symbol.cards.companyInfo, false],
