@@ -7,7 +7,6 @@ import type {
   LiveWatchlistArchiveSnapshot,
   LiveWatchlistCardContent,
   LiveWatchlistLevelMap,
-  LiveWatchlistLevelMapLevel,
   LiveWatchlistMarketDataStatus,
   LiveWatchlistStatePayload,
   LiveWatchlistSymbolState,
@@ -17,6 +16,10 @@ import {
   formatTickerStatusLabel,
   formatTickerStatusTone,
 } from "@/src/lib/live-watchlist/live-watchlist-labels";
+import {
+  buildWatchlistV2LevelRows,
+  type WatchlistV2LevelRow,
+} from "@/src/lib/live-watchlist/watchlist-v2-levels";
 
 const watchlistDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -37,11 +40,6 @@ const watchlistReadTextStyle: CSSProperties = {
   WebkitBoxOrient: "vertical",
   WebkitLineClamp: 2,
   fontSize: "0.84rem",
-  lineHeight: 1.35,
-};
-
-const watchlistTimeCellStyle: CSSProperties = {
-  fontSize: "0.78rem",
   lineHeight: 1.35,
 };
 
@@ -69,65 +67,9 @@ function formatPrice(value: number | null): string {
   return value >= 1 ? value.toFixed(2) : value.toFixed(4);
 }
 
-function formatLevelCell(label: string | null | undefined, value: number | null): string {
-  return label?.trim() || formatPrice(value);
-}
-
 function formatSignedPercent(value: number): string {
   const sign = value >= 0 ? "+" : "";
   return `${sign}${(value * 100).toFixed(1)}%`;
-}
-
-function formatCompactLevelTags(level: LiveWatchlistLevelMapLevel | null): string | null {
-  if (!level) {
-    return null;
-  }
-  return [level.strengthLabel, level.sourceLabel].filter(Boolean).join(" · ") || null;
-}
-
-function formatLevelMapLevel(level: LiveWatchlistLevelMapLevel | null, fallback: string): string {
-  if (!level) {
-    return fallback;
-  }
-  const side = level.side === "resistance" ? "R" : "S";
-  return `${side} ${formatPrice(level.price)} ${formatSignedPercent(level.distancePct)}`;
-}
-
-function selectIndexNextStrong(levelMap: LiveWatchlistLevelMap): LiveWatchlistLevelMapLevel | null {
-  return levelMap.nextStrongResistance ?? levelMap.nextStrongSupport;
-}
-
-function LevelMapIndexCell({ symbol }: { symbol: LiveWatchlistSymbolState }) {
-  const levelMap = symbol.levelMap ?? null;
-  if (!levelMap) {
-    return (
-      <span className="watchlist-level-map-cell">
-        <span>{formatLevelCell(symbol.nearestSupportLabel, symbol.nearestSupport)}</span>
-        <span>{formatLevelCell(symbol.nearestResistanceLabel, symbol.nearestResistance)}</span>
-      </span>
-    );
-  }
-
-  const nextStrong = selectIndexNextStrong(levelMap);
-  const secondaryText =
-    nextStrong
-      ? `Next stronger: ${formatLevelMapLevel(nextStrong, "n/a")}`
-      : "Next stronger: n/a";
-  return (
-    <span className="watchlist-level-map-cell">
-      <span className="watchlist-level-map-primary">
-        {levelMap.rangeState === "tight" && levelMap.nearestSupport && levelMap.nearestResistance
-          ? `Tight zone: S ${formatPrice(levelMap.nearestSupport.price)} / R ${formatPrice(levelMap.nearestResistance.price)}`
-          : `${formatLevelMapLevel(levelMap.nearestSupport, "S n/a")} / ${formatLevelMapLevel(levelMap.nearestResistance, "R n/a")}`}
-      </span>
-      <span className="watchlist-level-map-secondary">
-        {secondaryText}
-        {nextStrong ? (
-          <em>{formatCompactLevelTags(nextStrong)}</em>
-        ) : null}
-      </span>
-    </span>
-  );
 }
 
 function formatTime(value: number): string {
@@ -507,6 +449,137 @@ function LevelMapDetailCard({ card }: { card: LiveWatchlistCardContent }) {
   return <pre>{cleanLevelMapCardBody(card)}</pre>;
 }
 
+function formatLevelMeta(level: WatchlistV2LevelRow): string {
+  return [level.strengthLabel, level.sourceLabel].filter(Boolean).join(" / ") || "level";
+}
+
+function WatchlistV2LevelRowItem({ level }: { level: WatchlistV2LevelRow }) {
+  return (
+    <li
+      className="watchlist-v2-level-row"
+      data-side={level.side}
+      data-nearest={level.isNearest ? "true" : "false"}
+    >
+      <span className="watchlist-v2-level-price">{formatPrice(level.price)}</span>
+      <span className="watchlist-v2-level-distance">
+        {formatSignedPercent(level.distancePct)}
+      </span>
+      <span className="watchlist-v2-level-meta">{formatLevelMeta(level)}</span>
+    </li>
+  );
+}
+
+function WatchlistV2LevelSection({
+  title,
+  side,
+  levels,
+}: {
+  title: string;
+  side: "support" | "resistance";
+  levels: WatchlistV2LevelRow[];
+}) {
+  return (
+    <section className="watchlist-v2-level-section" data-side={side}>
+      <h3>{title}</h3>
+      {levels.length > 0 ? (
+        <ul className="watchlist-v2-level-list">
+          {levels.map((level) => (
+            <WatchlistV2LevelRowItem
+              key={`${level.side}-${level.price}-${level.distancePct}-${level.label}`}
+              level={level}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="watchlist-v2-level-empty">No curated {side} levels yet.</p>
+      )}
+    </section>
+  );
+}
+
+function WatchlistV2NearestLevels({ levelMap }: { levelMap: LiveWatchlistLevelMap }) {
+  return (
+    <div className="watchlist-v2-nearest" aria-label="Nearest levels">
+      <div className="watchlist-v2-nearest-item" data-side="support">
+        <span>Nearest support</span>
+        <strong>{levelMap.nearestSupport?.label ?? "n/a"}</strong>
+      </div>
+      <div className="watchlist-v2-nearest-item" data-side="resistance">
+        <span>Nearest resistance</span>
+        <strong>{levelMap.nearestResistance?.label ?? "n/a"}</strong>
+      </div>
+    </div>
+  );
+}
+
+function WatchlistV2FallbackLevels({ symbol }: { symbol: LiveWatchlistSymbolState }) {
+  const card = symbol.cards.nearestSupportResistance;
+  return (
+    <div className="watchlist-v2-fallback-levels">
+      {card ? (
+        <pre>{cleanLevelMapCardBody(card)}</pre>
+      ) : (
+        <p>Closest levels are still loading for this ticker.</p>
+      )}
+    </div>
+  );
+}
+
+function WatchlistV2TickerCard({
+  symbol,
+  marketDataStatus,
+}: {
+  symbol: LiveWatchlistSymbolState;
+  marketDataStatus: LiveWatchlistMarketDataStatus;
+}) {
+  const levelMap = symbol.levelMap ?? null;
+  const levelRows = buildWatchlistV2LevelRows(levelMap);
+
+  return (
+    <article className="watchlist-v2-card">
+      <header className="watchlist-v2-card-header">
+        <div className="watchlist-v2-card-title">
+          <h2>{symbol.symbol}</h2>
+          <span>{formatPrice(symbol.latestPrice)}</span>
+        </div>
+        <em
+          className="watchlist-ticker-status"
+          data-status={formatTickerStatusTone(marketDataStatus)}
+        >
+          {formatTickerStatusLabel(marketDataStatus)}
+        </em>
+      </header>
+
+      <dl className="watchlist-v2-card-meta">
+        <div>
+          <dt>Updated</dt>
+          <dd>{formatTime(symbol.updatedAt)}</dd>
+        </div>
+      </dl>
+
+      {levelMap ? (
+        <>
+          <WatchlistV2NearestLevels levelMap={levelMap} />
+          <div className="watchlist-v2-level-columns">
+            <WatchlistV2LevelSection
+              title="Support"
+              side="support"
+              levels={levelRows.support}
+            />
+            <WatchlistV2LevelSection
+              title="Resistance"
+              side="resistance"
+              levels={levelRows.resistance}
+            />
+          </div>
+        </>
+      ) : (
+        <WatchlistV2FallbackLevels symbol={symbol} />
+      )}
+    </article>
+  );
+}
+
 function normalizeCardTitle(value: string): string {
   return value
     .toLowerCase()
@@ -778,9 +851,8 @@ export function LiveWatchlistIndexClient({
           <p className="academy-eyebrow">Beta Testing</p>
           <h1 className="academy-title">Live Ticker Watchlist</h1>
           <p className="academy-lede">
-            Scan active tickers, level maps, and the latest trader read.
-            Click or tap any ticker to view deeper market data and the full
-            ticker details.
+            Scan active tickers and the curated support and resistance levels
+            traders should be watching right now.
           </p>
           <p className="watchlist-testing-note">
             This watchlist is an experimental app. Ticker information is generated
@@ -808,56 +880,13 @@ export function LiveWatchlistIndexClient({
           <h2>No tickers are currently in the watchlist</h2>
         </section>
       ) : (
-        <section className="watchlist-table" aria-label="Live watchlist tickers">
-          <div className="watchlist-table-head">
-            <span>Ticker</span>
-            <span>Price</span>
-            <span>Level Map</span>
-            <span>Latest read</span>
-            <span>Updated</span>
-            <span>Added</span>
-          </div>
+        <section className="watchlist-v2-grid" aria-label="Live watchlist ticker levels">
           {symbols.map((symbol) => (
-            <Link
+            <WatchlistV2TickerCard
               key={symbol.symbol}
-              href={`/watchlist/${symbol.symbol}`}
-              className="watchlist-row"
-            >
-              <span className="watchlist-symbol-cell">
-                <strong>{symbol.symbol}</strong>
-              </span>
-              <span className="watchlist-mobile-field" data-mobile-label="Price">
-                {formatPrice(symbol.latestPrice)}
-              </span>
-              <span className="watchlist-mobile-field" data-mobile-label="Level Map">
-                <LevelMapIndexCell symbol={symbol} />
-              </span>
-              <span className="watchlist-read-cell">
-                <span className="watchlist-read-text" style={watchlistReadTextStyle}>
-                  {symbol.latestTraderReadHeadline ?? "Waiting for trader read"}
-                </span>
-              </span>
-              <span
-                className="watchlist-mobile-field"
-                data-mobile-label="Updated"
-                style={watchlistTimeCellStyle}
-              >
-                {formatTime(symbol.updatedAt)}
-              </span>
-              <span
-                className="watchlist-mobile-field"
-                data-mobile-label="Added"
-                style={watchlistTimeCellStyle}
-              >
-                {formatDateTime(symbol.firstPostedAt)}
-              </span>
-              <em
-                className="watchlist-ticker-status"
-                data-status={formatTickerStatusTone(marketDataStatus)}
-              >
-                {formatTickerStatusLabel(marketDataStatus)}
-              </em>
-            </Link>
+              symbol={symbol}
+              marketDataStatus={marketDataStatus}
+            />
           ))}
         </section>
       )}

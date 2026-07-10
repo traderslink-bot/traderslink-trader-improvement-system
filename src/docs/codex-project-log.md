@@ -18443,3 +18443,32 @@ Current best next step:
 
 - Keep monitoring production after real user traffic. News remains intentionally
   outside this Intelligence smoke pass.
+
+# 2026-07-10 watchlist V2 card trial
+
+- Implemented a trial `/watchlist` V2 surface on branch
+  `codex/watchlist-v2-cards` from a clean worktree.
+- Replaced the live watchlist table with ticker cards focused only on curated
+  support and resistance levels from `levelMap.supportLevels` and
+  `levelMap.resistanceLevels`.
+- Kept the live watchlist API, SSE updates, polling fallback, archive pages,
+  auth, and storage contracts unchanged.
+- Changed `/watchlist/[symbol]` to redirect back to `/watchlist` so live ticker
+  cards no longer click through to detail pages.
+- Added unit coverage for preserving every curated support/resistance level and
+  marking nearest levels without imposing a UI cap.
+
+Verification:
+
+- `npm test -- src/lib/live-watchlist/__tests__/watchlist-v2-levels.test.ts src/lib/live-watchlist/__tests__/live-watchlist-labels.test.ts src/lib/live-watchlist/__tests__/live-watchlist-store.test.ts`
+  passed.
+- `npm run build:webpack` passed.
+- Local smoke seeded one ticker through `/api/live-watchlist/ingest` and
+  verified `/watchlist` rendered one V2 card with 8 level rows, zero old table
+  rows, and zero `/watchlist/V2QA` detail links. `/watchlist/ZBAO` returned
+  `307 Location: /watchlist`.
+
+Current best next step:
+
+- Open the PR for review, then deploy only after approval by merging to clean
+  `main` and using the standard production Vercel workflow.
