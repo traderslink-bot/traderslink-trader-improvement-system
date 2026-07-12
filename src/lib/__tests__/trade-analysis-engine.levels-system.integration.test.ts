@@ -20,7 +20,19 @@ describe("analyzeTradeWithLevelsSystem integration", () => {
 
     expect(result.rawTradeTimeline.supportLevels?.length).toBeGreaterThan(0);
     expect(result.rawTradeTimeline.resistanceLevels?.length).toBeGreaterThan(0);
-    expect(result.rawTradeTimeline.experimentalMarketStructure).toBeUndefined();
+    expect(result.rawTradeTimeline.experimentalMarketStructure).toMatchObject({
+      state: "base_building",
+      trend: {
+        direction: "uptrend",
+      },
+      confidence: {
+        label: "high",
+      },
+    });
+    expect(
+      "experimentalMarketStructure" in
+        result.patternInput.supportResistanceContext,
+    ).toBe(false);
     expect(
       result.patternInput.supportResistanceContext
         .hadSupportResistanceContextAvailable,

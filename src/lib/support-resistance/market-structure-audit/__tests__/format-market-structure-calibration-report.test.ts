@@ -34,9 +34,11 @@ describe("formatMarketStructureCalibrationReport", () => {
     expect(markdown).toContain("- source: sample fixture");
     expect(markdown).toContain("- provider: stub");
     expect(markdown).toContain("- trades: 1");
-    expect(markdown).toContain("- overall status: BLOCKER");
-    expect(markdown).toContain("- recommendation action: resolve_failed_or_missing_context");
-    expect(markdown).toContain("- missing market structure: 1");
+    expect(markdown).toContain("- overall status: PASS");
+    expect(markdown).toContain(
+      "- recommendation action: continue_observational_validation",
+    );
+    expect(markdown).toContain("- missing market structure: 0");
     expect(markdown).toContain("- none");
     expect(markdown).toContain("levels_system_trade_window");
     expect(markdown).toContain("PatternInput leaks: 0");
@@ -44,11 +46,9 @@ describe("formatMarketStructureCalibrationReport", () => {
     expect(markdown).toContain("PatternInput isolation: PASS");
     expect(markdown).toContain("Analysis completion: PASS");
     expect(markdown).toContain(
-      "Market-structure presence: BLOCKER - 1 missing read(s) (#0)",
+      "Market-structure presence: PASS - 0 missing read(s)",
     );
-    expect(markdown).toContain(
-      "Resolve failed or missing shared-context cases",
-    );
+    expect(markdown).toContain("No blocking calibration failures");
   });
 
   it("flags low-confidence or insufficient market-structure reads for review", () => {

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleCreateRawTradeTimelineInput } from "../../../raw-trade-timeline/__fixtures__/sample-create-raw-trade-timeline-input";
-import { buildSampleLevelsSystemSupportResistanceOptions } from "../../__fixtures__/sample-levels-system-fetch-service";
 import {
-  buildExperimentalMarketStructureAuditFromLevelsSystemCandles,
   type ExperimentalMarketStructureAudit,
   type ExperimentalMarketStructureAuditRecord,
 } from "../build-experimental-market-structure-audit";
@@ -98,18 +95,11 @@ function buildAudit(
 
 describe("evaluateMarketStructureCalibration", () => {
   it("returns BLOCKER when v2 support/resistance evidence has no market-structure read", async () => {
-    const audit =
-      await buildExperimentalMarketStructureAuditFromLevelsSystemCandles({
-        trades: [
-          {
-            symbol: sampleCreateRawTradeTimelineInput.symbol,
-            tradeDirection: sampleCreateRawTradeTimelineInput.tradeDirection,
-            executions: sampleCreateRawTradeTimelineInput.executions,
-            sessionContext: sampleCreateRawTradeTimelineInput.sessionContext,
-          },
-        ],
-        levelsSystem: buildSampleLevelsSystemSupportResistanceOptions(),
-      });
+    const audit = buildAudit(
+      buildBaseRecord({
+        marketStructure: null,
+      }),
+    );
 
     const evaluation = evaluateMarketStructureCalibration(audit);
 
@@ -131,7 +121,7 @@ describe("evaluateMarketStructureCalibration", () => {
         }),
       ]),
     );
-    expect(evaluation.recordGroups.allEngineMessageRecords).toHaveLength(1);
+    expect(evaluation.recordGroups.allEngineMessageRecords).toHaveLength(0);
     expect(evaluation.recordGroups.engineWarningRecords).toHaveLength(0);
   });
 

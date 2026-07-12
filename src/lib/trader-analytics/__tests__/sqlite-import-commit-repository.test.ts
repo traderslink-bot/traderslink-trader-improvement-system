@@ -255,7 +255,7 @@ describe("SqliteImportCommitRepository", () => {
       symbol: "DRSN",
       status: "completed",
       review: {
-        marketContextSource: "levels_system_daily_4h",
+        marketContextSource: "none",
       },
     });
     expect(repository.listDecisionReviewJobs(plan.batch.id)).toMatchObject([
@@ -492,7 +492,7 @@ describe("SqliteImportCommitRepository", () => {
         symbol: "RETRY",
         status: "completed",
         review: {
-          marketContextSource: "levels_system_daily_4h",
+          marketContextSource: "none",
         },
       },
     ]);

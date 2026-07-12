@@ -18,14 +18,14 @@ describe("buildExperimentalMarketStructureAudit", () => {
       totalTrades: 1,
       successfulTrades: 1,
       failedTrades: 0,
-      missingMarketStructureCount: 1,
+      missingMarketStructureCount: 0,
       patternInputLeakCount: 0,
-      totalSupportLevels: 3,
-      totalResistanceLevels: 2,
+      totalSupportLevels: 7,
+      totalResistanceLevels: 3,
     });
-    expect(audit.totals.stateCounts).toEqual({});
-    expect(audit.totals.trendDirectionCounts).toEqual({});
-    expect(audit.totals.confidenceCounts).toEqual({});
+    expect(audit.totals.stateCounts).toEqual({ base_building: 1 });
+    expect(audit.totals.trendDirectionCounts).toEqual({ uptrend: 1 });
+    expect(audit.totals.confidenceCounts).toEqual({ high: 1 });
 
     const record = audit.records[0];
 
@@ -39,10 +39,16 @@ describe("buildExperimentalMarketStructureAudit", () => {
       supportResistanceMode: "levels_system",
       patternInputContainsExperimentalMarketStructure: false,
       levelCounts: {
-        support: 3,
-        resistance: 2,
+        support: 7,
+        resistance: 3,
       },
-      marketStructure: null,
+      marketStructure: {
+        state: "base_building",
+        trendDirection: "uptrend",
+        confidence: {
+          label: "high",
+        },
+      },
     });
     expect(record.detectedPatternIds).toContain(
       "entry_far_from_support_structure",
@@ -68,7 +74,7 @@ describe("buildExperimentalMarketStructureAudit", () => {
       totalTrades: 2,
       successfulTrades: 1,
       failedTrades: 1,
-      missingMarketStructureCount: 2,
+      missingMarketStructureCount: 1,
       patternInputLeakCount: 0,
     });
     expect(audit.records[1]).toMatchObject({
@@ -106,15 +112,21 @@ describe("buildExperimentalMarketStructureAudit", () => {
       totalTrades: 1,
       successfulTrades: 1,
       failedTrades: 0,
-      missingMarketStructureCount: 1,
+      missingMarketStructureCount: 0,
       patternInputLeakCount: 0,
-      totalSupportLevels: 5,
+      totalSupportLevels: 7,
       totalResistanceLevels: 3,
     });
     expect(audit.records[0]).toMatchObject({
       candleSource: "levels_system_trade_window",
       analysisStatus: "ok",
-      marketStructure: null,
+      marketStructure: {
+        state: "base_building",
+        trendDirection: "uptrend",
+        confidence: {
+          label: "high",
+        },
+      },
     });
     expect(audit.records[0].warnings).toEqual(
       expect.arrayContaining([

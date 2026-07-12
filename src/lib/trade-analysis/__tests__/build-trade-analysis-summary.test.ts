@@ -34,12 +34,12 @@ describe("buildTradeAnalysisSummary", () => {
         resistanceCount: expect.any(Number),
       },
       marketStructure: {
-        observed: false,
+        observed: true,
         observationalOnly: true,
         usedForScoring: false,
-        state: null,
-        trendDirection: null,
-        confidenceLabel: null,
+        state: "base_building",
+        trendDirection: "uptrend",
+        confidenceLabel: "high",
       },
       executionFeedback: {
         contractVersion: "execution_feedback_summary_v1",
@@ -128,7 +128,7 @@ describe("buildTradeAnalysisSummary", () => {
     const summary = buildTradeAnalysisSummary(result);
 
     expect(summary.supportResistance.supportCount).toBeGreaterThan(0);
-    expect(summary.marketStructure.observed).toBe(false);
+    expect(summary.marketStructure.observed).toBe(true);
     expect(summary.marketStructure.usedForScoring).toBe(false);
     expect(summary.executionFeedback.marketContextUsed).toBe(false);
     expect(summary.executionFeedback.lifecycle.maxPositionSize).toBe(

@@ -66,8 +66,8 @@ describe("runBatchTradeAnalysis", () => {
       },
       failureCounts: {},
       marketStructureCounts: {
-        observed: 0,
-        missing: 1,
+        observed: 1,
+        missing: 0,
         scoringUses: 0,
       },
       items: [
@@ -80,7 +80,7 @@ describe("runBatchTradeAnalysis", () => {
               resistanceCount: expect.any(Number),
             },
             marketStructure: {
-              observed: false,
+              observed: true,
               usedForScoring: false,
             },
           },

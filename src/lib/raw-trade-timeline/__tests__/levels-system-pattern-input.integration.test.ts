@@ -5,7 +5,7 @@ import { sampleCreateRawTradeTimelineInput } from "../__fixtures__/sample-create
 import { createRawTradeTimelineWithLevelsSystem } from "../builders/create-raw-trade-timeline";
 
 describe("levels-system PatternInput integration", () => {
-  it("feeds v2 supplied-candle support/resistance facts into PatternInput without VWAP or EMA feedback", async () => {
+  it("feeds v2 supplied-candle support/resistance facts into PatternInput without leaking experimental structure", async () => {
     const rawResult = await createRawTradeTimelineWithLevelsSystem(
       sampleCreateRawTradeTimelineInput,
       buildSampleLevelsSystemSupportResistanceOptions(),
@@ -29,7 +29,15 @@ describe("levels-system PatternInput integration", () => {
     expect(
       mappedLevels.some((level) => level.sourcePrices.length > 1),
     ).toBe(true);
-    expect(rawResult.experimentalMarketStructure).toBeUndefined();
+    expect(rawResult.experimentalMarketStructure).toMatchObject({
+      state: "base_building",
+      trend: {
+        direction: "uptrend",
+      },
+      confidence: {
+        label: "high",
+      },
+    });
     expect(
       "experimentalMarketStructure" in patternInput.supportResistanceContext,
     ).toBe(false);

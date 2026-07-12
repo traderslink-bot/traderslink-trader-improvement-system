@@ -20,12 +20,20 @@ describe("levels-system analysis comparison", () => {
     expect(comparison.levelCounts.sharedSupportLevels).toBeGreaterThan(0);
     expect(comparison.levelCounts.sharedResistanceLevels).toBeGreaterThan(0);
     expect(comparison.dynamicLevels.shared).toEqual({
-      vwap: null,
-      ema9: null,
-      ema20: null,
+      vwap: expect.any(Number),
+      ema9: expect.any(Number),
+      ema20: expect.any(Number),
     });
     expect(comparison.experimentalMarketStructure.local).toBeUndefined();
-    expect(comparison.experimentalMarketStructure.shared).toBeUndefined();
+    expect(comparison.experimentalMarketStructure.shared).toMatchObject({
+      state: "base_building",
+      trend: {
+        direction: "uptrend",
+      },
+      confidence: {
+        label: "high",
+      },
+    });
     expect(changedFieldNames).toContain("firstEntryNearestSupportBelowPrice");
     expect(changedFieldNames).toContain("firstEntryNearestResistanceAbovePrice");
     expect(changedFieldNames).not.toContain("firstEntryDistanceFromVwapPct");

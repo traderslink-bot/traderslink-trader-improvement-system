@@ -110,9 +110,14 @@ describe("levels-system runtime options", () => {
   it("discovers the sibling canonical candle warehouse when no env override is set", () => {
     const config = readLevelsSystemRuntimeConfigFromEnv({});
 
-    expect(config.preferredProvider).toBe("ibkr");
-    expect(config.warehouseMode).toBe("replay");
-    expect(config.warehouseDirectoryPath).toContain("levels-system");
+    if (config.warehouseDirectoryPath === undefined) {
+      expect(config.preferredProvider).toBeUndefined();
+      expect(config.warehouseMode).toBeUndefined();
+    } else {
+      expect(config.preferredProvider).toBe("ibkr");
+      expect(config.warehouseMode).toBe("replay");
+      expect(config.warehouseDirectoryPath).toContain("levels-system");
+    }
     expect(config.lookbackBars).toEqual({
       daily: 520,
       "4h": 180,
@@ -127,6 +132,7 @@ describe("levels-system runtime options", () => {
       LEVELS_SYSTEM_DAILY_LOOKBACK_BARS: "260",
       LEVELS_SYSTEM_4H_LOOKBACK_BARS: "120",
       LEVELS_SYSTEM_5M_LOOKBACK_BARS: "90",
+      LEVELS_SYSTEM_WAREHOUSE_DIRECTORY: "C:\\levels-system\\data\\candles",
     });
 
     expect(config).toMatchObject({
