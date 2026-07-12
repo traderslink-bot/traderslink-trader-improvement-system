@@ -13,6 +13,14 @@ export class WatchlistStore {
         const activatedAt = normalizeFiniteTimestamp(entry.activatedAt);
         const lastLevelPostAt = normalizeFiniteTimestamp(entry.lastLevelPostAt);
         const lastExtensionPostAt = normalizeFiniteTimestamp(entry.lastExtensionPostAt);
+        const lastPriceUpdateAt = normalizeFiniteTimestamp(entry.lastPriceUpdateAt);
+        const lastPrice = typeof entry.lastPrice === "number" && Number.isFinite(entry.lastPrice) && entry.lastPrice > 0
+            ? entry.lastPrice
+            : undefined;
+        const lastThreadPostAt = normalizeFiniteTimestamp(entry.lastThreadPostAt);
+        const lastError = entry.lastError?.trim() || undefined;
+        const operationStatus = entry.operationStatus?.trim() || undefined;
+        const lastThreadPostKind = entry.lastThreadPostKind?.trim() || undefined;
         return {
             symbol: normalizeSymbol(entry.symbol),
             active: entry.active,
@@ -25,6 +33,12 @@ export class WatchlistStore {
             ...(activatedAt !== undefined ? { activatedAt } : {}),
             ...(lastLevelPostAt !== undefined ? { lastLevelPostAt } : {}),
             ...(lastExtensionPostAt !== undefined ? { lastExtensionPostAt } : {}),
+            ...(lastPriceUpdateAt !== undefined ? { lastPriceUpdateAt } : {}),
+            ...(lastPrice !== undefined ? { lastPrice } : {}),
+            ...(lastThreadPostAt !== undefined ? { lastThreadPostAt } : {}),
+            ...(lastThreadPostKind !== undefined ? { lastThreadPostKind } : {}),
+            ...(lastError !== undefined ? { lastError } : {}),
+            ...(operationStatus !== undefined ? { operationStatus } : {}),
         };
     }
     getNextPriority() {
@@ -67,7 +81,21 @@ export class WatchlistStore {
                 (input.active ? Date.now() : undefined),
             lastLevelPostAt: normalizeFiniteTimestamp(input.lastLevelPostAt) ?? existing?.lastLevelPostAt,
             lastExtensionPostAt: normalizeFiniteTimestamp(input.lastExtensionPostAt) ?? existing?.lastExtensionPostAt,
+            lastPriceUpdateAt: normalizeFiniteTimestamp(input.lastPriceUpdateAt) ?? existing?.lastPriceUpdateAt,
+            lastPrice: typeof input.lastPrice === "number" && Number.isFinite(input.lastPrice) && input.lastPrice > 0
+                ? input.lastPrice
+                : existing?.lastPrice,
+            lastThreadPostAt: normalizeFiniteTimestamp(input.lastThreadPostAt) ?? existing?.lastThreadPostAt,
+            lastThreadPostKind: input.lastThreadPostKind !== undefined
+                ? input.lastThreadPostKind?.trim() || undefined
+                : existing?.lastThreadPostKind,
             refreshPending: input.refreshPending ?? existing?.refreshPending ?? false,
+            lastError: input.lastError !== undefined
+                ? input.lastError?.trim() || undefined
+                : existing?.lastError,
+            operationStatus: input.operationStatus !== undefined
+                ? input.operationStatus?.trim() || undefined
+                : existing?.operationStatus,
         };
         this.entries.set(symbol, entry);
         return this.normalizeEntry(entry);
@@ -78,11 +106,15 @@ export class WatchlistStore {
         if (!existing) {
             return null;
         }
-        const updated = this.normalizeEntry({
+        const merged = {
             ...existing,
             ...patch,
             symbol: normalizedSymbol,
-        });
+            lastError: patch.lastError !== undefined
+                ? patch.lastError?.trim() || undefined
+                : existing.lastError,
+        };
+        const updated = this.normalizeEntry(merged);
         this.entries.set(normalizedSymbol, updated);
         return updated;
     }
@@ -97,6 +129,7 @@ export class WatchlistStore {
             active: false,
             lifecycle: "inactive",
             refreshPending: false,
+            operationStatus: undefined,
         };
         this.entries.set(normalizedSymbol, updated);
         return this.normalizeEntry(updated);

@@ -1,10 +1,24 @@
 import type { RankedOpportunity } from "./opportunity-engine.js";
+export type OpportunityFollowThroughLabel = "strong" | "working" | "stalled" | "failed" | "unknown";
+export type OpportunityProgressLabel = "improving" | "stalling" | "degrading";
+export type OpportunityProgressUpdate = {
+    symbol: string;
+    eventType: string;
+    timestamp: number;
+    entryPrice: number;
+    currentPrice: number;
+    directionalReturnPct: number | null;
+    progressLabel: OpportunityProgressLabel;
+};
 export type EvaluatedOpportunity = {
     symbol: string;
     timestamp: number;
+    evaluatedAt: number;
     entryPrice: number;
     outcomePrice: number;
     returnPct: number;
+    directionalReturnPct: number | null;
+    followThroughLabel: OpportunityFollowThroughLabel;
     success: boolean;
     eventType: string;
 };
@@ -57,7 +71,10 @@ export declare class OpportunityEvaluator {
     private readonly drawdowns;
     constructor(evaluationWindowMs?: number, debug?: boolean, summaryInterval?: number, successThresholdPct?: number, earlyExitThresholdPct?: number, rollingWindowSize?: number);
     track(opportunity: RankedOpportunity, entryPrice: number): void;
-    updatePrice(symbol: string, price: number, timestamp: number): EvaluatedOpportunity[];
+    updatePrice(symbol: string, price: number, timestamp: number): {
+        completed: EvaluatedOpportunity[];
+        progressUpdates: OpportunityProgressUpdate[];
+    };
     getPendingCount(): number;
     getEvaluated(): EvaluatedOpportunity[];
     getSummary(): OpportunityEvaluationSummary;

@@ -11,9 +11,10 @@ export declare class StubHistoricalCandleProvider implements HistoricalCandlePro
     fetchCandles(request: HistoricalFetchRequest): Promise<BaseCandleProviderResponse>;
 }
 export declare class CandleFetchService {
-    private readonly provider;
+    private provider;
     constructor(providerOrOptions: HistoricalCandleProvider | CandleFetchServiceOptions);
     getProviderName(): CandleProviderName;
+    setProvider(provider: HistoricalCandleProvider): void;
     fetchCandles(request: HistoricalFetchRequest): Promise<CandleProviderResponse>;
 }
 //# sourceMappingURL=candle-fetch-service.d.ts.map

@@ -21,6 +21,25 @@ export function formatInterpretationLevel(value) {
 function formatTemplate(template, level) {
     return template.replace("{level}", formatInterpretationLevel(level));
 }
+function formatZoneAwareMessage(type, zoneLabel, level) {
+    const formattedLevel = formatInterpretationLevel(level);
+    switch (type) {
+        case "pre_zone":
+            return `watching pullback into ${zoneLabel} near ${formattedLevel}`;
+        case "in_zone":
+            return `price testing ${zoneLabel} near ${formattedLevel} - watching reaction`;
+        case "confirmation":
+            return zoneLabel === "resistance"
+                ? `sellers reacting at resistance near ${formattedLevel}`
+                : `buyers reacting at ${zoneLabel} near ${formattedLevel}`;
+        case "weakening":
+            return `${zoneLabel} weakening near ${formattedLevel}`;
+        case "neutral":
+            return `potential buy zone below near ${formattedLevel}`;
+        default:
+            return formatTemplate(APPROVED_INTERPRETATION_MESSAGE_TEMPLATES[type], level);
+    }
+}
 function stageRank(type) {
     switch (type) {
         case "pre_zone":
@@ -37,6 +56,9 @@ function resolveOpportunityEventType(opportunity) {
     return opportunity.eventType ?? opportunity.type;
 }
 function resolveZoneLabel(opportunity) {
+    if (opportunity.zoneKind) {
+        return opportunity.zoneKind;
+    }
     const eventType = resolveOpportunityEventType(opportunity);
     if (eventType === "breakdown" ||
         eventType === "rejection" ||
@@ -87,7 +109,10 @@ function applyProgression(candidateType, previous) {
     return previousRank <= 0 ? "in_zone" : "confirmation";
 }
 function buildMessage(type, context) {
-    return formatTemplate(APPROVED_INTERPRETATION_MESSAGE_TEMPLATES[type], context.levels.referenceLevel);
+    if (type === "breakout_context") {
+        return formatTemplate(APPROVED_INTERPRETATION_MESSAGE_TEMPLATES[type], context.levels.referenceLevel);
+    }
+    return formatZoneAwareMessage(type, context.levels.zoneLabel, context.levels.referenceLevel);
 }
 function buildTags(type, context) {
     return [
@@ -108,6 +133,9 @@ export function interpretOpportunity(context, previous) {
         symbol: context.opportunity.symbol,
         message: buildMessage(resolvedType, context),
         type: resolvedType,
+        eventType: resolveOpportunityEventType(context.opportunity),
+        level: context.opportunity.level,
+        zoneKind: context.opportunity.zoneKind,
         confidence,
         tags: buildTags(resolvedType, context),
         timestamp: context.opportunity.timestamp,
@@ -117,6 +145,7 @@ export function formatInterpretationForConsole(interpretation) {
     return [
         `SYMBOL: ${interpretation.symbol}`,
         `TYPE: ${interpretation.type}`,
+        `EVENT: ${interpretation.eventType}`,
         `MESSAGE: ${interpretation.message}`,
         `CONFIDENCE: ${interpretation.confidence.toFixed(2)}`,
     ].join("\n");

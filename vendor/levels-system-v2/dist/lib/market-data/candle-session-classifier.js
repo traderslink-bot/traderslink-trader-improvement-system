@@ -24,7 +24,7 @@ function extractParts(timestamp) {
         minute,
     };
 }
-function classifyIntradaySession(timestamp) {
+export function classifyIntradayCandleTimestamp(timestamp) {
     const { sessionDate, hour, minute } = extractParts(timestamp);
     const minutesIntoDay = hour * 60 + minute;
     if (minutesIntoDay >= 4 * 60 && minutesIntoDay < 9 * 60 + 30) {
@@ -41,8 +41,15 @@ function classifyIntradaySession(timestamp) {
     }
     return { session: "extended", sessionDate };
 }
+export function isLikelyTradableIntradayTimestamp(timestamp) {
+    const classified = classifyIntradayCandleTimestamp(timestamp);
+    return classified.session === "premarket" ||
+        classified.session === "opening_range" ||
+        classified.session === "regular" ||
+        classified.session === "after_hours";
+}
 export function classifyCandleSessions(candles, timeframe) {
-    if (timeframe !== "5m") {
+    if (timeframe !== "1m" && timeframe !== "5m") {
         return candles.map((candle) => ({
             candle,
             session: "unknown",
@@ -50,7 +57,7 @@ export function classifyCandleSessions(candles, timeframe) {
         }));
     }
     return candles.map((candle) => {
-        const classified = classifyIntradaySession(candle.timestamp);
+        const classified = classifyIntradayCandleTimestamp(candle.timestamp);
         return {
             candle,
             session: classified.session,

@@ -1,5 +1,4 @@
 export const DEFAULT_PROVIDER_PRIORITY = [
-    "twelve_data",
     "ibkr",
     "stub",
 ];

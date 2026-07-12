@@ -13,6 +13,7 @@ export declare class LocalDiscordThreadGateway implements DiscordThreadGateway {
     createThread(name: string): Promise<DiscordThread>;
     sendMessage(threadId: string, payload: AlertPayload): Promise<void>;
     sendLevelSnapshot(threadId: string, payload: LevelSnapshotPayload): Promise<void>;
+    sendLevelLadder(threadId: string, payload: LevelSnapshotPayload): Promise<void>;
     sendLevelExtension(threadId: string, payload: LevelExtensionPayload): Promise<void>;
 }
 //# sourceMappingURL=local-discord-thread-gateway.d.ts.map

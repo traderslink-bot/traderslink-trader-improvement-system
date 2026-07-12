@@ -5,6 +5,11 @@ const DEFAULT_PARTIAL_REACTION_MOVE_PCT = 0.01;
 const DEFAULT_RESOLUTION_LOOKAHEAD_BARS = 12;
 const DEFAULT_NEAR_BAND_DISTANCE_PCT = 0.035;
 const DEFAULT_INTERMEDIATE_BAND_DISTANCE_PCT = 0.12;
+const DEFAULT_VOLUME_BASELINE_BARS = 20;
+const DEFAULT_MIN_VOLUME_BASELINE_BARS = 6;
+const DEFAULT_ELEVATED_VOLUME_RATIO = 1.5;
+const DEFAULT_HEAVY_VOLUME_RATIO = 2.5;
+const DEFAULT_LIGHT_VOLUME_RATIO = 0.75;
 function roundMetric(value) {
     return Number(value.toFixed(4));
 }
@@ -27,6 +32,85 @@ function partialReactionMovePct(options) {
 }
 function resolutionLookaheadBars(options) {
     return options.resolutionLookaheadBars ?? DEFAULT_RESOLUTION_LOOKAHEAD_BARS;
+}
+function volumeBaselineBars(options) {
+    return Math.max(1, Math.floor(options.volumeBaselineBars ?? DEFAULT_VOLUME_BASELINE_BARS));
+}
+function minVolumeBaselineBars(options) {
+    return Math.max(1, Math.floor(options.minVolumeBaselineBars ?? DEFAULT_MIN_VOLUME_BASELINE_BARS));
+}
+function volumeLabel(ratio, options) {
+    if (ratio >= (options.heavyVolumeRatio ?? DEFAULT_HEAVY_VOLUME_RATIO)) {
+        return "heavy";
+    }
+    if (ratio >= (options.elevatedVolumeRatio ?? DEFAULT_ELEVATED_VOLUME_RATIO)) {
+        return "elevated";
+    }
+    if (ratio <= (options.lightVolumeRatio ?? DEFAULT_LIGHT_VOLUME_RATIO)) {
+        return "light";
+    }
+    return "normal";
+}
+function unknownVolumeContext(reason) {
+    return {
+        reliability: "unavailable",
+        label: "unknown",
+        touchVolume: null,
+        baselineAverageVolume: null,
+        relativeVolumeRatio: null,
+        baselineBars: 0,
+        reason,
+    };
+}
+function buildVolumeContext(params) {
+    const touchedCandle = params.futureCandles[params.firstTouchIndex];
+    if (!touchedCandle) {
+        return unknownVolumeContext("level was not touched");
+    }
+    const touchVolume = Number.isFinite(touchedCandle.volume) && touchedCandle.volume > 0
+        ? touchedCandle.volume
+        : null;
+    if (touchVolume === null) {
+        return {
+            ...unknownVolumeContext("touch candle volume was missing or empty"),
+            touchVolume,
+        };
+    }
+    const touchTimestamp = touchedCandle.timestamp;
+    const priorCandles = [
+        ...params.baselineCandles,
+        ...params.futureCandles.slice(0, params.firstTouchIndex),
+    ]
+        .filter((candle) => candle.timestamp < touchTimestamp &&
+        Number.isFinite(candle.volume) &&
+        candle.volume > 0)
+        .sort((left, right) => left.timestamp - right.timestamp)
+        .slice(-volumeBaselineBars(params.options));
+    const minBars = minVolumeBaselineBars(params.options);
+    if (priorCandles.length < minBars) {
+        return {
+            reliability: priorCandles.length > 0 ? "watch" : "unavailable",
+            label: "unknown",
+            touchVolume,
+            baselineAverageVolume: priorCandles.length > 0
+                ? roundMetric(priorCandles.reduce((sum, candle) => sum + candle.volume, 0) / priorCandles.length)
+                : null,
+            relativeVolumeRatio: null,
+            baselineBars: priorCandles.length,
+            reason: `insufficient prior candle volume baseline (${priorCandles.length}/${minBars})`,
+        };
+    }
+    const baselineAverageVolume = priorCandles.reduce((sum, candle) => sum + candle.volume, 0) / priorCandles.length;
+    const relativeVolumeRatio = touchVolume / baselineAverageVolume;
+    return {
+        reliability: "reliable",
+        label: volumeLabel(relativeVolumeRatio, params.options),
+        touchVolume,
+        baselineAverageVolume: roundMetric(baselineAverageVolume),
+        relativeVolumeRatio: roundMetric(relativeVolumeRatio),
+        baselineBars: priorCandles.length,
+        reason: "touch candle volume compared with prior 5m candle baseline",
+    };
 }
 function isActionableEvaluationZone(zone, referencePrice, options) {
     if (!(referencePrice && referencePrice > 0)) {
@@ -139,6 +223,40 @@ function summarize(results) {
         breakRate: rate(results.filter((result) => result.broken).length, results.length),
     };
 }
+function summarizeVolumeEvidence(results) {
+    const touched = results.filter((result) => result.touched);
+    const reliable = touched.filter((result) => result.volumeContext.reliability === "reliable");
+    const unreliable = touched.length - reliable.length;
+    const highVolume = reliable.filter((result) => result.volumeContext.label === "heavy" || result.volumeContext.label === "elevated");
+    const lightVolume = reliable.filter((result) => result.volumeContext.label === "light");
+    return {
+        touched: touched.length,
+        reliable: reliable.length,
+        unreliable,
+        highVolumeTouches: highVolume.length,
+        lightVolumeTouches: lightVolume.length,
+        highVolumeUsefulWhenTouchedRate: rate(highVolume.filter((result) => result.useful).length, highVolume.length),
+        highVolumeRespectRate: rate(highVolume.filter((result) => result.respected).length, highVolume.length),
+        highVolumeBreakRate: rate(highVolume.filter((result) => result.broken).length, highVolume.length),
+        lightVolumeUsefulWhenTouchedRate: rate(lightVolume.filter((result) => result.useful).length, lightVolume.length),
+        lightVolumeRespectRate: rate(lightVolume.filter((result) => result.respected).length, lightVolume.length),
+        lightVolumeBreakRate: rate(lightVolume.filter((result) => result.broken).length, lightVolume.length),
+    };
+}
+function levelEvidenceFields(zone) {
+    return {
+        strengthScore: zone.strengthScore,
+        touchCount: zone.touchCount,
+        confluenceCount: zone.confluenceCount,
+        sourceEvidenceCount: zone.sourceEvidenceCount,
+        timeframeSources: zone.timeframeSources,
+        sourceTypes: zone.sourceTypes,
+        reactionQualityScore: zone.reactionQualityScore,
+        rejectionScore: zone.rejectionScore,
+        followThroughScore: zone.followThroughScore,
+        displacementScore: zone.displacementScore,
+    };
+}
 function evaluateLevelForwardReaction(params) {
     const tolerance = touchTolerance(params.zone.representativePrice, params.options);
     const fullReactionThresholdPct = reactionMovePct(params.options);
@@ -157,6 +275,7 @@ function evaluateLevelForwardReaction(params) {
             surfacedBucket: params.surfacedBucket,
             timeframeBias: params.zone.timeframeBias,
             strengthLabel: params.zone.strengthLabel,
+            ...levelEvidenceFields(params.zone),
             representativePrice: params.zone.representativePrice,
             distanceBand: band,
             outcome: "untouched",
@@ -167,9 +286,16 @@ function evaluateLevelForwardReaction(params) {
             broken: false,
             brokeAfterPartial: false,
             closestApproachPct: minApproachPct,
+            volumeContext: unknownVolumeContext("level was not touched"),
         };
     }
     const touchedCandle = params.futureCandles[firstTouchIndex];
+    const volumeContext = buildVolumeContext({
+        futureCandles: params.futureCandles,
+        baselineCandles: params.baselineCandles,
+        firstTouchIndex,
+        options: params.options,
+    });
     const resolutionWindow = params.futureCandles.slice(firstTouchIndex, firstTouchIndex + lookaheadBars);
     let maxFavorablePct = 0;
     let maxAdversePct = 0;
@@ -185,6 +311,7 @@ function evaluateLevelForwardReaction(params) {
                 surfacedBucket: params.surfacedBucket,
                 timeframeBias: params.zone.timeframeBias,
                 strengthLabel: params.zone.strengthLabel,
+                ...levelEvidenceFields(params.zone),
                 representativePrice: params.zone.representativePrice,
                 distanceBand: band,
                 outcome: "respected",
@@ -199,6 +326,7 @@ function evaluateLevelForwardReaction(params) {
                 resolutionTimestamp: candle.timestamp,
                 maxFavorableExcursionPct: roundMetric(maxFavorablePct),
                 maxAdverseExcursionPct: roundMetric(maxAdversePct),
+                volumeContext,
             };
         }
         if (partialTimestamp === undefined && maxFavorablePct >= partialReactionThresholdPct) {
@@ -213,6 +341,7 @@ function evaluateLevelForwardReaction(params) {
                     surfacedBucket: params.surfacedBucket,
                     timeframeBias: params.zone.timeframeBias,
                     strengthLabel: params.zone.strengthLabel,
+                    ...levelEvidenceFields(params.zone),
                     representativePrice: params.zone.representativePrice,
                     distanceBand: band,
                     outcome: "partial_respect",
@@ -227,6 +356,7 @@ function evaluateLevelForwardReaction(params) {
                     resolutionTimestamp: candle.timestamp,
                     maxFavorableExcursionPct: roundMetric(maxFavorablePct),
                     maxAdverseExcursionPct: roundMetric(maxAdversePct),
+                    volumeContext,
                 };
             }
             return {
@@ -236,6 +366,7 @@ function evaluateLevelForwardReaction(params) {
                 surfacedBucket: params.surfacedBucket,
                 timeframeBias: params.zone.timeframeBias,
                 strengthLabel: params.zone.strengthLabel,
+                ...levelEvidenceFields(params.zone),
                 representativePrice: params.zone.representativePrice,
                 distanceBand: band,
                 outcome: "broken",
@@ -250,6 +381,7 @@ function evaluateLevelForwardReaction(params) {
                 resolutionTimestamp: candle.timestamp,
                 maxFavorableExcursionPct: roundMetric(maxFavorablePct),
                 maxAdverseExcursionPct: roundMetric(maxAdversePct),
+                volumeContext,
             };
         }
     }
@@ -261,6 +393,7 @@ function evaluateLevelForwardReaction(params) {
             surfacedBucket: params.surfacedBucket,
             timeframeBias: params.zone.timeframeBias,
             strengthLabel: params.zone.strengthLabel,
+            ...levelEvidenceFields(params.zone),
             representativePrice: params.zone.representativePrice,
             distanceBand: band,
             outcome: "partial_respect",
@@ -275,6 +408,7 @@ function evaluateLevelForwardReaction(params) {
             resolutionTimestamp: partialTimestamp,
             maxFavorableExcursionPct: roundMetric(maxFavorablePct),
             maxAdverseExcursionPct: roundMetric(maxAdversePct),
+            volumeContext,
         };
     }
     return {
@@ -284,6 +418,7 @@ function evaluateLevelForwardReaction(params) {
         surfacedBucket: params.surfacedBucket,
         timeframeBias: params.zone.timeframeBias,
         strengthLabel: params.zone.strengthLabel,
+        ...levelEvidenceFields(params.zone),
         representativePrice: params.zone.representativePrice,
         distanceBand: band,
         outcome: "touched_no_resolution",
@@ -297,21 +432,25 @@ function evaluateLevelForwardReaction(params) {
         firstTouchTimestamp: touchedCandle.timestamp,
         maxFavorableExcursionPct: roundMetric(maxFavorablePct),
         maxAdverseExcursionPct: roundMetric(maxAdversePct),
+        volumeContext,
     };
 }
 export function validateForwardReactions(params, options = {}) {
     const referencePrice = params.output.metadata.referencePrice;
+    const baselineCandles = params.baselineCandles ?? [];
     const levelResults = buildEvaluationLevels(params.output, options).map(({ zone, source, surfacedBucket }) => evaluateLevelForwardReaction({
         zone,
         source,
         surfacedBucket,
         referencePrice,
         futureCandles: params.futureCandles,
+        baselineCandles,
         options,
     }));
     const surfacedResults = levelResults.filter((result) => result.source === "surfaced");
     const extensionResults = levelResults.filter((result) => result.source === "extension");
     const strengthLabels = ["weak", "moderate", "strong", "major"];
+    const volumeLabels = ["heavy", "elevated", "normal", "light", "unknown"];
     const surfacedSummary = summarize(surfacedResults);
     const extensionSummary = summarize(extensionResults);
     return {
@@ -356,6 +495,11 @@ export function validateForwardReactions(params, options = {}) {
             label,
             summarize(levelResults.filter((result) => result.strengthLabel === label)),
         ])),
+        byVolumeLabel: Object.fromEntries(volumeLabels.map((label) => [
+            label,
+            summarize(levelResults.filter((result) => result.volumeContext.label === label)),
+        ])),
+        volumeEvidence: summarizeVolumeEvidence(levelResults),
         levelResults,
     };
 }
@@ -373,6 +517,8 @@ export function formatForwardReactionReport(report) {
         `[LevelValidation] By distance band | near=${report.byDistanceBand.near.usefulnessRate.toFixed(4)} | intermediate=${report.byDistanceBand.intermediate.usefulnessRate.toFixed(4)} | far=${report.byDistanceBand.far.usefulnessRate.toFixed(4)}`,
         `[LevelValidation] Distance reachability | near=${report.byDistanceBand.near.touchRate.toFixed(4)} | intermediate=${report.byDistanceBand.intermediate.touchRate.toFixed(4)} | far=${report.byDistanceBand.far.touchRate.toFixed(4)}`,
         `[LevelValidation] Distance useful when touched | near=${report.byDistanceBand.near.usefulWhenTouchedRate.toFixed(4)} | intermediate=${report.byDistanceBand.intermediate.usefulWhenTouchedRate.toFixed(4)} | far=${report.byDistanceBand.far.usefulWhenTouchedRate.toFixed(4)}`,
+        `[LevelValidation] Volume evidence | touched=${report.volumeEvidence.touched} | reliable=${report.volumeEvidence.reliable} | unavailable=${report.volumeEvidence.unreliable} | highVolumeTouches=${report.volumeEvidence.highVolumeTouches} | highVolumeUseful=${report.volumeEvidence.highVolumeUsefulWhenTouchedRate.toFixed(4)} | highVolumeRespect=${report.volumeEvidence.highVolumeRespectRate.toFixed(4)} | highVolumeBreak=${report.volumeEvidence.highVolumeBreakRate.toFixed(4)}`,
+        `[LevelValidation] Volume buckets | heavy=${report.byVolumeLabel.heavy.usefulWhenTouchedRate.toFixed(4)}(${report.byVolumeLabel.heavy.touched}) | elevated=${report.byVolumeLabel.elevated.usefulWhenTouchedRate.toFixed(4)}(${report.byVolumeLabel.elevated.touched}) | normal=${report.byVolumeLabel.normal.usefulWhenTouchedRate.toFixed(4)}(${report.byVolumeLabel.normal.touched}) | light=${report.byVolumeLabel.light.usefulWhenTouchedRate.toFixed(4)}(${report.byVolumeLabel.light.touched}) | unknown=${report.byVolumeLabel.unknown.touched}`,
     ];
     for (const label of ["weak", "moderate", "strong", "major"]) {
         const summary = report.byStrengthLabel[label];

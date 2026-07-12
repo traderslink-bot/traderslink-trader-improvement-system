@@ -5,6 +5,8 @@ export const DEFAULT_MONITORING_CONFIG = {
     nearestZonesToEvaluate: 3,
     breakoutConfirmPct: 0.0025,
     maxConfirmDistancePct: 0.01,
+    tightClearancePct: 0.015,
+    limitedClearancePct: 0.04,
     failureReturnPct: 0.0015,
     compressionMaxDistancePct: 0.0025,
     compressionMinUpdates: 4,
@@ -12,3 +14,6 @@ export const DEFAULT_MONITORING_CONFIG = {
     eventCooldownMs: 30 * 1000,
     maxEventsPerSymbolPerUpdate: 2,
 };
+export function getSupportApproachPct(config) {
+    return Math.max(config.nearZonePct * 2, config.maxConfirmDistancePct * 0.7);
+}

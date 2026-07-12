@@ -8,6 +8,13 @@ export declare class AlertIntelligenceEngine {
     private postedAlertHistory;
     constructor(config?: AlertIntelligenceConfig);
     private findZoneForEvent;
+    private resolveNextBarrierSide;
+    private buildPlanningLevels;
+    private appendSyntheticResistancePlanningLevels;
+    private resolvePlanningTargetDistancePct;
+    private findNextBarrier;
+    private findContinuationBarrier;
+    private findBarrierForSide;
     processEvent(event: MonitoringEvent, levels: LevelEngineOutput | undefined): {
         rawAlert: IntelligentAlert;
         formatted: ReturnType<typeof formatIntelligentAlert> | null;

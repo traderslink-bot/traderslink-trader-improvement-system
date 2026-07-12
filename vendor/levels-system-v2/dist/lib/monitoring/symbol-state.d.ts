@@ -1,6 +1,6 @@
 import type { FinalLevelZone } from "../levels/level-types.js";
-import type { MonitoringEvent, SymbolBias, SymbolMonitoringState, ZoneInteractionState } from "./monitoring-types.js";
-type StructureType = "compression" | "breakout_setup" | "rejection_setup" | null;
+import type { MarketStructureType, MonitoringEvent, SymbolBias, SymbolMonitoringState, ZoneInteractionState } from "./monitoring-types.js";
+type StructureType = MarketStructureType | null;
 export declare function deriveSymbolBias(events: MonitoringEvent[], referenceTimestamp: number): SymbolBias;
 export declare function computePressureScore(params: {
     symbolState: SymbolMonitoringState;

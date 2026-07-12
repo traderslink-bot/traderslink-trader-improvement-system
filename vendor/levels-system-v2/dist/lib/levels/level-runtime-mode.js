@@ -1,5 +1,5 @@
 // 2026-04-18 08:40 AM America/Toronto
-// Runtime mode resolution for safe old/new/compare exploration.
+// Runtime surfaced-output mode resolution for safe old/new/compare exploration.
 export const LEVEL_RUNTIME_MODE_ENV = "LEVEL_RUNTIME_MODE";
 export const LEVEL_RUNTIME_COMPARE_ACTIVE_PATH_ENV = "LEVEL_RUNTIME_COMPARE_ACTIVE_PATH";
 function normalizeEnvValue(value) {

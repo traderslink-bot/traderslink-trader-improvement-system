@@ -1,29 +1,29 @@
 const TIMEFRAME_TO_INTERVAL_MS = {
+    "1m": 60 * 1000,
     daily: 24 * 60 * 60 * 1000,
     "4h": 4 * 60 * 60 * 1000,
-    "15m": 15 * 60 * 1000,
     "5m": 5 * 60 * 1000,
 };
 const TIMEFRAME_TO_BAR_SIZE = {
+    "1m": "1 min",
     daily: "1 day",
     "4h": "4 hours",
-    "15m": "15 mins",
     "5m": "5 mins",
 };
 const TIMEFRAME_TO_REMOTE_INTERVAL = {
+    "1m": "1min",
     daily: "1day",
     "4h": "4h",
-    "15m": "15min",
     "5m": "5min",
 };
 function resolvePlannedBarCount(timeframe, lookbackBars) {
     switch (timeframe) {
+        case "1m":
+            return Math.max(lookbackBars + 120, Math.ceil(lookbackBars * 1.8));
         case "daily":
             return Math.max(lookbackBars + 40, Math.ceil(lookbackBars * 1.25));
         case "4h":
             return Math.max(lookbackBars + 30, Math.ceil(lookbackBars * 1.4));
-        case "15m":
-            return Math.max(lookbackBars + 60, Math.ceil(lookbackBars * 1.6));
         case "5m":
             return Math.max(lookbackBars + 60, Math.ceil(lookbackBars * 1.6));
     }
@@ -44,7 +44,7 @@ function formatIbkrDurationFromMs(spanMs) {
     }
     return `${Math.max(1, Math.ceil(spanMs / yearMs))} Y`;
 }
-export function buildProviderHistoricalFetchPlan(request, provider) {
+export function buildHistoricalFetchPlan(request, provider) {
     const requestEndTimestamp = request.endTimeMs ?? Date.now();
     const intervalMs = TIMEFRAME_TO_INTERVAL_MS[request.timeframe];
     const plannedBarCount = resolvePlannedBarCount(request.timeframe, request.lookbackBars);
@@ -63,10 +63,7 @@ export function buildProviderHistoricalFetchPlan(request, provider) {
         requestStartTimestamp,
         requestEndTimestamp,
         intervalMs,
-        sessionMetadataAvailable: request.timeframe === "5m",
+        sessionMetadataAvailable: request.timeframe === "1m" || request.timeframe === "5m",
         providerRequest,
     };
-}
-export function buildHistoricalFetchPlan(request, provider) {
-    return buildProviderHistoricalFetchPlan(request, provider);
 }

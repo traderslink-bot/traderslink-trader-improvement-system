@@ -4,6 +4,7 @@ export type RankedOpportunity = {
     symbol: string;
     type: string;
     eventType?: string;
+    zoneKind?: "support" | "resistance";
     level: number;
     strength: number;
     confidence: number;
@@ -16,6 +17,14 @@ export type RankedOpportunity = {
     score: number;
     normalizedScore: number;
     classification: OpportunityClassification;
+    nextBarrierDistancePct?: number;
+    clearanceLabel?: "tight" | "limited" | "open";
+    barrierClutterLabel?: "clear" | "stacked" | "dense";
+    nearbyBarrierCount?: number;
+    pathQualityLabel?: "clean" | "layered" | "choppy";
+    pathBarrierCount?: number;
+    tacticalRead?: "firm" | "balanced" | "tired";
+    exhaustionLabel?: "fresh" | "tested" | "worn" | "spent";
 };
 export declare class OpportunityEngine {
     private readonly debug;

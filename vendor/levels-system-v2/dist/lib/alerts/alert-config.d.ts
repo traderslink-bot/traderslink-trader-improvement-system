@@ -1,4 +1,6 @@
 import type { MonitoringEventType } from "../monitoring/monitoring-types.js";
+import type { ZoneTacticalBias } from "../levels/zone-tactical-read.js";
+import type { TraderPressureLabel, TraderTriggerQualityLabel } from "./alert-types.js";
 export type AlertIntelligenceConfig = {
     eventBaseScores: Record<MonitoringEventType, number>;
     strengthLabelScores: {
@@ -47,6 +49,16 @@ export type AlertIntelligenceConfig = {
     dataQualityPenalty: number;
     lowValueInnerTouchPenalty: number;
     lowValueInnerCompressionPenalty: number;
+    innerDirectionalPenalty: number;
+    degradedDirectionalPenalty: number;
+    clearanceScores: {
+        tight: number;
+        limited: number;
+        open: number;
+    };
+    pressureLabelScores: Record<TraderPressureLabel, number>;
+    triggerQualityScores: Record<TraderTriggerQualityLabel, number>;
+    tacticalBiasScores: Record<ZoneTacticalBias, number>;
     structureStrengthScale: number;
     postingWindowsMs: {
         zone_context: number;

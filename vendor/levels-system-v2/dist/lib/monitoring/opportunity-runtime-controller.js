@@ -74,6 +74,7 @@ export class OpportunityRuntimeController {
             summary,
             adaptiveDiagnostics: this.buildAdaptiveDiagnostics(adaptiveResult.diagnostics),
             completedEvaluations,
+            progressUpdates: [],
         };
     }
     emitInterpretations(snapshot) {
@@ -113,17 +114,19 @@ export class OpportunityRuntimeController {
         };
     }
     processPriceUpdate(update) {
-        const completedEvaluations = this.evaluator.updatePrice(update.symbol, update.lastPrice, update.timestamp);
-        if (completedEvaluations.length === 0) {
+        const evaluationUpdate = this.evaluator.updatePrice(update.symbol, update.lastPrice, update.timestamp);
+        if (evaluationUpdate.completed.length === 0 &&
+            evaluationUpdate.progressUpdates.length === 0) {
             return null;
         }
         this.pruneEvents(update.timestamp);
-        const snapshot = this.buildSnapshot(completedEvaluations);
+        const snapshot = this.buildSnapshot(evaluationUpdate.completed);
         const interpretations = this.emitInterpretations(snapshot);
         this.adaptiveStatePersistence?.save(this.adaptiveScoringEngine.getState());
         return {
             ...snapshot,
             interpretations,
+            progressUpdates: evaluationUpdate.progressUpdates,
         };
     }
     getSummary() {

@@ -54,7 +54,7 @@ export class TwelveDataHistoricalCandleProvider {
             fetchEndTimestamp: Date.now(),
             requestedStartTimestamp: plan.requestStartTimestamp,
             requestedEndTimestamp: plan.requestEndTimestamp,
-            sessionMetadataAvailable: request.timeframe === "5m",
+            sessionMetadataAvailable: request.timeframe === "1m" || request.timeframe === "5m",
             providerMetadata: {
                 endpoint: "twelve_data_time_series",
                 interval: plan.providerRequest.interval ?? this.mapInterval(request.timeframe),
@@ -63,12 +63,12 @@ export class TwelveDataHistoricalCandleProvider {
     }
     mapInterval(timeframe) {
         switch (timeframe) {
+            case "1m":
+                return "1min";
             case "daily":
                 return "1day";
             case "4h":
                 return "4h";
-            case "15m":
-                return "15min";
             case "5m":
                 return "5min";
         }

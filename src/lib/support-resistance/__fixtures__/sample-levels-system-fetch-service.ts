@@ -21,8 +21,6 @@ function getTimeframeIntervalMs(timeframe: CandleFetchTimeframe): number {
       return 300_000;
     case "1m":
       return 60_000;
-    case "15m":
-      return 900_000;
   }
 }
 

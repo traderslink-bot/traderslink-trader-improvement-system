@@ -1,8 +1,29 @@
-// 2026-05-27 09:20 PM America/Toronto
-// Rescue-only shared support/resistance API surface.
-export { buildSupportResistanceContext, } from "./build-support-resistance-context.js";
-export { buildSingleTimeframeSupportResistanceContext, } from "./single-timeframe-context.js";
-export { buildSymbolSupportResistanceContext, } from "./symbol-context.js";
-export { buildTradeAnalysisSupportResistanceContext, } from "./trade-analysis-context.js";
+export { buildSupportResistanceContextFromCandles, normalizeSharedSupportResistanceCandles, parseSharedCandleTimestamp, } from "./build-support-resistance-context.js";
+export { aggregateCandlesToFiveMinutes, buildSupportResistanceContextFromSingleTimeframeCandles, fetchSupportResistanceContextFromSingleTimeframeCandles, } from "./single-timeframe-context.js";
+export { buildSupportResistanceContextForSymbol, } from "./symbol-context.js";
+export { buildDefaultSupportResistanceContextForSymbol, buildDefaultTradeAnalysisCandleContext, buildWarehouseBackedSupportResistanceContextForSymbol, buildWarehouseBackedTradeAnalysisCandleContext, } from "./warehouse-context.js";
+export { DEFAULT_ON_DEMAND_IBKR_CLIENT_ID, DEFAULT_ON_DEMAND_IBKR_CONNECTION_TIMEOUT_MS, DEFAULT_ON_DEMAND_IBKR_HISTORICAL_TIMEOUT_MS, DEFAULT_ON_DEMAND_IBKR_HOST, DEFAULT_ON_DEMAND_IBKR_PORT, createIbkrClient, createIbkrOnDemandCandleFetchServiceOptions, getOrCreateIbkrClient, initializeIbkrRuntime, isIbkrConnected, isIbkrReconnecting, onIbkrDisconnect, onIbkrReconnect, waitForIbkrConnection, } from "./ibkr-on-demand-runtime.js";
+export { buildTradeAnalysisCandleContext, } from "./trade-analysis-context.js";
+export { buildDynamicLevelsFromCandles, calculateEmaSeries, calculateLatestEma, calculateLatestVwap, calculateVwapSeries, } from "./indicators/index.js";
+export { buildReferenceLevels, } from "./reference-levels.js";
+export { buildGapStructure, } from "./gap-structure.js";
+export { buildExecutionLevelRelations, } from "./execution-level-relations.js";
+export { buildCandleMarketStructureContext, buildFormalMarketStructureContext, buildStableMarketStructureContext, scoreMarketStructureMateriality, } from "../structure/index.js";
+export { candleCloseTimestamp, candleIsClosedAsOf, filterCandlesByCloseAsOf, } from "../market-data/candle-as-of-filter.js";
 export { CandleFetchService, StubHistoricalCandleProvider, } from "../market-data/candle-fetch-service.js";
-export { buildSupportResistanceContextForSymbol, } from "./trader-intelligence-contract.js";
+export { buildTradeCandleContext, } from "../market-data/trade-candle-context.js";
+export { DurableCandleWarehouse, DurableCandleWarehouseFetchService, } from "../candle-warehouse/index.js";
+export { executeCandleWarehouseBackfill, } from "../candle-warehouse/index.js";
+export { assessCandleWarehouseStoragePolicy, buildVolumeActivityContextFromWarehouseCandles, buildWarehouseVolumeActivityContext, } from "../candle-warehouse/index.js";
+export { planWarehouseMissingCandleBackfill, planBulkCandleBackfill, groupBackfillTasksIntoProviderBatches, } from "../candle-warehouse/index.js";
+export { LevelEngine, } from "../levels/level-engine.js";
+export { DEFAULT_LEVEL_ENGINE_CONFIG, } from "../levels/level-config.js";
+export { buildLevelExtensions } from "../levels/level-extension-engine.js";
+export { buildLevelQualityAuditReport, formatLevelQualityAuditReport, } from "../levels/level-quality-audit.js";
+export { derivePracticalTradeStructureContext, isPracticalStructureExpansion, } from "../monitoring/practical-trade-structure.js";
+export { IntradayPriceStructureTracker } from "../monitoring/intraday-price-structure.js";
+export { LiveStableMarketStructureTracker, } from "../monitoring/live-stable-market-structure.js";
+export { LiveFormalMarketStructureTracker, } from "../monitoring/live-formal-market-structure.js";
+export { VolumeActivityTracker, buildVolumeBaselineFromCandles, unknownVolumeActivityContext, } from "../monitoring/volume-activity.js";
+export { buildSharedEngineCapabilityReport, formatSharedEngineCapabilityReport, } from "../review/shared-engine-capability-report.js";
+export { TraderStoryMemory, buildCandleReactionContext, buildCatalystProfileRiskContext, buildCatalystProfileRiskFromStockContext, buildLiquidityTradabilityContext, buildMoveExtensionContext, buildSessionGapContext, buildTraderIntelligenceContext, buildTraderStoryKey, evaluateTraderStoryMemory, } from "../trader-context/index.js";

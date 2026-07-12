@@ -6,13 +6,15 @@ import { HomeScrollReveal } from "./home-scroll-reveal";
 import { getAcademyCoursePage } from "@/src/lib/academy/academy-content";
 import { TRADERSLINK_TWITTER_HANDLE } from "@/src/lib/academy/academy-seo";
 
-const discordInviteUrl = "https://discord.gg/sTWd3KwWC";
+const discordInviteUrl = "https://discord.gg/rrq73JGfFf";
+const whopPlanUrl =
+  "https://whop.com/traderslink-app/filtered-news-momentum-scanner-access/";
 
 export const metadata: Metadata = {
   title:
-    "TradersLink Beta | Small Cap Scanner, AI Press Releases, Academy, Trader Intelligence",
+    "TradersLink | Small Cap Scanner, AI Press Releases, Academy, Trader Intelligence",
   description:
-    "TradersLink is a beta suite of trading tools with a small cap scanner, AI-summarized press releases and SEC filings, Discord alerts, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
+    "TradersLink is a suite of trading tools with a small cap scanner, AI-summarized press releases and SEC filings, Discord alerts, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
   keywords: [
     "TradersLink",
     "small cap scanner",
@@ -37,16 +39,16 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "TradersLink Beta",
+    title: "TradersLink",
     description:
       "Small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TradersLink Beta",
+    title: "TradersLink",
     description:
-      "Join the Discord beta for $30 USD before public launch pricing goes up.",
+      "Join TradersLink for small-cap news alerts, scanner alerts, AI summaries, and support/resistance levels.",
     site: TRADERSLINK_TWITTER_HANDLE,
     creator: TRADERSLINK_TWITTER_HANDLE,
   },
@@ -61,7 +63,7 @@ const featureBlocks = [
   {
     eyebrow: "Live Scanner",
     title: "Movement detection with Discord alerts.",
-    body: "The scanner runs live for small-cap stocks, detects movement, filters for day-trading usefulness, and pushes alerts into the beta Discord.",
+    body: "The scanner runs live for small-cap stocks, detects movement, filters for day-trading usefulness, and pushes alerts into Discord.",
   },
   {
     eyebrow: "Chart Levels",
@@ -91,7 +93,6 @@ const seoTopics = [
   "Small cap stock scanner",
   "AI press release summaries",
   "SEC filing alerts for traders",
-  "Discord stock alerts",
   "Free trading academy",
   "Beginner trading lessons",
   "Day trading news scanner",
@@ -104,12 +105,12 @@ const faqItems = [
   {
     question: "What is TradersLink?",
     answer:
-      "TradersLink is a suite of trading tools. The beta includes scanner and press-release/filing tools now, the free TradersLink Academy is open on the website, and Trader Intelligence is coming soon as another tool in the platform.",
+      "TradersLink is a suite of trading tools. The paid plan includes scanner and press-release/filing tools now, the free TradersLink Academy is open on the website, and Trader Intelligence is coming soon as another tool in the platform.",
   },
   {
-    question: "What does the $30 USD beta include?",
+    question: "What does the $30 USD plan include?",
     answer:
-      "Beta access includes the Discord alerts, the website tools as they launch, the scanner, press release and SEC filing summaries, chart-level tools, and access to Trader Intelligence when it opens to beta members.",
+      "The paid $30 plan gets you Discord access to small cap news filtered by market cap up to $100M, the small cap momentum scanner, the news momentum scanner, and instant real-time support and resistance levels.",
   },
   {
     question: "Is TradersLink Academy free?",
@@ -117,9 +118,9 @@ const faqItems = [
       "Yes. TradersLink Academy is free. Anyone can read the open Academy lessons, and free TradersLink Discord members can log in with Discord to track lesson progress across the Academy.",
   },
   {
-    question: "Will beta testers keep the $30.00 price?",
+    question: "How does paid access work?",
     answer:
-      "Yes. Beta testers are grandfathered at $30.00 USD while the public website launch price increases for new users.",
+      "Paid access is handled through Whop. After checkout, connect your Discord account to Whop so the paid channels unlock for your account.",
   },
 ];
 
@@ -136,13 +137,13 @@ export default function Home() {
     applicationCategory: "FinanceApplication",
     operatingSystem: "Web",
     description:
-      "Beta trading-tools platform with small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
+      "Trading-tools platform with small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
     offers: {
       "@type": "Offer",
       price: "30.00",
       priceCurrency: "USD",
-      availability: "https://schema.org/LimitedAvailability",
-      category: "Discord beta",
+      availability: "https://schema.org/InStock",
+      category: "Discord paid plan",
     },
     featureList: pressFeatures,
   };
@@ -216,7 +217,7 @@ export default function Home() {
             data-home-animate
           >
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-300">
-              Discord beta now open at $30 USD
+              Paid Discord access now open at $30 USD
             </p>
             <h1 className="mt-5 max-w-5xl text-5xl font-semibold leading-[1.02] text-white sm:text-6xl lg:text-7xl">
               TradersLink Trading Tools
@@ -224,42 +225,45 @@ export default function Home() {
             <p className="mt-5 max-w-3xl text-xl leading-8 text-slate-300 sm:text-2xl">
               Small-cap scanner alerts, AI-summarized press releases and SEC
               filings, generated chart levels, TradersLink Academy, and the
-              Trader Intelligence system coming soon for beta members.
+              Trader Intelligence system coming soon for paid members.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href={discordInviteUrl}
+                href={whopPlanUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="tl-home-cta inline-flex min-h-12 items-center justify-center border border-cyan-300 bg-cyan-300 px-5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
               >
-                Join the $30 beta
+                Join the $30 plan
               </a>
-              <Link
-                href="/academy"
+              <a
+                href={discordInviteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="tl-home-cta tl-home-cta-secondary inline-flex min-h-12 items-center justify-center border border-cyan-300/50 bg-slate-950/50 px-5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200"
               >
-                TradersLink Academy
-              </Link>
+                Join Free Discord
+              </a>
             </div>
           </div>
 
           <aside
             className="tl-home-panel self-end border border-cyan-300/20 bg-slate-950/58 p-5 shadow-2xl shadow-cyan-950/40 backdrop-blur"
-            aria-label="Beta pricing summary"
+            aria-label="Paid plan summary"
             data-home-animate
           >
             <div className="text-xs uppercase tracking-[0.24em] text-cyan-200">
-              Beta Access
+              Paid Access
             </div>
             <div className="mt-4 flex items-end gap-2">
               <span className="text-5xl font-semibold text-white">$30.00</span>
-              <span className="pb-2 text-sm text-slate-400">USD / beta</span>
+              <span className="pb-2 text-sm text-slate-400">USD / month</span>
             </div>
             <p className="mt-4 text-sm leading-6 text-slate-300">
-              Beta members get Discord access now and website access as tools
-              launch. Public website pricing will go up, but beta testers keep
-              the $30.00 rate.
+              The paid $30 plan gets you Discord access to small cap news
+              filtered by market cap up to $100M, the small cap momentum
+              scanner, the news momentum scanner, and instant real-time support
+              and resistance levels.
             </p>
             <div className="mt-5 grid gap-2 text-sm text-slate-300">
               <div className="flex justify-between border-t border-slate-800 pt-2">
@@ -306,7 +310,7 @@ export default function Home() {
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-400">
             The website will bring the scanner, Press Release App v2, generated
-            chart levels, and Trader Intelligence into one member area. Beta
+            chart levels, and Trader Intelligence into one member area. Paid
             Discord members get access to the website and the Trader
             Intelligence system as they roll out.
           </p>
@@ -515,7 +519,7 @@ export default function Home() {
             </h3>
             <p className="mt-3 text-sm leading-6 text-slate-400">
               Trader Intelligence will add broker execution imports, saved trade
-              analytics, and saved-evidence review for beta members.
+              analytics, and saved-evidence review for paid members.
             </p>
           </div>
         </div>
@@ -529,34 +533,43 @@ export default function Home() {
       >
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">
-            Beta pricing
+            Paid pricing
           </p>
           <h2 className="mt-3 text-4xl font-semibold text-white sm:text-5xl">
-            Join the Discord beta for $30.00 USD.
+            Join the paid plan for $30.00 USD.
           </h2>
           <p className="mt-5 text-base leading-7 text-slate-400">
-            When the public website launches, new-user pricing will increase.
-            Beta testers are grandfathered at the $30.00 beta price and get
-            access to the website tools plus Trader Intelligence as it opens.
+            The paid $30 plan gets you Discord access to small cap news filtered
+            by market cap up to $100M, the small cap momentum scanner, the news
+            momentum scanner, and instant real-time support and resistance
+            levels.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href={discordInviteUrl}
+              href={whopPlanUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="tl-home-cta tl-home-cta-green inline-flex min-h-12 items-center justify-center border border-emerald-300 bg-emerald-300 px-5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200"
             >
-              Join on Discord
+              Join the $30 plan
+            </a>
+            <a
+              href={discordInviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tl-home-cta tl-home-cta-secondary inline-flex min-h-12 items-center justify-center border border-cyan-300/50 bg-slate-950/50 px-5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200"
+            >
+              Join Free Discord
             </a>
           </div>
         </div>
         <div className="tl-home-panel border border-cyan-300/25 bg-slate-950 p-6">
           <div className="text-sm uppercase tracking-[0.2em] text-cyan-300">
-            What beta testers lock in
+            What paid members get
           </div>
           <div className="mt-5 grid gap-4">
             {[
-              "Founding beta price at $30.00 USD",
+              "Paid Discord access at $30.00 USD",
               "Discord feedback loop while features are shipping",
               "Live scanner, press release, and SEC filing alerts",
               "Website access as scanner, generated levels, AI chart following, and Trader Intelligence roll out",
@@ -624,7 +637,7 @@ export default function Home() {
 
       <footer className="border-t border-slate-800 px-5 py-8 text-sm text-slate-500 sm:px-8">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <span>TradersLink beta. Trading involves risk.</span>
+          <span>TradersLink. Trading involves risk.</span>
         </div>
       </footer>
     </main>

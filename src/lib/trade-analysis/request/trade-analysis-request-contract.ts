@@ -1,5 +1,6 @@
 import type { TradeAnalysisCandleWindowOptions } from "levels-system-v2/support-resistance-engine";
 import type { ProviderExecution } from "../../execution-sources/types/provider-execution";
+import type { NormalizeCandleInput } from "../../raw-trade-timeline/normalizers/normalize-candle";
 import type { NormalizeExecutionInput } from "../../raw-trade-timeline/normalizers/normalize-execution";
 import { normalizeRequiredSessionBucketValue } from "../../raw-trade-timeline/session/normalize-session-bucket";
 import type { SessionContextInput } from "../../raw-trade-timeline/types/session-context";
@@ -8,7 +9,9 @@ import type { LevelsSystemRuntimeConfig } from "../../support-resistance/levels-
 import type { TradeAnalysisEngineLevelsSystemCandleArgs } from "../../trade-analysis-engine";
 
 export type TradeAnalysisRequestProviderName =
+  | "eodhd"
   | "ibkr"
+  | "yahoo"
   | "stub";
 
 export type TradeAnalysisRequestIssueSeverity = "error" | "warning";
@@ -60,6 +63,9 @@ export interface UserTradeAnalysisRequest {
   sessionContext: SessionContextInput;
   provider?: TradeAnalysisProviderRequestOptions;
   tradeWindow?: TradeAnalysisCandleWindowOptions;
+  preTradeCandles?: NormalizeCandleInput[];
+  tradeCandles?: NormalizeCandleInput[];
+  postTradeCandles?: NormalizeCandleInput[];
   executionWindowCandlesBeforeCount?: number;
   executionWindowCandlesAfterCount?: number;
 }
@@ -70,6 +76,9 @@ export interface ValidatedTradeAnalysisRequest {
   executions: NormalizeExecutionInput[];
   sessionContext: SessionContextInput;
   tradeWindow?: TradeAnalysisCandleWindowOptions;
+  preTradeCandles?: NormalizeCandleInput[];
+  tradeCandles?: NormalizeCandleInput[];
+  postTradeCandles?: NormalizeCandleInput[];
   executionWindowCandlesBeforeCount?: number;
   executionWindowCandlesAfterCount?: number;
   levelsSystem: LevelsSystemRuntimeConfig;
@@ -86,7 +95,9 @@ export interface TradeAnalysisRequestDocumentParseResult {
 }
 
 const VALID_PROVIDER_NAMES = new Set<TradeAnalysisRequestProviderName>([
+  "eodhd",
   "ibkr",
+  "yahoo",
   "stub",
 ]);
 
@@ -224,7 +235,7 @@ function normalizeProviderOptions(
         severity: "error",
         code: "unsupported_provider",
         message:
-          "provider.preferredProvider must be one of ibkr or stub.",
+          "provider.preferredProvider must be one of ibkr, eodhd, yahoo, or stub.",
         path: "provider.preferredProvider",
       });
     } else {
@@ -671,6 +682,15 @@ export function validateTradeAnalysisRequest(
       executions,
       sessionContext,
       tradeWindow,
+      preTradeCandles: Array.isArray(input.preTradeCandles)
+        ? (input.preTradeCandles as NormalizeCandleInput[])
+        : undefined,
+      tradeCandles: Array.isArray(input.tradeCandles)
+        ? (input.tradeCandles as NormalizeCandleInput[])
+        : undefined,
+      postTradeCandles: Array.isArray(input.postTradeCandles)
+        ? (input.postTradeCandles as NormalizeCandleInput[])
+        : undefined,
       executionWindowCandlesBeforeCount:
         typeof input.executionWindowCandlesBeforeCount === "number"
           ? input.executionWindowCandlesBeforeCount
@@ -709,6 +729,9 @@ export function toLevelsSystemCandleTradeRequest(
     executions: request.executions,
     sessionContext: request.sessionContext,
     tradeWindow: request.tradeWindow,
+    preTradeCandles: request.preTradeCandles,
+    tradeCandles: request.tradeCandles,
+    postTradeCandles: request.postTradeCandles,
     executionWindowCandlesBeforeCount:
       request.executionWindowCandlesBeforeCount,
     executionWindowCandlesAfterCount:

@@ -1,9 +1,6 @@
 export type CandleTimeframe = "daily" | "4h" | "5m";
-export type LevelEngineEligibleTimeframe = CandleTimeframe;
-export type ProviderCandleTimeframe = "daily" | "4h" | "15m" | "5m";
-export type ValidationCacheCollectionTimeframe = ProviderCandleTimeframe;
-export type CandleFetchTimeframe = ProviderCandleTimeframe | "1m";
-export type CandleProviderName = "ibkr" | "stub" | "twelve_data";
+export type CandleFetchTimeframe = "1m" | CandleTimeframe;
+export type CandleProviderName = "ibkr" | "eodhd" | "yahoo" | "stub";
 export type Candle = {
     timestamp: number;
     open: number;
@@ -33,7 +30,7 @@ export type CandleSessionSummary = {
 export type BaseCandleProviderResponse = {
     provider: CandleProviderName;
     symbol: string;
-    timeframe: CandleTimeframe;
+    timeframe: CandleFetchTimeframe;
     requestedLookbackBars: number;
     candles: Candle[];
     fetchStartTimestamp: number;
@@ -52,11 +49,7 @@ export type CandleProviderResponse = BaseCandleProviderResponse & {
 };
 export type CandleSeries = {
     symbol: string;
-    timeframe: CandleTimeframe;
+    timeframe: CandleFetchTimeframe;
     candles: Candle[];
 };
-export declare const LEVEL_ENGINE_ELIGIBLE_TIMEFRAMES: readonly LevelEngineEligibleTimeframe[];
-export declare const PROVIDER_CANDLE_TIMEFRAMES: readonly ProviderCandleTimeframe[];
-export declare function isLevelEngineEligibleTimeframe(timeframe: CandleFetchTimeframe): timeframe is LevelEngineEligibleTimeframe;
-export declare function isProviderCandleTimeframe(timeframe: CandleFetchTimeframe): timeframe is ProviderCandleTimeframe;
 //# sourceMappingURL=candle-types.d.ts.map

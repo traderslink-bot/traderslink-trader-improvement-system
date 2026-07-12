@@ -2,7 +2,7 @@ import { AdaptiveScoringEngine, type AdaptedOpportunity } from "./adaptive-scori
 import type { AdaptiveStatePersistence } from "./adaptive-state-persistence.js";
 import type { LivePriceUpdate, MonitoringEvent } from "./monitoring-types.js";
 import { OpportunityEngine, type RankedOpportunity } from "./opportunity-engine.js";
-import { OpportunityEvaluator, type EvaluatedOpportunity, type OpportunityEvaluationSummary } from "./opportunity-evaluator.js";
+import { OpportunityEvaluator, type EvaluatedOpportunity, type OpportunityProgressUpdate, type OpportunityEvaluationSummary } from "./opportunity-evaluator.js";
 import { type OpportunityInterpretation } from "./opportunity-interpretation.js";
 export type OpportunityRuntimeSnapshot = {
     ranked: RankedOpportunity[];
@@ -13,6 +13,7 @@ export type OpportunityRuntimeSnapshot = {
     adaptiveDiagnostics: OpportunityRuntimeAdaptiveDiagnostics;
     newOpportunity?: AdaptedOpportunity;
     completedEvaluations: EvaluatedOpportunity[];
+    progressUpdates: OpportunityProgressUpdate[];
 };
 export type OpportunityRuntimeAdaptiveDiagnostics = {
     targetGlobalMultiplier: number;

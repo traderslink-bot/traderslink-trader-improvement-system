@@ -19,6 +19,9 @@ export type OpportunityInterpretation = {
     symbol: string;
     message: string;
     type: InterpretationType;
+    eventType: string;
+    level?: number;
+    zoneKind?: "support" | "resistance";
     confidence: number;
     tags: string[];
     timestamp: number;

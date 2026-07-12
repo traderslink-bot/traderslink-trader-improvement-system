@@ -8,10 +8,26 @@ export type ForwardReactionValidatorOptions = {
     resolutionLookaheadBars?: number;
     nearBandDistancePct?: number;
     intermediateBandDistancePct?: number;
+    volumeBaselineBars?: number;
+    minVolumeBaselineBars?: number;
+    elevatedVolumeRatio?: number;
+    heavyVolumeRatio?: number;
+    lightVolumeRatio?: number;
 };
 export type ForwardReactionOutcome = "untouched" | "respected" | "partial_respect" | "broken" | "touched_no_resolution";
 export type ForwardReactionDistanceBand = "near" | "intermediate" | "far";
 export type SurfacedForwardBucket = "daily" | "4h" | "5m";
+export type ForwardReactionVolumeReliability = "reliable" | "watch" | "unavailable";
+export type ForwardReactionVolumeLabel = "heavy" | "elevated" | "normal" | "light" | "unknown";
+export type ForwardReactionVolumeContext = {
+    reliability: ForwardReactionVolumeReliability;
+    label: ForwardReactionVolumeLabel;
+    touchVolume: number | null;
+    baselineAverageVolume: number | null;
+    relativeVolumeRatio: number | null;
+    baselineBars: number;
+    reason: string;
+};
 export type ForwardReactionSummary = {
     evaluated: number;
     touched: number;
@@ -30,6 +46,16 @@ export type ForwardReactionLevelResult = {
     surfacedBucket?: SurfacedForwardBucket;
     timeframeBias: FinalLevelZone["timeframeBias"];
     strengthLabel: FinalLevelZone["strengthLabel"];
+    strengthScore: number;
+    touchCount: number;
+    confluenceCount: number;
+    sourceEvidenceCount: number;
+    timeframeSources: FinalLevelZone["timeframeSources"];
+    sourceTypes: FinalLevelZone["sourceTypes"];
+    reactionQualityScore: number;
+    rejectionScore: number;
+    followThroughScore: number;
+    displacementScore: number;
     representativePrice: number;
     distanceBand: ForwardReactionDistanceBand;
     outcome: ForwardReactionOutcome;
@@ -44,6 +70,20 @@ export type ForwardReactionLevelResult = {
     resolutionTimestamp?: number;
     maxFavorableExcursionPct?: number;
     maxAdverseExcursionPct?: number;
+    volumeContext: ForwardReactionVolumeContext;
+};
+export type ForwardReactionVolumeSummary = {
+    touched: number;
+    reliable: number;
+    unreliable: number;
+    highVolumeTouches: number;
+    lightVolumeTouches: number;
+    highVolumeUsefulWhenTouchedRate: number;
+    highVolumeRespectRate: number;
+    highVolumeBreakRate: number;
+    lightVolumeUsefulWhenTouchedRate: number;
+    lightVolumeRespectRate: number;
+    lightVolumeBreakRate: number;
 };
 export type ForwardReactionValidationReport = {
     totalLevelsEvaluated: number;
@@ -70,11 +110,14 @@ export type ForwardReactionValidationReport = {
     bySurfacedSupportBucket: Record<SurfacedForwardBucket, ForwardReactionSummary>;
     byDistanceBand: Record<ForwardReactionDistanceBand, ForwardReactionSummary>;
     byStrengthLabel: Record<FinalLevelZone["strengthLabel"], ForwardReactionSummary>;
+    byVolumeLabel: Record<ForwardReactionVolumeLabel, ForwardReactionSummary>;
+    volumeEvidence: ForwardReactionVolumeSummary;
     levelResults: ForwardReactionLevelResult[];
 };
 export declare function validateForwardReactions(params: {
     output: LevelEngineOutput;
     futureCandles: Candle[];
+    baselineCandles?: Candle[];
 }, options?: ForwardReactionValidatorOptions): ForwardReactionValidationReport;
 export declare function formatForwardReactionReport(report: ForwardReactionValidationReport): string[];
 //# sourceMappingURL=forward-reaction-validator.d.ts.map

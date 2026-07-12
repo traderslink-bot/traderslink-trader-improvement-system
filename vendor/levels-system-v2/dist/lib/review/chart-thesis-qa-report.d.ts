@@ -1,0 +1,138 @@
+import type { ChartThesisRead } from "../alerts/alert-types.js";
+import type { CandleProviderName, CandleProviderResponse, CandleTimeframe } from "../market-data/candle-types.js";
+import { type WatchlistLifecycleSampleScope, type WatchlistLifecycleSession } from "./watchlist-lifecycle-sessions.js";
+export type ChartThesisQaOutcome = "hit_target" | "partial_progress" | "invalidated" | "no_progress" | "insufficient_forward";
+export type ChartThesisQaMissedMoveReason = "news_or_gap_burst" | "below_recent_range" | "loose_or_damaged_range" | "possible_upper_range_setup" | "delayed_move_after_quiet_chart";
+export type ChartThesisQaMissedMove = {
+    symbol: string;
+    cutoffTimestamp: number;
+    cutoffIso: string;
+    lifecycleScope: WatchlistLifecycleSampleScope;
+    currentPrice: number;
+    liveConfirmation: ChartThesisQaLiveConfirmationRead;
+    bestForwardPct: number;
+    forwardBars: number;
+    reason: ChartThesisQaMissedMoveReason;
+    priorRangePct: number | null;
+    priorRangePositionPct: number | null;
+    firstForwardGapPct: number | null;
+    firstForwardRangePct: number | null;
+    evidence: string[];
+    summary: string;
+};
+export type ChartThesisQaSample = {
+    symbol: string;
+    cutoffTimestamp: number;
+    cutoffIso: string;
+    lifecycleScope: WatchlistLifecycleSampleScope;
+    currentPrice: number;
+    liveConfirmation: ChartThesisQaLiveConfirmationRead;
+    thesis: ChartThesisRead | null;
+    outcome: ChartThesisQaOutcome;
+    targetPrice: number | null;
+    invalidationPrice: number | null;
+    roomToTargetPct: number | null;
+    bestForwardPct: number;
+    worstForwardPct: number;
+    targetReached: boolean;
+    invalidatedBeforeTarget: boolean;
+    barsToTarget: number | null;
+    forwardBars: number;
+    summary: string;
+    lines: string[];
+};
+export type ChartThesisQaThesisStats = {
+    thesisType: string;
+    samples: number;
+    hitTarget: number;
+    partialProgress: number;
+    invalidated: number;
+    noProgress: number;
+    insufficientForward: number;
+    usefulCount: number;
+    usefulRate: number;
+    hitRate: number;
+    invalidationRate: number;
+    move15Count: number;
+    move15Rate: number;
+    move25Count: number;
+    move25Rate: number;
+    move50Count: number;
+    move50Rate: number;
+    statusCounts: Record<ChartThesisRead["status"], number>;
+    lifecycleScopes: Record<WatchlistLifecycleSampleScope, number>;
+    liveConfirmationPresent: number;
+    liveConfirmationRate: number;
+    avgRoomToTargetPct: number | null;
+    avgBestForwardPct: number | null;
+    avgWorstForwardPct: number | null;
+};
+export type ChartThesisQaLiveConfirmationRead = {
+    present: boolean;
+    volumeRatio: number | null;
+    latestRangePct: number | null;
+    priorRangePct: number | null;
+    closeExtensionPct: number | null;
+    triggerPrice: number | null;
+    summary: string;
+};
+export type ChartThesisQaReport = {
+    generatedAt: string;
+    source: string;
+    settings: {
+        horizonBars: number;
+        samplesPerSymbol: number;
+        meaningfulMovePct: number;
+        partialProgressRatio: number;
+    };
+    totals: {
+        symbols: number;
+        samples: number;
+        samplesWithThesis: number;
+        hitTarget: number;
+        partialProgress: number;
+        invalidated: number;
+        noProgress: number;
+        insufficientForward: number;
+        missedMeaningfulMoves: number;
+        missedMoveAt50Pct: number;
+        missedMoveAt100Pct: number;
+        missedMoveReasons: Record<ChartThesisQaMissedMoveReason, number>;
+        thesisStatuses: Record<ChartThesisRead["status"], number>;
+        lifecycleScopes: Record<WatchlistLifecycleSampleScope, number>;
+        liveConfirmationPresent: number;
+        liveConfirmationWithThesis: number;
+        liveConfirmationOnMissedMoves: number;
+    };
+    thesisStats: ChartThesisQaThesisStats[];
+    goodExamples: ChartThesisQaSample[];
+    badExamples: ChartThesisQaSample[];
+    missedMoves: ChartThesisQaMissedMove[];
+    samples: ChartThesisQaSample[];
+};
+export type ChartThesisQaSymbolInput = {
+    symbol: string;
+    seriesMap: Partial<Record<CandleTimeframe, CandleProviderResponse>>;
+};
+export type BuildChartThesisQaReportOptions = {
+    symbols: ChartThesisQaSymbolInput[];
+    source?: string;
+    horizonBars?: number;
+    samplesPerSymbol?: number;
+    meaningfulMovePct?: number;
+    partialProgressRatio?: number;
+    maxExamples?: number;
+    lifecycleSessionsBySymbol?: Record<string, WatchlistLifecycleSession[]>;
+};
+export type WriteChartThesisQaReportOptions = BuildChartThesisQaReportOptions & {
+    outputDirectory: string;
+};
+export declare function buildChartThesisQaReport(options: BuildChartThesisQaReportOptions): ChartThesisQaReport;
+export declare function writeChartThesisQaReport(options: WriteChartThesisQaReportOptions): ChartThesisQaReport;
+export declare function readChartThesisQaSymbolsFromCache(options: {
+    cacheDirectory: string;
+    provider?: CandleProviderName;
+    symbols?: string[];
+    maxSymbols?: number;
+}): ChartThesisQaSymbolInput[];
+//# sourceMappingURL=chart-thesis-qa-report.d.ts.map

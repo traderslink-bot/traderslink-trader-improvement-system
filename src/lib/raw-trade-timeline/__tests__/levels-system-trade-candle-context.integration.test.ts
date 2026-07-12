@@ -1,7 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  CandleFetchService,
+  type Candle,
+  type CandleFetchTimeframe,
+  type HistoricalCandleProvider,
+  type HistoricalFetchRequest,
+} from "levels-system-v2/support-resistance-engine";
 import { buildPatternInput } from "../../pattern-input/builders/build-pattern-input";
 import { buildSampleLevelsSystemSupportResistanceOptions } from "../../support-resistance/__fixtures__/sample-levels-system-fetch-service";
 import { sampleCreateRawTradeTimelineInput } from "../__fixtures__/sample-create-raw-trade-timeline-input";
@@ -18,67 +22,74 @@ function addMinutes(timestamp: string | Date, minutes: number): string {
   return new Date(parsed + minutes * 60_000).toISOString();
 }
 
-function testCandle(timestamp: number, price: number) {
+function intervalMs(timeframe: CandleFetchTimeframe): number {
+  switch (timeframe) {
+    case "1m":
+      return 60_000;
+    case "5m":
+      return 300_000;
+    case "4h":
+      return 14_400_000;
+    case "daily":
+      return 86_400_000;
+  }
+}
+
+function candle(timestamp: number, price: number): Candle {
   return {
-    close: price,
-    high: price + 0.05,
-    low: price - 0.05,
-    open: price,
     timestamp,
+    open: price,
+    high: Number((price + 0.03).toFixed(4)),
+    low: Number((price - 0.03).toFixed(4)),
+    close: Number((price + 0.01).toFixed(4)),
     volume: 100_000,
   };
 }
 
-function writeValidationCacheEntry(args: {
-  candles: ReturnType<typeof testCandle>[];
-  endTimeMs: number;
-  root: string;
-  symbol: string;
-  timeframe: "daily" | "4h" | "5m";
-}) {
-  const directory = join(args.root, "ibkr", args.symbol, args.timeframe);
-  const filePath = join(
-    directory,
-    `${args.candles.length}-${args.endTimeMs}.json`,
-  );
+class EodhdOneMinuteReplayFallbackProvider
+  implements HistoricalCandleProvider
+{
+  readonly providerName = "eodhd" as const;
+  readonly requests: HistoricalFetchRequest[] = [];
 
-  mkdirSync(directory, { recursive: true });
-  writeFileSync(
-    filePath,
-    `${JSON.stringify(
-      {
-        cachedAt: Date.now(),
-        request: {
-          endTimeMs: args.endTimeMs,
-          lookbackBars: args.candles.length,
-          provider: "ibkr",
-          symbol: args.symbol,
-          timeframe: args.timeframe,
-        },
-        response: {
-          actualBarsReturned: args.candles.length,
-          candles: args.candles,
-          completenessStatus: "complete",
-          fetchEndTimestamp: args.endTimeMs,
-          fetchStartTimestamp: args.candles[0]?.timestamp ?? args.endTimeMs,
-          provider: "ibkr",
-          requestedEndTimestamp: args.endTimeMs,
-          requestedLookbackBars: args.candles.length,
-          requestedStartTimestamp: args.candles[0]?.timestamp ?? args.endTimeMs,
-          sessionMetadataAvailable: args.timeframe === "5m",
-          sessionSummary: null,
-          stale: false,
-          symbol: args.symbol,
-          timeframe: args.timeframe,
-          validationIssues: [],
-        },
-        schemaVersion: 1,
+  constructor(private readonly basePrice = 1.1) {}
+
+  async fetchCandles(
+    request: HistoricalFetchRequest,
+    plan: Parameters<HistoricalCandleProvider["fetchCandles"]>[1],
+  ) {
+    this.requests.push({ ...request });
+    const count = request.timeframe === "5m" ? 0 : request.lookbackBars;
+    const spacing = intervalMs(request.timeframe);
+    const candles = Array.from({ length: count }, (_, index) =>
+      candle(
+        plan.requestEndTimestamp - (count - 1 - index) * spacing,
+        this.basePrice + index * 0.001,
+      ),
+    );
+
+    return {
+      provider: this.providerName,
+      symbol: request.symbol,
+      timeframe: request.timeframe,
+      requestedLookbackBars: request.lookbackBars,
+      candles,
+      fetchStartTimestamp: plan.requestStartTimestamp,
+      fetchEndTimestamp: plan.requestEndTimestamp,
+      requestedStartTimestamp: plan.requestStartTimestamp,
+      requestedEndTimestamp: plan.requestEndTimestamp,
+      sessionMetadataAvailable:
+        request.timeframe === "1m" || request.timeframe === "5m",
+      providerMetadata: {
+        fixture: "eodhd-one-minute-replay-fallback",
       },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
+    };
+  }
+
+  count(timeframe: CandleFetchTimeframe): number {
+    return this.requests.filter((request) => request.timeframe === timeframe)
+      .length;
+  }
 }
 
 describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
@@ -132,7 +143,11 @@ describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
     expect(result.levelsSystemMarketFacts?.executionSnapshots).toHaveLength(
       sampleCreateRawTradeTimelineInput.executions.length,
     );
-    expect(result.experimentalMarketStructure).toBeUndefined();
+    expect(result.experimentalMarketStructure).toEqual(
+      expect.objectContaining({
+        state: expect.any(String),
+      }),
+    );
     expect(result.warnings ?? []).not.toEqual(
       expect.arrayContaining([
         expect.stringContaining("old trade-window candle-fetching API"),
@@ -149,9 +164,6 @@ describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
       ),
     );
     expect(patternInput.exitContext.postExitCandleCount).toBeGreaterThan(0);
-    expect(
-      patternInput.supportResistanceContext.firstEntryDistanceFromVwapPct,
-    ).toBeNull();
     expect(
       patternInput.supportResistanceContext.firstEntryDistanceFromEma9Pct,
     ).toBeNull();
@@ -210,7 +222,11 @@ describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
     expect(result.timeline.preTradeCandles.length).toBeGreaterThan(0);
     expect(result.timeline.tradeCandles.length).toBeGreaterThan(0);
     expect(result.timeline.postTradeCandles.length).toBeGreaterThan(0);
-    expect(result.experimentalMarketStructure).toBeUndefined();
+    expect(result.experimentalMarketStructure).toEqual(
+      expect.objectContaining({
+        state: expect.any(String),
+      }),
+    );
     expect(result.warnings ?? []).not.toEqual(
       expect.arrayContaining([
         expect.stringContaining("old trade-window candle-fetching API"),
@@ -224,9 +240,6 @@ describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
         patternInput.supportResistanceContext,
     ).toBe(false);
     expect(
-      patternInput.supportResistanceContext.firstEntryDistanceFromVwapPct,
-    ).toBeNull();
-    expect(
       patternInput.supportResistanceContext.firstEntryDistanceFromEma9Pct,
     ).toBeNull();
     expect(
@@ -234,96 +247,119 @@ describe("createRawTradeTimelineWithLevelsSystemCandles", () => {
     ).toBeNull();
   });
 
-  it("uses stored v2 validation-cache candles before opening an IBKR connection", async () => {
-    const warehouseRoot = mkdtempSync(
-      join(tmpdir(), "levels-system-validation-cache-"),
-    );
-    const symbol = sampleCreateRawTradeTimelineInput.symbol;
-    const asOfTimestamp = Date.parse("2024-04-12T13:50:00.000Z");
-
-    try {
-      writeValidationCacheEntry({
-        candles: [0, 1, 2].map((index) =>
-          testCandle(
-            Date.parse("2024-04-10T00:00:00.000Z") + index * 86_400_000,
-            1.1 + index * 0.05,
-          ),
+  it("aggregates EODHD 1m candles when direct 5m replay candles are unavailable", async () => {
+    const provider = new EodhdOneMinuteReplayFallbackProvider();
+    const result = await createRawTradeTimelineWithLevelsSystemCandles({
+      symbol: sampleCreateRawTradeTimelineInput.symbol,
+      tradeDirection: sampleCreateRawTradeTimelineInput.tradeDirection,
+      executions: sampleCreateRawTradeTimelineInput.executions,
+      sessionContext: sampleCreateRawTradeTimelineInput.sessionContext,
+      levelsSystem: {
+        fetchService: new CandleFetchService(provider),
+        preferredProvider: "eodhd",
+        sessionDate: sampleCreateRawTradeTimelineInput.sessionContext.sessionDate,
+        asOfTimestamp: addMinutes(
+          sampleCreateRawTradeTimelineInput.executions.at(-1)!.timestamp,
+          65,
         ),
-        endTimeMs: Date.parse("2024-04-12T00:00:00.000Z"),
-        root: warehouseRoot,
-        symbol,
-        timeframe: "daily",
-      });
-      writeValidationCacheEntry({
-        candles: [0, 1, 2].map((index) =>
-          testCandle(
-            Date.parse("2024-04-12T04:00:00.000Z") + index * 14_400_000,
-            1.15 + index * 0.04,
-          ),
-        ),
-        endTimeMs: Date.parse("2024-04-12T12:00:00.000Z"),
-        root: warehouseRoot,
-        symbol,
-        timeframe: "4h",
-      });
-      writeValidationCacheEntry({
-        candles: Array.from({ length: 12 }, (_, index) =>
-          testCandle(
-            Date.parse("2024-04-12T12:55:00.000Z") + index * 300_000,
-            1.18 + index * 0.01,
-          ),
-        ),
-        endTimeMs: asOfTimestamp,
-        root: warehouseRoot,
-        symbol,
+        lookbackBars: {
+          daily: 80,
+          "4h": 80,
+          "5m": 24,
+        },
+      },
+      tradeWindow: {
         timeframe: "5m",
-      });
+        preTradeMinutes: 30,
+        postTradeMinutes: 60,
+        paddingMinutes: 5,
+        lookbackBars: 24,
+      },
+      executionWindowCandlesBeforeCount: 2,
+      executionWindowCandlesAfterCount: 2,
+    });
 
-      const result = await createRawTradeTimelineWithLevelsSystemCandles({
-        symbol,
-        tradeDirection: sampleCreateRawTradeTimelineInput.tradeDirection,
-        executions: sampleCreateRawTradeTimelineInput.executions,
-        sessionContext: sampleCreateRawTradeTimelineInput.sessionContext,
-        levelsSystem: {
-          asOfTimestamp: new Date(asOfTimestamp).toISOString(),
-          fetchServiceOptions: {
-            connectionTimeoutMs: 1,
-            port: 1,
-            providerName: "ibkr",
-          },
-          lookbackBars: {
-            "4h": 3,
-            "5m": 12,
-            daily: 3,
-          },
-          preferredProvider: "ibkr",
-          sessionDate:
-            sampleCreateRawTradeTimelineInput.sessionContext.sessionDate,
-          warehouseDirectoryPath: warehouseRoot,
-          warehouseMode: "read_write",
-        },
-        tradeWindow: {
-          lookbackBars: 12,
-          postTradeMinutes: 10,
-          preTradeMinutes: 10,
-          timeframe: "1m",
-        },
-        executionWindowCandlesBeforeCount: 2,
-        executionWindowCandlesAfterCount: 2,
-      });
+    expect(provider.count("5m")).toBeGreaterThan(0);
+    expect(provider.count("1m")).toBeGreaterThan(0);
+    expect(result.timeline.preTradeCandles.length).toBeGreaterThan(0);
+    expect(result.timeline.tradeCandles.length).toBeGreaterThan(0);
+    expect(result.timeline.postTradeCandles.length).toBeGreaterThan(0);
+    expect(
+      result.levelsSystemTradeAnalysisCandleContext.tradeWindow.fetch.provider,
+    ).toBe("eodhd");
+    expect(result.warnings ?? []).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "EODHD 1m candles were aggregated into 5m trade-window candles",
+        ),
+      ]),
+    );
+  });
 
-      expect(result.timeline.tradeCandles.length).toBeGreaterThan(0);
-      expect(
-        result.levelsSystemTradeAnalysisCandleContext.tradeWindow.fetch.provider,
-      ).toBe("ibkr");
-      expect(result.warnings ?? []).not.toEqual(
-        expect.arrayContaining([
-          expect.stringContaining("IBKR connection failed"),
-        ]),
-      );
-    } finally {
-      rmSync(warehouseRoot, { recursive: true, force: true });
-    }
+  it("treats EODHD aggregated candles as unavailable when split-adjustment basis is unsafe", async () => {
+    const provider = new EodhdOneMinuteReplayFallbackProvider(10);
+    const result = await createRawTradeTimelineWithLevelsSystemCandles({
+      symbol: sampleCreateRawTradeTimelineInput.symbol,
+      tradeDirection: sampleCreateRawTradeTimelineInput.tradeDirection,
+      executions: sampleCreateRawTradeTimelineInput.executions,
+      sessionContext: sampleCreateRawTradeTimelineInput.sessionContext,
+      levelsSystem: {
+        fetchService: new CandleFetchService(provider),
+        preferredProvider: "eodhd",
+        sessionDate: sampleCreateRawTradeTimelineInput.sessionContext.sessionDate,
+        asOfTimestamp: addMinutes(
+          sampleCreateRawTradeTimelineInput.executions.at(-1)!.timestamp,
+          65,
+        ),
+        lookbackBars: {
+          daily: 80,
+          "4h": 80,
+          "5m": 24,
+        },
+      },
+      tradeWindow: {
+        timeframe: "5m",
+        preTradeMinutes: 30,
+        postTradeMinutes: 60,
+        paddingMinutes: 5,
+        lookbackBars: 24,
+      },
+      executionWindowCandlesBeforeCount: 2,
+      executionWindowCandlesAfterCount: 2,
+    });
+
+    expect(provider.count("5m")).toBeGreaterThan(0);
+    expect(provider.count("1m")).toBeGreaterThan(0);
+    expect(result.timeline.preTradeCandles).toHaveLength(0);
+    expect(result.timeline.tradeCandles).toHaveLength(0);
+    expect(result.timeline.postTradeCandles).toHaveLength(0);
+    expect(result.levelsSystemTradeWindowFacts).toBeUndefined();
+    expect(result.levelsSystemExecutionRelations).toBeUndefined();
+    expect(result.structuralContextWindow).toBeUndefined();
+    expect(
+      result.levelsSystemTradeAnalysisCandleContext.tradeWindow.fetch
+        .actualBarsReturned,
+    ).toBe(0);
+    expect(result.levelsSystemTradeAnalysisCandleContext.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "trade_window_price_basis_unverified",
+          severity: "warning",
+        }),
+      ]),
+    );
+    expect(result.warnings ?? []).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("basis_adjustment_multiple_likely"),
+      ]),
+    );
+
+    const patternInput = buildPatternInput(result);
+
+    expect(patternInput.tradeStructure.tradeCandleCount).toBe(0);
+    expect(
+      patternInput.supportResistanceContext.hadSupportResistanceContextAvailable,
+    ).toBe(false);
   });
 
   it("keeps execution bounds and reports v2 no-candle diagnostics without fetching v1 candles", async () => {

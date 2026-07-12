@@ -18,6 +18,14 @@ export type OpportunityDiagnosticsLogEntry = {
         adaptiveScore: number;
         adaptiveMultiplier: number;
         classification: string;
+        nextBarrierDistancePct?: number;
+        clearanceLabel?: string;
+        barrierClutterLabel?: string;
+        nearbyBarrierCount?: number;
+        pathQualityLabel?: string;
+        pathBarrierCount?: number;
+        tacticalRead?: string;
+        exhaustionLabel?: string;
     }>;
     opportunity?: {
         symbol: string;
@@ -25,6 +33,14 @@ export type OpportunityDiagnosticsLogEntry = {
         adaptiveScore: number;
         adaptiveMultiplier: number;
         classification: string;
+        nextBarrierDistancePct?: number;
+        clearanceLabel?: string;
+        barrierClutterLabel?: string;
+        nearbyBarrierCount?: number;
+        pathQualityLabel?: string;
+        pathBarrierCount?: number;
+        tacticalRead?: string;
+        exhaustionLabel?: string;
     };
     completedEvaluations?: EvaluatedOpportunity[];
 };

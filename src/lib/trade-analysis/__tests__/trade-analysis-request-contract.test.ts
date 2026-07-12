@@ -82,6 +82,33 @@ describe("trade analysis request contract", () => {
     });
   });
 
+  it("passes supplied trade-window candles through to the v2 analysis request", () => {
+    const suppliedCandle = {
+      symbol: "ABCD",
+      timestamp: "2026-05-01T13:36:00.000Z",
+      timeframe: "1m",
+      open: 1.24,
+      high: 1.28,
+      low: 1.23,
+      close: 1.27,
+      volume: 10000,
+    };
+    const validation = validateTradeAnalysisRequest({
+      ...validLongRequest,
+      preTradeCandles: [{ ...suppliedCandle, timestamp: "2026-05-01T13:34:00.000Z" }],
+      tradeCandles: [suppliedCandle],
+      postTradeCandles: [{ ...suppliedCandle, timestamp: "2026-05-01T13:47:00.000Z" }],
+    });
+
+    expect(validation.valid).toBe(true);
+
+    const trade = toLevelsSystemCandleTradeRequest(validation.request!);
+
+    expect(trade.preTradeCandles).toHaveLength(1);
+    expect(trade.tradeCandles).toEqual([suppliedCandle]);
+    expect(trade.postTradeCandles).toHaveLength(1);
+  });
+
   it("accepts a short trade sequence that opens with sell and covers with buy", () => {
     const validation = validateTradeAnalysisRequest({
       ...validLongRequest,
@@ -146,7 +173,21 @@ describe("trade analysis request contract", () => {
     expect(
       validation.issues.find((issue) => issue.code === "unsupported_provider")
         ?.message,
-    ).toBe("provider.preferredProvider must be one of ibkr or stub.");
+    ).toBe(
+      "provider.preferredProvider must be one of ibkr, eodhd, yahoo, or stub.",
+    );
+  });
+
+  it("accepts the current EODHD levels-system provider", () => {
+    const validation = validateTradeAnalysisRequest({
+      ...validLongRequest,
+      provider: {
+        preferredProvider: "eodhd",
+      },
+    });
+
+    expect(validation.valid).toBe(true);
+    expect(validation.request?.levelsSystem.preferredProvider).toBe("eodhd");
   });
 
   it("does not accept removed historical candle providers in app requests", () => {
@@ -162,7 +203,8 @@ describe("trade analysis request contract", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "unsupported_provider",
-          message: "provider.preferredProvider must be one of ibkr or stub.",
+          message:
+            "provider.preferredProvider must be one of ibkr, eodhd, yahoo, or stub.",
         }),
       ]),
     );

@@ -1,5 +1,6 @@
 // 2026-04-14 08:42 PM America/Toronto
 // Main phase 1 support and resistance engine orchestrator with refined clustering and scoring.
+import { buildVolumeBaselineFromCandles } from "../monitoring/volume-activity.js";
 import { DEFAULT_LEVEL_ENGINE_CONFIG } from "./level-config.js";
 import { clusterRawLevelCandidates } from "./level-clusterer.js";
 import { buildLevelRuntimeComparisonLogEntry, } from "./level-runtime-comparison-logger.js";
@@ -88,7 +89,7 @@ export class LevelEngine {
             }
         }
     }
-    deriveOutputMetadata(seriesMap) {
+    deriveOutputMetadata(seriesMap, referenceTimestamp, referencePriceOverride) {
         const dataQualityFlags = [
             ...new Set(Object.values(seriesMap).flatMap((series) => series.validationIssues.map((issue) => `${series.timeframe}:${issue.code}`))),
         ];
@@ -96,11 +97,16 @@ export class LevelEngine {
             dataQualityFlags.push("5m:unavailable");
         }
         const freshestTimestamp = Math.max(...Object.values(seriesMap).map((series) => series.candles.at(-1)?.timestamp ?? 0));
-        const ageHours = (Date.now() - freshestTimestamp) / (1000 * 60 * 60);
+        const ageHours = Math.max(0, referenceTimestamp - freshestTimestamp) / (1000 * 60 * 60);
         const freshness = ageHours <= 24 ? "fresh" : ageHours <= 24 * 7 ? "aging" : "stale";
-        const referencePrice = seriesMap["5m"].candles.at(-1)?.close ??
-            seriesMap["4h"].candles.at(-1)?.close ??
-            seriesMap.daily.candles.at(-1)?.close;
+        const referencePrice = typeof referencePriceOverride === "number" &&
+            Number.isFinite(referencePriceOverride) &&
+            referencePriceOverride > 0
+            ? referencePriceOverride
+            : seriesMap["5m"].candles.at(-1)?.close ??
+                seriesMap["4h"].candles.at(-1)?.close ??
+                seriesMap.daily.candles.at(-1)?.close;
+        const fiveMinuteVolumeBaseline = buildVolumeBaselineFromCandles(seriesMap["5m"].candles);
         return {
             providerByTimeframe: {
                 daily: seriesMap.daily.provider,
@@ -110,13 +116,25 @@ export class LevelEngine {
             dataQualityFlags,
             freshness,
             referencePrice,
+            volumeBaselineByTimeframe: {
+                ...(fiveMinuteVolumeBaseline ? { "5m": fiveMinuteVolumeBaseline } : {}),
+            },
         };
+    }
+    deriveReferenceTimestamp(seriesMap) {
+        const timestamps = Object.values(seriesMap)
+            .map((series) => series.requestedEndTimestamp)
+            .filter((timestamp) => Number.isFinite(timestamp));
+        if (timestamps.length === 0) {
+            return Date.now();
+        }
+        return Math.max(...timestamps);
     }
     buildOldOutput(params) {
         const supportTolerance = Math.max(this.config.timeframeConfig.daily.clusterTolerancePct, this.config.timeframeConfig["4h"].clusterTolerancePct);
         const resistanceTolerance = supportTolerance;
-        const supportZones = scoreLevelZones(clusterRawLevelCandidates(params.symbol, "support", params.rawCandidates, supportTolerance, this.config), this.config);
-        const resistanceZones = scoreLevelZones(clusterRawLevelCandidates(params.symbol, "resistance", params.rawCandidates, resistanceTolerance, this.config), this.config);
+        const supportZones = scoreLevelZones(clusterRawLevelCandidates(params.symbol, "support", params.rawCandidates, supportTolerance, this.config, params.referenceTimestamp), this.config, params.referenceTimestamp);
+        const resistanceZones = scoreLevelZones(clusterRawLevelCandidates(params.symbol, "resistance", params.rawCandidates, resistanceTolerance, this.config, params.referenceTimestamp), this.config, params.referenceTimestamp);
         return rankLevelZones({
             symbol: params.symbol,
             supportZones,
@@ -126,10 +144,10 @@ export class LevelEngine {
             config: this.config,
         });
     }
-    async generateLevels(request) {
-        const seriesMap = await this.loadSeries(request);
+    buildOutputFromSeries(request, seriesMap) {
         this.assertSeriesUsable(seriesMap);
-        const metadata = this.deriveOutputMetadata(seriesMap);
+        const referenceTimestamp = this.deriveReferenceTimestamp(seriesMap);
+        const metadata = this.deriveOutputMetadata(seriesMap, referenceTimestamp, request.referencePriceOverride);
         const rawCandidates = [];
         for (const timeframe of ["daily", "4h", "5m"]) {
             const series = seriesMap[timeframe];
@@ -140,6 +158,7 @@ export class LevelEngine {
                 swingWindow: this.config.timeframeConfig[timeframe].swingWindow,
                 minimumDisplacementPct: this.config.timeframeConfig[timeframe].minimumDisplacementPct,
                 minimumSeparationBars: this.config.timeframeConfig[timeframe].minimumSwingSeparationBars,
+                includeBarrierCandles: timeframe === "daily" || timeframe === "4h",
             });
             rawCandidates.push(...buildRawLevelCandidates({
                 symbol: request.symbol.toUpperCase(),
@@ -156,6 +175,7 @@ export class LevelEngine {
             metadata,
             rawCandidates,
             specialLevels: special.summary,
+            referenceTimestamp,
         });
         const runtimeMode = this.runtimeOptions.runtimeMode ?? "old";
         if (runtimeMode === "old") {
@@ -192,5 +212,16 @@ export class LevelEngine {
             newPath: newProjection.comparableOutput,
         }));
         return compareActivePath === "new" ? newProjection.output : oldOutput;
+    }
+    async generateLevelsWithCandleSeries(request) {
+        const seriesMap = await this.loadSeries(request);
+        return {
+            output: this.buildOutputFromSeries(request, seriesMap),
+            seriesMap,
+        };
+    }
+    async generateLevels(request) {
+        const { output } = await this.generateLevelsWithCandleSeries(request);
+        return output;
     }
 }

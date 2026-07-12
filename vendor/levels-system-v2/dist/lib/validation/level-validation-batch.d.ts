@@ -70,6 +70,12 @@ export type LevelValidationBatchSummary = {
     averageSurfacedResistanceRespectRate: number;
     averageExtensionSupportRespectRate: number;
     averageExtensionResistanceRespectRate: number;
+    totalVolumeTouched: number;
+    totalVolumeReliableTouched: number;
+    totalHighVolumeTouches: number;
+    averageHighVolumeUsefulWhenTouchedRate: number;
+    averageHighVolumeRespectRate: number;
+    averageHighVolumeBreakRate: number;
     byKindSource: {
         surfacedSupport: ForwardReactionSummary;
         surfacedResistance: ForwardReactionSummary;

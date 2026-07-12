@@ -10,6 +10,8 @@ export declare class LevelStore {
     private nextMonitoredZoneId;
     private buildContext;
     private reconcileCanonicalSide;
+    private shouldCarryForwardPriorLevel;
+    private withUpdatedLadderPositions;
     private promoteExtensionSide;
     setLevels(output: LevelEngineOutput): void;
     getLevels(symbol: string): LevelEngineOutput | undefined;

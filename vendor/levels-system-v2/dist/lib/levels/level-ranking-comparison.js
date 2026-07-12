@@ -1,30 +1,210 @@
-// 2026-05-27 08:55 PM America/Toronto
-// Compact comparable-output helpers for old/new runtime shadow checks.
-function sortNearest(levels, currentPrice, side) {
-    return [...levels]
-        .filter((level) => (side === "support" ? level.price <= currentPrice : level.price >= currentPrice))
-        .sort((left, right) => Math.abs(left.price - currentPrice) - Math.abs(right.price - currentPrice))
-        .map((level, index) => ({
-        ...level,
-        nearestRank: index + 1,
-    }));
+// 2026-04-17 11:18 PM America/Toronto
+// Compare the existing surfaced-output ranking path against the newer level strength ranking layer on shared inputs.
+import { DEFAULT_LEVEL_ENGINE_CONFIG } from "./level-config.js";
+import { clusterRawLevelCandidates } from "./level-clusterer.js";
+import { buildRawLevelCandidates } from "./raw-level-candidate-builder.js";
+import { rankLevelZones } from "./level-ranker.js";
+import { rankLevels } from "./level-ranking.js";
+import { LEVEL_SCORE_CONFIG } from "./level-score-config.js";
+import { scoreLevelZones } from "./level-scorer.js";
+import { buildSpecialLevelCandidates } from "./special-level-builder.js";
+import { detectSwingPoints } from "./swing-detector.js";
+import { buildZoneBounds, overlapRatio, priceDistancePct } from "./level-zone-utils.js";
+export const CURRENT_OLD_LEVEL_RUNTIME_PATH = {
+    producer: {
+        file: "src/lib/levels/level-engine.ts",
+        functionName: "LevelEngine.generateLevels",
+        invocationChain: [
+            "detectSwingPoints",
+            "buildRawLevelCandidates",
+            "buildSpecialLevelCandidates",
+            "clusterRawLevelCandidates",
+            "scoreLevelZones",
+            "rankLevelZones",
+        ],
+        inputShape: "symbol + historical candle requests -> raw candidates per timeframe -> clustered FinalLevelZone[] per side",
+        outputShape: "LevelEngineOutput with bucketed surfaced fields: majorSupport, majorResistance, intermediateSupport, intermediateResistance, intradaySupport, intradayResistance, extensionLevels, metadata, specialLevels",
+    },
+    runtimeEntrypoints: [
+        {
+            file: "src/runtime/main.ts",
+            functionName: "seedLevels",
+            details: "Calls engine.generateLevels(...) and stores the LevelEngineOutput in LevelStore.",
+        },
+        {
+            file: "src/lib/monitoring/manual-watchlist-runtime-manager.ts",
+            functionName: "seedLevelsForSymbol",
+            details: "Calls levelEngine.generateLevels(...) during activation/startup refresh and pushes output into LevelStore.",
+        },
+    ],
+    downstreamConsumers: [
+        {
+            file: "src/lib/monitoring/level-store.ts",
+            dependency: "Flattens output.majorSupport/intermediateSupport/intradaySupport and the resistance equivalents into monitored active zones, and reads output.extensionLevels for promoted extensions.",
+        },
+        {
+            file: "src/lib/monitoring/manual-watchlist-runtime-manager.ts",
+            dependency: "Builds Discord snapshot payloads from surfaced support/resistance buckets and extensionLevels using representativePrice/strengthScore/freshness/timeframeBias.",
+        },
+        {
+            file: "src/lib/alerts/alert-intelligence-engine.ts",
+            dependency: "Scans all zones from LevelEngineOutput including surfaced buckets and extensionLevels when enriching monitoring events.",
+        },
+    ],
+};
+function deriveLatestTimestamp(candlesByTimeframe) {
+    return Math.max(0, ...Object.values(candlesByTimeframe).map((candles) => candles?.at(-1)?.timestamp ?? 0));
+}
+function deriveFreshness(latestTimestamp) {
+    const ageHours = (Date.now() - latestTimestamp) / (1000 * 60 * 60);
+    if (ageHours <= 24) {
+        return "fresh";
+    }
+    if (ageHours <= 24 * 7) {
+        return "aging";
+    }
+    return "stale";
+}
+function deriveCurrentTimeframe(candlesByTimeframe) {
+    if ((candlesByTimeframe["5m"]?.length ?? 0) > 0) {
+        return "5m";
+    }
+    if ((candlesByTimeframe["4h"]?.length ?? 0) > 0) {
+        return "4h";
+    }
+    return "daily";
+}
+function buildSharedRawCandidates(input, config) {
+    const limitations = [];
+    for (const timeframe of ["daily", "4h"]) {
+        if ((input.candlesByTimeframe[timeframe]?.length ?? 0) === 0) {
+            limitations.push(`Missing ${timeframe} candles; old live path normally expects this timeframe.`);
+        }
+    }
+    if (input.rawCandidates) {
+        return {
+            rawCandidates: input.rawCandidates,
+            specialLevels: input.specialLevels ?? {},
+            limitations,
+        };
+    }
+    const rawCandidates = [];
+    for (const timeframe of ["daily", "4h", "5m"]) {
+        const candles = input.candlesByTimeframe[timeframe];
+        if (!candles || candles.length === 0) {
+            continue;
+        }
+        const swings = detectSwingPoints(candles, {
+            swingWindow: config.timeframeConfig[timeframe].swingWindow,
+            minimumDisplacementPct: config.timeframeConfig[timeframe].minimumDisplacementPct,
+            minimumSeparationBars: config.timeframeConfig[timeframe].minimumSwingSeparationBars,
+        });
+        rawCandidates.push(...buildRawLevelCandidates({
+            symbol: input.symbol.toUpperCase(),
+            timeframe,
+            candles,
+            swings,
+        }));
+    }
+    const special = input.specialLevels ?? buildSpecialLevelCandidates(input.symbol.toUpperCase(), input.candlesByTimeframe["5m"] ?? []);
+    const specialSummary = "candidates" in special ? special.summary : special;
+    const specialCandidates = "candidates" in special ? special.candidates : [];
+    rawCandidates.push(...specialCandidates);
+    return {
+        rawCandidates,
+        specialLevels: specialSummary,
+        limitations,
+    };
+}
+function buildComparisonMetadata(input) {
+    const latestTimestamp = input.latestTimestamp ?? deriveLatestTimestamp(input.candlesByTimeframe);
+    return {
+        providerByTimeframe: {
+            daily: "stub",
+            "4h": "stub",
+            "5m": "stub",
+        },
+        dataQualityFlags: [],
+        freshness: deriveFreshness(latestTimestamp),
+        referencePrice: input.currentPrice,
+    };
+}
+function buildNewScoringContext(input) {
+    const currentTimeframe = input.currentTimeframe ?? deriveCurrentTimeframe(input.candlesByTimeframe);
+    const recentCandles = input.candlesByTimeframe[currentTimeframe] ??
+        input.candlesByTimeframe["5m"] ??
+        input.candlesByTimeframe["4h"] ??
+        input.candlesByTimeframe.daily ??
+        [];
+    return {
+        symbol: input.symbol.toUpperCase(),
+        currentPrice: input.currentPrice,
+        latestTimestamp: input.latestTimestamp ?? deriveLatestTimestamp(input.candlesByTimeframe),
+        currentSessionVolumeRatio: input.currentSessionVolumeRatio,
+        recentCandles,
+        currentTimeframe,
+    };
+}
+function convertRawCandidateToLevelCandidate(candidate, candlesByTimeframe) {
+    const type = candidate.kind === "support" ? "support" : "resistance";
+    const zoneBounds = buildZoneBounds(candidate.price);
+    return {
+        id: candidate.id,
+        symbol: candidate.symbol,
+        type,
+        price: candidate.price,
+        zoneLow: zoneBounds.zoneLow,
+        zoneHigh: zoneBounds.zoneHigh,
+        sourceTimeframes: [candidate.timeframe],
+        originKinds: [candidate.sourceType],
+        analysisCandles: candlesByTimeframe[candidate.timeframe],
+        roleFlipCount: 0,
+    };
 }
 function flattenOldSide(output, side) {
-    if (side === "support") {
-        return [
+    const buckets = side === "support"
+        ? [
             ...output.majorSupport.map((zone) => ({ zone, bucket: "major" })),
             ...output.intermediateSupport.map((zone) => ({ zone, bucket: "intermediate" })),
             ...output.intradaySupport.map((zone) => ({ zone, bucket: "intraday" })),
+        ]
+        : [
+            ...output.majorResistance.map((zone) => ({ zone, bucket: "major" })),
+            ...output.intermediateResistance.map((zone) => ({ zone, bucket: "intermediate" })),
+            ...output.intradayResistance.map((zone) => ({ zone, bucket: "intraday" })),
         ];
+    return buckets.sort((left, right) => right.zone.strengthScore - left.zone.strengthScore ||
+        right.zone.followThroughScore - left.zone.followThroughScore ||
+        right.zone.confluenceCount - left.zone.confluenceCount);
+}
+function countNearbyDuplicates(levels) {
+    const sorted = [...levels].sort((left, right) => left.price - right.price);
+    let duplicateCount = 0;
+    for (let index = 1; index < sorted.length; index += 1) {
+        const left = sorted[index - 1];
+        const right = sorted[index];
+        const overlap = overlapRatio({ zoneLow: left.zoneLow, zoneHigh: left.zoneHigh }, { zoneLow: right.zoneLow, zoneHigh: right.zoneHigh });
+        const distance = priceDistancePct(left.price, right.price);
+        if (overlap >= 0.35 || distance <= LEVEL_SCORE_CONFIG.clustering.maxRepresentativeDistancePct) {
+            duplicateCount += 1;
+        }
     }
-    return [
-        ...output.majorResistance.map((zone) => ({ zone, bucket: "major" })),
-        ...output.intermediateResistance.map((zone) => ({ zone, bucket: "intermediate" })),
-        ...output.intradayResistance.map((zone) => ({ zone, bucket: "intraday" })),
-    ];
+    return duplicateCount;
+}
+function summarizeComparableLevels(levels, currentPrice, side) {
+    const nearestSorted = [...levels].sort((left, right) => {
+        const leftDistance = Math.abs(left.price - currentPrice);
+        const rightDistance = Math.abs(right.price - currentPrice);
+        return leftDistance - rightDistance || left.rank - right.rank;
+    });
+    const nearestRankMap = new Map(nearestSorted.map((level, index) => [`${level.sourcePath}:${level.price}:${level.zoneLow}:${level.zoneHigh}`, index + 1]));
+    return levels.map((level) => ({
+        ...level,
+        nearestRank: nearestRankMap.get(`${level.sourcePath}:${level.price}:${level.zoneLow}:${level.zoneHigh}`) ?? level.rank,
+    }));
 }
 export function normalizeOldPathOutput(output, currentPrice, maxComparableLevels = 8) {
-    const supports = flattenOldSide(output, "support")
+    const supports = summarizeComparableLevels(flattenOldSide(output, "support")
         .slice(0, maxComparableLevels)
         .map(({ zone, bucket }, index) => ({
         sourcePath: "old",
@@ -38,8 +218,8 @@ export function normalizeOldPathOutput(output, currentPrice, maxComparableLevels
         strengthLabel: zone.strengthLabel,
         bucket,
         sourceTimeframes: zone.timeframeSources,
-    }));
-    const resistances = flattenOldSide(output, "resistance")
+    })), currentPrice, "support");
+    const resistances = summarizeComparableLevels(flattenOldSide(output, "resistance")
         .slice(0, maxComparableLevels)
         .map(({ zone, bucket }, index) => ({
         sourcePath: "old",
@@ -53,26 +233,76 @@ export function normalizeOldPathOutput(output, currentPrice, maxComparableLevels
         strengthLabel: zone.strengthLabel,
         bucket,
         sourceTimeframes: zone.timeframeSources,
-    }));
-    const nearestSupports = sortNearest(supports, currentPrice, "support");
-    const nearestResistances = sortNearest(resistances, currentPrice, "resistance");
+    })), currentPrice, "resistance");
     return {
         symbol: output.symbol,
         currentPrice,
         topSupport: supports[0],
-        nearestSupport: nearestSupports[0],
+        nearestSupport: [...supports].sort((left, right) => left.nearestRank - right.nearestRank)[0],
         topResistance: resistances[0],
-        nearestResistance: nearestResistances[0],
+        nearestResistance: [...resistances].sort((left, right) => left.nearestRank - right.nearestRank)[0],
         supports,
         resistances,
         visibleSupportCount: supports.length,
         visibleResistanceCount: resistances.length,
-        nearbyDuplicateCount: 0,
-        outputShape: "legacy_level_engine_output",
+        nearbyDuplicateCount: countNearbyDuplicates([...supports, ...resistances]),
+        outputShape: "bucketed surfaced LevelEngineOutput",
+    };
+}
+export function normalizeNewPathOutput(output, maxComparableLevels = 8) {
+    const supports = summarizeComparableLevels(output.supports.slice(0, maxComparableLevels).map((level) => ({
+        sourcePath: "new",
+        side: "support",
+        price: level.price,
+        zoneLow: level.zoneLow,
+        zoneHigh: level.zoneHigh,
+        rank: level.rank,
+        nearestRank: level.rank,
+        score: level.score,
+        confidence: level.confidence,
+        state: level.state,
+        durabilityLabel: level.durabilityLabel,
+        explanation: level.explanation,
+        clusterRepresentative: level.isClusterRepresentative,
+        clusterId: level.clusterId,
+        sourceTimeframes: level.sourceTimeframes,
+    })), output.currentPrice, "support");
+    const resistances = summarizeComparableLevels(output.resistances.slice(0, maxComparableLevels).map((level) => ({
+        sourcePath: "new",
+        side: "resistance",
+        price: level.price,
+        zoneLow: level.zoneLow,
+        zoneHigh: level.zoneHigh,
+        rank: level.rank,
+        nearestRank: level.rank,
+        score: level.score,
+        confidence: level.confidence,
+        state: level.state,
+        durabilityLabel: level.durabilityLabel,
+        explanation: level.explanation,
+        clusterRepresentative: level.isClusterRepresentative,
+        clusterId: level.clusterId,
+        sourceTimeframes: level.sourceTimeframes,
+    })), output.currentPrice, "resistance");
+    return {
+        symbol: output.symbol,
+        currentPrice: output.currentPrice,
+        topSupport: supports[0],
+        nearestSupport: [...supports].sort((left, right) => left.nearestRank - right.nearestRank)[0],
+        topResistance: resistances[0],
+        nearestResistance: [...resistances].sort((left, right) => left.nearestRank - right.nearestRank)[0],
+        supports,
+        resistances,
+        visibleSupportCount: supports.length,
+        visibleResistanceCount: resistances.length,
+        nearbyDuplicateCount: countNearbyDuplicates([...supports, ...resistances]),
+        outputShape: "ranked strength output with confidence/state/explanation",
     };
 }
 export function normalizeSurfacedSelectionOutput(output, maxComparableLevels = 8) {
-    const supports = output.surfacedSupports.slice(0, maxComparableLevels).map((level, index) => ({
+    const supportLevels = output.surfacedSupports.slice(0, maxComparableLevels);
+    const resistanceLevels = output.surfacedResistances.slice(0, maxComparableLevels);
+    const supports = summarizeComparableLevels(supportLevels.map((level, index) => ({
         sourcePath: "surfaced_adapter",
         side: "support",
         price: level.price,
@@ -83,10 +313,13 @@ export function normalizeSurfacedSelectionOutput(output, maxComparableLevels = 8
         score: level.surfacedSelectionScore,
         confidence: level.confidence,
         state: level.state,
+        durabilityLabel: level.durabilityLabel,
         explanation: level.surfacedSelectionExplanation,
+        clusterRepresentative: level.isClusterRepresentative,
+        clusterId: level.clusterId,
         sourceTimeframes: level.sourceTimeframes,
-    }));
-    const resistances = output.surfacedResistances.slice(0, maxComparableLevels).map((level, index) => ({
+    })), output.currentPrice, "support");
+    const resistances = summarizeComparableLevels(resistanceLevels.map((level, index) => ({
         sourcePath: "surfaced_adapter",
         side: "resistance",
         price: level.price,
@@ -97,51 +330,191 @@ export function normalizeSurfacedSelectionOutput(output, maxComparableLevels = 8
         score: level.surfacedSelectionScore,
         confidence: level.confidence,
         state: level.state,
+        durabilityLabel: level.durabilityLabel,
         explanation: level.surfacedSelectionExplanation,
+        clusterRepresentative: level.isClusterRepresentative,
+        clusterId: level.clusterId,
         sourceTimeframes: level.sourceTimeframes,
-    }));
-    const nearestSupports = sortNearest(supports, output.currentPrice, "support");
-    const nearestResistances = sortNearest(resistances, output.currentPrice, "resistance");
+    })), output.currentPrice, "resistance");
     return {
         symbol: output.symbol,
         currentPrice: output.currentPrice,
-        topSupport: supports[0],
-        nearestSupport: nearestSupports[0],
-        topResistance: resistances[0],
-        nearestResistance: nearestResistances[0],
+        topSupport: output.topActionableSupport
+            ? supports.find((level) => level.price === output.topActionableSupport?.price)
+            : supports[0],
+        nearestSupport: [...supports].sort((left, right) => left.nearestRank - right.nearestRank)[0],
+        topResistance: output.topActionableResistance
+            ? resistances.find((level) => level.price === output.topActionableResistance?.price)
+            : resistances[0],
+        nearestResistance: [...resistances].sort((left, right) => left.nearestRank - right.nearestRank)[0],
         supports,
         resistances,
         visibleSupportCount: supports.length,
         visibleResistanceCount: resistances.length,
-        nearbyDuplicateCount: output.suppressedNearDuplicates.length,
-        outputShape: "surfaced_selection_projection",
+        nearbyDuplicateCount: countNearbyDuplicates([...supports, ...resistances]),
+        outputShape: "surfaced selection adapter output with actionable levels only; deeper anchors remain separate context",
     };
 }
-function priceChanged(left, right) {
+function levelsEquivalent(left, right) {
     if (!left || !right) {
-        return left !== right;
+        return left === right;
     }
-    return Math.abs(left.price - right.price) > 0.0001;
+    const overlap = overlapRatio({ zoneLow: left.zoneLow, zoneHigh: left.zoneHigh }, { zoneLow: right.zoneLow, zoneHigh: right.zoneHigh });
+    const distance = priceDistancePct(left.price, right.price);
+    return overlap >= 0.35 || distance <= LEVEL_SCORE_CONFIG.clustering.maxRepresentativeDistancePct;
+}
+function buildRankChanges(oldLevels, newLevels) {
+    const changes = new Map();
+    for (const level of oldLevels) {
+        const match = newLevels.find((candidate) => levelsEquivalent(level, candidate));
+        changes.set(`old-${level.rank}-${level.price}`, {
+            price: level.price,
+            oldRank: level.rank,
+            newRank: match?.rank ?? null,
+        });
+    }
+    for (const level of newLevels) {
+        const match = oldLevels.find((candidate) => levelsEquivalent(level, candidate));
+        if (!match) {
+            changes.set(`new-${level.rank}-${level.price}`, {
+                price: level.price,
+                oldRank: null,
+                newRank: level.rank,
+            });
+        }
+    }
+    return [...changes.values()].filter((change) => change.oldRank !== change.newRank);
+}
+export function summarizeMigrationReadiness(params) {
+    const improvements = [];
+    const regressions = [];
+    const acceptableDifferences = [];
+    const blockers = [];
+    const downstreamDependencies = CURRENT_OLD_LEVEL_RUNTIME_PATH.downstreamConsumers.map((consumer) => `${consumer.file}: ${consumer.dependency}`);
+    improvements.push("The new path exposes confidence, state, durability, explanation, and cluster representative metadata.");
+    if (params.differences.duplicateSuppressionImproved) {
+        improvements.push("The new path reduced nearby duplicate levels in the compared surfaced subset.");
+    }
+    if (params.differences.changedTopSupport || params.differences.changedTopResistance) {
+        acceptableDifferences.push("Top surfaced levels changed between old and new paths and require manual chart review.");
+    }
+    if (params.differences.supportRankChanges.length > 0 || params.differences.resistanceRankChanges.length > 0) {
+        acceptableDifferences.push("Rank ordering changed, which is expected when moving from bucketed surfaced outputs to a richer strength model.");
+    }
+    if (params.newPath.visibleSupportCount === 0 || params.newPath.visibleResistanceCount === 0) {
+        regressions.push("The new path did not surface both sides in the compared subset.");
+    }
+    blockers.push("Direct replacement is blocked today because live consumers expect bucketed LevelEngineOutput fields such as majorSupport, intermediateResistance, and extensionLevels.");
+    if (params.limitations.some((limitation) => limitation.includes("Missing"))) {
+        blockers.push("Candidate/candle completeness differs from the old live assumptions on at least one timeframe.");
+    }
+    const category = blockers.some((blocker) => blocker.includes("bucketed LevelEngineOutput"))
+        ? "blocked_by_output_compatibility"
+        : params.limitations.length > 0
+            ? "blocked_by_candidate_input_mismatch"
+            : regressions.length > improvements.length
+                ? "needs_more_calibration"
+                : params.differences.changedTopSupport || params.differences.changedTopResistance
+                    ? "ready_for_shadow_mode"
+                    : "ready_for_optional_runtime_flag";
+    return {
+        category,
+        improvements,
+        regressions,
+        acceptableDifferences,
+        blockers,
+        downstreamDependencies,
+        limitations: params.limitations,
+        recommendation: category === "blocked_by_output_compatibility"
+            ? "Keep the old path live, run the new layer in shadow comparison mode, and add an adapter or feature-flagged projection before considering replacement."
+            : category === "blocked_by_candidate_input_mismatch"
+                ? "Calibrate shared candidate inputs first so both paths are fed more equivalently before migration decisions."
+                : category === "needs_more_calibration"
+                    ? "Do not switch defaults yet; review the changed tops and regressions and tune the new layer first."
+                    : category === "ready_for_shadow_mode"
+                        ? "Proceed with side-by-side shadow evaluation in runtime or validation scripts before enabling any optional runtime flag."
+                        : "The new path appears stable enough for a non-default optional runtime flag once an output adapter is in place.",
+    };
 }
 export function computeComparisonDifferences(params) {
+    const oldPath = params.oldPath;
+    const newPath = params.newPath;
+    const changedTopSupport = !levelsEquivalent(oldPath.topSupport, newPath.topSupport);
+    const changedTopResistance = !levelsEquivalent(oldPath.topResistance, newPath.topResistance);
+    const changedNearestSupport = !levelsEquivalent(oldPath.nearestSupport, newPath.nearestSupport);
+    const changedNearestResistance = !levelsEquivalent(oldPath.nearestResistance, newPath.nearestResistance);
+    const supportRankChanges = buildRankChanges(oldPath.supports, newPath.supports);
+    const resistanceRankChanges = buildRankChanges(oldPath.resistances, newPath.resistances);
+    const duplicateSuppressionImproved = newPath.nearbyDuplicateCount < oldPath.nearbyDuplicateCount;
     const noteworthyDisagreements = [];
-    if (priceChanged(params.oldPath.nearestSupport, params.newPath.nearestSupport)) {
-        noteworthyDisagreements.push("Nearest support differs between old and projected paths.");
+    const incompatibilities = [...params.limitations];
+    if (changedTopSupport) {
+        noteworthyDisagreements.push("Top support changed between old surfaced output and the new strength ranking.");
     }
-    if (priceChanged(params.oldPath.nearestResistance, params.newPath.nearestResistance)) {
-        noteworthyDisagreements.push("Nearest resistance differs between old and projected paths.");
+    if (changedTopResistance) {
+        noteworthyDisagreements.push("Top resistance changed between old surfaced output and the new strength ranking.");
     }
+    if (duplicateSuppressionImproved) {
+        noteworthyDisagreements.push("The new path appears to suppress more nearby duplicates in the compared surfaced subset.");
+    }
+    if (newPath.topSupport?.state || newPath.topResistance?.state) {
+        noteworthyDisagreements.push("The new path adds state/confidence/durability/explanation metadata that the old path cannot provide.");
+    }
+    incompatibilities.push("Old path emits bucketed LevelEngineOutput fields while the new path emits globally ranked supports/resistances.");
     return {
-        changedTopSupport: priceChanged(params.oldPath.topSupport, params.newPath.topSupport),
-        changedTopResistance: priceChanged(params.oldPath.topResistance, params.newPath.topResistance),
-        changedNearestSupport: priceChanged(params.oldPath.nearestSupport, params.newPath.nearestSupport),
-        changedNearestResistance: priceChanged(params.oldPath.nearestResistance, params.newPath.nearestResistance),
-        supportRankChanges: [],
-        resistanceRankChanges: [],
-        duplicateSuppressionImproved: params.newPath.nearbyDuplicateCount < params.oldPath.nearbyDuplicateCount,
-        oldNearbyDuplicateCount: params.oldPath.nearbyDuplicateCount,
-        newNearbyDuplicateCount: params.newPath.nearbyDuplicateCount,
+        changedTopSupport,
+        changedTopResistance,
+        changedNearestSupport,
+        changedNearestResistance,
+        supportRankChanges,
+        resistanceRankChanges,
+        duplicateSuppressionImproved,
+        oldNearbyDuplicateCount: oldPath.nearbyDuplicateCount,
+        newNearbyDuplicateCount: newPath.nearbyDuplicateCount,
         noteworthyDisagreements,
-        incompatibilities: params.limitations ?? [],
+        incompatibilities,
+    };
+}
+export function compareLevelRankingPaths(input) {
+    const oldConfig = input.oldConfig ?? DEFAULT_LEVEL_ENGINE_CONFIG;
+    const newConfig = input.newConfig ?? LEVEL_SCORE_CONFIG;
+    const { rawCandidates, specialLevels, limitations } = buildSharedRawCandidates(input, oldConfig);
+    const supportTolerance = Math.max(oldConfig.timeframeConfig.daily.clusterTolerancePct, oldConfig.timeframeConfig["4h"].clusterTolerancePct);
+    const supportZones = scoreLevelZones(clusterRawLevelCandidates(input.symbol.toUpperCase(), "support", rawCandidates, supportTolerance, oldConfig), oldConfig);
+    const resistanceZones = scoreLevelZones(clusterRawLevelCandidates(input.symbol.toUpperCase(), "resistance", rawCandidates, supportTolerance, oldConfig), oldConfig);
+    const oldOutput = rankLevelZones({
+        symbol: input.symbol.toUpperCase(),
+        supportZones,
+        resistanceZones,
+        specialLevels,
+        metadata: buildComparisonMetadata(input),
+        config: oldConfig,
+    });
+    const newCandidates = rawCandidates.map((candidate) => convertRawCandidateToLevelCandidate(candidate, input.candlesByTimeframe));
+    const newOutput = rankLevels(newCandidates, buildNewScoringContext(input), newConfig);
+    const maxComparableLevels = input.maxComparableLevels ?? 8;
+    const normalizedOld = normalizeOldPathOutput(oldOutput, input.currentPrice, maxComparableLevels);
+    const normalizedNew = normalizeNewPathOutput(newOutput, maxComparableLevels);
+    const differences = computeComparisonDifferences({
+        oldPath: normalizedOld,
+        newPath: normalizedNew,
+        limitations,
+    });
+    const migrationReadiness = summarizeMigrationReadiness({
+        oldPath: normalizedOld,
+        newPath: normalizedNew,
+        differences,
+        limitations,
+    });
+    return {
+        symbol: input.symbol.toUpperCase(),
+        currentPrice: input.currentPrice,
+        rawCandidateCount: rawCandidates.length,
+        specialCandidateCount: rawCandidates.filter((candidate) => candidate.sourceType.startsWith("premarket") || candidate.sourceType.startsWith("opening_range")).length,
+        timeframesUsed: ["daily", "4h", "5m"].filter((timeframe) => (input.candlesByTimeframe[timeframe]?.length ?? 0) > 0),
+        oldPath: normalizedOld,
+        newPath: normalizedNew,
+        differences,
+        migrationReadiness,
     };
 }

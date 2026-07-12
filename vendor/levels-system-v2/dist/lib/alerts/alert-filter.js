@@ -1,6 +1,10 @@
 // 2026-04-14 10:18 PM America/Toronto
 // Filters low-value alerts before they reach the user.
+import { isAlertPrimaryCategoryLiveEnabled } from "../signals/signal-category-routing.js";
 export function shouldSuppressAlert(alert) {
+    if (!isAlertPrimaryCategoryLiveEnabled(alert)) {
+        return true;
+    }
     if (!alert.shouldNotify && alert.confidence === "low") {
         return true;
     }

@@ -9,6 +9,8 @@ function seededNumber(seed) {
 }
 function timeframeBasePrice(timeframe) {
     switch (timeframe) {
+        case "1m":
+            return 4.9;
         case "daily":
             return 4.2;
         case "4h":
@@ -19,11 +21,13 @@ function timeframeBasePrice(timeframe) {
 }
 function generateStubCandles(request) {
     const now = request.endTimeMs ?? Date.now();
-    const spacingMs = request.timeframe === "daily"
-        ? 24 * 60 * 60 * 1000
-        : request.timeframe === "4h"
-            ? 4 * 60 * 60 * 1000
-            : 5 * 60 * 1000;
+    const spacingMs = request.timeframe === "1m"
+        ? 60 * 1000
+        : request.timeframe === "daily"
+            ? 24 * 60 * 60 * 1000
+            : request.timeframe === "4h"
+                ? 4 * 60 * 60 * 1000
+                : 5 * 60 * 1000;
     let price = timeframeBasePrice(request.timeframe);
     const candles = [];
     for (let i = request.lookbackBars - 1; i >= 0; i -= 1) {
@@ -50,11 +54,13 @@ function generateStubCandles(request) {
 }
 function buildStubProviderResponse(request) {
     const requestEndTimestamp = request.endTimeMs ?? Date.now();
-    const intervalMs = request.timeframe === "daily"
-        ? 24 * 60 * 60 * 1000
-        : request.timeframe === "4h"
-            ? 4 * 60 * 60 * 1000
-            : 5 * 60 * 1000;
+    const intervalMs = request.timeframe === "1m"
+        ? 60 * 1000
+        : request.timeframe === "daily"
+            ? 24 * 60 * 60 * 1000
+            : request.timeframe === "4h"
+                ? 4 * 60 * 60 * 1000
+                : 5 * 60 * 1000;
     return {
         provider: "stub",
         symbol: request.symbol.toUpperCase(),
@@ -65,7 +71,7 @@ function buildStubProviderResponse(request) {
         fetchEndTimestamp: Date.now(),
         requestedStartTimestamp: requestEndTimestamp - request.lookbackBars * intervalMs,
         requestedEndTimestamp: requestEndTimestamp,
-        sessionMetadataAvailable: request.timeframe === "5m",
+        sessionMetadataAvailable: request.timeframe === "1m" || request.timeframe === "5m",
         providerMetadata: {
             source: "deterministic_stub",
         },
@@ -90,11 +96,18 @@ export class CandleFetchService {
                     provider: providerOrOptions.providerName,
                     ib: providerOrOptions.ib,
                     ibkrTimeoutMs: providerOrOptions.ibkrTimeoutMs,
-                    twelveDataApiKey: providerOrOptions.twelveDataApiKey,
+                    eodhdApiToken: providerOrOptions.eodhdApiToken,
+                    eodhdExchangeSuffix: providerOrOptions.eodhdExchangeSuffix,
+                    eodhdBaseUrl: providerOrOptions.eodhdBaseUrl,
+                    yahooBaseUrl: providerOrOptions.yahooBaseUrl,
+                    yahooFetchFn: providerOrOptions.yahooFetchFn,
                 });
     }
     getProviderName() {
         return this.provider.providerName;
+    }
+    setProvider(provider) {
+        this.provider = provider;
     }
     async fetchCandles(request) {
         if (!request.symbol.trim()) {

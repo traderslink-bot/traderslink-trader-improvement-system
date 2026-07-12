@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSupportResistanceContext } from "levels-system-v2/support-resistance-engine";
+import { buildSupportResistanceContextForSymbol } from "levels-system-v2/support-resistance-engine";
 import { sampleCreateRawTradeTimelineInput } from "../../raw-trade-timeline/__fixtures__/sample-create-raw-trade-timeline-input";
 import {
   createRawTradeTimeline,
@@ -11,8 +11,17 @@ import {
 } from "../levels-system-adapter";
 import type { FinalLevelZone } from "levels-system-v2/support-resistance-engine";
 
+type FinalLevelZoneTestOverrides = Partial<FinalLevelZone> & {
+  extensionMetadata?: {
+    extensionSource?: string | null;
+    generationMethod?: string;
+    syntheticIndex?: number;
+    evidenceLimitations?: string[];
+  };
+};
+
 function buildFinalLevelZone(
-  overrides: Partial<FinalLevelZone> = {},
+  overrides: FinalLevelZoneTestOverrides = {},
 ): FinalLevelZone {
   return {
     id: "ABCD-support-zone-1",
@@ -41,7 +50,7 @@ function buildFinalLevelZone(
     freshness: "fresh",
     notes: [],
     ...overrides,
-  };
+  } as FinalLevelZone;
 }
 
 describe("levels-system adapter", () => {
@@ -126,7 +135,7 @@ describe("levels-system adapter", () => {
   });
 
   it("imports the public package boundary and builds mapped context with the shared stub provider", async () => {
-    expect(buildSupportResistanceContext).toBeTypeOf("function");
+    expect(buildSupportResistanceContextForSymbol).toBeTypeOf("function");
 
     const rawResult = createRawTradeTimeline(sampleCreateRawTradeTimelineInput);
     const context = await buildLevelsSystemSupportResistanceContext({
@@ -163,12 +172,21 @@ describe("levels-system adapter", () => {
     expect(mappedLevels.some((level) => level.zoneWidthPct !== null)).toBe(
       true,
     );
-    expect(mappedLevels.some((level) => level.sourceStrengthLabel === "weak"))
-      .toBe(true);
-    expect(context.dynamicLevels.vwap).toBeNull();
-    expect(context.dynamicLevels.ema9).toBeNull();
-    expect(context.dynamicLevels.ema20).toBeNull();
-    expect(context.experimentalMarketStructure).toBeUndefined();
+    expect(
+      mappedLevels.every((level) =>
+        ["major", "strong", "moderate", "weak"].includes(
+          level.sourceStrengthLabel ?? "",
+        ),
+      ),
+    ).toBe(true);
+    expect(context.dynamicLevels.vwap).toEqual(expect.any(Number));
+    expect(context.dynamicLevels.ema9).toEqual(expect.any(Number));
+    expect(context.dynamicLevels.ema20).toEqual(expect.any(Number));
+    expect(context.experimentalMarketStructure).toEqual(
+      expect.objectContaining({
+        state: expect.any(String),
+      }),
+    );
     expect(context.executionLevelRelations).toHaveLength(
       rawResult.timeline.executions.length,
     );
@@ -214,11 +232,13 @@ describe("levels-system adapter", () => {
     expect(result.executionLevelRelations).toHaveLength(
       result.timeline.executions.length,
     );
-    expect(result.dynamicLevels).toMatchObject({
-      vwap: null,
-      ema9: null,
-      ema20: null,
-    });
-    expect(result.experimentalMarketStructure).toBeUndefined();
+    expect(result.dynamicLevels?.vwap).toEqual(expect.any(Number));
+    expect(result.dynamicLevels?.ema9).toEqual(expect.any(Number));
+    expect(result.dynamicLevels?.ema20).toEqual(expect.any(Number));
+    expect(result.experimentalMarketStructure).toEqual(
+      expect.objectContaining({
+        state: expect.any(String),
+      }),
+    );
   });
 });

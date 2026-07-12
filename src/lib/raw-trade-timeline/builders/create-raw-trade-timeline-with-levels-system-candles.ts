@@ -3,7 +3,9 @@ import type {
   CandleProviderResponse,
   CandleTimeframe,
   HistoricalFetchRequest,
-  SupportResistanceContext as LevelsSystemV2SupportResistanceContext,
+  SupportResistanceCandleMap,
+  SupportResistanceContext as LevelsSystemV2BaseSupportResistanceContext,
+  SupportResistanceSymbolContext as LevelsSystemV2SupportResistanceContext,
   TradeAnalysisCandleContext,
   TradeAnalysisCandleWindowOptions,
 } from "levels-system-v2/support-resistance-engine";
@@ -65,14 +67,14 @@ const SHARED_IBKR_DISPOSE_GLOBAL_KEY =
 async function loadLevelsSystemV2Engine(): Promise<
   Pick<
     LevelsSystemV2EngineModule,
-    "CandleFetchService" | "buildSupportResistanceContext"
+    "CandleFetchService" | "buildSupportResistanceContextFromCandles"
   >
 > {
   return (await import(
     /* webpackIgnore: true */ "levels-system-v2/support-resistance-engine"
   )) as Pick<
     LevelsSystemV2EngineModule,
-    "CandleFetchService" | "buildSupportResistanceContext"
+    "CandleFetchService" | "buildSupportResistanceContextFromCandles"
   >;
 }
 
@@ -270,6 +272,78 @@ function buildFiveMinuteCandles(timelineCandles: TimelineCandle[]): Candle[] {
   return aggregateCandlesToFiveMinutes(candles);
 }
 
+function shouldTryEodhdOneMinuteFallback(response: CandleProviderResponse): boolean {
+  if (response.provider !== "eodhd") {
+    return false;
+  }
+
+  return (
+    response.completenessStatus === "empty" ||
+    response.stale ||
+    response.validationIssues.some((issue) =>
+      issue.code === "zero_results" ||
+      issue.code === "stale_final_candle" ||
+      issue.code === "missing_recent_candles" ||
+      issue.code === "incomplete_current_session_data"
+    )
+  );
+}
+
+function buildAggregatedFiveMinuteResponse(args: {
+  lookbackBars: number;
+  oneMinuteResponse: CandleProviderResponse;
+}): CandleProviderResponse {
+  const candles = aggregateCandlesToFiveMinutes(args.oneMinuteResponse.candles)
+    .slice(-args.lookbackBars);
+  const expectedIntervalMs = FIVE_MINUTES_MS;
+  const lastCandle = candles[candles.length - 1];
+  const stale =
+    lastCandle === undefined
+      ? false
+      : args.oneMinuteResponse.requestedEndTimestamp - lastCandle.timestamp >
+        expectedIntervalMs * 3;
+  const validationIssues = lastCandle === undefined
+    ? [
+        {
+          code: "zero_results" as const,
+          severity: "error" as const,
+          message: `Provider ${args.oneMinuteResponse.provider} returned zero candles for ${args.oneMinuteResponse.symbol} 5m.`,
+        },
+      ]
+    : stale
+      ? [
+          {
+            code: "stale_final_candle" as const,
+            severity: "warning" as const,
+            message: `Final candle appears stale for ${args.oneMinuteResponse.symbol} 5m.`,
+          },
+        ]
+      : [];
+
+  return {
+    ...args.oneMinuteResponse,
+    timeframe: "5m",
+    requestedLookbackBars: args.lookbackBars,
+    candles,
+    actualBarsReturned: candles.length,
+    completenessStatus:
+      candles.length === 0
+        ? "empty"
+        : candles.length >= args.lookbackBars
+          ? "complete"
+          : "partial",
+    stale,
+    validationIssues,
+    providerMetadata: {
+      ...(args.oneMinuteResponse.providerMetadata ?? {}),
+      sourceTimeframe: "1m",
+      derivedTimeframe: "5m",
+      aggregationMethod: "ohlcv_1m_to_5m",
+      sourceActualBarsReturned: args.oneMinuteResponse.actualBarsReturned,
+    },
+  };
+}
+
 function toTimelineCandleInput(args: {
   candle: Candle;
   symbol: string;
@@ -455,66 +529,256 @@ async function resolveV2CandleFetchClient(
     return null;
   }
 
-  const resolveDelegate =
-    async (): Promise<LevelsSystemV2CandleFetchClient | null> => {
-      const { CandleFetchService } = await loadLevelsSystemV2Engine();
-      const fetchServiceOptions: Record<string, unknown> = {
-        providerName: levelsSystem.fetchServiceOptions?.providerName,
-        ibkrTimeoutMs: levelsSystem.fetchServiceOptions?.ibkrTimeoutMs,
-      };
+  const { CandleFetchService } = await loadLevelsSystemV2Engine();
+  const configuredFetchOptions = levelsSystem.fetchServiceOptions as Record<
+    string,
+    unknown
+  >;
+  const fetchServiceOptions: Record<string, unknown> = {
+    providerName: configuredFetchOptions.providerName,
+    ibkrTimeoutMs: configuredFetchOptions.ibkrTimeoutMs,
+    eodhdApiToken: configuredFetchOptions.eodhdApiToken,
+    eodhdExchangeSuffix: configuredFetchOptions.eodhdExchangeSuffix,
+    eodhdBaseUrl: configuredFetchOptions.eodhdBaseUrl,
+    yahooBaseUrl: configuredFetchOptions.yahooBaseUrl,
+  };
 
-      if (levelsSystem.fetchServiceOptions?.providerName === "ibkr") {
-        fetchServiceOptions.ib = await getSharedIbkrClient({
-          clientId: levelsSystem.fetchServiceOptions.clientId ?? 101,
-          connectionTimeoutMs:
-            levelsSystem.fetchServiceOptions.connectionTimeoutMs ?? 10_000,
-          host: levelsSystem.fetchServiceOptions.host ?? "127.0.0.1",
-          port: levelsSystem.fetchServiceOptions.port ?? 7497,
-        });
-      }
+  if (configuredFetchOptions.providerName === "ibkr") {
+    fetchServiceOptions.ib = await getSharedIbkrClient({
+      clientId: Number(configuredFetchOptions.clientId ?? 101),
+      connectionTimeoutMs:
+        Number(configuredFetchOptions.connectionTimeoutMs ?? 10_000),
+      host: String(configuredFetchOptions.host ?? "127.0.0.1"),
+      port: Number(configuredFetchOptions.port ?? 7497),
+    });
+  }
 
-      return asCandleFetchClient(new CandleFetchService(fetchServiceOptions));
-    };
+  const delegate = asCandleFetchClient(new CandleFetchService(fetchServiceOptions));
 
-  const providerName =
-    levelsSystem.fetchServiceOptions.providerName ??
-    levelsSystem.preferredProvider ??
-    "ibkr";
+  if (!delegate) {
+    return null;
+  }
 
   if (levelsSystem.warehouseDirectoryPath) {
     return new LevelsSystemWarehouseBackedFetchService({
-      delegate: createLazyLevelsSystemV2CandleFetchClient({
-        providerName,
-        resolveDelegate,
-      }),
+      delegate,
       mode: levelsSystem.warehouseMode ?? "read_write",
       warehouseDirectoryPath: levelsSystem.warehouseDirectoryPath,
     });
   }
 
-  return resolveDelegate();
+  return delegate;
 }
 
-function createLazyLevelsSystemV2CandleFetchClient(args: {
-  providerName: CandleProviderResponse["provider"];
-  resolveDelegate: () => Promise<LevelsSystemV2CandleFetchClient | null>;
-}): LevelsSystemV2CandleFetchClient {
-  let delegatePromise: Promise<LevelsSystemV2CandleFetchClient | null> | null =
-    null;
+function wrapCandleContextAsSymbolContext(
+  context: LevelsSystemV2BaseSupportResistanceContext,
+): LevelsSystemV2SupportResistanceContext {
+  return {
+    ...context,
+    mode: "symbol",
+    candleFetchingOwnedBy: "levels-system",
+    requestedTimeframes: ["daily", "4h", "5m"],
+    fetches: [],
+    diagnostics: [],
+  };
+}
+
+function hasRequiredHigherTimeframeCandles(
+  candlesByTimeframe: Partial<Record<CandleTimeframe, readonly unknown[]>>,
+): boolean {
+  return (
+    (candlesByTimeframe.daily?.length ?? 0) > 0 &&
+    (candlesByTimeframe["4h"]?.length ?? 0) > 0
+  );
+}
+
+function buildEmptyLevelsSystemSymbolContext(args: {
+  asOfTimestamp: number | null;
+  sessionDate?: string;
+  symbol: string;
+}): LevelsSystemV2SupportResistanceContext {
+  const symbol = args.symbol.trim().toUpperCase();
 
   return {
-    getProviderName: () => args.providerName,
-    async fetchCandles(request) {
-      delegatePromise ??= args.resolveDelegate();
-      const delegate = await delegatePromise;
-
-      if (!delegate) {
-        throw new Error("levels-system v2 candle fetch service is unavailable.");
-      }
-
-      return delegate.fetchCandles(request);
+    symbol,
+    mode: "symbol",
+    candleFetchingOwnedBy: "levels-system",
+    requestedTimeframes: ["daily", "4h", "5m"],
+    fetches: [],
+    diagnostics: [
+      {
+        code: "missing_required_higher_timeframe",
+        severity: "error",
+        message:
+          "Daily and 4h candles are required before support/resistance context can be built.",
+      },
+    ],
+    candleFilterDiagnostics: [],
+    levels: {
+      symbol,
+      generatedAt: args.asOfTimestamp ?? Date.now(),
+      metadata: {
+        providerByTimeframe: {},
+        dataQualityFlags: ["missing_required_higher_timeframe"],
+        freshness: "stale",
+      },
+      majorSupport: [],
+      majorResistance: [],
+      intermediateSupport: [],
+      intermediateResistance: [],
+      intradaySupport: [],
+      intradayResistance: [],
+      extensionLevels: {
+        support: [],
+        resistance: [],
+      },
+      specialLevels: {},
     },
+    referenceLevels: {
+      sessionDate: args.sessionDate ?? null,
+      previousDayHigh: null,
+      previousDayLow: null,
+      previousDayClose: null,
+      premarketHigh: null,
+      premarketLow: null,
+      premarketBase: null,
+      openingRangeHigh: null,
+      openingRangeLow: null,
+      currentSessionHigh: null,
+      currentSessionLow: null,
+      diagnostics: [
+        {
+          code: "missing_daily_candles",
+          message:
+            "Daily candles are required before reference levels can be built.",
+        },
+      ],
+    },
+    gapStructure: {
+      nearestGapAbove: null,
+      nearestGapBelow: null,
+      recentGaps: [],
+      diagnostics: [
+        {
+          code: "missing_candles",
+          message:
+            "Daily candles are required before gap structure can be built.",
+        },
+      ],
+    },
+    dynamicLevels: {
+      vwap: null,
+      emaByPeriod: {},
+      ema9: null,
+      ema20: null,
+      priceContext: null,
+      diagnostics: [
+        {
+          code: "missing_intraday_candles",
+          message:
+            "Support/resistance context did not have enough candle data for dynamic levels.",
+        },
+      ],
+    },
+    marketStructure: {
+      symbol,
+      timeframe: "5m",
+      asOfTimestamp: args.asOfTimestamp,
+      state: "insufficient_data",
+      confidence: {
+        score: 0,
+        label: "low",
+        reasons: ["Daily and 4h candles are required."],
+      },
+      pivots: {
+        confirmedHighs: [],
+        confirmedLows: [],
+        latestSwingHigh: null,
+        latestSwingLow: null,
+        priorSwingHigh: null,
+        priorSwingLow: null,
+      },
+      trend: {
+        direction: "unknown",
+        higherLowCount: 0,
+        lowerHighCount: 0,
+        higherHighCount: 0,
+        lowerLowCount: 0,
+        latestHigherLow: null,
+        latestLowerHigh: null,
+      },
+      range: null,
+      pivotEvent: null,
+      diagnostics: [
+        {
+          code: "insufficient_candles",
+          severity: "warning",
+          message:
+            "Not enough higher-timeframe candles to build market structure.",
+        },
+      ],
+    },
+    traderContext: {} as LevelsSystemV2BaseSupportResistanceContext["traderContext"],
   };
+}
+
+function isMissingRequiredHigherTimeframeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes("requires daily candles") ||
+    message.includes("requires 4h candles") ||
+    message.includes("missing_required_higher_timeframe")
+  );
+}
+
+async function buildLevelsSystemSymbolContextFromCandles(args: {
+  asOfTimestamp: number | null;
+  candlesByTimeframe: Partial<Record<CandleTimeframe, Candle[]>>;
+  levelsSystem: LevelsSystemRuntimeConfig | undefined;
+  sessionDate?: string;
+  symbol: string;
+}): Promise<LevelsSystemV2SupportResistanceContext> {
+  const { buildSupportResistanceContextFromCandles } =
+    await loadLevelsSystemV2Engine();
+  const candlesByTimeframe: SupportResistanceCandleMap = {
+    daily: args.candlesByTimeframe.daily ?? [],
+    "4h": args.candlesByTimeframe["4h"] ?? [],
+    "5m": args.candlesByTimeframe["5m"] ?? [],
+  };
+
+  if (!hasRequiredHigherTimeframeCandles(candlesByTimeframe)) {
+    return buildEmptyLevelsSystemSymbolContext({
+      symbol: args.symbol,
+      sessionDate: args.levelsSystem?.sessionDate ?? args.sessionDate,
+      asOfTimestamp: args.asOfTimestamp,
+    });
+  }
+
+  let context: LevelsSystemV2BaseSupportResistanceContext;
+
+  try {
+    context = await buildSupportResistanceContextFromCandles({
+      symbol: args.symbol,
+      sessionDate: args.levelsSystem?.sessionDate ?? args.sessionDate,
+      asOfTimestamp: args.asOfTimestamp ?? undefined,
+      candlesByTimeframe,
+      config: args.levelsSystem?.config,
+      runtimeOptions: args.levelsSystem?.runtimeOptions,
+    });
+  } catch (error) {
+    if (!isMissingRequiredHigherTimeframeError(error)) {
+      throw error;
+    }
+
+    return buildEmptyLevelsSystemSymbolContext({
+      symbol: args.symbol,
+      sessionDate: args.levelsSystem?.sessionDate ?? args.sessionDate,
+      asOfTimestamp: args.asOfTimestamp,
+    });
+  }
+
+  return wrapCandleContextAsSymbolContext(context);
 }
 
 export function disposeSharedLevelsSystemIbkrClients(): void {
@@ -614,6 +878,19 @@ function priceBasisWarningLines(args: {
   return ["Trade-window candle basis status: basis_aligned."];
 }
 
+function hasUnsafeTradeWindowPriceBasis(warnings: string[]): boolean {
+  return warnings.some((warning) => {
+    const normalized = warning.toLowerCase();
+
+    return (
+      normalized.includes("basis_adjustment_multiple_likely") ||
+      normalized.includes("basis_mismatch") ||
+      normalized.includes("price-basis disconnect") ||
+      normalized.includes("basis is proven aligned: false")
+    );
+  });
+}
+
 async function hydrateCandlesFromLevelsSystemV2(args: {
   symbol: string;
   executions: NormalizeExecutionInput[];
@@ -672,6 +949,26 @@ async function hydrateCandlesFromLevelsSystemV2(args: {
   }
 
   const fiveMinute = await fetch("5m");
+  let tradeWindowFiveMinute = fiveMinute;
+
+  if (shouldTryEodhdOneMinuteFallback(fiveMinute)) {
+    const oneMinuteRequest: HistoricalFetchRequest = {
+      symbol: args.symbol,
+      timeframe: "1m",
+      lookbackBars: lookbackBars["5m"] * 5,
+      endTimeMs,
+      preferredProvider: args.levelsSystem.preferredProvider,
+    };
+    const oneMinute = await fetchClient.fetchCandles(oneMinuteRequest);
+    const aggregated = buildAggregatedFiveMinuteResponse({
+      lookbackBars: lookbackBars["5m"],
+      oneMinuteResponse: oneMinute,
+    });
+
+    if (aggregated.actualBarsReturned > 0 && !aggregated.stale) {
+      tradeWindowFiveMinute = aggregated;
+    }
+  }
 
   if (daily.candles.length === 0 || fourHour.candles.length === 0) {
     throw new Error(
@@ -680,7 +977,7 @@ async function hydrateCandlesFromLevelsSystemV2(args: {
   }
 
   const split = splitFiveMinuteCandlesForTrade({
-    candles: fiveMinute.candles,
+    candles: tradeWindowFiveMinute.candles,
     symbol: args.symbol,
     timeframe: "5m",
     tradeStartTimestamp,
@@ -692,14 +989,20 @@ async function hydrateCandlesFromLevelsSystemV2(args: {
     candlesByTimeframe: {
       daily: daily.candles,
       "4h": fourHour.candles,
-      "5m": fiveMinute.candles,
+      "5m": tradeWindowFiveMinute.candles,
     },
-    tradeWindowFetch: fiveMinute,
+    tradeWindowFetch: tradeWindowFiveMinute,
     warnings: [
-      ...providerWarningLines(fiveMinute),
+      ...providerWarningLines(tradeWindowFiveMinute),
+      ...(tradeWindowFiveMinute.providerMetadata?.aggregationMethod ===
+      "ohlcv_1m_to_5m"
+        ? [
+            "levels-system info: EODHD 1m candles were aggregated into 5m trade-window candles.",
+          ]
+        : []),
       ...priceBasisWarningLines({
         executions: args.executions,
-        tradeWindowCandles: fiveMinute.candles,
+        tradeWindowCandles: tradeWindowFiveMinute.candles,
       }),
     ],
   };
@@ -882,7 +1185,7 @@ function buildTradeWindowFactsFromResult(
 function mapExecutionRelations(
   result: RawTradeTimelineBuildResult,
 ): TradeAnalysisCandleContext["executionRelations"] {
-  return (result.executionLevelRelations ?? []).map((relation) => {
+  const relations = (result.executionLevelRelations ?? []).map((relation) => {
     const execution = result.timeline.executions.find(
       (candidate) => candidate.executionIndex === relation.executionIndex,
     );
@@ -911,6 +1214,8 @@ function mapExecutionRelations(
       diagnostics: [],
     };
   });
+
+  return relations as unknown as TradeAnalysisCandleContext["executionRelations"];
 }
 
 function buildMarketFacts(args: {
@@ -918,7 +1223,7 @@ function buildMarketFacts(args: {
   asOfTimestamp: number | null;
   executionRelations: TradeAnalysisCandleContext["executionRelations"];
 }): TradeAnalysisCandleContext["marketFacts"] {
-  return {
+  const marketFacts = {
     contractVersion: "market_facts.trade_review.v2",
     symbol: args.symbol.trim().toUpperCase(),
     asOfTimestamp:
@@ -938,6 +1243,8 @@ function buildMarketFacts(args: {
     })),
     diagnostics: [],
   };
+
+  return marketFacts as unknown as TradeAnalysisCandleContext["marketFacts"];
 }
 
 async function buildLevelsSystemV2UnavailableCandleContext(args: {
@@ -946,7 +1253,6 @@ async function buildLevelsSystemV2UnavailableCandleContext(args: {
   levelsSystem: LevelsSystemRuntimeConfig | undefined;
   tradeWindow: TradeAnalysisCandleWindowOptions | undefined;
 }): Promise<TradeAnalysisCandleContext> {
-  const { buildSupportResistanceContext } = await loadLevelsSystemV2Engine();
   const { tradeStartTimestamp, tradeEndTimestamp } =
     resolveExecutionTradeBounds(args.executions);
   const asOfTimestamp = resolveAsOfTimestamp({
@@ -954,15 +1260,17 @@ async function buildLevelsSystemV2UnavailableCandleContext(args: {
     tradeEndTimestamp,
     tradeWindow: args.tradeWindow,
   });
-  const supportResistanceContext = buildSupportResistanceContext({
-    symbol: args.symbol,
-    candlesByTimeframe: {},
-    asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
-  });
+  const supportResistanceContext =
+    await buildLevelsSystemSymbolContextFromCandles({
+      symbol: args.symbol,
+      candlesByTimeframe: {},
+      levelsSystem: args.levelsSystem,
+      asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
+    });
   const requestedLookbackBars =
     args.tradeWindow?.lookbackBars ?? DEFAULT_REQUESTED_LOOKBACK_BARS;
 
-  return {
+  const context = {
     symbol: args.symbol.trim().toUpperCase(),
     mode: "trade_analysis",
     candleFetchingOwnedBy: "levels-system",
@@ -1017,7 +1325,53 @@ async function buildLevelsSystemV2UnavailableCandleContext(args: {
           "levels-system v2 is active. Trade-window candle fetching from the old v1 API is disabled; provide candles to Trader Intelligence before using candle-window facts.",
       },
     ],
-  };
+  } as unknown as TradeAnalysisCandleContext;
+
+  return context;
+}
+
+async function buildLevelsSystemV2UnsafeBasisCandleContext(args: {
+  symbol: string;
+  executions: NormalizeExecutionInput[];
+  levelsSystem: LevelsSystemRuntimeConfig | undefined;
+  tradeWindow: TradeAnalysisCandleWindowOptions | undefined;
+  hydrated: HydratedLevelsSystemCandles;
+}): Promise<TradeAnalysisCandleContext> {
+  const context = await buildLevelsSystemV2UnavailableCandleContext({
+    symbol: args.symbol,
+    executions: args.executions,
+    levelsSystem: args.levelsSystem,
+    tradeWindow: args.tradeWindow,
+  });
+  const fetch = args.hydrated.tradeWindowFetch;
+
+  return {
+    ...context,
+    tradeWindow: {
+      ...context.tradeWindow,
+      fetch: {
+        ...context.tradeWindow.fetch,
+        provider: fetch.provider,
+        freshnessStatus: "missing",
+        requestedLookbackBars: fetch.requestedLookbackBars,
+        actualBarsReturned: 0,
+        requestedStartTimestamp: fetch.requestedStartTimestamp,
+        requestedEndTimestamp: fetch.requestedEndTimestamp,
+        newestCandleTimestamp: fetch.candles.at(-1)?.timestamp ?? null,
+        completenessStatus: "empty",
+        stale: true,
+        validationIssues: fetch.validationIssues,
+      },
+    },
+    diagnostics: [
+      {
+        code: "trade_window_price_basis_unverified",
+        severity: "warning",
+        message:
+          "levels-system fetched trade-window candles, but execution prices and candle prices appear to be on different split-adjustment bases. Trader Intelligence treated those candles as unavailable for chart-context feedback.",
+      },
+    ],
+  } as unknown as TradeAnalysisCandleContext;
 }
 
 async function buildLevelsSystemV2SuppliedCandleContext(args: {
@@ -1026,7 +1380,6 @@ async function buildLevelsSystemV2SuppliedCandleContext(args: {
   levelsSystem: LevelsSystemRuntimeConfig | undefined;
   tradeWindow: TradeAnalysisCandleWindowOptions | undefined;
 }): Promise<TradeAnalysisCandleContext> {
-  const { buildSupportResistanceContext } = await loadLevelsSystemV2Engine();
   const { tradeStartTimestamp, tradeEndTimestamp } =
     resolveExecutionTradeBounds(args.result.timeline.executions);
   const allCandles = args.result.timeline.allCandles;
@@ -1051,18 +1404,20 @@ async function buildLevelsSystemV2SuppliedCandleContext(args: {
       tradeEndTimestamp,
       tradeWindow: args.tradeWindow,
     });
-  const supportResistanceContext = buildSupportResistanceContext({
-    symbol: args.symbol,
-    candlesByTimeframe: {
-      "5m": fiveMinuteCandles,
-    },
-    asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
-  });
+  const supportResistanceContext =
+    await buildLevelsSystemSymbolContextFromCandles({
+      symbol: args.symbol,
+      candlesByTimeframe: {
+        "5m": fiveMinuteCandles,
+      },
+      levelsSystem: args.levelsSystem,
+      asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
+    });
   const executionRelations = mapExecutionRelations(args.result);
   const requestedLookbackBars =
     args.tradeWindow?.lookbackBars ?? DEFAULT_REQUESTED_LOOKBACK_BARS;
 
-  return {
+  const context = {
     symbol: args.symbol.trim().toUpperCase(),
     mode: "trade_analysis",
     candleFetchingOwnedBy: "levels-system",
@@ -1117,7 +1472,9 @@ async function buildLevelsSystemV2SuppliedCandleContext(args: {
           "levels-system v2 used supplied Trader Intelligence candles for trade-window facts.",
       },
     ],
-  };
+  } as unknown as TradeAnalysisCandleContext;
+
+  return context;
 }
 
 async function buildLevelsSystemV2FetchedCandleContext(args: {
@@ -1130,7 +1487,6 @@ async function buildLevelsSystemV2FetchedCandleContext(args: {
   context: TradeAnalysisCandleContext;
   supportResistanceContext: LevelsSystemV2SupportResistanceContext;
 }> {
-  const { buildSupportResistanceContext } = await loadLevelsSystemV2Engine();
   const { tradeStartTimestamp, tradeEndTimestamp } =
     resolveExecutionTradeBounds(args.result.timeline.executions);
   const allCandles = args.result.timeline.allCandles;
@@ -1152,11 +1508,13 @@ async function buildLevelsSystemV2FetchedCandleContext(args: {
       tradeEndTimestamp,
       tradeWindow: args.tradeWindow,
     });
-  const supportResistanceContext = buildSupportResistanceContext({
-    symbol: args.symbol,
-    candlesByTimeframe: args.hydrated.candlesByTimeframe,
-    asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
-  });
+  const supportResistanceContext =
+    await buildLevelsSystemSymbolContextFromCandles({
+      symbol: args.symbol,
+      candlesByTimeframe: args.hydrated.candlesByTimeframe,
+      levelsSystem: args.levelsSystem,
+      asOfTimestamp: asOfTimestamp ?? tradeEndTimestamp,
+    });
   const executionRelations = mapExecutionRelations(args.result);
   const requestedLookbackBars =
     args.tradeWindow?.lookbackBars ??
@@ -1223,7 +1581,7 @@ async function buildLevelsSystemV2FetchedCandleContext(args: {
             "levels-system v2 fetched trade-window candles for Trader Intelligence feedback.",
         },
       ],
-    },
+    } as unknown as TradeAnalysisCandleContext,
   };
 }
 
@@ -1292,13 +1650,18 @@ export async function createRawTradeTimelineWithLevelsSystemCandles(
         levelsSystem,
         tradeWindow: args.tradeWindow,
       });
+  const hasHydratedUnsafeBasis =
+    hydrated !== null && hasUnsafeTradeWindowPriceBasis(hydrated.warnings);
+  const usableHydrated = hydrated !== null && !hasHydratedUnsafeBasis
+    ? hydrated
+    : null;
   const timelineArgs = buildTradeTimelineArgs(
-    hydrated
+    usableHydrated
       ? {
           ...args,
-          preTradeCandles: hydrated.preTradeCandles,
-          tradeCandles: hydrated.tradeCandles,
-          postTradeCandles: hydrated.postTradeCandles,
+          preTradeCandles: usableHydrated.preTradeCandles,
+          tradeCandles: usableHydrated.tradeCandles,
+          postTradeCandles: usableHydrated.postTradeCandles,
           tradeWindow: {
             ...args.tradeWindow,
             timeframe: "5m",
@@ -1307,7 +1670,7 @@ export async function createRawTradeTimelineWithLevelsSystemCandles(
       : args,
   );
   const result =
-    suppliedCandles || hydrated
+    suppliedCandles || usableHydrated
       ? await createRawTradeTimelineWithLevelsSystem(timelineArgs, levelsSystem)
       : createRawTradeTimeline(timelineArgs);
   const v2Warning =
@@ -1330,13 +1693,13 @@ export async function createRawTradeTimelineWithLevelsSystemCandles(
     };
   }
 
-  if (hydrated) {
+  if (usableHydrated) {
     const fetched = await buildLevelsSystemV2FetchedCandleContext({
       symbol: args.symbol,
       result,
       levelsSystem,
       tradeWindow: args.tradeWindow,
-      hydrated,
+      hydrated: usableHydrated,
     });
     const mappedResult = withMappedSupportResistanceContext({
       result,
@@ -1350,9 +1713,28 @@ export async function createRawTradeTimelineWithLevelsSystemCandles(
       levelsSystemMarketFacts: fetched.context.marketFacts,
       warnings: [
         ...(mappedResult.warnings ?? []),
-        ...hydrated.warnings,
+        ...usableHydrated.warnings,
       ],
       levelsSystemTradeAnalysisCandleContext: fetched.context,
+    };
+  }
+
+  if (hydrated && hasHydratedUnsafeBasis) {
+    const context = await buildLevelsSystemV2UnsafeBasisCandleContext({
+      symbol: args.symbol,
+      executions: args.executions,
+      levelsSystem,
+      tradeWindow: args.tradeWindow,
+      hydrated,
+    });
+
+    return {
+      ...result,
+      levelsSystemTradeWindowFacts: undefined,
+      levelsSystemExecutionRelations: undefined,
+      levelsSystemMarketFacts: context.marketFacts,
+      warnings: [...(result.warnings ?? []), ...hydrated.warnings],
+      levelsSystemTradeAnalysisCandleContext: context,
     };
   }
 

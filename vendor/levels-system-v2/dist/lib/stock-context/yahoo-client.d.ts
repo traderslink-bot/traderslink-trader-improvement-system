@@ -1,0 +1,94 @@
+type FetchLike = typeof fetch;
+export type YahooStockQuote = {
+    source: "Yahoo";
+    symbol: string;
+    longName?: string;
+    shortName?: string;
+    exchange?: string;
+    quoteSourceName?: string;
+    currency?: string;
+    marketCap?: number;
+    regularMarketPrice?: number;
+    regularMarketOpen?: number;
+    regularMarketDayHigh?: number;
+    regularMarketDayLow?: number;
+    regularMarketPreviousClose?: number;
+    regularMarketVolume?: number;
+    averageDailyVolume10Day?: number;
+    averageDailyVolume3Month?: number;
+    preMarketPrice?: number;
+    preMarketChange?: number;
+    preMarketChangePercent?: number;
+    postMarketPrice?: number;
+    postMarketChange?: number;
+    postMarketChangePercent?: number;
+    fiftyTwoWeekHigh?: number;
+    fiftyTwoWeekLow?: number;
+    regularMarketTime?: number;
+    preMarketTime?: number;
+    postMarketTime?: number;
+    priceSource?: "quote" | "chart";
+};
+export type YahooStockSummary = {
+    source: "Yahoo";
+    sector?: string;
+    industry?: string;
+    country?: string;
+    website?: string;
+    description?: string;
+    fullTimeEmployees?: number;
+    marketCap?: number;
+    floatShares?: number;
+    sharesOutstanding?: number;
+    sharesShort?: number;
+    sharesShortPriorMonth?: number;
+    shortPercentOfFloat?: number;
+    shortRatio?: number;
+    totalCash?: number;
+    totalDebt?: number;
+    totalRevenue?: number;
+    grossProfits?: number;
+    ebitda?: number;
+    freeCashflow?: number;
+    profitMargins?: number;
+    operatingMargins?: number;
+    grossMargins?: number;
+    revenueGrowth?: number;
+};
+export type YahooPreviousDayRange = {
+    source: "Yahoo";
+    high?: number;
+    low?: number;
+    timestamp?: number;
+};
+export type YahooStockContext = {
+    source: "Yahoo";
+    symbol: string;
+    fetchedAt: number;
+    quote?: YahooStockQuote;
+    summary?: YahooStockSummary;
+    previousDay?: YahooPreviousDayRange;
+    errors: string[];
+};
+export type YahooClientOptions = {
+    fetchImpl?: FetchLike;
+    timeoutMs?: number;
+    quoteBaseUrl?: string;
+    summaryBaseUrl?: string;
+};
+export declare class YahooClient {
+    private readonly fetchImpl;
+    private readonly timeoutMs;
+    private readonly quoteBaseUrl;
+    private readonly summaryBaseUrl;
+    constructor(options?: YahooClientOptions);
+    getPreviousDayRange(symbolInput: string): Promise<YahooPreviousDayRange>;
+    getChartQuote(symbolInput: string): Promise<YahooStockQuote>;
+    private requestJson;
+    getQuote(symbolInput: string): Promise<YahooStockQuote>;
+    getSummary(symbolInput: string): Promise<YahooStockSummary>;
+    getStockContext(symbolInput: string): Promise<YahooStockContext>;
+}
+export declare function createYahooClientFromEnv(env?: NodeJS.ProcessEnv, fetchImpl?: FetchLike): YahooClient | null;
+export {};
+//# sourceMappingURL=yahoo-client.d.ts.map

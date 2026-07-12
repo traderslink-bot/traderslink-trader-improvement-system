@@ -17,8 +17,8 @@ function dominantTimeframe(timeframes) {
     }
     return sorted[0][0];
 }
-function zoneFreshness(lastTimestamp) {
-    const hoursAgo = (Date.now() - lastTimestamp) / (1000 * 60 * 60);
+function zoneFreshness(lastTimestamp, referenceTimestamp = Date.now()) {
+    const hoursAgo = Math.max(0, referenceTimestamp - lastTimestamp) / (1000 * 60 * 60);
     if (hoursAgo <= 24) {
         return "fresh";
     }
@@ -36,29 +36,6 @@ function timeframeRank(timeframe) {
         default:
             return 1;
     }
-}
-function round(value, decimals = 4) {
-    const factor = 10 ** decimals;
-    return Math.round(value * factor) / factor;
-}
-function priceSpanPct(prices) {
-    if (prices.length === 0) {
-        return undefined;
-    }
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const midpoint = (min + max) / 2;
-    return round(((max - min) / Math.max(midpoint, 0.0001)) * 100);
-}
-function distanceFromRepresentativePct(price, representativePrice) {
-    return round((Math.abs(price - representativePrice) / Math.max(representativePrice, 0.0001)) * 100);
-}
-function uniqueRawMembers(members) {
-    const byId = new Map();
-    for (const member of members) {
-        byId.set(member.id, member);
-    }
-    return [...byId.values()].sort((left, right) => left.price - right.price || left.id.localeCompare(right.id));
 }
 function preferRawCandidateRepresentative(challenger, incumbent, kind) {
     if (timeframeRank(challenger.timeframe) !== timeframeRank(incumbent.timeframe)) {
@@ -128,7 +105,7 @@ function preferZoneRepresentative(challenger, incumbent) {
         ? challenger.representativePrice > incumbent.representativePrice
         : challenger.representativePrice < incumbent.representativePrice;
 }
-function buildZoneFromGroup(symbol, kind, group, index) {
+function buildZoneFromGroup(symbol, kind, group, index, referenceTimestamp) {
     const prices = group.map((item) => item.price);
     const sourceTypes = unique(group.map((item) => item.sourceType));
     const timeframeSources = unique(group.map((item) => item.timeframe));
@@ -164,7 +141,7 @@ function buildZoneFromGroup(symbol, kind, group, index) {
         lastTimestamp: Math.max(...group.map((item) => item.lastTimestamp)),
         sessionDate: undefined,
         isExtension: false,
-        freshness: zoneFreshness(Math.max(...group.map((item) => item.lastTimestamp))),
+        freshness: zoneFreshness(Math.max(...group.map((item) => item.lastTimestamp)), referenceTimestamp),
         notes,
     };
 }
@@ -216,16 +193,7 @@ function mergeZones(symbol, kind, zones) {
         id: `${symbol}-${kind}-zone-${index + 1}`,
     }));
 }
-function mergeTrackedZones(symbol, kind, zones) {
-    return zones.map((tracked, index) => ({
-        ...tracked,
-        zone: {
-            ...tracked.zone,
-            id: `${symbol}-${kind}-zone-${index + 1}`,
-        },
-    }));
-}
-function secondPassMergeZones(symbol, kind, initialZones, config) {
+function secondPassMergeZones(symbol, kind, initialZones, config, referenceTimestamp) {
     if (initialZones.length <= 1) {
         return mergeZones(symbol, kind, initialZones);
     }
@@ -272,7 +240,7 @@ function secondPassMergeZones(symbol, kind, initialZones, config) {
                 lastTimestamp: Math.max(current.lastTimestamp, next.lastTimestamp),
                 sessionDate: current.sessionDate ?? next.sessionDate,
                 isExtension: current.isExtension || next.isExtension,
-                freshness: zoneFreshness(Math.max(current.lastTimestamp, next.lastTimestamp)),
+                freshness: zoneFreshness(Math.max(current.lastTimestamp, next.lastTimestamp), referenceTimestamp),
                 notes: unique([...current.notes, ...next.notes, "Merged in second clustering pass."]),
                 timeframeBias: dominantTimeframe(unique([...current.timeframeSources, ...next.timeframeSources])),
             };
@@ -285,180 +253,9 @@ function secondPassMergeZones(symbol, kind, initialZones, config) {
     merged.push(current);
     return mergeZones(symbol, kind, merged);
 }
-function secondPassMergeTrackedZones(symbol, kind, initialZones, config) {
-    if (initialZones.length <= 1) {
-        return mergeTrackedZones(symbol, kind, initialZones);
-    }
-    const sorted = [...initialZones].sort((a, b) => a.zone.zoneLow - b.zone.zoneLow);
-    const merged = [];
-    let current = sorted[0];
-    for (let i = 1; i < sorted.length; i += 1) {
-        const next = sorted[i];
-        const baseTolerancePct = Math.max(...unique([...current.zone.timeframeSources, ...next.zone.timeframeSources]).map((timeframe) => config.timeframeConfig[timeframe].clusterTolerancePct)) * config.secondPassMergeToleranceMultiplier;
-        const closeEnough = zonesAreCloseOrOverlapping(current.zone, next.zone, baseTolerancePct, config.overlapMergeTolerancePct);
-        const tooWideIfMerged = exceedsMaxMergedWidth(current.zone, next.zone, config.maxMergedZoneWidthPct);
-        if (closeEnough && !tooWideIfMerged) {
-            const representativeZone = preferZoneRepresentative(next.zone, current.zone)
-                ? next.zone
-                : current.zone;
-            const mergedZone = {
-                ...current.zone,
-                zoneLow: Number(Math.min(current.zone.zoneLow, next.zone.zoneLow).toFixed(4)),
-                zoneHigh: Number(Math.max(current.zone.zoneHigh, next.zone.zoneHigh).toFixed(4)),
-                representativePrice: representativeZone.representativePrice,
-                touchCount: current.zone.touchCount + next.zone.touchCount,
-                confluenceCount: unique([
-                    ...current.zone.timeframeSources,
-                    ...next.zone.timeframeSources,
-                ]).length,
-                sourceTypes: unique([...current.zone.sourceTypes, ...next.zone.sourceTypes]),
-                timeframeSources: unique([
-                    ...current.zone.timeframeSources,
-                    ...next.zone.timeframeSources,
-                ]),
-                reactionQualityScore: Number(((current.zone.reactionQualityScore * current.zone.sourceEvidenceCount +
-                    next.zone.reactionQualityScore * next.zone.sourceEvidenceCount) /
-                    Math.max(current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount, 1)).toFixed(4)),
-                rejectionScore: Number(((current.zone.rejectionScore * current.zone.sourceEvidenceCount +
-                    next.zone.rejectionScore * next.zone.sourceEvidenceCount) /
-                    Math.max(current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount, 1)).toFixed(4)),
-                displacementScore: Number(((current.zone.displacementScore * current.zone.sourceEvidenceCount +
-                    next.zone.displacementScore * next.zone.sourceEvidenceCount) /
-                    Math.max(current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount, 1)).toFixed(4)),
-                sessionSignificanceScore: Number(Math.max(current.zone.sessionSignificanceScore, next.zone.sessionSignificanceScore).toFixed(4)),
-                followThroughScore: Number(((current.zone.followThroughScore * current.zone.sourceEvidenceCount +
-                    next.zone.followThroughScore * next.zone.sourceEvidenceCount) /
-                    Math.max(current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount, 1)).toFixed(4)),
-                gapContinuationScore: Number((((current.zone.gapContinuationScore ?? 0) * current.zone.sourceEvidenceCount +
-                    (next.zone.gapContinuationScore ?? 0) * next.zone.sourceEvidenceCount) /
-                    Math.max(current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount, 1)).toFixed(4)),
-                sourceEvidenceCount: current.zone.sourceEvidenceCount + next.zone.sourceEvidenceCount,
-                firstTimestamp: Math.min(current.zone.firstTimestamp, next.zone.firstTimestamp),
-                lastTimestamp: Math.max(current.zone.lastTimestamp, next.zone.lastTimestamp),
-                sessionDate: current.zone.sessionDate ?? next.zone.sessionDate,
-                isExtension: current.zone.isExtension || next.zone.isExtension,
-                freshness: zoneFreshness(Math.max(current.zone.lastTimestamp, next.zone.lastTimestamp)),
-                notes: unique([...current.zone.notes, ...next.zone.notes, "Merged in second clustering pass."]),
-                timeframeBias: dominantTimeframe(unique([...current.zone.timeframeSources, ...next.zone.timeframeSources])),
-            };
-            current = {
-                zone: mergedZone,
-                rawMembers: uniqueRawMembers([...current.rawMembers, ...next.rawMembers]),
-                firstPassClusterIds: unique([
-                    ...current.firstPassClusterIds,
-                    ...next.firstPassClusterIds,
-                ]),
-            };
-        }
-        else {
-            merged.push(current);
-            current = next;
-        }
-    }
-    merged.push(current);
-    return mergeTrackedZones(symbol, kind, merged);
-}
-function toRawMemberDiagnostic(member) {
-    return {
-        id: member.id,
-        price: round(member.price),
-        sourceType: member.sourceType,
-        timeframe: member.timeframe,
-    };
-}
-function buildHiddenDepthCandidates(params) {
-    return params.rawMembers
-        .filter((member) => {
-        const distancePct = distanceFromRepresentativePct(member.price, params.zone.representativePrice);
-        if (distancePct < params.materialPriceSpanThresholdPct) {
-            return false;
-        }
-        return params.zone.kind === "support"
-            ? member.price < params.zone.representativePrice
-            : member.price > params.zone.representativePrice;
-    })
-        .map((member) => ({
-        ...toRawMemberDiagnostic(member),
-        distanceFromRepresentativePct: distanceFromRepresentativePct(member.price, params.zone.representativePrice),
-        depthSide: member.price < params.zone.representativePrice
-            ? "below_representative"
-            : "above_representative",
-    }));
-}
-function buildMemberDiagnostic(params) {
-    const rawMembers = uniqueRawMembers(params.tracked.rawMembers);
-    const rawMemberPrices = rawMembers.map((member) => round(member.price));
-    const rawPriceSpan = priceSpanPct(rawMemberPrices);
-    const hiddenDepthCandidates = buildHiddenDepthCandidates({
-        zone: params.tracked.zone,
-        rawMembers,
-        materialPriceSpanThresholdPct: params.materialPriceSpanThresholdPct,
-    });
-    return {
-        clusterId: params.tracked.zone.id,
-        clusterIndex: params.clusterIndex,
-        kind: params.tracked.zone.kind,
-        representativePrice: round(params.tracked.zone.representativePrice),
-        zoneLow: round(params.tracked.zone.zoneLow),
-        zoneHigh: round(params.tracked.zone.zoneHigh),
-        rawMemberMapping: "tracked_from_clusterer_diagnostics",
-        rawMemberCount: rawMembers.length,
-        rawMemberIds: rawMembers.map((member) => member.id),
-        rawMemberPrices,
-        rawMembers: rawMembers.map(toRawMemberDiagnostic),
-        minRawMemberPrice: rawMemberPrices.length > 0 ? round(Math.min(...rawMemberPrices)) : undefined,
-        maxRawMemberPrice: rawMemberPrices.length > 0 ? round(Math.max(...rawMemberPrices)) : undefined,
-        rawPriceSpanPct: rawPriceSpan,
-        sourceTypes: unique(rawMembers.map((member) => member.sourceType)).sort(),
-        timeframeSources: unique(rawMembers.map((member) => member.timeframe)).sort(),
-        firstPassClusterIds: [...params.tracked.firstPassClusterIds].sort(),
-        mergedFirstPassClusterCount: params.tracked.firstPassClusterIds.length,
-        materialPriceSpanPct: rawPriceSpan ?? 0,
-        membersSpanMateriallyDifferentPrices: (rawPriceSpan ?? 0) >= params.materialPriceSpanThresholdPct,
-        hiddenDepthCandidates,
-        potentialExtensionDepthMemberIds: hiddenDepthCandidates.map((candidate) => candidate.id),
-    };
-}
-export function clusterRawLevelCandidates(symbol, kind, candidates, tolerancePct, config, _referenceTimestamp) {
+export function clusterRawLevelCandidates(symbol, kind, candidates, tolerancePct, config, referenceTimestamp = Date.now()) {
     const filtered = candidates.filter((candidate) => candidate.kind === kind);
     const firstPassGroups = firstPassCluster(filtered, tolerancePct);
-    const firstPassZones = firstPassGroups.map((group, index) => buildZoneFromGroup(symbol, kind, group, index));
-    return secondPassMergeZones(symbol, kind, firstPassZones, config);
-}
-export function clusterRawLevelCandidatesWithDiagnostics(symbol, kind, candidates, tolerancePct, config, _referenceTimestamp) {
-    const filtered = candidates.filter((candidate) => candidate.kind === kind);
-    const firstPassGroups = firstPassCluster(filtered, tolerancePct);
-    const firstPassTrackedZones = firstPassGroups.map((group, index) => ({
-        zone: buildZoneFromGroup(symbol, kind, group, index),
-        rawMembers: uniqueRawMembers(group),
-        firstPassClusterIds: [`${symbol}-${kind}-first-pass-${index + 1}`],
-    }));
-    const trackedZones = secondPassMergeTrackedZones(symbol, kind, firstPassTrackedZones, config);
-    const materialPriceSpanThresholdPct = round(config.extensionSpacingPct * 100);
-    return {
-        zones: trackedZones.map((tracked) => tracked.zone),
-        diagnostics: {
-            symbol,
-            kind,
-            rawCandidateCount: candidates.length,
-            filteredCandidateCount: filtered.length,
-            firstPassClusterCount: firstPassGroups.length,
-            finalClusterCount: trackedZones.length,
-            materialPriceSpanThresholdPct,
-            clusters: trackedZones.map((tracked, index) => buildMemberDiagnostic({
-                tracked,
-                clusterIndex: index,
-                materialPriceSpanThresholdPct,
-            })),
-            diagnostics: [
-                "cluster_member_tracking_diagnostics_only",
-                "normal_cluster_output_is_returned_unchanged_as_zones",
-            ],
-            safety: {
-                diagnosticOnly: true,
-                clusteringBehaviorUnchanged: true,
-                normalClusterOutputUnchanged: true,
-            },
-        },
-    };
+    const firstPassZones = firstPassGroups.map((group, index) => buildZoneFromGroup(symbol, kind, group, index, referenceTimestamp));
+    return secondPassMergeZones(symbol, kind, firstPassZones, config, referenceTimestamp);
 }

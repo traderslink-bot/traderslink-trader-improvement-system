@@ -560,10 +560,6 @@ function timeframeMs(timeframe: CandleFetchTimeframe): number {
     return 4 * 60 * 60_000;
   }
 
-  if (timeframe === "15m") {
-    return 15 * 60_000;
-  }
-
   if (timeframe === "1m") {
     return 60_000;
   }

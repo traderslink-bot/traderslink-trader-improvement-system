@@ -1,5 +1,5 @@
-// 2026-05-27 08:55 PM America/Toronto
-// Compact compare-mode log entries for old versus projected runtime outputs.
+// 2026-04-18 08:40 AM America/Toronto
+// Compact compare-mode logging for old versus new surfaced runtime outputs.
 import { computeComparisonDifferences, } from "./level-ranking-comparison.js";
 function formatLevel(level) {
     if (!level) {

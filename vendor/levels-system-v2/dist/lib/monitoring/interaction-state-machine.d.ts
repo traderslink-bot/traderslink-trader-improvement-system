@@ -1,5 +1,5 @@
 import type { FinalLevelZone } from "../levels/level-types.js";
-import type { MonitoringConfig } from "./monitoring-config.js";
+import { type MonitoringConfig } from "./monitoring-config.js";
 import type { LivePriceUpdate, ZoneInteractionState } from "./monitoring-types.js";
 export declare function createInitialInteractionState(symbol: string, zone: FinalLevelZone): ZoneInteractionState;
 export declare function updateInteractionState(params: {

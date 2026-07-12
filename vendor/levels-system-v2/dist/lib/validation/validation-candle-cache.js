@@ -1,8 +1,11 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { CandleFetchService, StubHistoricalCandleProvider, } from "../market-data/candle-fetch-service.js";
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 3;
 function timeframeMs(timeframe) {
+    if (timeframe === "1m") {
+        return 60 * 1000;
+    }
     if (timeframe === "daily") {
         return 24 * 60 * 60 * 1000;
     }
@@ -117,6 +120,10 @@ export function resolveValidationCandleCacheMode(rawValue) {
 export class ValidationCachedCandleFetchService extends CandleFetchService {
     delegate;
     mode;
+    exactHits = 0;
+    reusableHits = 0;
+    misses = 0;
+    writes = 0;
     constructor(delegate, options) {
         super(new StubHistoricalCandleProvider());
         this.delegate = delegate;
@@ -127,6 +134,16 @@ export class ValidationCachedCandleFetchService extends CandleFetchService {
     getProviderName() {
         return this.delegate.getProviderName();
     }
+    getCacheRuntimeInfo() {
+        return {
+            mode: this.mode,
+            cacheDirectoryPath: this.cacheDirectoryPath,
+            exactHits: this.exactHits,
+            reusableHits: this.reusableHits,
+            misses: this.misses,
+            writes: this.writes,
+        };
+    }
     async fetchCandles(request) {
         if (this.mode === "off") {
             return this.delegate.fetchCandles(request);
@@ -136,19 +153,23 @@ export class ValidationCachedCandleFetchService extends CandleFetchService {
         if (this.mode !== "refresh") {
             const cached = await readCacheEntry(cachePath);
             if (cached) {
+                this.exactHits += 1;
                 return withRequestMetadata(cached.response, request);
             }
             const nearbyCachePath = await findNearestReusableCachePath(this.cacheDirectoryPath, request, provider, this.mode);
             if (nearbyCachePath) {
                 const nearbyCached = await readCacheEntry(nearbyCachePath);
                 if (nearbyCached) {
+                    this.reusableHits += 1;
                     return withRequestMetadata(nearbyCached.response, request);
                 }
             }
             if (this.mode === "replay") {
+                this.misses += 1;
                 throw new Error(`Validation candle cache miss for ${request.symbol.toUpperCase()} ${request.timeframe} (${request.lookbackBars}) at ${normalizeEndTimeMs(request)}.`);
             }
         }
+        this.misses += 1;
         const response = withRequestMetadata(await this.delegate.fetchCandles(request), request);
         const cacheEntry = {
             schemaVersion: CACHE_SCHEMA_VERSION,
@@ -163,6 +184,7 @@ export class ValidationCachedCandleFetchService extends CandleFetchService {
             response,
         };
         await writeCacheEntry(cachePath, cacheEntry);
+        this.writes += 1;
         return response;
     }
 }

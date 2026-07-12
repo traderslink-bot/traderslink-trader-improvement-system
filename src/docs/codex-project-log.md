@@ -107,6 +107,45 @@ Important project rule:
 
 ## Current Resume Point
 
+### 2026-07-12 Trader Intelligence EODHD Candle/Basis Safety Production Port
+
+Ported the Trader Intelligence EODHD historical candle fix into the canonical
+production repo through a clean worktree from `origin/main`.
+
+Scope:
+
+- Updated the vendored `levels-system-v2` dist package from the canonical
+  `levels-system` build so production has EODHD/Yahoo historical providers,
+  EODHD `1m` -> `5m` aggregation support, newer support/resistance symbol
+  context APIs, and trade-window basis diagnostics.
+- Updated the Trader Intelligence raw trade timeline bridge so historical EODHD
+  `5m` gaps can fall back to EODHD `1m` aggregation without using Yahoo for
+  old April trade reviews.
+- Hardened the bridge so `basis_adjustment_multiple_likely`, basis mismatch, or
+  explicit unaligned basis warnings make the fetched trade-window candles
+  unavailable for chart-context feedback. The warning remains visible, but the
+  review is built execution-only instead of using split-mismatched candles for
+  movement facts, VWAP context, S/R execution relations, or structural context.
+- Updated app-side levels-system runtime/provider parsing to allow `eodhd` and
+  `yahoo`, with on-demand hydration defaulting to EODHD unless explicitly
+  configured otherwise.
+- Updated the trade-analysis request contract to accept `ibkr`, `eodhd`,
+  `yahoo`, and `stub`.
+- Preserved the newer production homepage copy from the root checkout so the
+  deploy branch keeps the Whop paid-plan CTA instead of the older beta CTA.
+
+Verification in clean production worktree
+`C:\Users\jerac\Documents\TraderLink\traderslink.pro-ti-eodhd-basis-deploy-20260712`:
+
+- `npx vitest run src/lib/raw-trade-timeline/__tests__/levels-system-trade-candle-context.integration.test.ts src/lib/support-resistance/__tests__/levels-system-adapter.test.ts src/lib/trade-analysis/__tests__/trade-analysis-request-contract.test.ts src/lib/trade-analysis/__tests__/run-trade-analysis.test.ts --reporter=dot`
+  passed with 29 tests.
+- `npx tsc --noEmit --pretty false` passed.
+
+Next production step:
+
+- Run focused lint and `npm run build:webpack`, then deploy from the clean
+  worktree with `npx vercel --prod --yes` after build verification passes.
+
 ### 2026-06-07 Level Analysis Delivery Trade Detail Level Facts CI Hardening Merged
 
 Gate `journal_level_analysis_delivery_trade_detail_level_facts_ci_hardening`

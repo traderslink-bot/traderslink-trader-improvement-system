@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { formatLevelExtensionMessage, formatLevelSnapshotMessage } from "./alert-router.js";
+import { formatLevelExtensionMessage, formatLevelLadderMessage, formatLevelSnapshotMessage } from "./alert-router.js";
+import { buildWatchlistDiscordLinkMessage } from "./watchlist-discord-link-message.js";
 const DISCORD_STATE_VERSION = 1;
 const DEFAULT_DISCORD_STATE_FILE = resolve(process.cwd(), "artifacts", "discord-threads.json");
 function buildEmptyState() {
@@ -131,7 +132,15 @@ export class LocalDiscordThreadGateway {
         state.threads[threadId] = {
             id: threadId,
             name,
-            messages: [],
+            messages: [
+                {
+                    type: "alert",
+                    title: name,
+                    body: buildWatchlistDiscordLinkMessage(name),
+                    symbol: name,
+                    timestamp: Date.now(),
+                },
+            ],
         };
         this.saveState(state);
         return {
@@ -149,8 +158,8 @@ export class LocalDiscordThreadGateway {
             type: "alert",
             title: payload.title,
             body: payload.body,
-            symbol: payload.event.symbol,
-            timestamp: payload.event.timestamp,
+            symbol: payload.symbol ?? payload.event?.symbol ?? "UNKNOWN",
+            timestamp: payload.timestamp ?? payload.event?.timestamp ?? Date.now(),
         });
         this.saveState(state);
     }
@@ -162,8 +171,27 @@ export class LocalDiscordThreadGateway {
         }
         thread.messages.push({
             type: "level_snapshot",
-            title: `LEVEL SNAPSHOT: ${payload.symbol}`,
+            title: `${payload.symbol} support and resistance`,
             body: formatLevelSnapshotMessage(payload),
+            symbol: payload.symbol,
+            timestamp: payload.timestamp,
+        });
+        this.saveState(state);
+    }
+    async sendLevelLadder(threadId, payload) {
+        const body = formatLevelLadderMessage(payload);
+        if (!body) {
+            return;
+        }
+        const state = this.loadState();
+        const thread = state.threads[threadId];
+        if (!thread) {
+            throw new Error(`Discord thread ${threadId} was not found.`);
+        }
+        thread.messages.push({
+            type: "level_snapshot",
+            title: `${payload.symbol} full level ladder`,
+            body,
             symbol: payload.symbol,
             timestamp: payload.timestamp,
         });
@@ -177,7 +205,7 @@ export class LocalDiscordThreadGateway {
         }
         thread.messages.push({
             type: "level_extension",
-            title: `NEXT LEVELS: ${payload.symbol}`,
+            title: `${payload.symbol} next levels to watch`,
             body: formatLevelExtensionMessage(payload),
             symbol: payload.symbol,
             timestamp: payload.timestamp,

@@ -15,9 +15,17 @@ export declare class WatchlistStore {
         activatedAt?: number;
         lastLevelPostAt?: number;
         lastExtensionPostAt?: number;
+        lastPriceUpdateAt?: number;
+        lastPrice?: number;
+        lastThreadPostAt?: number;
+        lastThreadPostKind?: string | null;
         refreshPending?: boolean;
+        lastError?: string | null;
+        operationStatus?: string | null;
     }): WatchlistEntry;
-    patchEntry(symbol: string, patch: Partial<WatchlistEntry>): WatchlistEntry | null;
+    patchEntry(symbol: string, patch: Partial<Omit<WatchlistEntry, "lastError">> & {
+        lastError?: string | null;
+    }): WatchlistEntry | null;
     deactivateSymbol(symbol: string): WatchlistEntry | null;
     getActiveEntries(): WatchlistEntry[];
 }
