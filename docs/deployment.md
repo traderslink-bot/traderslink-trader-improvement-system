@@ -49,7 +49,23 @@ unrelated dirty work, follow the branch/PR policy, and deploy only from a clean
 
 ## Deployment Mode
 
-The latest production deployment was created from a clean `main` checkout by the Vercel CLI:
+Production deployments are whole-site snapshots. Vercel does not deploy only one
+route or page from a Next.js app. A Codex chat that deploys from a stale checkout
+can replace unrelated live pages with old code.
+
+Use the guarded deploy wrapper for every Codex-triggered production deploy:
+
+```bash
+npm run deploy:prod -- --allow app/page.tsx
+npm run deploy:prod -- --allow app/filtered-news-momentum-scanner-access
+npm run deploy:prod -- --allow app/watchlist --allow app/api/live-watchlist --allow src/lib/live-watchlist --allow app/globals.css
+```
+
+The wrapper verifies the canonical repo, Vercel project, `main`, remote sync,
+and dirty-file scope before it runs `npx vercel deploy --prod --yes`. Do not run
+raw `npx vercel deploy --prod --yes` from Codex; it bypasses the deploy guard.
+
+The latest audited production deployment was created from a clean `main` checkout by the Vercel CLI:
 
 - Deployment source: `cli`
 - Deployment command used: `npx vercel deploy --prod --yes`
@@ -73,9 +89,10 @@ Branch and repository policy:
   unmergeable.
 - GitHub CI runs on PRs and `main` pushes. Do not merge or deploy unless CI is
   green.
-- Production deploys should be made only from a clean local `main` checkout
-  after the intended commit exists on `origin/main`, until Git-connected Vercel
-  production deploys from `main` are confirmed.
+- Production deploys should be made only through `npm run deploy:prod` from a
+  clean or explicitly path-scoped local `main` checkout after the intended
+  commit exists on `origin/main`, until Git-connected Vercel production deploys
+  from `main` are confirmed.
 
 ## Build
 
@@ -108,7 +125,9 @@ Before production deployment:
 8. Confirm no stale top-level legacy Intelligence pages were recreated.
 9. Confirm Academy progress slug validation passes.
 10. Confirm required production env vars exist in Vercel without printing secret values.
-11. Do not deploy from a dirty or ambiguous worktree.
+11. Run `npm run deploy:prod:check -- --allow <path>` for the exact requested page/feature paths. If any unrelated changed or untracked file is reported, stop and reconcile before deploy.
+12. Deploy with `npm run deploy:prod -- --allow <path>` only after the preflight passes.
+13. Do not deploy from a dirty or ambiguous worktree, and do not run raw `npx vercel deploy --prod --yes` from Codex.
 
 ## Environment Dependencies
 

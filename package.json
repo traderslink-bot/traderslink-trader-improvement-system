@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "npm run validate:academy-registry && next build",
     "build:webpack": "npm run validate:academy-registry && next build --webpack",
+    "deploy:prod": "node scripts/guard-production-deploy.cjs",
+    "deploy:prod:check": "node scripts/guard-production-deploy.cjs --preflight-only",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
