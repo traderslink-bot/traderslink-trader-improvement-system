@@ -433,7 +433,7 @@ function parseRecentNewsFilings(card: LiveWatchlistCardContent): RecentNewsFilin
       return [];
     }
 
-    return parsed.articles
+    const parsedArticles = parsed.articles
       .map((article): RecentNewsFilingArticle | null => {
         if (typeof article !== "object" || article === null) {
           return null;
@@ -452,6 +452,34 @@ function parseRecentNewsFilings(card: LiveWatchlistCardContent): RecentNewsFilin
         };
       })
       .filter((article): article is RecentNewsFilingArticle => Boolean(article));
+
+    const articlesByTitleAndDay = new Map<string, RecentNewsFilingArticle>();
+    for (const article of parsedArticles) {
+      const normalizedTitle = article.title.trim().toLowerCase().replace(/\s+/g, " ");
+      const publishedAtMs = article.publishedAt ? Date.parse(article.publishedAt) : NaN;
+      const publishedDay = Number.isFinite(publishedAtMs)
+        ? new Date(publishedAtMs).toISOString().slice(0, 10)
+        : "unknown";
+      const key = `${normalizedTitle}\u0000${publishedDay}`;
+      const existing = articlesByTitleAndDay.get(key);
+      const existingPublishedAtMs = existing?.publishedAt ? Date.parse(existing.publishedAt) : NaN;
+
+      if (
+        !existing ||
+        (Number.isFinite(publishedAtMs) &&
+          (!Number.isFinite(existingPublishedAtMs) || publishedAtMs < existingPublishedAtMs))
+      ) {
+        articlesByTitleAndDay.set(key, article);
+      }
+    }
+
+    return [...articlesByTitleAndDay.values()].sort((left, right) => {
+      const leftMs = left.publishedAt ? Date.parse(left.publishedAt) : NaN;
+      const rightMs = right.publishedAt ? Date.parse(right.publishedAt) : NaN;
+      if (!Number.isFinite(leftMs)) return 1;
+      if (!Number.isFinite(rightMs)) return -1;
+      return rightMs - leftMs;
+    });
   } catch {
     return [];
   }
