@@ -2,10 +2,9 @@
 "use strict";
 
 const { existsSync, realpathSync, readFileSync } = require("node:fs");
-const { basename, join, resolve } = require("node:path");
+const { resolve } = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const EXPECTED_REPO_BASENAME = "traderslink.pro";
 const EXPECTED_PROJECT_ID = "prj_TFzKcdj4dS6BHv2maWsy7M5AEv2a";
 const EXPECTED_ORG_ID = "team_D1yNeyNl1qTvK0pAWMu5nTWY";
 const EXPECTED_PROJECT_NAME = "vercel-landing";
@@ -33,7 +32,7 @@ function runGit(args, options = {}) {
     const stderr = result.stderr?.trim();
     throw new Error(`git ${args.join(" ")} failed${stderr ? `: ${stderr}` : ""}`);
   }
-  return result.stdout.trim();
+  return result.stdout.trimEnd();
 }
 
 function parseArgs(rawArgs) {
@@ -92,19 +91,8 @@ function statusPath(line) {
   return normalizePath(renamedPath.trim());
 }
 
-function isAllowedPath(filePath, allowedRoots) {
-  return allowedRoots.some((root) => filePath === root || filePath.startsWith(`${root}/`));
-}
-
 function assertCorrectRepo() {
   const cwd = realpathSync(process.cwd());
-  if (basename(cwd) !== EXPECTED_REPO_BASENAME) {
-    fail("production deploy must run from the canonical website repo.", [
-      `cwd: ${cwd}`,
-      `expected folder name: ${EXPECTED_REPO_BASENAME}`,
-    ]);
-  }
-
   const gitRoot = realpathSync(runGit(["rev-parse", "--show-toplevel"]));
   if (gitRoot !== cwd) {
     fail("production deploy must run from the git root of the canonical website repo.", [
@@ -182,31 +170,20 @@ function assertDirtyScope(allowedPaths) {
     return;
   }
 
-  if (allowedPaths.length === 0) {
-    fail("dirty production deploy requires explicit --allow path scopes.", [
-      "example: npm run deploy:prod -- --allow app/page.tsx",
-      "example: npm run deploy:prod -- --allow app/watchlist --allow app/api/live-watchlist --allow src/lib/live-watchlist --allow app/globals.css",
-    ]);
-  }
-
   const normalizedAllowed = allowedPaths.map(normalizePath);
   const changedPaths = lines.map(statusPath);
-  const blocked = changedPaths.filter((filePath) => !isAllowedPath(filePath, normalizedAllowed));
-  if (blocked.length > 0) {
-    fail("working tree has changes outside the requested deploy scope.", [
-      `allowed: ${normalizedAllowed.join(", ")}`,
-      ...blocked.map((filePath) => `outside scope: ${filePath}`),
-    ]);
-  }
-
-  info(`dirty deploy scope accepted: ${normalizedAllowed.join(", ")}`);
-  info(`changed files in scope: ${changedPaths.length}`);
+  fail("production deploys require a completely clean working tree.", [
+    "Vercel publishes the entire application snapshot, so path-scoped dirty deploys can restore old unrelated pages.",
+    "commit the intended files, merge them through a green PR, and deploy clean synchronized main",
+    ...(normalizedAllowed.length > 0 ? [`requested scope: ${normalizedAllowed.join(", ")}`] : []),
+    ...changedPaths.map((filePath) => `uncommitted: ${filePath}`),
+  ]);
 }
 
 function runVercelDeploy(vercelArgs) {
-  const command = process.platform === "win32" ? "npx.cmd" : "npx";
-  info(`running: npx vercel ${vercelArgs.join(" ")}`);
-  const result = spawnSync(command, ["vercel", ...vercelArgs], {
+  const command = process.platform === "win32" ? "npm.cmd" : "npm";
+  info(`running: npm exec --yes -- vercel ${vercelArgs.join(" ")}`);
+  const result = spawnSync(command, ["exec", "--yes", "--", "vercel", ...vercelArgs], {
     cwd: process.cwd(),
     stdio: "inherit",
   });

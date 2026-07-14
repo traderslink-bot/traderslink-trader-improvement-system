@@ -61,9 +61,10 @@ npm run deploy:prod -- --allow app/filtered-news-momentum-scanner-access
 npm run deploy:prod -- --allow app/watchlist --allow app/api/live-watchlist --allow src/lib/live-watchlist --allow app/globals.css
 ```
 
-The wrapper verifies the canonical repo, Vercel project, `main`, remote sync,
-and dirty-file scope before it runs `npx vercel deploy --prod --yes`. Do not run
-raw `npx vercel deploy --prod --yes` from Codex; it bypasses the deploy guard.
+The wrapper verifies the Git repository, Vercel project, `main`, remote sync,
+and a completely clean working tree before it runs Vercel. The allowlist records
+the requested review/smoke-test scope but never authorizes a dirty deployment.
+Do not run raw `npx vercel deploy --prod --yes` from Codex; it bypasses the guard.
 
 The latest audited production deployment was created from a clean `main` checkout by the Vercel CLI:
 
@@ -90,9 +91,9 @@ Branch and repository policy:
 - GitHub CI runs on PRs and `main` pushes. Do not merge or deploy unless CI is
   green.
 - Production deploys should be made only through `npm run deploy:prod` from a
-  clean or explicitly path-scoped local `main` checkout after the intended
-  commit exists on `origin/main`, until Git-connected Vercel production deploys
-  from `main` are confirmed.
+  completely clean local `main` checkout synchronized exactly with `origin/main`.
+  A path-scoped request does not make a dirty checkout safe because the deployed
+  artifact still contains the whole application.
 
 ## Build
 
@@ -116,7 +117,7 @@ npm run build:webpack
 Before production deployment:
 
 1. Work from `C:\Users\jerac\Documents\TraderLink\traderslink.pro`.
-2. Confirm `git status --short --branch` is clean except for intentional changes.
+2. Confirm `git status --short --branch` is completely clean.
 3. Confirm `git remote -v` points at the expected GitHub repo.
 4. Confirm the current branch and upstream are intended.
 5. Confirm the intended commit exists on the remote with `git ls-remote`.
@@ -125,7 +126,7 @@ Before production deployment:
 8. Confirm no stale top-level legacy Intelligence pages were recreated.
 9. Confirm Academy progress slug validation passes.
 10. Confirm required production env vars exist in Vercel without printing secret values.
-11. Run `npm run deploy:prod:check -- --allow <path>` for the exact requested page/feature paths. If any unrelated changed or untracked file is reported, stop and reconcile before deploy.
+11. Run `npm run deploy:prod:check -- --allow <path>` for the exact requested page/feature paths. Any changed or untracked file blocks production; commit and merge intended work first.
 12. Deploy with `npm run deploy:prod -- --allow <path>` only after the preflight passes.
 13. Do not deploy from a dirty or ambiguous worktree, and do not run raw `npx vercel deploy --prod --yes` from Codex.
 
