@@ -17,6 +17,13 @@ import {
   getNewsArticle,
   type NewsArticle,
 } from "@/src/lib/news/news-article-store";
+import {
+  formatFinnhubCountry,
+  formatFinnhubExchange,
+  formatFinnhubMarketCap,
+  formatFinnhubWebsite,
+  getFinnhubCompanyProfile,
+} from "@/src/lib/news/finnhub-company-profile";
 
 type PageProps = {
   params: Promise<{
@@ -24,6 +31,8 @@ type PageProps = {
     slug: string;
   }>;
 };
+
+type NewsArticleAccessMode = "full" | "free";
 
 type NewsSectionIcon =
   | "assessment"
@@ -106,11 +115,27 @@ function isSecArticle(article: NewsArticle, eventType: string): boolean {
   );
 }
 
-function DetailTile({ label, value }: { label: string; value: string }) {
+function DetailTile({
+  href,
+  label,
+  value,
+}: {
+  href?: string;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="news-detail-tile">
       <p className="news-detail-label">{label}</p>
-      <p className="news-detail-value">{value}</p>
+      <p className="news-detail-value">
+        {href ? (
+          <a href={href} rel="noopener noreferrer" target="_blank">
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </p>
     </div>
   );
 }
@@ -218,11 +243,13 @@ function BulletList({
   );
 }
 
-export async function generateMetadata({
+export async function buildNewsArticleMetadata({
+  accessMode = "full",
   params,
-}: PageProps): Promise<Metadata> {
+}: PageProps & { accessMode?: NewsArticleAccessMode }): Promise<Metadata> {
   const { ticker, slug } = await params;
   const article = await getNewsArticle(ticker, slug);
+  const basePath = accessMode === "free" ? "/news/free" : "/news";
 
   if (!article) {
     return {
@@ -236,7 +263,7 @@ export async function generateMetadata({
       article.summary ||
       `Trader-focused press release summary and context for ${article.ticker}.`,
     alternates: {
-      canonical: `/news/${article.ticker}/${article.slug}`,
+      canonical: `${basePath}/${article.ticker}/${article.slug}`,
     },
     openGraph: {
       title: `${article.ticker}: ${article.headline}`,
@@ -247,7 +274,14 @@ export async function generateMetadata({
   };
 }
 
-export default async function NewsArticlePage({ params }: PageProps) {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  return buildNewsArticleMetadata(props);
+}
+
+export async function NewsArticleView({
+  accessMode = "full",
+  params,
+}: PageProps & { accessMode?: NewsArticleAccessMode }) {
   const { ticker, slug } = await params;
   const article = await getNewsArticle(ticker, slug);
 
@@ -266,15 +300,27 @@ export default async function NewsArticlePage({ params }: PageProps) {
       rawPayload.supportResistanceLevels ||
       rawPayload.levelsText,
   );
+  const showLockedLevelsCard = accessMode === "free";
   const alertSummary =
     article.summary ||
     asText(ai.summary || rawPayload.summary, "No AI summary was stored.");
-  const snapshotRows: Array<[string, string]> = [
-    detailRow("Market cap", asText(metadata.marketCap)),
-    detailRow("Float", asText(metadata.float)),
-    detailRow("I/O", asText(metadata.io)),
-    ...(secArticle ? ([["Filing type", filingType]] as Array<[string, string]>) : []),
-  ].filter(([, value]) => value !== "N/A");
+  const companyProfile = await getFinnhubCompanyProfile(article.ticker);
+  const companyWebsite = formatFinnhubWebsite(companyProfile?.weburl ?? null);
+  const companyInfoRows = [
+    { label: "Company", value: companyProfile?.name ?? null },
+    { label: "Exchange", value: formatFinnhubExchange(companyProfile?.exchange ?? null) },
+    { label: "Industry", value: companyProfile?.industry ?? null },
+    { label: "Country", value: formatFinnhubCountry(companyProfile?.country ?? null) },
+    { label: "Website", value: companyWebsite, href: companyWebsite ?? undefined },
+    {
+      label: "Market cap",
+      value: formatFinnhubMarketCap(companyProfile?.marketCapitalization ?? null),
+    },
+    {
+      label: "Shares outstanding",
+      value: formatFinnhubMarketCap(companyProfile?.shareOutstanding ?? null),
+    },
+  ].filter((row): row is { label: string; value: string; href?: string } => Boolean(row.value));
   const dilutionRows: Array<[string, string]> = [
     detailRow("Can dilute today", boolText(metadata.canDiluteToday ?? ai.canDiluteToday)),
     detailRow("Earliest dilution", asText(metadata.earliestDilution || ai.earliestDilution)),
@@ -369,16 +415,16 @@ export default async function NewsArticlePage({ params }: PageProps) {
             </main>
 
             <aside className="news-sidebar-stack">
-              <SectionCard icon="check" title="Snapshot">
-                {snapshotRows.length > 0 ? (
+              <SectionCard icon="check" title="Company Info">
+                {companyInfoRows.length > 0 ? (
                   <div className="news-detail-grid news-detail-grid-compact">
-                    {snapshotRows.map(([label, value]) => (
-                      <DetailTile key={label} label={label} value={value} />
+                    {companyInfoRows.map(({ href, label, value }) => (
+                      <DetailTile key={label} href={href} label={label} value={value} />
                     ))}
                   </div>
                 ) : (
                   <p className="news-muted">
-                    No market snapshot fields were stored with this alert.
+                    Company information is temporarily unavailable.
                   </p>
                 )}
                 {article.sourceUrl && secArticle ? (
@@ -393,7 +439,18 @@ export default async function NewsArticlePage({ params }: PageProps) {
                 ) : null}
               </SectionCard>
 
-              {supportResistanceLevels ? (
+              {showLockedLevelsCard ? (
+                <SectionCard icon="levels" title="Support and Resistance">
+                  <div className="news-levels-locked-card">
+                    <p className="news-levels-locked-title">
+                      Support and resistance levels are available to paid users.
+                    </p>
+                    <p className="news-muted">
+                      Upgrade to view the instant levels attached to this alert.
+                    </p>
+                  </div>
+                </SectionCard>
+              ) : supportResistanceLevels ? (
                 <SectionCard icon="levels" title="Support and Resistance">
                   <pre className="news-levels-block">{supportResistanceLevels}</pre>
                 </SectionCard>
@@ -472,24 +529,53 @@ export default async function NewsArticlePage({ params }: PageProps) {
                 </SectionCard>
               ) : null}
 
-              <section
-                aria-label="Learn Market Structure with Smokey"
-                className="news-surface-card news-smokeys-lessons-card"
-              >
-                <Image
-                  alt="Learn Market Structure with Smokey. 12 live lessons, 1 lesson per week, saved after each session."
-                  className="news-smokeys-lessons-image"
-                  placeholder="blur"
-                  sizes="(min-width: 1080px) 22rem, calc(100vw - 2rem)"
-                  src={smokeysLessonsImage}
-                />
-              </section>
+              {accessMode === "free" ? (
+                <SectionCard
+                  icon="trendUp"
+                  kicker="Paid Discord Feed"
+                  title="Unlock The Filtered Version"
+                >
+                  <div className="news-levels-locked-card">
+                    <p className="news-levels-locked-title">
+                      Get the paid version for filtered channels and instant levels.
+                    </p>
+                    <p className="news-muted">
+                      The free feed is one news dump channel. Paid access separates alerts
+                      into focused channels and unlocks the support and resistance levels
+                      attached to each post.
+                    </p>
+                    <Link
+                      className="news-secondary-action"
+                      href="https://whop.com/traderslink-app/filtered-news-momentum-scanner-access/"
+                    >
+                      View paid access
+                    </Link>
+                  </div>
+                </SectionCard>
+              ) : (
+                <section
+                  aria-label="Learn Market Structure with Smokey"
+                  className="news-surface-card news-smokeys-lessons-card"
+                >
+                  <Image
+                    alt="Learn Market Structure with Smokey. 12 live lessons, 1 lesson per week, saved after each session."
+                    className="news-smokeys-lessons-image"
+                    placeholder="blur"
+                    sizes="(min-width: 1080px) 22rem, calc(100vw - 2rem)"
+                    src={smokeysLessonsImage}
+                  />
+                </section>
+              )}
             </aside>
           </div>
         </div>
       </article>
     </SiteShell>
   );
+}
+
+export default async function NewsArticlePage(props: PageProps) {
+  return <NewsArticleView {...props} accessMode="full" />;
 }
 
 function getCourseProgress(

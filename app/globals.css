@@ -2827,11 +2827,191 @@ main.bg-zinc-950 .text-zinc-500 {
   font-weight: 820;
 }
 
-.watchlist-v2-grid {
+.watchlist-table {
+  overflow: hidden;
+  border: 1px solid var(--academy-border);
+  border-radius: 8px;
+  background: var(--academy-surface);
+  box-shadow: var(--academy-shadow-2);
+}
+
+.watchlist-notice-card {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 58rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--academy-surface-soft) 78%, transparent);
+  color: var(--academy-subtle);
+}
+
+.watchlist-notice-card h2 {
+  margin: 0;
+  color: color-mix(in srgb, var(--academy-muted) 82%, var(--academy-heading));
+  font-size: 0.92rem;
+  line-height: 1.25;
+  font-weight: 780;
+}
+
+.watchlist-notice-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.watchlist-notice-card strong {
+  color: color-mix(in srgb, var(--academy-muted) 78%, var(--academy-heading));
+  font-weight: 780;
+}
+
+.watchlist-archive-notice {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 48rem;
+  padding: 1rem;
+  border-color: color-mix(in srgb, var(--academy-primary) 24%, var(--academy-border));
+  background: var(--academy-primary-tint);
+}
+
+.watchlist-archive-notice h2,
+.watchlist-archive-notice p {
+  margin: 0;
+}
+
+.watchlist-archive-notice h2 {
+  color: var(--academy-heading);
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 820;
+}
+
+.watchlist-archive-notice p {
+  color: var(--academy-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.watchlist-table-head,
+.watchlist-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(6rem, 0.7fr) minmax(9rem, 0.9fr) minmax(7rem, 0.7fr) minmax(7rem, 0.6fr);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+}
+
+.watchlist-table-head {
+  background: var(--academy-surface-muted);
+  color: var(--academy-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.watchlist-archive-table-head,
+.watchlist-archive-row {
+  grid-template-columns: minmax(8rem, 0.7fr) minmax(10rem, 0.8fr) minmax(10rem, 0.8fr) minmax(18rem, 1.7fr);
+}
+
+.watchlist-row {
+  border-top: 1px solid var(--academy-border);
+  color: var(--academy-text);
+  align-items: start;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.watchlist-row:hover,
+.watchlist-row:focus-visible {
+  background: var(--academy-primary-tint);
+  box-shadow: inset 3px 0 0 var(--academy-primary);
+  outline: none;
+  transform: translateX(2px);
+}
+
+.watchlist-symbol-cell {
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.watchlist-symbol-cell strong {
+  color: var(--academy-heading);
+  font-size: 1.05rem;
+  line-height: 1.5rem;
+}
+
+.watchlist-read-cell {
+  min-width: 0;
+  color: var(--academy-muted);
+}
+
+.watchlist-read-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.watchlist-ticker-status {
+  width: fit-content;
+  justify-self: start;
+  grid-column: 1 / 3;
+  grid-row: 2;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.watchlist-mobile-field {
+  min-width: 0;
+}
+
+.watchlist-level-map-cell {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.watchlist-level-map-primary {
+  color: var(--academy-heading);
+  font-size: 0.84rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.watchlist-row .watchlist-mobile-field[data-mobile-label="Updated"],
+.watchlist-row .watchlist-mobile-field[data-mobile-label="Added"] {
+  color: var(--academy-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.watchlist-details-cell {
+  justify-self: start;
+  color: var(--academy-primary-strong);
+  font-size: 0.82rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.watchlist-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  align-items: start;
+}
+
+.watchlist-v2-potential-path-card {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
 }
 
 .watchlist-v2-card {
@@ -2873,12 +3053,6 @@ main.bg-zinc-950 .text-zinc-500 {
   font-family: var(--font-geist-mono), monospace;
   font-size: 1rem;
   font-weight: 820;
-}
-
-.watchlist-v2-card .watchlist-ticker-status {
-  grid-column: auto;
-  grid-row: auto;
-  justify-self: end;
 }
 
 .watchlist-v2-card-meta {
@@ -3059,202 +3233,288 @@ main.bg-zinc-950 .text-zinc-500 {
   line-height: 1.5;
 }
 
-.watchlist-table {
-  overflow: hidden;
-  border: 1px solid var(--academy-border);
-  border-radius: 8px;
-  background: var(--academy-surface);
-  box-shadow: var(--academy-shadow-2);
-}
-
-.watchlist-notice-card {
-  display: grid;
-  gap: 0.65rem;
-  max-width: 58rem;
-  padding: 1rem;
-  background: color-mix(in srgb, var(--academy-surface-soft) 78%, transparent);
-  color: var(--academy-subtle);
-}
-
-.watchlist-notice-card h2 {
-  margin: 0;
-  color: color-mix(in srgb, var(--academy-muted) 82%, var(--academy-heading));
-  font-size: 0.92rem;
-  line-height: 1.25;
-  font-weight: 780;
-}
-
-.watchlist-notice-card p {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.55;
-}
-
-.watchlist-notice-card strong {
-  color: color-mix(in srgb, var(--academy-muted) 78%, var(--academy-heading));
-  font-weight: 780;
-}
-
-.watchlist-archive-notice {
-  display: grid;
-  gap: 0.45rem;
-  max-width: 48rem;
-  padding: 1rem;
-  border-color: color-mix(in srgb, var(--academy-primary) 24%, var(--academy-border));
-  background: var(--academy-primary-tint);
-}
-
-.watchlist-archive-notice h2,
-.watchlist-archive-notice p {
-  margin: 0;
-}
-
-.watchlist-archive-notice h2 {
-  color: var(--academy-heading);
-  font-size: 1rem;
-  line-height: 1.25;
-  font-weight: 820;
-}
-
-.watchlist-archive-notice p {
-  color: var(--academy-muted);
-  font-size: 0.9rem;
-  line-height: 1.55;
-}
-
-.watchlist-table-head,
-.watchlist-row {
-  display: grid;
-  grid-template-columns: 4.25rem 4.25rem minmax(17rem, 1.35fr) minmax(13rem, 1.1fr) 6.5rem 8.75rem;
-  column-gap: 0.5rem;
-  row-gap: 0.75rem;
-  align-items: center;
-  padding: 0.85rem 1rem;
-}
-
-.watchlist-table-head {
-  background: var(--academy-surface-muted);
-  color: var(--academy-muted);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.watchlist-archive-table-head,
-.watchlist-archive-row {
-  grid-template-columns: minmax(8rem, 0.7fr) minmax(10rem, 0.8fr) minmax(10rem, 0.8fr) minmax(18rem, 1.7fr);
-}
-
-.watchlist-row {
-  border-top: 1px solid var(--academy-border);
-  color: var(--academy-text);
-  align-items: start;
-  transition:
-    background-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-.watchlist-row:hover,
-.watchlist-row:focus-visible {
-  background: var(--academy-primary-tint);
-  box-shadow: inset 3px 0 0 var(--academy-primary);
-  outline: none;
-  transform: translateX(2px);
-}
-
-.watchlist-symbol-cell {
-  display: grid;
-  gap: 0.45rem;
-  justify-items: start;
+.watchlist-content-card {
   min-width: 0;
+  padding: 1.15rem;
 }
 
-.watchlist-symbol-cell strong {
-  color: var(--academy-heading);
-  font-size: 1.05rem;
-  line-height: 1.5rem;
+.watchlist-content-card[data-card-label="Potential Path Levels"] {
+  grid-column: 1 / -1;
 }
 
-.watchlist-read-cell {
-  min-width: 0;
-  color: var(--academy-muted);
-}
-
-.watchlist-read-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  font-size: 0.84rem;
-  line-height: 1.35;
-}
-
-.watchlist-ticker-status {
-  width: fit-content;
-  justify-self: start;
-  grid-column: 1 / 3;
-  grid-row: 2;
-  min-height: 1.5rem;
-  padding: 0.15rem 0.45rem;
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-
-.watchlist-mobile-field {
-  min-width: 0;
-}
-
-.watchlist-level-map-cell {
+.watchlist-level-detail-card {
   display: grid;
-  gap: 0.28rem;
-  min-width: 0;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
-.watchlist-level-map-primary {
-  color: var(--academy-heading);
-  font-size: 0.84rem;
-  font-weight: 780;
-  line-height: 1.35;
-}
-
-.watchlist-level-map-secondary {
+.watchlist-level-detail-topline {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.75rem;
   align-items: center;
-  color: var(--academy-muted);
-  font-size: 0.76rem;
-  line-height: 1.3;
-}
-
-.watchlist-level-map-secondary em {
-  padding: 0.08rem 0.34rem;
+  justify-content: space-between;
   border: 1px solid var(--academy-border);
   border-radius: 8px;
   background: var(--academy-surface-soft);
+  padding: 0.9rem;
+}
+
+.watchlist-level-detail-topline div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.watchlist-level-detail-topline span,
+.watchlist-level-summary-tile span {
   color: var(--academy-muted);
+  font-size: 0.72rem;
+  font-weight: 820;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.watchlist-level-detail-topline strong {
+  color: var(--academy-heading);
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+.watchlist-level-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.watchlist-trade-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.watchlist-level-quality {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  align-items: baseline;
+  border: 1px solid color-mix(in srgb, var(--academy-warning) 42%, var(--academy-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--academy-warning-soft) 64%, var(--academy-surface));
+  padding: 0.7rem 0.8rem;
+  color: var(--academy-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.watchlist-level-quality strong {
+  color: var(--academy-heading);
+}
+
+.watchlist-level-quality em {
   font-style: normal;
   font-weight: 760;
 }
 
-.watchlist-row .watchlist-mobile-field[data-mobile-label="Updated"],
-.watchlist-row .watchlist-mobile-field[data-mobile-label="Added"] {
+.watchlist-open-air-note {
+  margin: 0;
+  border-left: 3px solid var(--academy-primary);
+  border-radius: 6px;
+  background: var(--academy-surface-soft);
+  padding: 0.7rem 0.8rem;
+  color: var(--academy-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.watchlist-reference-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.watchlist-reference-levels span {
+  border: 1px solid var(--academy-border);
+  border-radius: 999px;
+  background: var(--academy-surface-soft);
+  padding: 0.35rem 0.55rem;
+  color: var(--academy-muted);
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.watchlist-reference-levels span[data-reference-kind="dynamic"] {
+  border-style: dashed;
+}
+
+.watchlist-reference-levels strong {
+  color: var(--academy-heading);
+}
+
+.watchlist-more-levels {
+  border-top: 1px solid var(--academy-border);
+  padding-top: 0.8rem;
+}
+
+.watchlist-more-levels summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--academy-primary-strong);
+  font-size: 0.84rem;
+  font-weight: 820;
+}
+
+.watchlist-more-levels[open] summary {
+  margin-bottom: 0.8rem;
+}
+
+.watchlist-full-ladder-detail {
+  margin-top: 0.8rem;
+  border: 1px solid var(--academy-border);
+  border-radius: 8px;
+  background: var(--academy-surface-soft);
+  padding: 0.9rem;
+}
+
+.watchlist-full-ladder-detail h3 {
+  margin: 0 0 0.65rem;
+  color: var(--academy-heading);
+  font-size: 0.86rem;
+}
+
+.watchlist-full-ladder-detail pre {
+  max-height: 24rem;
+  margin: 0;
+  overflow: auto;
+}
+
+.watchlist-level-summary-tile {
+  display: grid;
+  gap: 0.32rem;
+  min-width: 0;
+  border: 1px solid var(--academy-border);
+  border-radius: 8px;
+  background: var(--academy-surface-soft);
+  padding: 0.8rem;
+}
+
+.watchlist-level-summary-tile[data-level-tone="support"],
+.watchlist-level-stack[data-level-tone="support"] {
+  border-color: color-mix(in srgb, var(--academy-positive) 34%, var(--academy-border));
+  background: color-mix(in srgb, var(--academy-positive-soft) 72%, var(--academy-surface));
+}
+
+.watchlist-level-summary-tile[data-level-tone="resistance"],
+.watchlist-level-stack[data-level-tone="resistance"] {
+  border-color: color-mix(in srgb, var(--academy-negative) 34%, var(--academy-border));
+  background: color-mix(in srgb, var(--academy-negative-soft) 72%, var(--academy-surface));
+}
+
+.watchlist-level-summary-tile strong {
+  color: var(--academy-heading);
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.watchlist-level-summary-tile em {
   color: var(--academy-muted);
   font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 680;
   line-height: 1.35;
 }
 
-.watchlist-card-grid {
+.watchlist-level-stack-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.watchlist-content-card {
+.watchlist-level-stack {
   min-width: 0;
-  padding: 1.15rem;
+  border: 1px solid var(--academy-border);
+  border-radius: 8px;
+  background: var(--academy-surface-soft);
+  padding: 0.9rem;
+}
+
+.watchlist-level-stack h3 {
+  margin: 0 0 0.7rem;
+  color: var(--academy-heading);
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.watchlist-level-stack ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watchlist-level-line {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 0.55fr) minmax(4rem, 0.45fr) minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+  background: var(--academy-surface);
+  padding: 0.48rem 0.55rem;
+}
+
+.watchlist-level-line[data-level-tone="support"] {
+  border-left: 3px solid var(--academy-positive);
+  background: color-mix(in srgb, var(--academy-positive-soft) 52%, var(--academy-surface));
+}
+
+.watchlist-level-line[data-level-tone="resistance"] {
+  border-left: 3px solid var(--academy-negative);
+  background: color-mix(in srgb, var(--academy-negative-soft) 52%, var(--academy-surface));
+}
+
+.watchlist-level-summary-tile[data-level-tone="support"] strong,
+.watchlist-level-stack[data-level-tone="support"] h3,
+.watchlist-level-line[data-level-tone="support"] .watchlist-level-price {
+  color: var(--academy-positive);
+}
+
+.watchlist-level-summary-tile[data-level-tone="resistance"] strong,
+.watchlist-level-stack[data-level-tone="resistance"] h3,
+.watchlist-level-line[data-level-tone="resistance"] .watchlist-level-price {
+  color: var(--academy-negative);
+}
+
+.watchlist-level-price {
+  color: var(--academy-heading);
+  font-size: 0.88rem;
+  font-weight: 840;
+  line-height: 1.2;
+}
+
+.watchlist-level-distance {
+  color: var(--academy-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.watchlist-level-tags {
+  overflow: hidden;
+  color: var(--academy-muted);
+  font-size: 0.76rem;
+  font-weight: 640;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-level-empty {
+  margin: 0;
+  color: var(--academy-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .watchlist-card-split {
@@ -3346,24 +3606,14 @@ main.bg-zinc-950 .text-zinc-500 {
   min-width: 0;
 }
 
-.watchlist-content-card[data-card-label="Trader Read"] {
-  grid-column: 1;
-  grid-row: 2;
-}
-
 .watchlist-content-card[data-card-label="Full Ladder"] {
   grid-column: 2;
   grid-row: 2;
 }
 
 .watchlist-content-card[data-card-label="Known Recent News / SEC Filings"] {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-.watchlist-content-card[data-card-label="Company Info"] {
-  grid-column: 1;
-  grid-row: 3;
+  grid-column: 1 / -1;
+  grid-row: auto;
 }
 
 .watchlist-content-card pre {
@@ -3548,6 +3798,10 @@ main.bg-zinc-950 .text-zinc-500 {
     order: 4;
   }
 
+  .watchlist-mobile-field[data-mobile-label="Details"] {
+    order: 6;
+  }
+
   .watchlist-ticker-status {
     order: 6;
     grid-column: 1 / -1;
@@ -3587,11 +3841,14 @@ main.bg-zinc-950 .text-zinc-500 {
     grid-template-columns: 1fr;
   }
 
-  .watchlist-v2-grid {
+  .watchlist-level-summary-grid,
+  .watchlist-trade-plan-grid,
+  .watchlist-level-stack-grid {
     grid-template-columns: 1fr;
   }
 
   .watchlist-context-card-stack,
+  .watchlist-content-card[data-card-label="Potential Path Levels"],
   .watchlist-content-card[data-card-label="Technical Context"],
   .watchlist-content-card[data-card-label="Trader Read"],
   .watchlist-content-card[data-card-label="Full Ladder"],
@@ -3609,20 +3866,5 @@ main.bg-zinc-950 .text-zinc-500 {
 
   .watchlist-row {
     grid-template-columns: 1fr;
-  }
-
-  .watchlist-v2-card-header,
-  .watchlist-v2-card-meta,
-  .watchlist-v2-nearest,
-  .watchlist-v2-level-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .watchlist-v2-card .watchlist-ticker-status {
-    justify-self: start;
-  }
-
-  .watchlist-v2-level-row {
-    grid-template-columns: minmax(4.5rem, auto) minmax(4.25rem, auto) minmax(0, 1fr);
   }
 }

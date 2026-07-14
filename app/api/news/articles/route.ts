@@ -55,8 +55,12 @@ export async function POST(request: Request): Promise<Response> {
     const articlePath = `/news/${encodeURIComponent(
       article.ticker,
     )}/${encodeURIComponent(article.slug)}`;
+    const freeArticlePath = `/news/free/${encodeURIComponent(
+      article.ticker,
+    )}/${encodeURIComponent(article.slug)}`;
 
     revalidatePath(articlePath);
+    revalidatePath(freeArticlePath);
     revalidatePath(`/news/${article.ticker}`);
     revalidatePath("/news");
 
@@ -66,6 +70,8 @@ export async function POST(request: Request): Promise<Response> {
       article,
       articlePath,
       articleUrl: `${requestOrigin(request)}${articlePath}`,
+      freeArticlePath,
+      freeArticleUrl: `${requestOrigin(request)}${freeArticlePath}`,
     });
   } catch (error) {
     return jsonError(

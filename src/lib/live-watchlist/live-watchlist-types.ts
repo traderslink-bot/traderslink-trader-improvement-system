@@ -90,11 +90,37 @@ export type LiveWatchlistLevelMapRangeState = "tight" | "normal" | "wide";
 export type LiveWatchlistLevelMapLevel = {
   side: "support" | "resistance";
   price: number;
+  lowPrice?: number;
+  highPrice?: number;
   distancePct: number;
   strengthLabel?: "weak" | "moderate" | "strong" | "major";
+  freshness?: "fresh" | "aging" | "stale";
   sourceLabel?: string | null;
   roleFlipFromSide?: "support" | "resistance" | null;
+  roleFlipState?: "original" | "testing" | "confirmed";
   label: string;
+};
+
+export type LiveWatchlistLevelDataQuality = {
+  status: "full" | "limited" | "unavailable";
+  availableTimeframes: Array<"daily" | "4h" | "5m">;
+  flags: string[];
+  message?: string;
+};
+
+export type LiveWatchlistReferenceLevel = {
+  key: "pmh" | "pml" | "orh" | "orl" | "hod" | "lod" | "pdh" | "pdl" | "pdc" | "vwap";
+  label: string;
+  price: number;
+  kind: "session" | "dynamic";
+};
+
+export type LiveWatchlistTradePlan = {
+  needsToHold: LiveWatchlistLevelMapLevel | null;
+  failureBelow: LiveWatchlistLevelMapLevel | null;
+  mustClear: LiveWatchlistLevelMapLevel | null;
+  targets: LiveWatchlistLevelMapLevel[];
+  openAir: boolean;
 };
 
 export type LiveWatchlistLevelMap = {
@@ -106,6 +132,10 @@ export type LiveWatchlistLevelMap = {
   nextStrongResistance: LiveWatchlistLevelMapLevel | null;
   supportLevels: LiveWatchlistLevelMapLevel[];
   resistanceLevels: LiveWatchlistLevelMapLevel[];
+  roleFlipConfirmationPct?: number;
+  tradePlan?: LiveWatchlistTradePlan;
+  dataQuality?: LiveWatchlistLevelDataQuality;
+  referenceLevels?: LiveWatchlistReferenceLevel[];
 };
 
 export type LiveWatchlistSymbolState = {

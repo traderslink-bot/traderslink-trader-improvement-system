@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWatchlistV2LevelRows } from "../watchlist-v2-levels";
 import type { LiveWatchlistLevelMapLevel } from "../live-watchlist-types";
+import { buildWatchlistV2LevelRows } from "../watchlist-v2-levels";
 
 function level(
   side: "support" | "resistance",
@@ -19,7 +19,12 @@ function level(
 
 describe("buildWatchlistV2LevelRows", () => {
   it("returns every curated support and resistance level without applying a display cap", () => {
-    const supportLevels = [level("support", 0.91), level("support", 0.88), level("support", 0.84), level("support", 0.8)];
+    const supportLevels = [
+      level("support", 0.91),
+      level("support", 0.88),
+      level("support", 0.84),
+      level("support", 0.8),
+    ];
     const resistanceLevels = [
       level("resistance", 0.95),
       level("resistance", 0.9873),
@@ -40,7 +45,13 @@ describe("buildWatchlistV2LevelRows", () => {
     });
 
     expect(rows.support.map((row) => row.price)).toEqual([0.91, 0.88, 0.84, 0.8]);
-    expect(rows.resistance.map((row) => row.price)).toEqual([0.95, 0.9873, 1.03, 1.07, 1.12]);
+    expect(rows.resistance.map((row) => row.price)).toEqual([
+      0.95,
+      0.9873,
+      1.03,
+      1.07,
+      1.12,
+    ]);
   });
 
   it("marks nearest support and resistance without hiding the rest of the list", () => {
