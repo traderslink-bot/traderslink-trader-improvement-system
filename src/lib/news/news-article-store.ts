@@ -134,6 +134,7 @@ async function ensureNeonSchema(): Promise<void> {
       CREATE TABLE IF NOT EXISTS news_articles (
         id TEXT PRIMARY KEY,
         source_event_id TEXT UNIQUE,
+        canonical_source_key TEXT UNIQUE,
         ticker TEXT NOT NULL,
         slug TEXT NOT NULL,
         headline TEXT NOT NULL,
@@ -153,6 +154,42 @@ async function ensureNeonSchema(): Promise<void> {
         raw_payload_json JSONB NOT NULL DEFAULT '{}'::jsonb,
         UNIQUE(ticker, slug)
       )
+    `;
+
+    await sql`
+      ALTER TABLE news_articles
+      ADD COLUMN IF NOT EXISTS canonical_source_key TEXT
+    `;
+
+    await sql`
+      WITH ranked_sources AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            PARTITION BY ticker, LOWER(TRIM(source_url))
+            ORDER BY
+              CASE WHEN route_tag IN ('default', 'spike') THEN 0 ELSE 1 END,
+              CASE
+                WHEN COALESCE(metadata_json ->> 'supportResistanceLevels', '') <> '' THEN 0
+                ELSE 1
+              END,
+              created_at ASC
+          ) AS source_rank
+        FROM news_articles
+        WHERE source_url IS NOT NULL AND TRIM(source_url) <> ''
+      )
+      UPDATE news_articles AS article
+      SET canonical_source_key = article.ticker || '|' || LOWER(TRIM(article.source_url))
+      FROM ranked_sources
+      WHERE article.id = ranked_sources.id
+        AND ranked_sources.source_rank = 1
+        AND article.canonical_source_key IS NULL
+    `;
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS news_articles_canonical_source
+      ON news_articles(canonical_source_key)
+      WHERE canonical_source_key IS NOT NULL
     `;
 
     await sql`
@@ -178,6 +215,7 @@ export function runNewsSqliteMigrations(db: SqliteDatabase): void {
     CREATE TABLE IF NOT EXISTS news_articles (
       id TEXT PRIMARY KEY,
       source_event_id TEXT UNIQUE,
+      canonical_source_key TEXT UNIQUE,
       ticker TEXT NOT NULL,
       slug TEXT NOT NULL,
       headline TEXT NOT NULL,
@@ -201,6 +239,42 @@ export function runNewsSqliteMigrations(db: SqliteDatabase): void {
     CREATE INDEX IF NOT EXISTS news_articles_ticker_published
       ON news_articles(ticker, published_at DESC);
   `);
+
+  const columns = db
+    .prepare("PRAGMA table_info(news_articles)")
+    .all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "canonical_source_key")) {
+    db.exec("ALTER TABLE news_articles ADD COLUMN canonical_source_key TEXT");
+  }
+
+  db.exec(`
+    WITH ranked_sources AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (
+          PARTITION BY ticker, LOWER(TRIM(source_url))
+          ORDER BY
+            CASE WHEN route_tag IN ('default', 'spike') THEN 0 ELSE 1 END,
+            CASE
+              WHEN COALESCE(json_extract(metadata_json, '$.supportResistanceLevels'), '') <> '' THEN 0
+              ELSE 1
+            END,
+            created_at ASC
+        ) AS source_rank
+      FROM news_articles
+      WHERE source_url IS NOT NULL AND TRIM(source_url) <> ''
+    )
+    UPDATE news_articles
+    SET canonical_source_key = ticker || '|' || LOWER(TRIM(source_url))
+    WHERE id IN (
+      SELECT id FROM ranked_sources WHERE source_rank = 1
+    )
+      AND canonical_source_key IS NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS news_articles_canonical_source
+      ON news_articles(canonical_source_key)
+      WHERE canonical_source_key IS NOT NULL;
+  `);
 }
 
 export const runNewsMigrations = runNewsSqliteMigrations;
@@ -211,6 +285,62 @@ function cleanText(value: unknown): string {
 
 function normalizeTicker(value: unknown): string {
   return cleanText(value).toUpperCase().replace(/[^A-Z0-9.-]/g, "");
+}
+
+function buildCanonicalSourceKey(ticker: string, sourceUrl: string | null): string | null {
+  if (!sourceUrl) return null;
+
+  try {
+    const parsed = new URL(sourceUrl);
+    parsed.hash = "";
+    return `${ticker}|${parsed.toString().toLowerCase()}`;
+  } catch {
+    return `${ticker}|${sourceUrl.toLowerCase()}`;
+  }
+}
+
+function routePriority(routeTag: unknown): number {
+  const normalized = cleanText(routeTag).toLowerCase();
+  if (normalized === "default" || normalized === "spike") return 2;
+  if (normalized.startsWith("market_cap_")) return 1;
+  return 0;
+}
+
+function mergeCanonicalInput(
+  normalized: ReturnType<typeof normalizeInput>,
+  existing: Record<string, unknown> | null,
+) {
+  if (!existing || routePriority(normalized.routeTag) >= routePriority(existing.route_tag)) {
+    const existingMetadata = parseJsonObject(existing?.metadata_json);
+    const incomingMetadata = parseJsonObject(normalized.metadataJson);
+    if (
+      existingMetadata.supportResistanceLevels &&
+      !incomingMetadata.supportResistanceLevels
+    ) {
+      normalized.metadataJson = JSON.stringify({
+        ...incomingMetadata,
+        supportResistanceLevels: existingMetadata.supportResistanceLevels,
+      });
+    }
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    headline: String(existing.headline),
+    summary: typeof existing.summary === "string" ? existing.summary : null,
+    articleText:
+      typeof existing.article_text === "string" ? existing.article_text : null,
+    eventType:
+      typeof existing.event_type === "string" ? existing.event_type : null,
+    routeTag: typeof existing.route_tag === "string" ? existing.route_tag : null,
+    metadataJson: JSON.stringify(parseJsonObject(existing.metadata_json)),
+    positivesJson: JSON.stringify(parseJsonArray(existing.positives_json)),
+    negativesJson: JSON.stringify(parseJsonArray(existing.negatives_json)),
+    riskFlagsJson: JSON.stringify(parseJsonArray(existing.risk_flags_json)),
+    diagnosticsJson: JSON.stringify(parseJsonObject(existing.diagnostics_json)),
+    rawPayloadJson: JSON.stringify(parseJsonObject(existing.raw_payload_json)),
+  };
 }
 
 export function buildNewsArticleSlug(headline: string, publishedAt: string): string {
@@ -336,6 +466,8 @@ function normalizeInput(input: NewsArticleInput) {
   const now = new Date().toISOString();
   const publishedAt = cleanText(input.publishedAt) || now;
 
+  const sourceUrl = cleanText(input.sourceUrl) || null;
+
   return {
     id: stableIdForInput(input),
     ticker,
@@ -346,7 +478,8 @@ function normalizeInput(input: NewsArticleInput) {
     summary: cleanText(input.summary) || null,
     articleText:
       typeof input.articleText === "string" ? input.articleText.trim() || null : null,
-    sourceUrl: cleanText(input.sourceUrl) || null,
+    sourceUrl,
+    canonicalSourceKey: buildCanonicalSourceKey(ticker, sourceUrl),
     eventType: cleanText(input.eventType) || null,
     routeTag: cleanText(input.routeTag) || null,
     metadataJson: JSON.stringify(input.metadata ?? {}),
@@ -395,14 +528,22 @@ async function upsertNewsArticleSqlite(
   input: NewsArticleInput,
 ): Promise<NewsArticle> {
   const db = await getSqliteDatabase();
-  const normalized = normalizeInput(input);
+  let normalized = normalizeInput(input);
   const now = new Date().toISOString();
-  const existing = normalized.sourceEventId
+  const existingBySource = normalized.canonicalSourceKey
     ? db
-        .prepare("SELECT * FROM news_articles WHERE source_event_id = ?")
-        .get(normalized.sourceEventId)
+        .prepare("SELECT * FROM news_articles WHERE canonical_source_key = ?")
+        .get(normalized.canonicalSourceKey)
     : null;
+  const existing =
+    existingBySource ??
+    (normalized.sourceEventId
+      ? db
+          .prepare("SELECT * FROM news_articles WHERE source_event_id = ?")
+          .get(normalized.sourceEventId)
+      : null);
   const existingRow = existing as Record<string, unknown> | null;
+  normalized = mergeCanonicalInput(normalized, existingRow);
   const slug = existingRow
     ? String(existingRow.slug)
     : buildSqliteUniqueSlug(db, normalized.ticker, normalized.requestedSlug);
@@ -414,6 +555,7 @@ async function upsertNewsArticleSqlite(
       INSERT INTO news_articles (
         id,
         source_event_id,
+        canonical_source_key,
         ticker,
         slug,
         headline,
@@ -432,7 +574,7 @@ async function upsertNewsArticleSqlite(
         diagnostics_json,
         raw_payload_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         headline = excluded.headline,
         summary = excluded.summary,
@@ -452,6 +594,7 @@ async function upsertNewsArticleSqlite(
   ).run(
     id,
     normalized.sourceEventId,
+    normalized.canonicalSourceKey,
     normalized.ticker,
     slug,
     normalized.headline,
@@ -484,16 +627,23 @@ async function upsertNewsArticleNeon(
 ): Promise<NewsArticle> {
   await ensureNeonSchema();
   const sql = getNeonSql();
-  const normalized = normalizeInput(input);
+  let normalized = normalizeInput(input);
   const now = new Date().toISOString();
-  const existingRows = normalized.sourceEventId
+  const existingRows = normalized.canonicalSourceKey
     ? ((await sql`
         SELECT * FROM news_articles
-        WHERE source_event_id = ${normalized.sourceEventId}
+        WHERE canonical_source_key = ${normalized.canonicalSourceKey}
         LIMIT 1
       `) as Array<Record<string, unknown>>)
-    : [];
+    : normalized.sourceEventId
+      ? ((await sql`
+          SELECT * FROM news_articles
+          WHERE source_event_id = ${normalized.sourceEventId}
+          LIMIT 1
+        `) as Array<Record<string, unknown>>)
+      : [];
   const existing = existingRows[0];
+  normalized = mergeCanonicalInput(normalized, existing ?? null);
   const slug = existing
     ? String(existing.slug)
     : await buildNeonUniqueSlug(sql, normalized.ticker, normalized.requestedSlug);
@@ -504,6 +654,7 @@ async function upsertNewsArticleNeon(
     INSERT INTO news_articles (
       id,
       source_event_id,
+      canonical_source_key,
       ticker,
       slug,
       headline,
@@ -525,6 +676,7 @@ async function upsertNewsArticleNeon(
     VALUES (
       ${id},
       ${normalized.sourceEventId},
+      ${normalized.canonicalSourceKey},
       ${normalized.ticker},
       ${slug},
       ${normalized.headline},
