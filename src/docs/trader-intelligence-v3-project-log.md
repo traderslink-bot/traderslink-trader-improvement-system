@@ -27,13 +27,63 @@ Read in this order:
 3. `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
 4. `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
 5. `src/docs/trader-intelligence-plan-index.md`
-6. the active v3 phase plan, when one exists
+6. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 
 When documents conflict, the latest entry in this log may clarify the current decision, but it must not silently weaken a mandatory QA gate. Material architecture changes require an explicit amendment to the QA review or master plan.
 
 ---
 
 ## Current Resume Point
+
+### 2026-07-17 — Gate 0 Execution Plan Activated
+
+Status:
+
+- master architecture remains conditionally approved;
+- mandatory QA review is controlling;
+- v3 planning chain is active in `plan.md` and the plan index;
+- Gate 0 and first internal slice plan has been created and is the active execution plan;
+- the plan includes repository inventory, ten ADRs, versioned contracts, exact financial reference math, read-only adapters, synthetic golden fixtures, weekday analytics, daily-stop simulation, v3 CI, and detailed acceptance gates;
+- no runtime code changed;
+- no production deployment requested or allowed.
+
+Active execution plan:
+
+- `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+
+Next engineering action after the documentation PR is approved:
+
+1. create a clean implementation branch from current `main`;
+2. complete the current-system preserve/adapt/legacy/retire inventory;
+3. write and accept ADRs 0001–0009;
+4. leave ADR-0010 proposed with explicit AI provider/privacy/grounding criteria;
+5. create the internal v3 contract boundary;
+6. implement exact financial test helpers and public synthetic fixtures;
+7. implement read-only current-data adapters;
+8. implement performance-by-weekday and stop-after-consecutive-losses tools;
+9. add v3 CI;
+10. run focused and legacy regression verification;
+11. update this log and gate status.
+
+First implementation branch recommendation:
+
+- `agent/trader-intelligence-v3-gate-0-foundation`
+
+First-run restrictions:
+
+- internal-only;
+- read-only compatibility adapters;
+- no AI model calls;
+- no public v3 route;
+- no production database write;
+- no coach redesign;
+- no support/resistance consumption;
+- no new level detector;
+- no unrestricted SQL;
+- no vector database;
+- no production deployment.
+
+Gate 0 remains **in progress** until the ADRs and deterministic proof slice are implemented and verified.
 
 ### 2026-07-17 — Master Plan QA and Architecture Correction
 
@@ -73,46 +123,17 @@ Controlling documents:
 - `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
 - `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
 - `src/docs/trader-intelligence-plan-index.md`
+- `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 
 Current phase:
 
 - **Gate 0 — governance, scope, and architecture lock**
 
-Next required planning artifact:
+Verification for these documentation entries:
 
-- `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
-
-That plan must define file-level work and ADRs for:
-
-- shared platform identity and authorization context;
-- exact decimal domain types;
-- analytical P/L and reconstruction policy;
-- PostgreSQL authority and migration framework;
-- secure raw-file upload;
-- durable workflow/outbox substrate;
-- instrument and price-basis contracts;
-- initial broker/direction/currency scope;
-- v3 CI;
-- the first internal weekday analytics and daily-stop simulation slice.
-
-First coding-slice restrictions:
-
-- internal-only;
-- read-only compatibility adapters;
-- no AI model calls;
-- no public v3 route;
-- no production database write;
-- no coach redesign;
-- no new level detector;
-- no unrestricted SQL;
-- no vector database;
-- no production deployment.
-
-Verification for this entry:
-
-- documentation and repository contracts were inspected through GitHub;
-- no runtime tests were required because this update is documentation-only;
-- PR comparison and changed-file verification should be performed after all QA documentation updates are committed.
+- repository contracts and affected plans were inspected through GitHub;
+- no runtime tests were required because the changes are documentation-only;
+- PR comparison and changed-file verification are required before final sign-off.
 
 ---
 
@@ -186,12 +207,12 @@ Decision:
 
 | Gate | Status | Notes |
 |---|---|---|
-| G0 Plan and architecture | In progress | Plan chain corrected; ADR and file-level Gate 0 plan still required |
+| G0 Plan and architecture | In progress | Plan chain and file-level execution plan are complete; ADRs and internal proof slice remain |
 | G1 Identity and tenancy | Not started | Production blocker |
 | G2 Exact ledger | Not started | Decimal and P/L policy decisions required |
 | G3 Import durability | Not started | Object storage, outbox, durable jobs required |
 | G4 Market and features | Not started | Basis/instrument/zone contracts required |
-| G5 Analytics and simulations | Not started | First internal tools planned |
+| G5 Analytics and simulations | Not started | First internal tools specified in active plan |
 | G6 AI grounding | Not started | No model call allowed yet |
 | G7 Zone usefulness | Not started | Must beat legacy nearest-level output |
 | G8 Beta | Not started | Depends on all prior gates |
