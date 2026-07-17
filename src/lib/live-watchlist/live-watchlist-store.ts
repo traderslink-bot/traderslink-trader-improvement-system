@@ -435,11 +435,22 @@ function firstPublishedPrice(
     : null;
 }
 
+function latestPublishedPrice(
+  cards: LiveWatchlistSymbolState["cards"],
+): { price: number; observedAt: number } | null {
+  const latest = Object.values(cards)
+    .filter((card): card is LiveWatchlistCardContent => Boolean(card))
+    .filter((card) => validPotentialGainPrice(card.priceWhenPosted))
+    .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  return latest && validPotentialGainPrice(latest.priceWhenPosted)
+    ? { price: latest.priceWhenPosted, observedAt: latest.updatedAt }
+    : null;
+}
+
 function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbolState {
   const companyInfo = state.cards.companyInfo;
   const nearest = state.cards.nearestSupportResistance;
   const liveTraderRead = state.cards.liveTraderRead;
-  const tradersLinkAiRead = state.cards.tradersLinkAiRead;
   const nearestMetadata = nearest?.metadata ?? {};
   const nearestSupport =
     state.nearestSupport ??
@@ -455,6 +466,14 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
     .map((card) => card?.updatedAt)
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const hasCards = cardTimes.length > 0;
+  const latestCardPrice = latestPublishedPrice(state.cards);
+  const inferredLatestPriceSource = state.latestPriceSource ?? (
+    state.latestPrice !== null &&
+    latestCardPrice !== null &&
+    Math.abs(state.latestPrice - latestCardPrice.price) > 1e-9
+      ? "ticker"
+      : "card"
+  );
   return {
     ...state,
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
@@ -466,13 +485,14 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
       typeof companyInfo?.metadata?.company === "string"
         ? companyInfo.metadata.company
         : companyInfo?.title ?? state.companyName ?? null,
-    latestPrice:
-      state.latestPrice ??
-      tradersLinkAiRead?.priceWhenPosted ??
-      liveTraderRead?.priceWhenPosted ??
-      nearest?.priceWhenPosted ??
-      companyInfo?.priceWhenPosted ??
-      null,
+    latestPrice: state.latestPrice ?? latestCardPrice?.price ?? null,
+    latestPriceSource:
+      state.latestPrice !== null || latestCardPrice !== null
+        ? inferredLatestPriceSource
+        : null,
+    latestPriceObservedAt:
+      state.latestPriceObservedAt ??
+      (inferredLatestPriceSource === "card" ? latestCardPrice?.observedAt ?? null : null),
     nearestSupport,
     nearestResistance,
     nearestSupportLabel:
@@ -514,6 +534,8 @@ function applyPatch(
   );
   const patchesLevelMap = Object.prototype.hasOwnProperty.call(patch, "levelMap");
   const patchesFirstPostedAt = Object.prototype.hasOwnProperty.call(patch, "firstPostedAt");
+  const preservesTickerPrice = baseExisting?.latestPriceSource === "ticker";
+  const recomputesCardPrice = !preservesTickerPrice && patchesPriceCard;
   for (const [kind, card] of Object.entries(patch.cards)) {
     if (card === null) {
       delete nextCards[kind as keyof typeof nextCards];
@@ -556,7 +578,11 @@ function applyPatch(
         : baseExisting?.tradersLinkAiReadCardVisible !== false,
     potentialGain: nextPotentialGain,
     companyName: baseExisting?.companyName ?? null,
-    latestPrice: patchesPriceCard ? null : baseExisting?.latestPrice ?? null,
+    latestPrice: recomputesCardPrice ? null : baseExisting?.latestPrice ?? null,
+    latestPriceSource: preservesTickerPrice ? "ticker" : "card",
+    latestPriceObservedAt: preservesTickerPrice || !recomputesCardPrice
+      ? baseExisting?.latestPriceObservedAt ?? null
+      : null,
     nearestSupport: patchesNearestCard ? null : baseExisting?.nearestSupport ?? null,
     nearestResistance: patchesNearestCard ? null : baseExisting?.nearestResistance ?? null,
     nearestSupportLabel: patchesNearestCard ? null : baseExisting?.nearestSupportLabel ?? null,
@@ -594,6 +620,8 @@ function applyTickerDataPatch(
     ),
     companyName: existing?.companyName ?? null,
     latestPrice: patch.latestPrice,
+    latestPriceSource: "ticker",
+    latestPriceObservedAt: patch.updatedAt,
     nearestSupport: patch.nearestSupport,
     nearestResistance: patch.nearestResistance,
     nearestSupportLabel: patch.nearestSupportLabel ?? null,

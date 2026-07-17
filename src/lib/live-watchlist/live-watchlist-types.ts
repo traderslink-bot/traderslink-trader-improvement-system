@@ -327,6 +327,8 @@ export type LiveWatchlistSymbolState = {
   potentialGain?: LiveWatchlistPotentialGain | null;
   companyName: string | null;
   latestPrice: number | null;
+  latestPriceSource?: "ticker" | "card" | null;
+  latestPriceObservedAt?: number | null;
   nearestSupport: number | null;
   nearestResistance: number | null;
   nearestSupportLabel?: string | null;

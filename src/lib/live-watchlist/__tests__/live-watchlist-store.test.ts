@@ -386,6 +386,55 @@ describe("LiveWatchlistStore", () => {
     expect(preserved.volume).toBe(123_456);
   });
 
+  it("does not let a historical AI Read price replace a newer live quote during card updates", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "BIYA",
+      status: "live",
+      updatedAt: 1000,
+      cards: {
+        tradersLinkAiRead: {
+          title: "TradersLink AI Read",
+          body: "Premarket plan",
+          updatedAt: 1000,
+          priceWhenPosted: 3.95,
+          source: "openai",
+        },
+      },
+    });
+    await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "BIYA",
+      status: "live",
+      updatedAt: 2000,
+      latestPrice: 4.42,
+      nearestSupport: 4.2,
+      nearestResistance: 4.5,
+    });
+
+    const updated = await store.upsertPatch({
+      symbol: "BIYA",
+      status: "live",
+      updatedAt: 3000,
+      cards: {
+        liveTraderRead: {
+          title: "BIYA holding above breakout",
+          body: "Live structure update",
+          updatedAt: 3000,
+          priceWhenPosted: 4.4,
+          source: "levels_system_intraday",
+        },
+      },
+    });
+
+    expect(updated.latestPrice).toBe(4.42);
+    expect(updated.cards.tradersLinkAiRead?.priceWhenPosted).toBe(3.95);
+    expect(updated.cards.liveTraderRead?.priceWhenPosted).toBe(4.4);
+  });
+
   it("stores nearest support and resistance display labels for the index", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
