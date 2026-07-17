@@ -35,15 +35,18 @@ When documents conflict, the latest entry in this log may clarify the current de
 
 ## Current Resume Point
 
-### 2026-07-17 — Gate 0 Execution Plan Activated
+### 2026-07-17 — Gate 0 Execution Plan Activated and Verified
 
 Status:
 
 - master architecture remains conditionally approved;
 - mandatory QA review is controlling;
-- v3 planning chain is active in `plan.md` and the plan index;
+- v3 planning chain is active in `plan.md`, `handoff.md`, and the plan index;
 - Gate 0 and first internal slice plan has been created and is the active execution plan;
 - the plan includes repository inventory, ten ADRs, versioned contracts, exact financial reference math, read-only adapters, synthetic golden fixtures, weekday analytics, daily-stop simulation, v3 CI, and detailed acceptance gates;
+- stale cold-start handoff instructions that pointed to the old May plan were replaced;
+- PR #94 title and body were updated to reflect the conditional QA verdict and active Gate 0 plan;
+- a QA verdict comment was added to PR #94;
 - no runtime code changed;
 - no production deployment requested or allowed.
 
@@ -82,6 +85,16 @@ First-run restrictions:
 - no unrestricted SQL;
 - no vector database;
 - no production deployment.
+
+Documentation verification completed:
+
+- PR changed-file list contains seven expected documentation files;
+- branch is ten commits ahead of `main` and zero commits behind;
+- final branch comparison contains no runtime-code file;
+- `plan.md`, `handoff.md`, and the plan index point to the same active Gate 0 plan;
+- the QA review and Gate 0 plan headers and final directives were fetched and inspected;
+- PR #94 remains open, mergeable, and draft;
+- no runtime tests were required because this PR changes documentation only.
 
 Gate 0 remains **in progress** until the ADRs and deterministic proof slice are implemented and verified.
 
@@ -128,12 +141,6 @@ Controlling documents:
 Current phase:
 
 - **Gate 0 — governance, scope, and architecture lock**
-
-Verification for these documentation entries:
-
-- repository contracts and affected plans were inspected through GitHub;
-- no runtime tests were required because the changes are documentation-only;
-- PR comparison and changed-file verification are required before final sign-off.
 
 ---
 
@@ -207,7 +214,7 @@ Decision:
 
 | Gate | Status | Notes |
 |---|---|---|
-| G0 Plan and architecture | In progress | Plan chain and file-level execution plan are complete; ADRs and internal proof slice remain |
+| G0 Plan and architecture | In progress | Plan chain and file-level execution plan are complete and verified; ADRs and internal proof slice remain |
 | G1 Identity and tenancy | Not started | Production blocker |
 | G2 Exact ledger | Not started | Decimal and P/L policy decisions required |
 | G3 Import durability | Not started | Object storage, outbox, durable jobs required |
