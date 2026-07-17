@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  applyPatch,
   LiveWatchlistStore,
   normalizeLiveWatchlistTimestamp,
   resetLiveWatchlistStoreForTests,
@@ -433,6 +434,45 @@ describe("LiveWatchlistStore", () => {
     expect(updated.latestPrice).toBe(4.42);
     expect(updated.cards.tradersLinkAiRead?.priceWhenPosted).toBe(3.95);
     expect(updated.cards.liveTraderRead?.priceWhenPosted).toBe(4.4);
+  });
+
+  it("migrates a legacy card fallback instead of locking it as a ticker quote", () => {
+    const updated = applyPatch({
+      symbol: "BIYA",
+      status: "live",
+      updatedAt: 1000,
+      firstPostedAt: 1000,
+      companyName: null,
+      latestPrice: 3.95,
+      nearestSupport: null,
+      nearestResistance: null,
+      latestTraderReadHeadline: null,
+      cards: {
+        tradersLinkAiRead: {
+          title: "TradersLink AI Read",
+          body: "Premarket plan",
+          updatedAt: 1000,
+          priceWhenPosted: 3.95,
+          source: "openai",
+        },
+      },
+    }, {
+      symbol: "BIYA",
+      status: "live",
+      updatedAt: 2000,
+      cards: {
+        nearestSupportResistance: {
+          title: "Potential Path Levels",
+          body: "Live level map",
+          updatedAt: 2000,
+          priceWhenPosted: 4.29,
+          source: "level_snapshot",
+        },
+      },
+    });
+
+    expect(updated.latestPrice).toBe(4.29);
+    expect(updated.latestPriceSource).toBe("card");
   });
 
   it("stores nearest support and resistance display labels for the index", async () => {

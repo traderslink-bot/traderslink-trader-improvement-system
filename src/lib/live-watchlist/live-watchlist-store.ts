@@ -467,13 +467,10 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const hasCards = cardTimes.length > 0;
   const latestCardPrice = latestPublishedPrice(state.cards);
-  const inferredLatestPriceSource = state.latestPriceSource ?? (
-    state.latestPrice !== null &&
-    latestCardPrice !== null &&
-    Math.abs(state.latestPrice - latestCardPrice.price) > 1e-9
-      ? "ticker"
-      : "card"
-  );
+  // Rows written before explicit price provenance existed may contain a stale
+  // card fallback in latestPrice. Treat those legacy values as card-derived
+  // until a ticker-data patch positively identifies a live quote.
+  const inferredLatestPriceSource = state.latestPriceSource ?? "card";
   return {
     ...state,
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
@@ -513,7 +510,7 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   };
 }
 
-function applyPatch(
+export function applyPatch(
   existing: LiveWatchlistSymbolState | null,
   patch: LiveWatchlistCardPatch,
 ): LiveWatchlistSymbolState {
