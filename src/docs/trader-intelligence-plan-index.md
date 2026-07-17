@@ -9,8 +9,6 @@
 **Current gate:** GA0-A1 — containment and architecture boundaries  
 **Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
 
-This index identifies the active authority and current implementation sequence.
-
 ---
 
 # 1. Resume Order
@@ -24,14 +22,13 @@ This index identifies the active authority and current implementation sequence.
 
 Precedence:
 
-1. latest explicit accepted decision in the project log;
+1. latest explicit accepted project-log decision;
 2. controlling architecture specification;
 3. active implementation plan;
 4. detailed reviews/master plan as rationale;
 5. legacy documents.
 
-Material architecture changes update the controlling specification. QA reviews remain
-audit evidence; they do not become parallel long-term authorities by declaration alone.
+Material architecture changes update the controlling specification. A QA review remains audit evidence unless its decisions are promoted into that specification.
 
 ---
 
@@ -44,42 +41,50 @@ audit evidence; they do not become parallel long-term authorities by declaration
 Status:
 
 - active and controlling;
-- consolidates accepted architecture decisions;
-- updated only for material architecture changes.
+- includes accepted decisions from all five QA passes;
+- now includes canonical query/filter semantics, validated analytical series, accessible visual evidence, and AI visual-selection boundaries.
 
-## Active GA0-A implementation plan
+## Active file-level plan
 
 `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
 
 Status:
 
-- active file-level plan;
-- next coding scope is GA0-A1 only;
-- splits GA0-A into GA0-A1, GA0-A2, and GA0-A3;
-- moves weekday analytics and daily-stop simulation to GA0-B.
+- active;
+- current slice is GA0-A1;
+- GA0-A3 includes canonical date/time/filter contracts only;
+- analytics and chart-ready series begin in GA0-B;
+- chart rendering begins in GA1;
+- AI visual selection begins in GA2.
 
-## Active project log
+## Continuity log
 
 `src/docs/trader-intelligence-v3-project-log.md`
 
-Status:
-
-- active continuity and decision register;
-- records branch, PR, verification, profile, hosting mode, limitations, and next action.
-
-## Former umbrella Gate 0 plan
-
-`src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
-
-Status:
-
-- umbrella/historical implementation plan;
-- no longer controls the next coding PR;
-- useful for broader Gate 0 rationale and later GA0-B tool requirements.
+Use for current status, decisions, branch/PR state, verification, limitations, and exact next action.
 
 ---
 
-# 3. QA and Architecture Evidence
+# 3. Audit and Vision Documents
+
+## Fifth-pass QA
+
+`src/docs/trader-intelligence-v3-fifth-pass-qa-query-filter-visual-evidence-and-accessibility-review-2026-07-17.md`
+
+Contributions:
+
+- canonical query intent;
+- date/time basis and relative-range resolution;
+- server-authoritative filtering;
+- validated chart-ready series;
+- visual-template registry;
+- text/chart consistency validator;
+- evidence drill-down;
+- no-data/zero/unavailable states;
+- visual-integrity and comparison fairness;
+- accessibility and table alternatives;
+- visual caching/replay/export/performance;
+- GA0-B/GA1/GA2 visualization sequencing.
 
 ## Fourth-pass QA
 
@@ -87,24 +92,16 @@ Status:
 
 Contributions:
 
-- private-hosted route containment as an immediate real-data gate;
-- legacy 32-bit fingerprints classified migration-only;
-- canonical serialization and cryptographic content identity;
-- exact execution duplicate/collision states;
-- bitemporal correction semantics;
-- factual lifecycle separated from user review disposition;
-- open-position retrospective boundary;
-- immutable analysis snapshots;
-- manifest-scoped evidence IDs;
-- runtime validation and dimensional units;
-- parser hardening requirements;
-- WAL-safe backup and restore;
-- AI artifact versus regeneration semantics;
-- calibration/holdout/regression separation;
-- exploration ledger;
-- degraded/offline behavior;
-- performance budgets;
-- GA0-A split into three reviewable PRs.
+- owner route containment;
+- canonical serialization and cryptographic hashing;
+- duplicate/collision states;
+- lifecycle versus review disposition;
+- bitemporal corrections;
+- immutable analysis snapshot;
+- stable evidence references;
+- runtime validation;
+- parser and WAL backup hardening;
+- GA0-A1/A2/A3 delivery split.
 
 ## Third-pass QA
 
@@ -112,15 +109,13 @@ Contributions:
 
 Contributions:
 
-- one controlling architecture authority;
+- one architecture authority;
 - content-addressed manifests;
 - dataset coverage;
 - per-capability eligibility;
-- source registry and source hierarchy;
-- no authoritative runtime web search;
-- evaluation layers;
-- statistical modes and strategy-era handling;
-- GA0-A/B/C high-level split.
+- external-source registry;
+- reproducibility/evaluation;
+- statistical modes and exploration control.
 
 ## Second-pass QA
 
@@ -128,11 +123,11 @@ Contributions:
 
 Contributions:
 
-- private owner alpha sequencing;
-- small/micro-cap domain requirements;
+- private-owner-alpha sequencing;
+- small/micro-cap specialization;
 - evidence capability tiers;
+- instrument/basis/session/halt/quote/float/catalyst rules;
 - educational boundary;
-- private data policy;
 - owner-only AI after deterministic grounding.
 
 ## First QA review
@@ -141,266 +136,154 @@ Contributions:
 
 Contributions:
 
-- exact financial types and P/L policy;
-- future public identity, tenancy, persistence, ingestion, durability, security, and migration gates;
-- statistical and AI grounding;
-- Zone Usability and Congestion Layer instead of another level detector.
+- exact financial types and accounting policy;
+- future identity/tenancy/persistence/ingestion/durable jobs;
+- statistics/AI grounding;
+- migration and CI;
+- Zone Usability and Congestion Layer.
 
-## Original master plan
+## Master plan
 
 `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
 
+Purpose:
+
+- complete product vision, analytics questions, simulations, AI coach, reports, migration, MVP, and long-term roadmap.
+
 Status:
 
-- product vision and architectural rationale;
-- not the sole execution authority.
+- vision and rationale;
+- not sole controlling authority.
+
+## Old Gate 0 umbrella plan
+
+`src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+
+Status:
+
+- umbrella/historical for execution scope;
+- weekday and daily-stop work moved to GA0-B;
+- not the next file-level plan.
 
 ---
 
-# 4. Current Product Facts
+# 4. Current Gate Structure
 
-- The current tester is the owner.
-- The system is not currently public or multi-user.
-- The current deployment profile is `private_owner_alpha`.
-- Hosting must declare `local_only` or `private_hosted`.
-- Private-hosted mode requires owner authorization on every Intelligence page/API.
-- Real broker data must not be used on anonymously reachable hosted routes.
-- The primary domain is U.S. listed small-cap and micro-cap active trading.
-- The app reviews completed executions and historical context.
-- The purpose is education and self-improvement.
-- The app is not a live signal, automated broker, tax tool, portfolio allocator, or
-  guaranteed-performance service.
-- Private-alpha status does not relax canonical identity, exact math, temporal truth,
-  coverage, eligibility, no-lookahead, basis safety, backup, privacy, or simulation honesty.
+## GA0-A1
 
----
+- containment;
+- owner access;
+- inventory;
+- v3 boundary;
+- architecture/private-data guards.
 
-# 5. Current Architecture
-
-```text
-contained owner-only environment
-  -> deterministic import and validation
-  -> canonical exact executions
-  -> immutable corrections and versioned reconstruction
-  -> explicit coverage and content-addressed manifest
-  -> capability eligibility and consistent analysis snapshot
-  -> deterministic analytics and simulations
-  -> stable claims and evidence
-  -> evaluated owner-only AI explanation
-  -> qualified small/micro-cap enrichment
-  -> usefulness calibration
-  -> future public hardening
-```
-
-AI explains validated deterministic results. It does not own parsing, identity,
-financial math, reconstruction, unrestricted database access, external source truth,
-live signals, current targets, or order execution.
-
----
-
-# 6. Gate Structure
-
-## GA0-A1 — Containment and Architecture Boundaries
-
-Current target:
-
-- deployment/hosting contracts;
-- private-owner route containment contract;
-- preserve/adapt/legacy/retire inventory;
-- minimal v3 boundary;
-- dependency guard;
-- private-data repository guard;
-- legacy hazard register.
-
-Recommended branch:
-
-`agent/trader-intelligence-v3-ga0-a1-containment`
-
-## GA0-A2 — Canonical Execution and Exact Financial Truth
-
-After GA0-A1 review:
+## GA0-A2
 
 - exact decimals;
-- canonical serialization and cryptographic hashes;
-- execution identity and ordering;
-- duplicate/correction/collision states;
-- analytical P/L/reconstruction policy;
-- independent reference math;
-- exact synthetic fixtures.
+- canonical identity;
+- execution ordering;
+- duplicate/correction states;
+- P/L policy;
+- reference math.
 
-## GA0-A3 — Temporal, Manifest, and Eligibility Truth
+## GA0-A3
 
-After GA0-A2 review:
-
-- bitemporal corrections;
-- factual lifecycle versus review disposition;
-- open-position boundary;
-- dataset and coverage manifests;
-- per-capability eligibility;
+- temporal corrections;
+- lifecycle truth;
+- open-position/cutoff policy;
+- manifests/coverage;
+- eligibility;
 - immutable analysis snapshot;
-- stable evidence references;
+- stable evidence;
+- canonical date/time/filter contract;
 - runtime validation;
-- invalidation/stale states;
-- WAL-safe backup/restore;
-- parser hardening contract/tests.
+- backup/restore and parser contracts.
 
-## GA0-B — Deterministic Proof
+## GA0-B
 
-After all GA0-A slices:
-
-- read-only current-data adapter;
-- weekday analytics;
+- read-only adapter;
+- weekday tool;
 - daily-stop simulation;
-- evidence resolver;
-- inclusion/exclusion accounting;
-- diagnostics;
-- property/differential tests;
-- v3 CI.
+- exact tables;
+- validated claims/evidence;
+- validated chart-ready series;
+- diagnostics and v3 CI.
 
-## GA0-C — Private Calibration
+## GA0-C
 
-- private fixture manifest without raw data;
-- reconciliation and coverage report;
-- owner evidence review;
-- restore drill;
-- defects converted into safe regressions;
-- Gate 0 exit decision.
+- private reconciliation/calibration;
+- backup/restore drill;
+- filter/table/series verification;
+- owner evidence review.
 
-## GA1 — Execution-Only Analytics
+## GA1
 
-- time of day;
-- sequence;
-- after-loss/after-win;
-- repeated ticker attempts;
-- historical size-performance;
-- hold time;
-- adds/reductions;
-- fee drag;
-- open-position separation.
+- deterministic query/filter UI;
+- accessible visual template registry/renderer;
+- table alternatives and drill-down;
+- text/chart consistency validation;
+- visual replay/performance.
 
-## GA2 — Owner-Only AI
+## GA2
 
-Requires tool registry, bounded planning, claim/evidence/capability validation, answer
-schema/replay, cost limits, owner gate, prompt-injection tests, no raw CSV prompts, and
-evaluation.
+- natural-language intent proposal;
+- approved tool and visual-template selection;
+- grounded explanation;
+- cost/access/evaluation controls.
 
-## GA3 — Qualified Market Enrichment
+## GA3
 
-Add one capability/source at a time: candles, SEC, halts, instrument mapping, dated
-share structure, qualified FINRA context, quotes, and zone usability.
+- qualified market enrichment one source/capability at a time.
 
-## GA4 — Usefulness Calibration
+## GA4
 
-Compare deterministic-only, legacy v2, v3 AI, and abstention for correctness, trust,
-novelty, repetition, evidence use, owner preference, latency, and cost.
-
-## Future public track
-
-Identity, tenancy, PostgreSQL/RLS, object storage, durable jobs, deletion/retention,
-entitlements, licensing, observability, recovery, security, and launch review.
+- usefulness comparison across deterministic tables, deterministic visuals, legacy, v3 AI, and abstention.
 
 ---
 
-# 7. Current Prohibitions
+# 5. Query and Visual Evidence Summary
 
-GA0-A1 must not add:
+Every question resolves to a canonical content-addressed filter identifying:
 
-- AI/model calls;
-- new public feature routes;
-- production multi-user writes;
-- analytics tools;
-- market enrichment;
-- support/resistance consumption;
-- another level detector;
-- setup classification;
-- coaching changes;
-- `/coach` redesign;
-- unrestricted SQL;
-- vector storage;
-- production deployment.
+- date/time basis;
+- timezone;
+- absolute range/inclusivity;
+- relative-date anchor/resolution;
+- calendar versus trading sessions;
+- account/instrument/session/lifecycle/setup/outcome/currency/capability scope;
+- analysis cutoff.
 
-An access guard or fail-closed disabling of existing private routes is permitted.
+Every chart:
 
----
-
-# 8. External Source Opportunities
-
-Later candidates, all subject to registry, provenance, terms, coverage, fixtures, and
-fail-closed capability rules:
-
-- SEC EDGAR filings, Company Facts, archives, RSS, and trading suspensions;
-- Nasdaq Trader symbol directories, halt RSS, and dated Reg SHO threshold lists;
-- NYSE halt resources;
-- LULD rules as reference only;
-- FINRA short-sale-volume and short-interest datasets with distinct definitions;
-- OpenFIGI mapping candidates;
-- selected Nasdaq Data Link datasets after review.
-
-Rules:
-
-- free access does not imply public-commercial rights;
-- threshold status is not short interest or squeeze proof;
-- regulatory suspensions are not ordinary volatility halts;
-- current data is not automatically historical;
-- runtime web search is not source truth;
-- no free comprehensive historical NBBO assumption;
-- publicly visible paid-feed documentation/sample data is not a free source.
+- uses server-owned validated series;
+- shares the prose analysis snapshot/filter digest;
+- identifies units, currency, timezone, coverage, counts, exclusions, and limitations;
+- offers manifest-scoped evidence drill-down;
+- has an accessible summary and exact table alternative;
+- cannot be populated or coded by the model.
 
 ---
 
-# 9. Small/Micro-Cap Evidence Boundaries
+# 6. Current Next Action
 
-Capabilities:
+After documentation PR approval:
 
-- E0 execution-only;
-- E1 candle-enriched;
-- E2 event-enriched;
-- E3 quote-enriched;
-- E4 share-structure-enriched;
-- E5 combined with limitations.
-
-A claim cannot exceed its capability.
-
-Key rules:
-
-- ticker is not a durable instrument ID;
-- raw fills remain preserved;
-- chart analytics fail closed on basis mismatch;
-- missing candles do not prove a halt;
-- candles do not prove spread, depth, exact slippage, or full fill;
-- target touch is not executable proof;
-- current float is not historical float;
-- later filings cannot enter entry-time reasoning;
-- FINRA short-sale volume is not short interest;
-- support/resistance remains behind the Zone Usability and Congestion Layer.
-
----
-
-# 10. Current Next Action
-
-After the documentation PR is accepted:
-
-1. create `agent/trader-intelligence-v3-ga0-a1-containment` from current `main`;
+1. branch from current `main` as `agent/trader-intelligence-v3-ga0-a1-containment`;
 2. implement GA0-A1 only;
-3. run deployment/profile, containment where applicable, architecture, private-data,
-   typecheck, focused tests, legacy tests, and build verification;
-4. open a focused draft PR;
-5. review GA0-A1 before GA0-A2;
-6. do not consume support/resistance;
-7. do not redesign `/coach`;
-8. do not call a model;
-9. do not deploy.
+3. run containment, architecture, private-data, typecheck, tests, Layer 2/3, and build;
+4. open focused draft PR;
+5. review before GA0-A2;
+6. do not build analytics, chart rendering, AI, support/resistance, or deployment.
 
 ---
 
-# 11. Update Protocol
+# 7. Update Protocol
 
-After meaningful work:
+Update:
 
-1. update the v3 project log;
-2. update the active implementation plan;
-3. update the controlling specification only for material architecture changes;
-4. update this index when authority, gate, or status changes;
-5. preserve QA reviews as audit evidence;
-6. record exact tests, profile, hosting mode, data capability, private-data handling,
-   limitations, rollout state, and next action.
+- project log after meaningful work;
+- active implementation plan for execution detail;
+- controlling specification for material decisions;
+- this index when authority/gate/status changes;
+- QA reviews only as audit evidence;
+- root plan/handoff when cold-start direction changes.
