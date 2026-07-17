@@ -2,148 +2,256 @@
 
 **Last updated:** 2026-07-17 America/Toronto  
 **Active architecture:** Trader Intelligence v3  
-**Current operating profile:** `private_owner_alpha`  
+**Operating profile:** `private_owner_alpha`  
 **Required hosting mode:** `local_only` or `private_hosted`  
-**Primary domain:** small-cap and micro-cap active trading  
-**Product boundary:** retrospective educational trade review, not live investment advice or automated execution  
-**Current gate:** GA0-A — control and exact truth  
-**Active execution plan:** `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+**Primary domain:** U.S. listed small-cap and micro-cap active trading  
+**Product boundary:** retrospective educational trade review and self-improvement  
+**Current gate:** GA0-A1 — containment and architecture boundaries  
+**Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
 
 Start here when resuming Trader Intelligence product, import, analytics, coaching,
-market-context, AI, data-source, persistence, or QA work.
+market context, external-source, persistence, AI, or QA work.
 
 ---
 
-## Controlling Read Order
+# 1. Controlling Read Order
 
 1. `src/docs/trader-intelligence-v3-project-log.md`
 2. `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`
-3. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
-4. Detailed v3 QA reviews and master plan only when rationale or historical context is needed
-5. Legacy v1/v2 plans only for preserved implementation, fixtures, route history, education, or migration evidence
+3. `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
+4. detailed v3 QA reviews and master plan only when rationale is needed
+5. legacy v1/v2 documents only for preserved code, fixtures, routes, education, or migration evidence
 
-Precedence when documents disagree:
+Precedence:
 
-1. latest explicit project-log decision;
+1. latest explicit accepted decision in the v3 project log;
 2. controlling architecture specification;
-3. active execution plan;
-4. detailed v3 reviews and master plan as rationale;
+3. active implementation plan;
+4. detailed reviews/master plan as rationale;
 5. legacy documents.
 
-A project-log update may record gate progress, but it may not silently weaken the
-controlling specification. Material architecture changes require updating the
-specification.
+A project-log entry may record gate progress and accepted strengthening decisions. It
+may not silently weaken the controlling architecture. Material architecture changes
+require updating the controlling specification.
 
-The detailed v3 review documents are:
+The detailed audit documents are:
 
+- `src/docs/trader-intelligence-v3-fourth-pass-qa-operational-integrity-canonical-identity-and-delivery-review-2026-07-17.md`
 - `src/docs/trader-intelligence-v3-third-pass-qa-source-governance-reproducibility-and-evaluation-review-2026-07-17.md`
 - `src/docs/trader-intelligence-v3-second-pass-qa-private-alpha-small-micro-cap-review-2026-07-17.md`
 - `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
 - `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
 
-They remain audit evidence. Future runs should not resolve architecture by manually
-merging four amendment documents; accepted rulings belong in the controlling
-specification.
+They remain architectural evidence and rationale. Future engineering runs should not
+manually merge their scopes; accepted implementation scope is in the active plan.
+
+The former plan:
+
+`src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+
+is now an umbrella/historical Gate 0 plan. It does not control the next coding PR.
+Its weekday analytics and daily-stop simulation work belongs to GA0-B.
 
 ---
 
-## Current Product Direction
+# 2. Current Product Direction
 
 ```text
-private broker source data
+contained owner-only environment
   -> deterministic import and validation
-  -> exact accepted execution ledger
-  -> versioned reconstruction and coverage
-  -> content-addressed dataset manifest
+  -> canonical exact accepted executions
+  -> immutable corrections and versioned reconstruction
+  -> explicit coverage and content-addressed dataset manifest
   -> per-capability eligibility
   -> deterministic analytics and simulations
-  -> claim and evidence ledger
+  -> stable claim and evidence ledger
   -> evaluated owner-only AI explanation
-  -> qualified small/micro-cap source enrichment
-  -> usefulness calibration
-  -> future public-platform hardening
+  -> qualified small/micro-cap enrichment
+  -> measured usefulness
+  -> future public hardening
 ```
 
 Code owns:
 
-- CSV parsing;
-- validation and repair state;
-- duplicate detection;
+- access containment and authorization;
+- CSV parsing and validation;
+- duplicate and correction decisions;
+- canonical identity;
 - exact financial math;
 - position and round-trip reconstruction;
-- session and instrument policy;
-- market features;
-- statistics;
-- simulations;
-- source provenance;
-- evidence identifiers;
-- capability and quality states.
+- time/session/instrument/basis policy;
+- coverage and manifests;
+- capability eligibility;
+- statistics and simulations;
+- evidence references;
+- source provenance.
 
 AI may select approved tools and explain validated claims. It must not become the
-parser, calculator, database, unrestricted SQL author, market-data inventor,
-runtime web-search authority, live signal engine, current-target generator, or
-automated broker.
+parser, calculator, database, unrestricted SQL author, runtime web-search authority,
+market-data inventor, live signal engine, current-target generator, or broker.
 
 ---
 
-## Current Operating Facts
+# 3. Current Operating Facts
 
-- The current user and tester is the owner.
-- The system is not public or multi-user.
+- The current tester is the owner.
+- The system is not currently public or multi-user.
 - The current deployment profile is `private_owner_alpha`.
-- Hosting must declare `local_only` or `private_hosted`.
-- A private-hosted deployment still requires owner authentication.
-- The primary specialization is small/micro-cap trading.
-- The product studies completed executions for education and self-improvement.
-- It does not provide current buy/sell/hold instructions, live price targets,
-  automated orders, guaranteed improvement, tax advice, or portfolio allocation.
-- Future public architecture remains required before invited/public users, but it
-  does not block owner-only usefulness validation.
-- Exact math, evidence, no-lookahead, price-basis safety, coverage, eligibility,
-  backup, and simulation honesty are mandatory in private alpha.
+- Hosting must explicitly declare `local_only` or `private_hosted`.
+- A privately hosted deployment still requires owner authentication.
+- Real broker data must not be placed on an anonymously reachable hosted route.
+- The primary specialization is small/micro-cap active trading.
+- The product analyzes completed executions for education and self-improvement.
+- It does not provide current buy/sell/hold instructions, live targets, automated
+  orders, guaranteed improvement, tax advice, or portfolio allocation.
+- Public identity, tenancy, PostgreSQL, object storage, durable jobs, billing,
+  licensing, and SLOs remain future public-track requirements.
+- Private-alpha status does not relax exact math, evidence, coverage, temporal truth,
+  price-basis safety, backup, privacy, or simulation honesty.
 
 ---
 
-## Current Gate: GA0-A
+# 4. Fourth-Pass Accepted Decisions
 
-The previous single Gate 0 implementation run is now executed as three reviewable
-private-alpha slices.
+The fourth audit found implementation hazards not fully operationalized by the first
+three reviews.
 
-### GA0-A — Control and Exact Truth
+## Private-hosted containment
+
+Current Intelligence pages and API examples do not themselves prove owner-only route
+enforcement. Before hosted real-data use:
+
+- all Intelligence pages and APIs require owner authorization;
+- identity is derived server-side;
+- anonymous reads and mutations fail closed;
+- private responses are not shared-cacheable;
+- invalid profile/hosting configuration disables data access.
+
+Local-only testing remains permitted when startup checks prevent accidental public
+hosting and real data stays local.
+
+## Legacy fingerprints are migration-only
+
+The current legacy fingerprint helper uses a 32-bit non-cryptographic hash and
+normalizes numeric values through JavaScript `Number` and fixed decimal formatting.
+It must not be authoritative for v3 file, execution, duplicate, manifest, evidence, or
+answer identity.
+
+V3 uses:
+
+- cryptographic content digests;
+- versioned canonical serialization;
+- exact decimal strings;
+- collision comparison;
+- no random IDs or wall-clock metadata in content identities.
+
+## Canonical execution and duplicate states
+
+A repeated-looking fill may be legitimate. V3 distinguishes exact duplicate,
+reexport, correction/bust, ambiguous duplicate, legitimate repeated fill, and hash
+collision. Only exact duplicates are automatically suppressed.
+
+## Factual lifecycle versus review disposition
+
+A user review action cannot create a closing execution or turn an open position into a
+factual closed round trip. Legacy lifecycle overrides become annotations and coverage
+limitations.
+
+## Temporal truth
+
+Executions, corrections, instrument mappings, external events, user intent, setup
+labels, and rules distinguish effective/valid time from observed/recorded/corrected
+time. Source and user corrections are append-only events.
+
+## Snapshot consistency
+
+One analysis run binds to one immutable set of dataset, coverage, correction,
+eligibility, policy, enrichment, and cutoff snapshots. Tool results from different
+manifests cannot be combined into one answer.
+
+## Stable evidence
+
+Evidence references are manifest-scoped semantic references, not assumptions that a
+database ID survives reimport or migration.
+
+## Runtime validation
+
+TypeScript is not runtime validation. Canonical executions, manifests, corrections,
+eligibility, tool results, external payloads, and future AI output must be validated at
+runtime with stable machine reason codes.
+
+## Parser hardening
+
+The import path must detect duplicate normalized headers, mapping collisions,
+unterminated quotes, inconsistent row widths, unsupported encoding, control
+characters, oversized cells, delimiter ambiguity, and duplicate execution IDs with
+conflicting content. Silent header overwrite is not acceptable.
+
+## WAL-safe backup
+
+Private SQLite backup must use a consistent WAL-safe mechanism and prove restore with
+integrity, execution-set digest, manifest digest, and representative calculation
+checks. Copying only the main database file is not considered a proven backup.
+
+## Evaluation isolation
+
+Private-alpha evaluation separates calibration, holdout, regression, and private
+acceptance sets. Repeated exploratory questions are logged so the AI cannot keep
+slicing the same data until it finds a dramatic result and omit the search history.
+
+---
+
+# 5. Current Delivery Sequence
+
+GA0-A is now delivered in three focused PRs.
+
+## GA0-A1 — Containment and Architecture Boundaries
 
 Build first:
 
+- deployment and hosting contracts;
+- owner-route containment contract;
 - current-system preserve/adapt/legacy/retire inventory;
-- deployment and hosting-mode contracts;
-- exact decimal policy;
+- minimal v3 directory boundary;
+- dependency guard;
+- private-data repository guard;
+- legacy hazard register.
+
+No real hosted data may be used without the required owner gate.
+
+## GA0-A2 — Canonical Execution and Exact Financial Truth
+
+After GA0-A1 review:
+
+- exact decimal ADR and wrappers;
+- canonical serialization and cryptographic hashing;
+- canonical execution identity and deterministic ordering;
+- duplicate/correction/collision states;
 - analytical P/L and reconstruction policy;
-- timestamp/session policy;
-- instrument-identity and price-basis policy;
-- source-of-truth hierarchy;
-- content-addressed dataset manifest;
-- analysis-eligibility contract;
 - independent exact reference math;
-- first synthetic financial fixtures;
-- architecture and private-data repository guards.
+- first exact synthetic fixtures.
 
-GA0-A must not include:
+## GA0-A3 — Temporal, Manifest, and Eligibility Truth
 
-- an AI model call;
-- a public route;
-- production multi-user writes;
-- a coach redesign;
-- support/resistance consumption;
-- a new level detector;
-- unrestricted SQL;
-- a vector database;
-- production deployment.
+After GA0-A2 review:
 
-### GA0-B — Deterministic Proof
+- bitemporal correction contract;
+- factual lifecycle versus review disposition;
+- open-position/retrospective policy;
+- dataset and coverage manifests;
+- analysis eligibility;
+- immutable analysis snapshot;
+- stable evidence references;
+- runtime validation;
+- stale/invalidation states;
+- WAL-safe backup and restore verification;
+- parser hardening contract/tests.
 
-After GA0-A review:
+## GA0-B — Deterministic Proof
+
+Only after all GA0-A slices pass:
 
 - read-only current-data adapter;
-- dataset coverage manifest;
 - weekday analytics;
 - stop-after-consecutive-losses simulation;
 - evidence resolver;
@@ -152,55 +260,76 @@ After GA0-A review:
 - property and differential tests;
 - v3 CI.
 
-### GA0-C — Private Calibration
+## GA0-C — Private Calibration
 
-After GA0-B review:
+After GA0-B:
 
 - private fixture manifest without raw data;
 - reconciliation and coverage report;
-- backup/restore test;
 - owner evidence review;
-- bugs converted into safe regression cases;
+- backup/restore drill;
+- defects converted into synthetic/regression cases;
 - Gate 0 exit report.
 
 ---
 
-## External Data and Free-Source Ruling
+# 6. Current Prohibitions
 
-Outside sources may improve the system, but every source enters through a
-versioned source registry and adapter.
+The current GA0-A1 coding PR must not include:
 
-Recommended official/free-to-access opportunities include:
+- an AI/model call;
+- a public feature route;
+- production multi-user writes;
+- weekday analytics;
+- daily-stop simulation;
+- market enrichment;
+- support/resistance consumption;
+- another level detector;
+- setup classification;
+- coaching changes;
+- `/coach` redesign;
+- unrestricted SQL;
+- vector storage;
+- production deployment.
 
-- SEC EDGAR submissions, filings, Company Facts, RSS, and archives;
-- Nasdaq Trader symbol directories and trade-halt RSS;
-- NYSE trading-halt data;
-- the LULD Plan as a rules reference;
-- FINRA short-sale-volume and short-interest data with strict limitations;
-- OpenFIGI as an instrument-mapping candidate source;
-- specific Nasdaq Data Link datasets only after dataset-level review.
-
-Useful open-source tools to evaluate include:
-
-- an exact-decimal library such as `decimal.js`;
-- `fast-check` for property/model-based tests;
-- `exchange_calendars` as an independent calendar test oracle, not automatic runtime authority.
-
-Rules:
-
-- free access does not mean public-commercial redistribution rights;
-- no undocumented website endpoint becomes a production contract;
-- current-only data is not automatically historical data;
-- AI web search is not an authoritative historical database;
-- external information must be stored, hashed, timestamped, qualified, and
-  eligibility-checked before it drives a finding;
-- no source claim may exceed the source’s actual capability.
+A private-access guard or fail-closed disabling of existing Intelligence routes is
+permitted because it reduces exposure rather than expanding product behavior.
 
 ---
 
-## Evidence Capability Ruling
+# 7. External Data and Free-Source Ruling
 
-Every tool and AI answer declares one or more capabilities:
+Outside sources remain later GA3 opportunities and must enter through the source
+registry, immutable snapshots, provenance, terms review, no-lookahead checks, and
+capability eligibility.
+
+Qualified candidates include:
+
+- SEC EDGAR submissions, filings, Company Facts, RSS, archives, and trading
+  suspensions;
+- Nasdaq Trader symbol directories, trade-halt RSS, and dated Reg SHO threshold
+  lists with strict non-directional interpretation;
+- NYSE trading-halt resources;
+- the LULD Plan as a rules reference only;
+- FINRA short-sale-volume and short-interest datasets with distinct definitions;
+- OpenFIGI as an instrument-mapping candidate source;
+- individual Nasdaq Data Link datasets after dataset-level review.
+
+Rules:
+
+- threshold status is not short interest or a squeeze signal;
+- regulatory suspension is distinct from a volatility halt;
+- free access does not imply public-commercial redistribution permission;
+- no undocumented endpoint becomes a product contract;
+- no runtime AI web search becomes historical authority;
+- no comprehensive free historical NBBO assumption;
+- paid corporate-action documentation/sample data is not classified as a free feed.
+
+---
+
+# 8. Small/Micro-Cap and Evidence Ruling
+
+Every tool declares capability:
 
 - E0 execution-only;
 - E1 candle-enriched;
@@ -209,129 +338,58 @@ Every tool and AI answer declares one or more capabilities:
 - E4 share-structure-enriched;
 - E5 combined with explicit limitations.
 
-Eligibility is determined per trade and per capability.
-
 Examples:
 
-- candle data cannot prove verified spread, depth, or exact slippage;
-- target touch is not proof of executable full fill;
-- missing bars do not prove an official halt;
-- current float does not automatically describe an old trade;
+- candles do not prove spread, depth, quote size, exact slippage, or full fill;
+- missing bars do not prove a halt;
+- target touch is a price-path scenario, not executable proof;
+- current float is not automatically historical float;
 - later filings cannot influence entry-time reasoning;
-- chart-derived features fail closed on price-basis mismatch;
+- FINRA short-sale volume is not short interest;
+- chart-derived facts fail closed on instrument or price-basis mismatch;
 - support/resistance fails closed when structure is congested.
 
 ---
 
-## Source and Reproducibility Ruling
-
-Every meaningful result must identify:
-
-- source files and hashes;
-- accepted executions and corrections;
-- coverage period and gaps;
-- reconstruction/session/instrument/currency policies;
-- market/provider snapshots and basis;
-- tool version and parameters;
-- included and excluded evidence;
-- capability and eligibility;
-- deterministic result hash;
-- claim and answer manifests.
-
-A source correction makes dependent current results stale and triggers explicit
-recomputation. Old results remain reproducible.
-
----
-
-## Educational and Statistical Ruling
-
-Use historical and associative language.
-
-Questions phrased as `why` normally receive the strongest associated contributors,
-not unsupported causal claims.
-
-A broad result must account for:
-
-- imported-period coverage;
-- independent day and ticker counts;
-- clustering;
-- outliers;
-- largest-day/ticker sensitivity;
-- recent versus older periods;
-- strategy-era changes;
-- direct question versus exploratory scan;
-- holdout/prospective validation for optimized rules.
-
-User-facing `best position size` is historical size-performance analysis, not a
-prescriptive optimum.
-
-A rule created after a trade cannot label that earlier trade a violation.
-
----
-
-## Support and Resistance Ruling
-
-`levels-system-v2` remains the factual level producer.
-
-Trader Intelligence does not build a second detector.
-
-V3 adds a Zone Usability and Congestion Layer that consumes replay-safe final
-zones, preserves source IDs, measures congestion and clear space, selects at most
-one primary zone per side, and suppresses conclusions when structure is crowded,
-unstable, stale, synthetic-only, or basis-unsafe.
-
-V3 AI remains execution-only until that layer passes stability, suppression,
-basis-safety, and blinded-usefulness gates.
-
----
-
-## Private Data and Backup
-
-- Real broker files stay outside Git.
-- Account identifiers stay out of screenshots and docs.
-- Normal logs do not contain raw rows.
-- Default AI prompts do not contain raw CSV.
-- Backups are encrypted and versioned.
-- Restore is tested.
-- Private data can be deleted.
-- Repository guards scan for private fixture paths and likely account data.
-
----
-
-## Current Next Action
+# 9. Current Next Action
 
 After this documentation PR is accepted:
 
-1. create `agent/trader-intelligence-v3-gate-0-foundation` from current `main`;
-2. implement GA0-A only;
-3. run exact reference, architecture, private-data, typecheck, test, and build checks;
+1. create `agent/trader-intelligence-v3-ga0-a1-containment` from current `main`;
+2. implement GA0-A1 only;
+3. run configuration, route-containment where applicable, architecture, private-data,
+   typecheck, focused tests, legacy tests, and build checks;
 4. open a focused draft PR;
-5. review GA0-A before GA0-B;
-6. keep runtime work internal and model-free;
-7. do not redesign `/coach`;
-8. do not consume support/resistance;
+5. review GA0-A1 before GA0-A2;
+6. keep work internal and model-free;
+7. do not consume support/resistance;
+8. do not redesign `/coach`;
 9. do not deploy.
 
 ---
 
-## Update Protocol
+# 10. Update Protocol
 
-After meaningful v3 work:
+After meaningful work:
 
 1. update `src/docs/trader-intelligence-v3-project-log.md`;
-2. update the active execution plan;
-3. update the controlling architecture specification for material decisions;
-4. update the plan index only when authority, gate, or status changes;
-5. preserve detailed QA reviews as audit evidence;
-6. record exact verification, data migration, feature flags, profile, rollout,
-   limitations, and next resume point.
+2. update the active GA0-A plan;
+3. update the controlling specification only for material architecture changes;
+4. update the plan index when authority, gate, or status changes;
+5. preserve QA reviews as audit evidence;
+6. record exact tests, profile, hosting mode, data capability, private-data handling,
+   limitations, rollout state, and next resume point.
 
 ---
 
-## Final Standard
+# 11. Final Standard
 
-> A result is trustworthy only when the system can identify the exact source data,
-> policy, eligibility decision, calculation, evidence, and explanation that produced it.
+> IDs, hashes, correction times, review actions, cache keys, and snapshot boundaries
+> are part of financial correctness.
 
-> Prefer a reproducible limited answer over an impressive answer built from
-> incomplete coverage, weak external data, or untraceable assumptions.
+> Prefer a blocked or limited result over one created by silently dropping ambiguous
+> fills, changing lifecycle facts, mixing dataset versions, or losing evidence during
+> reimport.
+
+> Contain access first, establish canonical exact truth second, establish temporal and
+> manifest truth third, and only then build the first analytics tools.
