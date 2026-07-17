@@ -2,7 +2,8 @@
 
 **Last updated:** 2026-07-17 America/Toronto  
 **Active architecture:** Trader Intelligence v3  
-**Current gate:** Gate 0 — governance, scope, and architecture lock
+**Current gate:** Gate 0 — governance, scope, and architecture lock  
+**Active execution plan:** `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 
 Start here when resuming Trader Intelligence product, import, analytics, coaching,
 market-context, AI, persistence, or QA work.
@@ -17,7 +18,7 @@ conflict with the v3 plan chain.
 2. `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
 3. `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
 4. `src/docs/trader-intelligence-plan-index.md`
-5. The current v3 phase-specific implementation plan, when one exists
+5. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 6. Legacy plans only when a v3 task explicitly depends on preserved historical
    behavior, route, fixture, or migration evidence
 
@@ -61,6 +62,20 @@ source of missing market data.
 
 ## Current Gate 0 Work
 
+The active Gate 0 plan defines:
+
+- a complete preserve/adapt/legacy/retire inventory;
+- ten architecture decision records;
+- shared authorization-context contracts;
+- exact decimal money/price/quantity contracts;
+- analytical P/L and reconstruction policy;
+- dataset versioning;
+- read-only current-data adapters;
+- synthetic golden financial fixtures;
+- performance-by-weekday analytics;
+- stop-after-consecutive-losses simulation;
+- v3 CI and acceptance gates.
+
 Before production implementation proceeds, resolve and document:
 
 - shared platform identity and server-derived tenancy;
@@ -75,7 +90,8 @@ Before production implementation proceeds, resolve and document:
 
 The first coding run may create internal contracts, read-only adapters, exact
 financial test helpers, and deterministic analytics tools. It must not add a
-public AI route, production write path, or coach redesign.
+public AI route, production write path, model call, support/resistance consumer,
+or coach redesign.
 
 ## Support and Resistance Ruling
 
@@ -98,8 +114,11 @@ No production user import may use:
 - temporary-filesystem SQLite as authoritative storage;
 - browser-supplied tenancy as authorization;
 - floating-point financial authority;
+- an undefined reconstruction or P/L policy;
+- cross-currency aggregation without a versioned FX policy;
 - request-lifecycle background work for critical jobs;
-- raw CSV content in normal logs or AI prompts.
+- raw CSV content in normal logs or AI prompts;
+- chart-derived claims when execution and market-data basis do not align.
 
 ## Legacy Plan Use
 
