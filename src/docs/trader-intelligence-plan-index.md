@@ -3,6 +3,7 @@
 **Last updated:** 2026-07-17 America/Toronto  
 **Active architecture:** Trader Intelligence v3  
 **Current phase:** Gate 0 — governance, scope, and architecture lock  
+**Active execution plan:** `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`  
 **Purpose:** Keep future implementation aligned with the evidence-first AI journal architecture and prevent drift back into the legacy deterministic coaching roadmap.
 
 ---
@@ -13,7 +14,7 @@
 2. Read `src/docs/trader-intelligence-v3-project-log.md`.
 3. Read `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`.
 4. Read `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`.
-5. Read the current v3 phase-specific implementation plan when one exists.
+5. Read `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`.
 6. Read legacy plans only for preserved implementation evidence, migration parity, or route history.
 
 When documents conflict, use this precedence:
@@ -73,14 +74,23 @@ Purpose:
 
 ### Current implementation-run plan
 
-No phase-specific coding plan is active yet.
-
-The next plan to create after this architecture PR is approved should be:
-
 - `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 
-It must convert Gate 0 and the revised first implementation run into file-level
-work, acceptance criteria, ADRs, and verification commands.
+Purpose:
+
+- converts Gate 0 into ADRs, repository inventory, versioned contracts, an exact
+  financial test boundary, read-only compatibility adapters, the first weekday
+  analytics tool, the first daily-stop simulation, and v3 CI;
+- defines file-level responsibilities, forbidden work, acceptance criteria,
+  verification, and branch/PR policy.
+
+Status:
+
+- active planning authority for the first internal coding run;
+- implementation should begin on a new clean branch after this documentation PR
+  is approved;
+- no public route, AI call, production write, coach redesign, or deployment is
+  authorized by this plan.
 
 ---
 
@@ -131,8 +141,7 @@ Support/resistance cannot reach v3 AI before its separate usefulness gate passes
 
 ## 5. First Internal Coding Slice
 
-The first coding slice may begin only after the architecture PR is accepted.
-It is internal-only and should include:
+The active Gate 0 execution plan defines the full run. Its internal coding slice includes:
 
 - `src/lib/trader-intelligence-v3/` boundary;
 - authorization-context contract;
