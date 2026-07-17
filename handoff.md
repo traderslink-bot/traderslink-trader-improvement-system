@@ -1,174 +1,254 @@
-# Trader Intelligence Handoff
+# Trader Intelligence v3 Handoff
 
-Use this file as a quick orientation note before starting another Codex run.
-It does not replace `plan.md`; it explains how to use the planning chain
-without getting lost or repeating completed work.
+**Last updated:** 2026-07-17 America/Toronto  
+**Active architecture:** Trader Intelligence v3  
+**Current gate:** Gate 0 — governance, scope, and architecture lock  
+**Active execution plan:** `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
 
-## How To Resume From The Plan Files
+Use this file for quick orientation. `plan.md` remains the root authority.
 
-1. Start with `plan.md`.
-   - Treat it as the root entry point.
-   - Use it to find the active plan index, active next-run plan, evidence gate,
-     and supporting evidence model.
+---
 
-2. Read `src/docs/codex-project-log.md`.
-   - Read the latest entry first.
-   - This tells you what was actually completed in code and verification.
-   - If the log conflicts with an older plan, trust the newest log entry and
-     then patch the stale plan.
+## 1. Resume Order
 
-3. Read `src/docs/trader-intelligence-plan-index.md`.
-   - This is the source of truth for which plan controls the next run.
-   - Check the active batch, current resume point, completed route order, and
-     feature-plan table.
+Read in this exact order:
 
-4. Open the active next-run plan:
-   - `src/docs/trader-intelligence-next-continuous-implementation-run-2026-05-09.md`
-   - Start from its `Required Long-Run Batch Shape` and `Next Run Phase Plan`,
-     not just the short summary at the bottom.
+1. `plan.md`
+2. `src/docs/trader-intelligence-v3-project-log.md`
+3. `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
+4. `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
+5. `src/docs/trader-intelligence-plan-index.md`
+6. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+7. legacy plans only when the active v3 work explicitly needs route history,
+   fixture evidence, migration parity, or preserved implementation details.
 
-5. Open evidence-gating docs only when behavior claims are involved:
-   - `src/docs/trader-intelligence-detection-and-language-hardening-plan-2026-05-09.md`
-   - `src/docs/trader-intelligence-coaching-evidence-model-2026-05-09.md`
-   - `src/docs/trader-intelligence-historical-level-context-audit-2026-05-10.md`
+When documents conflict:
 
-6. Before editing App Router code, follow the local Next.js docs note:
-   - `src/docs/nextjs-local-docs-guide.md`
-   - Read the relevant installed docs under `node_modules/next/dist/docs/`.
+1. latest v3 project-log decision;
+2. mandatory v3 QA review;
+3. v3 master plan;
+4. active v3 execution plan;
+5. legacy documents.
 
-7. Work continuously from the active plan.
-   - Do not stop after one panel, one route link, one passing test, or one docs
-     update.
-   - Use the loop: work -> focused verify -> continue to the next safe slice.
-   - Stop only for true global blockers, destructive operations, or risky
-     architecture choices.
+Do not resume the old May continuous coaching or UI batches merely because those
+files still contain historical `Active` labels.
 
-8. Update docs after the coherent batch, not after every tiny change.
-   - Always update `src/docs/codex-project-log.md`.
-   - Update the active next-run plan and plan index when the resume point
-     changes.
-   - Update `plan.md` only when the top-level handoff summary changes.
+---
 
-## Current Completed Work To Preserve
+## 2. Current Product Direction
 
-Do not rebuild these unless a concrete regression is found:
+Trader Intelligence v3 is an evidence platform with an AI interface.
 
-- shared user-facing behavior mapper/registry/contracts,
-- ticker stories,
-- session stories,
-- chart-context finding bridge,
-- add-quality prompt/certification split,
-- after-exit continuation gate,
-- support/resistance exit behavior,
-- first-entry versus re-entry volume comparison,
-- protected-profit-before-fade certification,
-- strength-to-repeat session stories,
-- coach/analytics first presentation-polish pass,
-- screenshot-guided shared visual polish,
-- saved-trades workflow panel,
-- `/trades` current-view browse copy,
-- trade-card `Why review this` blocks,
-- `/trades/[tradeId]` four-step review-flow handoff,
-- trade-detail lower-section label cleanup,
-- coach lower-page support collapse,
-- coach `Before Next Session` plan panel,
-- coach evidence-card `what happened / why it mattered / what to do next`
-  structure,
-- trade-detail supporting-details collapse,
-- analytics trade-detail anchor repairs.
-- saved-trade pagination at 18 cards per page,
-- saved-trade visible-card range copy,
-- softened saved-trade `Why review this` review cue styling,
-- analytics ticker-story summary/evidence-count collapse.
-- shared mobile `DashboardSideNav` collapse into `Page sections`,
-- `/review` queue first-batch limit,
-- `/review` mobile queue-tab compaction,
-- `/progress` chart evidence-count collapse,
-- progress `Follow the review loop` heading cleanup.
-- import route shared user-facing status labels,
-- `/import-dry-run`, `/imports`, and `/imports/[batchId]` save/saved-import
-  wording cleanup,
-- import route lighter dashboard panel styling,
-- import raw-state Playwright copy-safety guards.
-- `/workspace` lighter dashboard visual-system migration,
-- `/workspace` shared primary workflow handoff panel,
-- `/workspace` saved-import wording and review/coach route anchors,
-- dashboard-scoped old-card visual cleanup for `/coach` and touched user
-  dashboard surfaces,
-- `/workspace` and `/coach` large old near-black card Playwright guard.
-- `/workspace` core App Areas demotion of secondary review tools into
-  `More review tools`,
-- `/workspace` `Review next trade` workflow link to the actual next review
-  anchor when available,
-- `/coach` positive-evidence focus split: profitable evidence uses
-  `Review first`, not `Fix first`.
-- `/workspace` beta/admin notes collapse and `Trade review workflow` copy,
-- shared user-facing trade-symbol display helper for hiding import-ID-like
-  labels such as `V516374MD` behind `Selected trade` in primary UI.
-- `/analytics` behavior report grouping using the certified read model:
-  entries near resistance, support-based entries, chase/extension review,
-  dip-buy/add review, profit protection, profit taking near levels, and
-  volume/re-entry review.
-- shared `BehaviorReportPanel` reuse in `/coach`, where the same certified
-  behavior report renders as `Behavior Coaching Map` with `Fix first`,
-  `Repeat first`, and `Needs review` framing. User QA found this is too close
-  to the analytics card grid, so future work should keep the shared evidence
-  source but redesign the coach presentation into a guided coaching sequence.
+```text
+trusted source file
+  -> exact execution ledger
+  -> versioned position and round-trip reconstruction
+  -> replay-safe features
+  -> deterministic analytics and simulations
+  -> validated claims and evidence
+  -> AI explanation
+```
 
-## Next Run Shape
+Code owns:
 
-The previous coach/lower-page simplification batch, the screenshot-guided
-saved-trades/analytics follow-up, and the review/progress mobile-density pass
-are complete. Import-flow trust polish and the workspace/coach visual-system
-QA slice are also complete. Do not repeat them unless screenshots or tests show
-a concrete regression.
+- broker CSV parsing;
+- validation and repair state;
+- duplicate detection;
+- execution normalization;
+- financial math;
+- position and round-trip reconstruction;
+- indicators and market features;
+- statistics;
+- simulations;
+- evidence identifiers;
+- authorization.
 
-The next run should start after the workspace/coach visual-system cleanup and
-continue with concrete, non-duplicate slices:
+AI may select approved tools and explain validated results. It must not become
+the parser, calculator, database, unrestricted SQL generator, market-data
+inventor, or live trade-signal engine.
 
-1. Reorient from `plan.md`, the project log, plan index, and active next-run
-   plan.
-2. Run a copy-safety scan across the touched route family before making a new
-   product claim.
-3. Do not redo the completed `/workspace` visual migration or `/coach`
-   old-card cleanup unless a screenshot or test shows a real regression.
-4. Continue with route copy/anchor repairs or screenshot fixes only when a
-   concrete visual issue is visible. Import-flow trust polish is complete, and
-   the workspace core app-area plus coach review-first split are complete, so
-   only touch those again for a specific regression. The workspace beta/admin
-   note collapse and shared trade-symbol display helper are also complete, so
-   only revisit them if an ID-like label or primary admin/internal label leaks
-   back into screenshots or tests. The analytics behavior report grouping is
-   also complete and `/coach` now reuses it as the Behavior Coaching Map.
-   Revisit `/analytics` only for concrete visual density, drill-down, or
-   grouping regressions. Revisit `/coach` specifically to replace the mirrored
-   report-card layout with a coach-first sequence that selects, explains, and
-   routes evidence for one behavior at a time.
-5. Only revisit `/review`, `/progress`, `/analytics`, `/trades`, or
-   `/trades/[tradeId]` if screenshots or tests show a regression in the
-   completed work.
-6. Polish route handoffs found by QA:
-   - `/coach -> trade detail`,
-   - `trade detail -> review queue`,
-   - `trade detail -> progress`,
-   - `/analytics -> trade detail`.
-7. Only add a new market-context behavior family if saved evidence can prove it
-   without inference. Keep uncertain findings as review prompts.
-8. Run focused verification:
-   - `npx tsc --noEmit --pretty false`
-   - `npm run build`
-   - focused Playwright for workspace, coach, trade detail, review workflow,
-     progress, banned copy, and mobile overflow.
-9. Update docs/logs at the end so the next run knows what not to repeat.
+---
 
-## Guardrails
+## 3. QA Verdict
 
-- Do not expand the app surface with new routes unless the active plan requires
-  it.
-- Do not add a new behavior family unless saved execution, chart, level,
-  candle, volume, or after-exit evidence can prove it.
-- Keep uncertain market-context behavior as review prompts or internal-only
-  data.
-- Use shared user-facing behavior contracts and read models. Do not create
-  route-local label maps.
-- Keep the app focused on human trader language, especially for new traders.
+The master plan is conditionally approved.
+
+The current repository contains valuable parsing, reconstruction, replay-safety,
+product, and testing foundations. It does not yet contain a production-ready
+multi-user Trader Intelligence identity, persistence, ingestion, or durable-job
+boundary.
+
+Before real production user data is accepted, v3 must establish:
+
+- shared platform identity;
+- server-derived workspace/account authorization;
+- PostgreSQL production authority;
+- exact decimal financial types;
+- versioned analytical P/L and reconstruction policy;
+- secure raw-file object storage and retention;
+- bounded/streaming parsing;
+- transactional outbox and durable workflows;
+- instrument identity and market-data price-basis contracts;
+- tenant isolation, deletion, backup, and recovery;
+- one authoritative migration write path;
+- v3 financial, database, security, architecture, and build CI.
+
+The current demo IDs, direct SQLite route construction, temporary-filesystem
+production SQLite, and request-lifecycle critical jobs are prototype paths, not
+production foundations.
+
+---
+
+## 4. Support and Resistance Decision
+
+Do not create a second independent support/resistance detector inside Trader
+Intelligence.
+
+`levels-system-v2` already produces replay-safe final zones with boundaries,
+strength, touches, confluence, sources, timeframes, freshness, and other evidence.
+
+V3 adds a **Zone Usability and Congestion Layer** that:
+
+- consumes the complete replay-safe final-zone map;
+- preserves source-zone IDs;
+- deduplicates only proven overlap;
+- measures local congestion and clear space;
+- selects at most one primary zone per side;
+- suppresses conclusions when structure is crowded, unstable, stale,
+  synthetic-only, or basis-unsafe.
+
+V3 AI remains execution-only until this layer passes a separate stability,
+suppression, and blinded-usefulness gate.
+
+---
+
+## 5. Active Gate 0 Work
+
+The active plan requires:
+
+- current-system preserve/adapt/legacy/retire inventory;
+- ADRs for identity, decimals, P/L, database, file ingestion, durable workflows,
+  instrument/basis, product scope, statistics/simulations, and future AI policy;
+- `src/lib/trader-intelligence-v3/` internal boundary;
+- server-derived authorization-context contract;
+- exact money, price, quantity, fee, percentage, and currency contracts;
+- dataset-version contract;
+- canonical execution and analytical round-trip contracts;
+- claim/evidence, job, and future usage-reservation contracts;
+- read-only adapter from current saved data;
+- independent reference financial math;
+- public synthetic golden fixtures;
+- performance-by-weekday analytics;
+- stop-after-consecutive-losses simulation;
+- v3 CI.
+
+The first coding run is internal-only.
+
+It must not include:
+
+- an AI provider call;
+- a public v3 route;
+- production database writes;
+- a coach redesign;
+- support/resistance consumption;
+- a second level detector;
+- arbitrary SQL;
+- vector storage;
+- production deployment.
+
+---
+
+## 6. First Implementation Branch
+
+After the documentation architecture PR is accepted, create a clean branch from
+current `main`, recommended:
+
+`agent/trader-intelligence-v3-gate-0-foundation`
+
+Do not mix Gate 0 code into the documentation PR unless explicitly instructed.
+
+The implementation order is:
+
+1. inventory current modules;
+2. accept ADRs 0001–0009;
+3. create contracts and architecture-boundary tests;
+4. create tenant-aware in-memory/read-only repositories;
+5. build current-data adapter and synthetic fixtures;
+6. build independent exact reference math;
+7. implement weekday analytics;
+8. implement daily-stop simulation;
+9. add v3 CI;
+10. run focused and legacy regression verification;
+11. update the v3 project log and QA gate status.
+
+---
+
+## 7. Engineering Guardrails
+
+- Do not use JavaScript floating point as financial authority.
+- Do not add USD and CAD results together without a versioned FX policy.
+- Do not guess prior inventory or a missing entry price.
+- Do not call analytical P/L tax P/L.
+- Do not trust tenant IDs from the browser.
+- Do not expose another user’s evidence through guessed IDs or cache reuse.
+- Do not let a model calculate financial metrics from raw rows.
+- Do not let the model repeatedly search tools until it finds a favourable result.
+- Do not let one unusual session create high confidence merely because it contains
+  many trades.
+- Do not call a historically optimized rule validated without holdout and
+  prospective tracking.
+- Do not simulate a hypothetical partial exit while pretending all later actual
+  shares still existed.
+- Do not use chart-derived features when execution and candle basis do not align.
+- Do not treat level proximity alone as a mistake, recommendation, or trade grade.
+- Do not introduce long-lived dual-write.
+- Do not defer deletion, retention, tenant security, or backups to the final phase.
+
+---
+
+## 8. Verification Expectations
+
+The first coding PR must run and report:
+
+- dependency installation from lockfile;
+- TypeScript typecheck;
+- focused v3 lint;
+- v3 unit tests;
+- exact reference/differential tests;
+- deterministic property-based tests with seeds;
+- architecture-boundary tests;
+- production build;
+- relevant legacy regression tests.
+
+Normal PR CI must not call a live language model.
+
+No QA gate is complete because one unit test passes. Use the acceptance matrix in
+the mandatory QA review and active Gate 0 plan.
+
+---
+
+## 9. Current Status
+
+Documentation PR #94 contains:
+
+- the v3 master plan;
+- the mandatory QA review;
+- the active Gate 0 execution plan;
+- the v3 project log;
+- corrected root plan;
+- corrected plan index;
+- this handoff.
+
+Runtime code has not changed. The PR should remain draft until the architecture
+review is accepted.
+
+---
+
+## 10. Final Working Standard
+
+When evidence is incomplete, the system must become less confident, not more
+creative.
+
+Every useful answer must be exact where exactness is possible, explicit about
+simulation assumptions, linked to the underlying evidence, and honest when the
+data does not support a conclusion.
