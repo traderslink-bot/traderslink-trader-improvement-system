@@ -89,7 +89,7 @@ First-run restrictions:
 Documentation verification completed:
 
 - PR changed-file list contains seven expected documentation files;
-- branch is ten commits ahead of `main` and zero commits behind;
+- the branch is ahead of `main`, has the same merge base, and is not behind;
 - final branch comparison contains no runtime-code file;
 - `plan.md`, `handoff.md`, and the plan index point to the same active Gate 0 plan;
 - the QA review and Gate 0 plan headers and final directives were fetched and inspected;
