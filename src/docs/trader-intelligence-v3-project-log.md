@@ -2,21 +2,21 @@
 
 ## Purpose
 
-This is the active continuity log for the Trader Intelligence v3 evidence-first AI journal architecture.
+This is the active continuity log for Trader Intelligence v3.
 
-Use it to record:
+It records:
 
 - architecture decisions;
-- completed implementation slices;
-- QA gates;
-- deployment profile;
-- small/micro-cap domain decisions;
+- deployment and hosting profiles;
+- implementation slices;
+- source and evidence capabilities;
 - verification;
-- migrations;
-- blockers;
-- the exact next resume point.
+- private-data handling;
+- gate status;
+- exact resume point.
 
-The legacy `src/docs/codex-project-log.md` remains useful for the history of the v1/v2 deterministic analysis, route, candle, level, and product work. It no longer controls new v3 architecture.
+The legacy `src/docs/codex-project-log.md` remains useful for v1/v2 history. It does
+not control v3 architecture.
 
 ---
 
@@ -26,348 +26,397 @@ Read in this order:
 
 1. `plan.md`
 2. this file
-3. `src/docs/trader-intelligence-v3-second-pass-qa-private-alpha-small-micro-cap-review-2026-07-17.md`
-4. `src/docs/trader-intelligence-v3-qa-architecture-review-2026-07-17.md`
-5. `src/docs/trader-intelligence-ai-journal-v3-master-plan-2026-07-17.md`
-6. `src/docs/trader-intelligence-plan-index.md`
-7. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+3. `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`
+4. `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
+5. detailed v3 QA reviews/master plan only when rationale is needed
+6. legacy plans only for preserved implementation, fixtures, routes, education, or migration evidence
 
-When documents conflict, the latest entry in this log may clarify the current decision, but it must not silently weaken a mandatory QA gate. The second-pass QA review controls the first QA review, master plan, and Gate 0 plan where it is more specific about private-alpha sequencing or the small/micro-cap domain.
+Precedence:
 
----
+1. latest explicit decision in this log;
+2. controlling architecture specification;
+3. active execution plan;
+4. detailed reviews/master plan as rationale;
+5. legacy documents.
 
-## Current Resume Point
-
-### 2026-07-17 — Second-Pass QA: Private Owner Alpha and Small/Micro-Cap Domain
-
-Status:
-
-- the product owner confirmed that Trader Intelligence is currently tested only by the owner;
-- the current operating profile is now explicitly `private_owner_alpha`;
-- the intended primary domain is small-cap and micro-cap active trading;
-- the product boundary is retrospective educational trade review, not live investment advice, live signals, automated execution, tax advice, or portfolio allocation;
-- a second independent QA review was completed after the first architecture review;
-- the original v3 direction remains approved;
-- the first QA review remains valid for future public readiness and common correctness;
-- the second review corrected the sequencing so public multi-user infrastructure does not block private-owner usefulness validation;
-- exact financial math, reconstruction policy, evidence, no-lookahead, price-basis safety, simulation assumptions, and private-data handling remain mandatory in private alpha;
-- deployment profiles, private-alpha and public-readiness tracks, small/micro-cap data rules, and educational language policy are now controlling;
-- `plan.md`, `handoff.md`, and the plan index were updated to point to the second review;
-- no runtime code changed;
-- no deployment requested or allowed.
-
-New controlling document:
-
-- `src/docs/trader-intelligence-v3-second-pass-qa-private-alpha-small-micro-cap-review-2026-07-17.md`
-
-Current deployment profile:
-
-- `private_owner_alpha`
-
-Primary second-pass engineering corrections:
-
-1. Separate private-owner product validation from future public-platform hardening.
-2. Allow an isolated owner identity adapter, durable local SQLite/private database, local job adapter, and private real-data calibration during private alpha.
-3. Do not permit those adapters to masquerade as public-production identity, storage, or orchestration.
-4. Keep exact decimals, analytical P/L policy, instrument identity, price-basis safety, dataset versions, evidence, backup, and raw-data privacy early.
-5. Permit owner-only AI after deterministic tool, claim, evidence, answer-schema, cost, and private deployment gates pass instead of waiting for all public multi-user infrastructure.
-6. Keep the first Gate 0 coding slice deterministic and model-free.
-7. Add concrete small/micro-cap requirements for premarket, after-hours, halts, gaps, sub-dollar precision, thin liquidity, quote data, spread, slippage, partial fills, reverse splits, ticker changes, float, catalysts, dilution, listing events, and repeated same-ticker attempts.
-8. Add evidence capability tiers: execution-only, candle-enriched, event-enriched, quote-enriched, share-structure-enriched, and combined.
-9. Prohibit candle-only data from creating verified spread, liquidity, slippage, or executable-fill claims.
-10. Require dated provenance for float and catalyst context.
-11. Require official or qualified event data before calling a gap in candles a trading halt.
-12. Require associative rather than unsupported causal language for questions phrased as `why`.
-13. Reframe `best position size` as historical size-performance analysis.
-14. Reuse existing Academy education and watchlist catalyst/source/cost contract ideas without importing live directional watchlist bias or price targets into the journal.
-15. Keep support/resistance behind the final-zone usability and congestion gate, with additional gap, halt, premarket, sparse-print, and reverse-split safeguards.
-
-Private-alpha track:
-
-- GA0: common truth and deterministic proof;
-- GA1: execution-only analytics expansion;
-- GA2: owner-only AI grounding;
-- GA3: small/micro-cap market enrichment by evidence tier;
-- GA4: usefulness calibration against legacy output.
-
-Future public-readiness track:
-
-- shared identity and tenancy;
-- PostgreSQL and RLS;
-- object-storage upload;
-- durable jobs and transactional outbox;
-- deletion and retention;
-- entitlements and rate limits;
-- licensing, monitoring, recovery, and launch review.
-
-Next engineering action after the documentation PR is accepted:
-
-1. create a clean implementation branch from current `main`;
-2. complete the preserve/adapt/legacy/retire inventory;
-3. add deployment-profile and current `private_owner_alpha` decisions to the ADR set;
-4. select exact decimal and analytical P/L policy;
-5. define timestamp/session, stable instrument identity, and price-basis contracts;
-6. define private-alpha storage, backup, private-fixture, and no-raw-data-in-prompts policies;
-7. create the internal v3 contract boundary;
-8. implement exact financial reference math and public synthetic fixtures;
-9. implement read-only current-data adapters;
-10. implement performance-by-weekday and stop-after-consecutive-losses tools;
-11. add v3 CI and private-data repository guards;
-12. run focused and legacy regression verification;
-13. update this log and gate status.
-
-First implementation branch recommendation:
-
-- `agent/trader-intelligence-v3-gate-0-foundation`
-
-First-run restrictions remain:
-
-- internal-only;
-- read-only compatibility adapters;
-- no AI model calls;
-- no public v3 route;
-- no public production database write;
-- no coach redesign;
-- no support/resistance consumption;
-- no new level detector;
-- no unrestricted SQL;
-- no vector database;
-- no production deployment.
-
-Gate 0 remains **in progress** until common-truth ADRs and the deterministic proof slice are implemented and verified.
-
-### 2026-07-17 — Gate 0 Execution Plan Activated and Verified
-
-Status:
-
-- master architecture remains conditionally approved;
-- first mandatory QA review is controlling for production-readiness corrections;
-- v3 planning chain is active in `plan.md`, `handoff.md`, and the plan index;
-- Gate 0 and first internal slice plan was created and activated;
-- the plan includes repository inventory, ADRs, versioned contracts, exact financial reference math, read-only adapters, synthetic golden fixtures, weekday analytics, daily-stop simulation, v3 CI, and detailed acceptance gates;
-- stale cold-start handoff instructions that pointed to the old May plan were replaced;
-- PR #94 title and body were updated to reflect the conditional QA verdict and active Gate 0 plan;
-- a QA verdict comment was added to PR #94;
-- no runtime code changed;
-- no production deployment requested or allowed.
-
-Active execution plan:
-
-- `src/docs/trader-intelligence-v3-gate-0-and-first-internal-slice-plan-2026-07-17.md`
-
-Initial next action at that checkpoint:
-
-1. create a clean implementation branch from current `main`;
-2. complete the current-system preserve/adapt/legacy/retire inventory;
-3. write and accept ADRs 0001–0009;
-4. leave ADR-0010 proposed with explicit AI provider/privacy/grounding criteria;
-5. create the internal v3 contract boundary;
-6. implement exact financial test helpers and public synthetic fixtures;
-7. implement read-only current-data adapters;
-8. implement performance-by-weekday and stop-after-consecutive-losses tools;
-9. add v3 CI;
-10. run focused and legacy regression verification;
-11. update this log and gate status.
-
-Documentation verification completed at that checkpoint:
-
-- PR changed-file list contained seven expected documentation files;
-- the branch was ahead of `main`, had the same merge base, and was not behind;
-- branch comparison contained no runtime-code file;
-- `plan.md`, `handoff.md`, and the plan index pointed to the same active Gate 0 plan;
-- the first QA review and Gate 0 plan headers and final directives were inspected;
-- PR #94 remained open, mergeable, and draft;
-- no runtime tests were required because the PR was documentation-only.
-
-### 2026-07-17 — Master Plan QA and Architecture Correction
-
-Status:
-
-- v3 master plan created in PR #94;
-- first full cross-plan and repository QA audit completed;
-- architecture direction conditionally approved;
-- mandatory first QA amendment added;
-- root `plan.md` switched from the legacy May plan chain to v3;
-- plan index replaced with the v3 authority and phase order;
-- no runtime code changed;
-- no production deployment requested or allowed.
-
-Key first-pass QA findings:
-
-1. The current parser, normalization, reconstruction, replay-safety, and test work is valuable.
-2. The current Trader Intelligence persistence and identity path is prototype-oriented:
-   - import planning uses demo workspace/user/account constants;
-   - import routes directly instantiate SQLite repositories;
-   - default production SQLite storage uses a temporary filesystem path;
-   - shared Trader Intelligence tenancy is not yet established.
-3. Critical chart enrichment currently uses Next.js `after()` and needs a durable workflow/outbox architecture before public production reliance.
-4. Exact financial representation and analytical P/L policy were missing from the original plan and became P0 decisions.
-5. Public CSV ingestion needs signed object storage, bounded/streaming parsing, retention, and deletion rather than treating `csvText` JSON requests as the final architecture.
-6. Market-data basis, instrument identity, and no-lookahead rules require stronger versioned contracts.
-7. The existing level snapshot already exposes final level zones. V3 should add a Zone Usability and Congestion Layer, not duplicate `levels-system-v2` with a second detector.
-8. Statistical tools need independent-cluster counts, discovery versus direct-analysis policy, chronological validation, multiple-comparison controls, and leakage tests.
-9. Simulations need explicit intervention, fill, ambiguity, and sequential-state policies.
-10. AI needs claim-level numeric grounding, server-owned evidence links, bounded tool loops, provider data policy, and release evaluations.
-11. Migration must use one authoritative write path rather than indefinite dual-write.
-12. Retention, deletion, backups, and tenant security must begin before public launch.
-13. Current general CI is not sufficient for v3 financial, database, tenant, migration, and AI gates.
+This log may record gate progress and accepted decisions. It may not silently weaken
+the controlling specification. Material architecture changes require updating the
+specification.
 
 ---
 
-## Decision Log
+# Current Resume Point
 
-### Deployment profile
+## 2026-07-17 — Third-Pass QA, Architecture Consolidation, and Source Governance
 
-State: current direction approved.
+### Status
 
-Decision:
+- A third independent QA and engineering review was completed.
+- The v3 direction remains approved for staged private-alpha implementation.
+- The third pass found no reason to restart or replace the architecture.
+- The review found planning-authority sprawl, incomplete reproducibility, missing
+  capability-specific eligibility, incomplete source governance, an oversized first
+  coding batch, and an insufficient usefulness-evaluation plan.
+- One consolidated controlling architecture specification was created.
+- `plan.md`, `handoff.md`, and the plan index were rewritten to use the same authority.
+- The current implementation gate is now **GA0-A — control and exact truth**.
+- The former single Gate 0 run is split into GA0-A, GA0-B, and GA0-C.
+- External free/official source opportunities were reviewed and incorporated as
+  qualified recommendations, not automatic dependencies.
+- No runtime code changed.
+- No production deployment was requested or authorized.
 
-- current profile is `private_owner_alpha`;
-- future profiles are `private_invited_alpha`, `public_beta`, and `public_production`;
-- profile-specific adapters and startup checks must fail closed;
-- private-alpha infrastructure cannot silently become public-production authority.
+### New controlling document
 
-### Shared identity
+- `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`
 
-State: required before invited/public users; interface required in Gate 0.
+This document consolidates accepted decisions from the master plan and all three QA
+passes.
 
-Recommended direction:
+### Third-pass audit document
 
-- create a shared platform-user abstraction backed initially by the existing authenticated site user;
-- use an internal stable ID rather than a Discord identifier as the domain key;
-- resolve workspace/account permissions server-side;
-- require an authorization context in every v3 repository and analytics tool call;
-- allow one explicit owner adapter in `private_owner_alpha` only.
+- `src/docs/trader-intelligence-v3-third-pass-qa-source-governance-reproducibility-and-evaluation-review-2026-07-17.md`
 
-### Exact decimals
+### Key third-pass corrections
 
-State: required before financial contracts are trusted in any profile.
+1. **Architecture authority**
+   - Stop forcing future runs to reconcile several long controlling documents.
+   - Detailed reviews remain audit evidence; accepted decisions live in one spec.
 
-Requirements:
+2. **Reproducibility**
+   - Add content-addressed dataset, market-enrichment, derivation, and answer manifests.
+   - Version strings alone are not sufficient.
 
-- no binary floating-point authority for money, prices, fees, share quantities, FX, or P/L;
-- exact decimal application library behind domain helpers;
-- exact production storage;
-- decimal-string serialized contracts;
-- versioned rounding and reconciliation rules.
+3. **Dataset coverage**
+   - Record statement periods, gaps, overlaps, accounts, exclusions, open positions,
+     prior inventory, and currencies.
+   - Do not describe partial uploads as the owner’s complete history.
 
-### Analytical P/L
+4. **Analysis eligibility**
+   - Determine eligibility per capability: execution, P/L, sequence, candles, VWAP,
+     MFE/MAE, halts, quotes, slippage, float, catalyst, levels, and simulations.
+   - Every tool reports candidate, eligible, included, and excluded counts with reasons.
 
-State: required before reconstruction v3.
+5. **Source-of-truth hierarchy**
+   - Broker fills remain authoritative for executions.
+   - User inputs may be authoritative for personal intent when timestamped.
+   - Official regulator/exchange sources are preferred for events.
+   - AI output remains explanatory only.
+   - Conflicts use explicit states rather than silent source selection.
 
-Requirements:
+6. **External source governance**
+   - Create a versioned source registry with terms, historical scope, rate limits,
+     correction behavior, permitted profiles, and redistribution state.
+   - Free access does not imply future public-commercial rights.
+   - External data is ingested, hashed, timestamped, normalized, and eligibility-checked
+     before it can drive a finding.
+   - Runtime AI web search is not an authoritative historical database.
 
-- distinguish broker-reported, analytical, cash, and tax P/L;
-- define average-cost/FIFO policy;
-- define partial fills, fees, prior inventory, reversals, shorts, open positions, corporate actions, and currency behavior;
-- version the policy and include it in results.
+7. **Evaluation**
+   - Evaluate deterministic arithmetic, claim correctness, explanation quality, and
+     owner usefulness separately.
+   - Compare deterministic-only, legacy v2, v3 AI, and abstention baselines.
+   - Owner feedback becomes reproducible regression cases without committing raw data.
 
-### Instrument identity and price basis
+8. **Statistics and intent**
+   - Distinguish direct hypotheses, fixed comparisons, exploratory scans,
+     optimization, and similarity search.
+   - Account for clustered days/tickers, outliers, strategy eras, confounding, and
+     holdout/prospective validation.
+   - Separate intended setup, post-trade tag, deterministic candidate, AI likely
+     setup, chart-validated setup, and user-confirmed setup.
+   - Rules have effective dates; later rules do not create hindsight violations.
 
-State: required before candle-derived private-alpha results.
+9. **Private-hosting boundary**
+   - `private_owner_alpha` now also declares `local_only` or `private_hosted`.
+   - A privately hosted deployment still requires owner authentication.
 
-Requirements:
+10. **GA0 split**
+    - GA0-A: control and exact truth.
+    - GA0-B: deterministic proof.
+    - GA0-C: private real-data calibration.
 
-- stable internal instrument ID;
-- symbol history as of execution time;
-- ticker-change and symbol-reuse handling;
-- raw execution price preservation;
-- raw/adjusted market-data basis metadata;
-- fail-closed split and reverse-split warnings;
-- unresolved-instrument quarantine for market enrichment.
+### External source opportunities accepted for later qualification
 
-### Data capability tiers
+Official/free-to-access opportunities:
 
-State: architecture direction approved.
+- SEC EDGAR APIs, archives, Company Facts, and RSS;
+- Nasdaq Trader symbol directories;
+- Nasdaq Trader trade-halt RSS;
+- NYSE trading-halt resources;
+- LULD Plan rules;
+- FINRA short-sale-volume and short-interest data with strict limitations;
+- OpenFIGI mapping candidates;
+- individual Nasdaq Data Link datasets only after dataset-level review.
 
-Decision:
+Open-source tools to evaluate:
+
+- exact-decimal library such as `decimal.js`;
+- `fast-check` for property and model-based tests;
+- `exchange_calendars` as an independent calendar test oracle.
+
+Important limitations:
+
+- SEC ticker mappings are not complete instrument identity.
+- CIK is issuer/filer identity, not necessarily one security.
+- Current symbol directories are not complete historical security masters.
+- FINRA short-sale volume is not short interest.
+- LULD rules are not a historical band/event feed.
+- Current float cannot automatically describe an old trade.
+- Comprehensive historical quote/NBBO data is not assumed to be free.
+- Undocumented website endpoints do not become product contracts.
+
+### Current gate: GA0-A
+
+GA0-A includes:
+
+- current-system preserve/adapt/legacy/retire inventory;
+- deployment and hosting-mode contracts;
+- exact-decimal ADR and domain wrappers;
+- analytical P/L and reconstruction ADR;
+- timestamp/session ADR;
+- instrument identity and price-basis ADR;
+- source-of-truth hierarchy;
+- content-addressed dataset manifest;
+- analysis-eligibility contract;
+- independent exact reference math;
+- first synthetic financial fixtures;
+- architecture and private-data repository guards.
+
+GA0-A excludes:
+
+- AI model calls;
+- public routes;
+- production multi-user writes;
+- `/coach` redesign;
+- support/resistance consumption;
+- a new level detector;
+- unrestricted SQL;
+- vector storage;
+- production deployment.
+
+### Next engineering action after documentation approval
+
+1. Create `agent/trader-intelligence-v3-gate-0-foundation` from current `main`.
+2. Implement GA0-A only.
+3. Run exact-reference, deterministic-manifest, architecture-boundary, private-data,
+   typecheck, focused lint/test, build, and relevant legacy regression checks.
+4. Open a focused draft PR.
+5. Review GA0-A before beginning GA0-B.
+6. Keep runtime work internal and model-free.
+7. Do not consume support/resistance.
+8. Do not redesign `/coach`.
+9. Do not deploy.
+
+### Documentation verification still required before architecture PR merge
+
+- fetch and inspect the new controlling specification header and final directive;
+- fetch and inspect the third-pass review header and final directive;
+- verify all changed files are documentation only;
+- compare branch to current `main`;
+- confirm PR remains mergeable and draft;
+- update PR title/body and add third-pass review summary;
+- do not force-update the branch merely because `main` has unrelated commits.
+
+---
+
+## 2026-07-17 — Second-Pass QA: Private Owner Alpha and Small/Micro-Cap Domain
+
+### Status at that checkpoint
+
+- The owner confirmed the system was owner-only and not public.
+- Current deployment profile became `private_owner_alpha`.
+- Product scope became explicitly small-cap/micro-cap and retrospective educational review.
+- Public multi-user infrastructure was moved off the immediate private-alpha critical path.
+- Exact financial math, P/L policy, instrument identity, basis safety, dataset versions,
+  evidence, backup, and private-data handling remained mandatory.
+- Owner-only AI became permissible after deterministic claim/evidence/cost gates rather
+  than after all future public infrastructure.
+- No runtime code changed.
+
+### Important accepted decisions
+
+- Premarket, regular session, and after-hours are first-class.
+- Missing candles do not prove a halt.
+- Candles do not prove spread, quote size, liquidity, or exact slippage.
+- Target touch is not proof of executable fill.
+- Float and catalyst context require dated provenance.
+- Ticker is not a durable instrument ID.
+- Reverse-split/basis mismatch fails chart-derived analysis closed.
+- Support/resistance remains behind a Zone Usability and Congestion Layer.
+- Educational Academy content may be linked but is not analytical evidence.
+
+---
+
+## 2026-07-17 — First QA Review: Production and Common-Truth Corrections
+
+### Status at that checkpoint
+
+- The master plan’s product direction was approved.
+- Current Trader Intelligence identity, SQLite, ingestion, and request-lifecycle job
+  paths were classified as prototype foundations rather than public-production architecture.
+- Exact decimal types and analytical P/L policy became mandatory.
+- Future public identity, tenancy, PostgreSQL, object storage, durable jobs, deletion,
+  retention, migration, CI, and security gates were defined.
+- The plan rejected building a second support/resistance detector.
+- No runtime code changed.
+
+---
+
+# Active Decision Register
+
+## Deployment and hosting
+
+**State:** approved.
+
+- Current profile: `private_owner_alpha`.
+- Hosting must declare `local_only` or `private_hosted`.
+- Future profiles: `private_invited_alpha`, `public_beta`, `public_production`.
+- Profile-specific startup checks fail closed.
+- Private-alpha adapters cannot silently become public-production authority.
+
+## Exact decimals
+
+**State:** required before financial results are trusted.
+
+- No binary floating-point authority for money, prices, quantities, fees, FX, or P/L.
+- Use an exact-decimal library behind domain wrappers.
+- Serialize decimal strings.
+- Version rounding and reconciliation.
+
+## Analytical P/L
+
+**State:** required before v3 reconstruction.
+
+- Distinguish broker-reported, analytical, cash, and tax P/L.
+- Tax P/L remains out of scope.
+- Define average-cost/FIFO policy, fees, partial fills, prior inventory, reversals,
+  shorts, open positions, corporate actions, and currencies.
+
+## Coverage and manifests
+
+**State:** required before broad conclusions.
+
+- Dataset coverage includes periods, gaps, overlaps, accounts, exclusions, open
+  positions, prior inventory, and currencies.
+- Dataset, enrichment, derivation, and answer manifests are content-addressed.
+- Source/policy changes invalidate dependent current results explicitly.
+
+## Analysis eligibility
+
+**State:** required before tools are trusted.
+
+- Eligibility is per capability.
+- Tools expose candidate, eligible, included, and excluded counts with reasons.
+- AI cannot hide exclusions or exceed capability.
+
+## Instrument identity and price basis
+
+**State:** required before candle-derived results.
+
+- Maintain stable internal instrument identity and symbol validity periods.
+- Preserve raw broker symbol and fill.
+- Resolve ticker changes, symbol reuse, splits, reverse splits, delistings, and
+  exchange/security-type changes.
+- Fail chart-derived analysis closed on unresolved identity or basis mismatch.
+
+## External sources
+
+**State:** source registry and adapter contract required before enrichment.
+
+- Prefer official regulator/exchange sources.
+- Record terms, historical scope, rate limits, correction behavior, profile permission,
+  content hashes, timestamps, and limitations.
+- Free does not automatically mean public-commercial redistribution.
+- Runtime web search is not authoritative.
+
+## Data capability
+
+**State:** approved.
 
 - E0 execution-only;
 - E1 candle-enriched;
 - E2 event-enriched;
 - E3 quote-enriched;
 - E4 share-structure-enriched;
-- E5 combined with explicit limitations;
-- tools and AI answers cannot exceed their evidence capability.
+- E5 combined with limitations.
 
-### Durable workflows
+## AI grounding
 
-State: required before public critical jobs; provider-independent contract required early.
+**State:** required before GA2.
 
-Requirements:
+- Approved tools only;
+- bounded tool plan;
+- claim ledger;
+- numeric/unit/currency validation;
+- evidence and capability validation;
+- answer schema/replay;
+- cost caps;
+- private-owner gate;
+- prompt-injection tests;
+- evaluation suite;
+- no raw CSV prompt by default.
 
-- transactional outbox;
-- provider-independent job interface;
-- idempotent/resumable steps;
-- bounded retries;
-- tenant scope;
-- cancellation and deletion awareness;
-- observability;
-- local/private-alpha adapter for small workloads;
-- public provider spike before public reliance.
+## Support/resistance
 
-### Support/resistance consumption
+**State:** approved direction; not yet implemented in v3.
 
-State: architecture direction approved.
+- Keep `levels-system-v2` as factual producer.
+- Add Zone Usability and Congestion Layer.
+- No second detector.
+- Suppress crowded/unstable/stale/synthetic-only/basis-unsafe conclusions.
+- Keep v3 AI execution-only until usefulness gates pass.
 
-Decision:
+## Educational boundary
 
-- keep `levels-system-v2` as factual producer;
-- consume replay-safe final zones from saved snapshots;
-- add zone usability, congestion, stable primary selection, and suppression;
-- do not add another full detector inside Trader Intelligence;
-- keep v3 AI execution-only until the zone usefulness gate passes;
-- add gap, halt, premarket, sparse-print, and reverse-split safeguards.
+**State:** approved.
 
-### Educational boundary
-
-State: approved.
-
-Decision:
-
-- retrospective analysis and education only;
-- historical rule experiments are allowed;
-- no live buy/sell/hold instructions;
-- no current price targets;
-- no automated orders;
-- no guaranteed improvement;
-- no tax or portfolio-allocation advice;
-- use associative rather than unsupported causal language.
+- Historical analytics, evidence, simulations, user-created rule experiments, and
+  prospective tracking are allowed.
+- No current buy/sell/hold instructions, live targets, automated orders, guaranteed
+  improvement, tax advice, or portfolio allocation.
+- Use associative rather than unsupported causal language.
 
 ---
 
-## QA Gate Status
+# QA Gate Status
 
 | Gate | Status | Notes |
 |---|---|---|
-| G0 Plan and common truth | In progress | Two QA reviews, active Gate 0 plan, and private-alpha profile are documented; ADRs and deterministic proof slice remain |
-| GA1 Private execution analytics | Not started | Weekday and daily-stop tools specified |
-| GA2 Private AI grounding | Not started | Owner-only AI allowed only after claim/evidence/cost gates |
-| GA3 Small/micro-cap enrichment | Not started | Instrument, basis, session, halt, quote, float, catalyst, and zone gates required |
-| GA4 Private usefulness | Not started | Must compare v3 with legacy output and owner trust/usefulness |
-| GP1 Public identity and persistence | Not started | Required before invited/public users |
-| GP2 Public ingestion and durability | Not started | Object storage, outbox, jobs, deletion, rate limits |
-| GP3 Public beta/production | Not started | Licensing, SLOs, recovery, security, billing, rollback |
+| Architecture consolidation | Complete in docs | Controlling specification created; verification/PR update pending |
+| GA0-A Control and exact truth | Not started | Next runtime implementation slice |
+| GA0-B Deterministic proof | Not started | Begins only after GA0-A review |
+| GA0-C Private calibration | Not started | Uses private fixtures outside Git |
+| GA1 Execution-only analytics | Not started | After Gate 0 exit |
+| GA2 Owner-only AI | Not started | Claim/evidence/evaluation/cost gates required |
+| GA3 Market enrichment | Not started | One qualified source/capability at a time |
+| GA4 Usefulness calibration | Not started | Compare deterministic, v2, v3, abstention |
+| Public identity/persistence | Not started | Required before invited/public users |
+| Public ingestion/durability | Not started | Object storage, jobs, deletion, rate limits |
+| Public beta/production | Not started | Licensing, security, SLOs, recovery, billing |
 
 ---
 
-## Update Rules
+# Update Rules
 
 After each meaningful v3 run, record:
 
 - branch and PR;
-- deployment profile;
-- files and contracts changed;
+- deployment profile and hosting mode;
+- files/contracts changed;
 - architecture decisions;
-- financial policy version;
-- data capability tier;
-- small/micro-cap domain impact;
+- financial/session/instrument policy versions;
+- dataset and source manifests;
+- evidence capability and eligibility impact;
+- source terms/profile review state;
 - tests and exact command results;
-- database migration state;
+- database/migration state;
 - feature flags;
 - rollout state;
 - private-data handling;
+- owner feedback and regression cases;
 - known limitations;
-- next resume point.
+- exact next resume point.
 
-Do not mark a gate complete because one unit test passes. Gate completion requires all acceptance criteria in the controlling QA reviews and active phase plan.
+Do not mark a gate complete because one unit test passes. Gate completion requires
+all applicable acceptance criteria and independent evidence.
