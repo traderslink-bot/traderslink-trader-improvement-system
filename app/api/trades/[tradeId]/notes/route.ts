@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   DEMO_USER_ID,
   SqliteImportCommitRepository,
@@ -17,7 +19,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ tradeId: string }> },
 ): Promise<Response> {
@@ -57,3 +59,5 @@ export async function POST(
     note,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trades/[tradeId]/notes/route.ts", POSTHandler);

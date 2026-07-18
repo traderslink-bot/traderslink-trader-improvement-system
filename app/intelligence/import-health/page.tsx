@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import { buildImportHealthCenterViewModel } from "@/src/lib/trader-analytics";
@@ -6,7 +8,8 @@ export const metadata: Metadata = {
   title: "Import Health | Trader Intelligence",
 };
 
-export default function ImportHealthPage() {
+export default async function ImportHealthPage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/import-health/page.tsx");
   const health = buildImportHealthCenterViewModel();
   const quality = health.importReview.diagnostics.qualityScore;
 

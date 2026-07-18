@@ -44,6 +44,74 @@ This log may record progress and accepted strengthening decisions. It may not si
 
 # Current Resume Point
 
+## 2026-07-17 — GA0-A1 Implementation Complete; Focused Review Pending
+
+### Status
+
+- Branch: `agent/trader-intelligence-v3-ga0-a1-containment`.
+- Gate: GA0-A1 implementation candidate complete; acceptance and merge remain pending focused draft-PR review.
+- Operating profile: only `private_owner_alpha` is operational.
+- Hosting: explicit `local_only` or `private_hosted`; missing/unsafe configuration fails closed.
+- No database migration, real-data deployment, production deploy, feature expansion, or later-phase work occurred.
+- GA0-A2 has not started.
+
+### Delivered contracts and containment
+
+- Added `src/lib/trader-intelligence-v3/` with deployment, auth, contracts, domain, and testing boundaries.
+- Added stable deployment validation and reason codes for profile, hosting, storage, data mode, owner identity, hosted/local mismatch, and local-bypass rejection.
+- Added a machine-readable matrix for all 51 Intelligence pages and 31 relevant Intelligence APIs.
+- Owner authorization runs before reachable repository-backed page/API work.
+- Private-hosted diagnostics and legacy level-delivery provider routes are disabled.
+- Unsafe API methods require an exact same-origin or explicitly approved Origin before handler invocation and emit a structured mutation diagnostic.
+- Intelligence pages and APIs force dynamic private no-store behavior at framework, response, CDN, and Vercel cache layers.
+- Unauthorized private API responses are generic and do not echo requested resource identifiers.
+- Added architecture and private-data scanners to local scripts and CI.
+- Added ignore rules for private data, broker exports, private fixtures, and private screenshots.
+- Replaced realistic-looking synthetic broker account values with explicit `SYNTHETIC-ACCOUNT` fixture labels.
+- Added the current-system inventory and legacy hazard register.
+
+### Intelligence/Academy boundary decision
+
+- Trader Intelligence and Academy are separate applications.
+- No Academy source, registry, lesson, role, progress, entitlement, or product behavior was changed or made part of Trader Intelligence authorization.
+- Private-hosted GA0-A1 temporarily resolves the Discord subject from the existing session record through one narrow compatibility adapter, maps it to a configured internal Intelligence owner ID, and ignores premium role settings.
+- The authorization mode is named `provisional_discord_session_adapter`, not Academy authorization.
+- An Intelligence-owned Discord and optional normal-login/session implementation may replace this adapter later without changing the owner contract.
+- The controlling specification no longer includes Academy lesson links as a Trader Intelligence product capability.
+
+### Inventory and open hazards
+
+- The current implementation remains a single-user prototype, not production-ready v3 authority.
+- Demo identities, direct SQLite construction, temporary production storage behavior, 32-bit fingerprints, JavaScript-number financial fields, lifecycle overrides, browser filters, chart evidence gaps, request-lifecycle jobs, JSON query authority, nearest-level coaching, and fixed coaching templates remain open hazards.
+- GA0-A1 contains those paths; it does not modernize or certify them.
+- Private-hosted configuration requires `private_database`, but no production database adapter or deployment was added.
+
+### Verification
+
+- `npm ci` — passed; 603 packages installed, with the existing audit report of 5 vulnerabilities (2 low, 1 moderate, 2 high).
+- `npx tsc --noEmit` — passed.
+- changed-path ESLint — passed with two pre-existing unused-variable warnings in `app/intelligence/coach/page.tsx` and no errors.
+- focused v3 containment suite — passed: 5 files, 49 tests.
+- route compatibility suite — passed: 12 files, 87 tests.
+- `npm test` — passed: 162 files, 1,437 tests.
+- `npm run verify:layer2` — passed with the canonical 13-pattern result.
+- `npm run verify:layer3` — passed with canonical regression `PASS`.
+- `npm run verify:ti-v3:architecture` — passed, scanning 69 relevant source files.
+- `npm run verify:ti-v3:private-data` — passed, scanning 23,530 worktree records before staging and 23,614 worktree/index records after staging.
+- `npm run build` — passed; all 51 Intelligence pages and relevant APIs are dynamic. Next emitted five existing broad filesystem-tracing warnings around legacy stores/provider code, reinforcing registered hazards without failing the build.
+- Normal verification made no live model or market-data calls.
+
+### Exact resume point
+
+1. finish documentation closeout and final focused checks;
+2. commit and push this exact branch;
+3. open the focused draft PR and record its URL;
+4. review GA0-A1 containment and known hazards;
+5. do not begin GA0-A2 until this slice is merged or explicitly accepted;
+6. do not implement analytics, chart rendering, AI, support/resistance, or deployment on this branch.
+
+---
+
 ## 2026-07-17 — Fifth-Pass QA Complete; Query and Visual Evidence Architecture Accepted
 
 ### Status
@@ -356,7 +424,7 @@ Audit:
 
 | Gate | Status | Notes |
 |---|---|---|
-| GA0-A1 Containment | Not started | Current next runtime PR |
+| GA0-A1 Containment | Implementation complete; review pending | Focused draft PR is the current resume point |
 | GA0-A2 Exact truth | Not started | After A1 review |
 | GA0-A3 Temporal/manifests/query foundation | Not started | After A2 review |
 | GA0-B Deterministic tools/series | Not started | Weekday and daily-stop |

@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { readLevelsSystemRuntimeConfigFromEnv } from "../../../../src/lib/support-resistance/levels-system-runtime-options";
 import { runBatchTradeAnalysis } from "../../../../src/lib/trade-analysis/batch/run-trade-analysis-batch";
 import { parseTradeAnalysisRequestDocument } from "../../../../src/lib/trade-analysis/request/trade-analysis-request-contract";
@@ -38,7 +40,7 @@ function errorResponse(
   );
 }
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   return Response.json({
     contractVersion: "trade_analysis_debug_api_v1",
     route: "/api/trade-analysis/debug",
@@ -58,7 +60,7 @@ export async function GET(): Promise<Response> {
   });
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function POSTHandler(request: Request): Promise<Response> {
   let document: unknown;
 
   try {
@@ -98,3 +100,7 @@ export async function POST(request: Request): Promise<Response> {
 
   return Response.json(batch);
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/trade-analysis/debug/route.ts", GETHandler);
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trade-analysis/debug/route.ts", POSTHandler);

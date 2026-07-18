@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { after } from "next/server";
 import {
   buildDurableImportCommitPlan,
@@ -45,7 +47,7 @@ function scheduleDecisionReviewRun(args: {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ batchId: string }> },
 ): Promise<Response> {
@@ -133,3 +135,5 @@ export async function POST(
     decisionReviewRun,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/commit/route.ts", POSTHandler);

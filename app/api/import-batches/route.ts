@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   DEMO_ACCOUNT_ID,
   SqliteImportCommitRepository,
@@ -7,7 +9,7 @@ import { buildImportRecoveryReadModel } from "../../../src/lib/trader-analytics/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   const repository = new SqliteImportCommitRepository();
   const history = repository.listImportBatchHistory(DEMO_ACCOUNT_ID);
   const recoveryQueue = history
@@ -36,3 +38,5 @@ export async function GET(): Promise<Response> {
     unresolvedRepairs: repository.listUnresolvedImportRepairInbox(DEMO_ACCOUNT_ID),
   });
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/import-batches/route.ts", GETHandler);

@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -113,7 +115,8 @@ function chooseProgressSessionStory(
   );
 }
 
-export default function ProgressPage() {
+export default async function ProgressPage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/progress/page.tsx");
   const data = buildSavedOrSampleTraderAnalyticsViewModel();
   const activeTier = readTraderIntelligenceTierFromEnv();
   const chartContextAllowed = canUseChartContext(activeTier);

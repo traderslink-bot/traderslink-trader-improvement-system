@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import { buildProductWorkflowShellViewModel } from "@/src/lib/trader-analytics";
@@ -14,7 +16,8 @@ function metricClass(status: string): string {
       : "text-zinc-400";
 }
 
-export default function CalibrationPage() {
+export default async function CalibrationPage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/calibration/page.tsx");
   const shell = buildProductWorkflowShellViewModel();
   const calibration = shell.analytics.importTrialExperience.calibrationDashboard;
   const mobileQa = shell.analytics.importTrialExperience.mobileQa;

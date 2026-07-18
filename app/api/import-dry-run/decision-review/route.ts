@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { readLevelsSystemRuntimeConfigFromEnv } from "../../../../src/lib/support-resistance/levels-system-runtime-options";
 import {
   buildCsvDryRunDecisionReviewBridge,
@@ -128,7 +130,7 @@ function parseBody(document: unknown): Omit<
   };
 }
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   return Response.json({
     contractVersion: "csv_dry_run_decision_review_api_v1",
     route: "/api/import-dry-run/decision-review",
@@ -147,7 +149,7 @@ export async function GET(): Promise<Response> {
   });
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function POSTHandler(request: Request): Promise<Response> {
   let document: unknown;
 
   try {
@@ -192,3 +194,7 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse(500, "analysis_error", message);
   }
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/import-dry-run/decision-review/route.ts", GETHandler);
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-dry-run/decision-review/route.ts", POSTHandler);

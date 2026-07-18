@@ -176,7 +176,7 @@ describe("CSV dry-run import UI workflow", () => {
 
   it("applies IBKR grouping rules after automatic broker detection", () => {
     const csvText = [
-      "Statement,Account,U123456",
+      "Statement,Account,SYNTHETIC-ACCOUNT",
       "Generated,2026-05-02",
       "Trades,Header,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Trade ID,Proceeds,Comm/Fee",
       'Trades,Data,Stocks,USD,SIDU,"2026-04-02, 18:00:57",200,3.03,IB-1,-606.00,-1.00',

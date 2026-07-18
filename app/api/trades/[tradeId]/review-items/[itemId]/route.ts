@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import type {
   TradeReviewChecklistItemId,
   TradeReviewChecklistItemStatus,
@@ -37,7 +39,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ tradeId: string; itemId: string }> },
 ): Promise<Response> {
@@ -91,3 +93,5 @@ export async function POST(
     state,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trades/[tradeId]/review-items/[itemId]/route.ts", POSTHandler);

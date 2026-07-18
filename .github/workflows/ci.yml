@@ -26,6 +26,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Verify Trader Intelligence v3 architecture boundaries
+        run: npm run verify:ti-v3:architecture
+
+      - name: Verify Trader Intelligence v3 private-data safety
+        run: npm run verify:ti-v3:private-data
+
       - name: Verify Layer 2
         run: npm run verify:layer2
 

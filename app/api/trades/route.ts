@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   DEMO_USER_ID,
   SqliteImportCommitRepository,
@@ -6,7 +8,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   const repository = new SqliteImportCommitRepository();
   const trades = repository.listTrades(DEMO_USER_ID);
 
@@ -16,3 +18,5 @@ export async function GET(): Promise<Response> {
     trades,
   });
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/trades/route.ts", GETHandler);

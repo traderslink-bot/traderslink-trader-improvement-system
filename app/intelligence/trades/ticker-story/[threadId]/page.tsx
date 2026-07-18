@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -271,6 +273,9 @@ function buildTickerStoryModel(): SavedTradeThreadModel {
 export async function generateMetadata({
   params,
 }: TickerStoryPageProps): Promise<Metadata> {
+  await requireTraderIntelligenceOwnerPageAccess(
+    "app/intelligence/trades/ticker-story/[threadId]/page.tsx",
+  );
   const { threadId } = await params;
   const decodedThreadId = decodeThreadId(threadId);
   const model = buildTickerStoryModel();
@@ -288,6 +293,7 @@ export default async function TickerStoryPage({
   params,
   searchParams,
 }: TickerStoryPageProps) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/trades/ticker-story/[threadId]/page.tsx");
   const { threadId } = await params;
   const query = searchParams ? await searchParams : {};
   const decodedThreadId = decodeThreadId(threadId);

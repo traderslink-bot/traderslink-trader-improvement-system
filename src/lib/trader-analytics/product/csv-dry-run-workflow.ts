@@ -113,7 +113,7 @@ const SAMPLE_PRESETS: CsvDryRunSamplePreset[] = [
     broker: "ibkr_activity_statement",
     description: "Representative IBKR activity statement trade rows.",
     csvText: [
-      "Statement,Account,U123456",
+      "Statement,Account,SYNTHETIC-ACCOUNT",
       "Generated,2026-05-02",
       "Trades,Header,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Trade ID,Proceeds,Comm/Fee",
       'Trades,Data,Stocks,USD,AAPL,"2026-05-01, 09:35:00",100,182.10,IB-1,-18210.00,-1.00',

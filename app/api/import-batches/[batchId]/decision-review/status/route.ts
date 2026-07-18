@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { SqliteImportCommitRepository } from "../../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
 import { importCommitErrorResponse } from "../../../../../../src/lib/trader-analytics/server/import-commit-service";
 
@@ -11,7 +13,7 @@ function countBy(values: string[]): Record<string, number> {
   }, {});
 }
 
-export async function GET(
+async function GETHandler(
   _request: Request,
   context: { params: Promise<{ batchId: string }> },
 ): Promise<Response> {
@@ -80,3 +82,5 @@ export async function GET(
             : "No chart-data review work is waiting for this import.",
   });
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/decision-review/status/route.ts", GETHandler);

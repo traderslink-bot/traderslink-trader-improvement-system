@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import { buildProductWorkflowShellViewModel } from "@/src/lib/trader-analytics";
@@ -127,7 +129,8 @@ function historyState(item: ImportBatchHistoryItem): {
   };
 }
 
-export default function ImportsPage() {
+export default async function ImportsPage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/page.tsx");
   const repository = new SqliteImportCommitRepository();
   const importHistory = repository.listImportBatchHistory(DEMO_ACCOUNT_ID);
   const unresolvedRepairs =

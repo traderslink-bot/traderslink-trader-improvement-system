@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -282,7 +284,8 @@ function RouteLink({
   );
 }
 
-export default function IntelligencePage() {
+export default async function IntelligencePage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/page.tsx");
   const data = buildSavedOrSampleTraderAnalyticsViewModel();
   const activeTier = readTraderIntelligenceTierFromEnv();
   const chartContextAllowed = canUseChartContext(activeTier);

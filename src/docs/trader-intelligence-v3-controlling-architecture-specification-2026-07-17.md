@@ -170,6 +170,7 @@ Requires:
 
 - owner authentication;
 - owner authorization on every Intelligence page and API;
+- Trader Intelligence-owned authorization and internal owner identity; GA0-A1 may temporarily resolve a Discord subject from an existing session record through one replaceable adapter, but it must not depend on Academy roles, progress, entitlements, or product behavior;
 - encrypted transport;
 - secure session handling;
 - no anonymous import, trade, analytics, chart, evidence, or AI access;
@@ -1460,7 +1461,6 @@ Allowed:
 - observable behavior descriptions;
 - owner corrections;
 - accessible supporting visual evidence;
-- Academy lesson links;
 - uncertainty and limitations.
 
 Not part of the journal:

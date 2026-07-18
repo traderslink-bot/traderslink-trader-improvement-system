@@ -40,7 +40,7 @@ export const decisionReviewCsvScenarios: DecisionReviewCsvScenario[] = [
     label: "IBKR activity statement decision review",
     broker: "ibkr_activity_statement",
     csvText: [
-      "Statement,Account,U123456",
+      "Statement,Account,SYNTHETIC-ACCOUNT",
       "Generated,2024-04-13",
       "Trades,Header,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Trade ID,Proceeds,Comm/Fee",
       'Trades,Data,Stocks,USD,ABCD,"2024-04-12, 09:33:30",100,1.1850,IB-1,-118.50,-1.00',

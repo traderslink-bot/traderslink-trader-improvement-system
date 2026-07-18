@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -207,6 +209,7 @@ export default async function GuidedReviewPage({
 }: {
   searchParams?: Promise<{ queue?: string }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/review/page.tsx");
   const query = await searchParams;
   const data = buildSavedOrSampleTraderAnalyticsViewModel();
   const activeTier = readTraderIntelligenceTierFromEnv();

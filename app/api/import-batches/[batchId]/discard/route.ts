@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   importCommitErrorResponse,
 } from "../../../../../src/lib/trader-analytics/server/import-commit-service";
@@ -6,7 +8,7 @@ import { SqliteImportCommitRepository } from "../../../../../src/lib/trader-anal
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function POSTHandler(
   _request: Request,
   context: { params: Promise<{ batchId: string }> },
 ): Promise<Response> {
@@ -31,3 +33,5 @@ export async function POST(
     status: "discarded",
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/discard/route.ts", POSTHandler);

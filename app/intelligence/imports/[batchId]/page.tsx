@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -154,6 +156,7 @@ export default async function ImportBatchPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/[batchId]/page.tsx");
   const routeParams = await params;
   const batchId = decodeURIComponent(routeParams.batchId);
   const repository = new SqliteImportCommitRepository();

@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   getJournalLevelAnalysisForTradeApi,
   journalLevelAnalysisTradeLinkErrorResponse,
@@ -7,7 +9,7 @@ import { isLevelAnalysisTradeLinkApiEnabled } from "../../../../../src/lib/level
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function GETHandler(
   _request: Request,
   context: { params: Promise<{ tradeId: string }> },
 ): Promise<Response> {
@@ -26,3 +28,5 @@ export async function GET(
     }),
   );
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/trades/[tradeId]/level-analysis/route.ts", GETHandler);

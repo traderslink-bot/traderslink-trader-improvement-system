@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { buildGuidedReviewSession } from "../../../../src/lib/trader-analytics";
 import { buildSavedOrSampleTraderAnalyticsViewModel } from "../../../../src/lib/trader-analytics/server/saved-trader-analytics-data";
 import { buildSavedDecisionReviewReadModel } from "../../../../src/lib/trader-analytics/server/saved-decision-review-service";
@@ -11,7 +13,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   const data = buildSavedOrSampleTraderAnalyticsViewModel();
   const activeTier = readTraderIntelligenceTierFromEnv();
   const chartContextAllowed = canUseChartContext(activeTier);
@@ -39,3 +41,5 @@ export async function GET(): Promise<Response> {
         : null,
   });
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/review/latest/route.ts", GETHandler);

@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   importCommitErrorResponse,
 } from "../../../../src/lib/trader-analytics/server/import-commit-service";
@@ -8,7 +10,7 @@ import { buildImportRecoveryReadModel } from "../../../../src/lib/trader-analyti
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function GETHandler(
   _request: Request,
   context: { params: Promise<{ batchId: string }> },
 ): Promise<Response> {
@@ -45,3 +47,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/route.ts", GETHandler);

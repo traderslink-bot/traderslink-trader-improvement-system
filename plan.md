@@ -6,7 +6,7 @@
 **Required hosting mode:** `local_only` or `private_hosted`  
 **Primary domain:** U.S. listed small-cap and micro-cap active trading  
 **Product boundary:** retrospective educational trade review and self-improvement  
-**Current gate:** GA0-A1 — containment and architecture boundaries  
+**Current gate:** GA0-A1 — implementation complete, review pending
 **Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
 
 Start here when resuming Trader Intelligence product, import, analytics, query, visualization, coaching, market context, external sources, persistence, AI, or QA work.
@@ -377,15 +377,11 @@ Maintain an exploration ledger so repeated slicing cannot be hidden.
 
 # 12. Current Next Action
 
-After this documentation PR is accepted:
-
-1. create `agent/trader-intelligence-v3-ga0-a1-containment` from current `main`;
-2. implement GA0-A1 only;
-3. run containment, architecture, private-data, typecheck, test, and build checks;
-4. open a focused draft PR;
-5. review GA0-A1 before GA0-A2;
-6. keep runtime work internal and model-free;
-7. do not implement analytics, chart rendering, AI, support/resistance, or deployment.
+1. review the focused GA0-A1 draft PR and its containment decisions;
+2. merge or explicitly accept GA0-A1 before starting GA0-A2;
+3. keep runtime work internal and model-free;
+4. do not implement analytics, chart rendering, AI, support/resistance, or deployment;
+5. if GA0-A1 is accepted, create the GA0-A2 exact-truth branch from the accepted baseline rather than extending this branch with later-phase work.
 
 ---
 

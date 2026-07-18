@@ -81,7 +81,7 @@ describe("broker execution CSV imports", () => {
   it("finds an execution header after broker report preamble rows", () => {
     const result = expectRequestsValid(
       [
-        "Statement,Account,U123456",
+        "Statement,Account,SYNTHETIC-ACCOUNT",
         "Generated,2026-05-02",
         "Trades,Header,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Trade ID",
         "Trades,Data,Stocks,USD,AAPL,\"2026-05-01, 09:35:00\",100,182.10,IB-1",
@@ -102,7 +102,7 @@ describe("broker execution CSV imports", () => {
   it("captures realistic IBKR activity statement costs without treating gross proceeds as net amount", () => {
     const result = expectRequestsValid(
       [
-        "Statement,Account,U123456",
+        "Statement,Account,SYNTHETIC-ACCOUNT",
         "Generated,2026-05-02",
         "Trades,Header,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,Trade ID,Proceeds,Comm/Fee",
         "Trades,Data,Stocks,USD,AAPL,\"2026-05-01, 09:35:00\",100,182.10,IB-1,-18210.00,-1.00",
@@ -175,7 +175,7 @@ describe("broker execution CSV imports", () => {
     const result = expectRequestsValid(
       [
         "Account Information,Header,Field Name,Field Value",
-        "Account Information,Data,Account,U123456",
+        "Account Information,Data,Account,SYNTHETIC-ACCOUNT",
         "Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code",
         "Trades,Data,Order,Stocks,USD,AAPL,\"2026-05-01, 09:35:00\",100,182.10,182.10,-18210.00,-1.00,18210.00,0,0,O",
         "Trades,SubTotal,,Stocks,USD,AAPL,,100,,,-18210.00,-1.00,18210.00,0,0,",

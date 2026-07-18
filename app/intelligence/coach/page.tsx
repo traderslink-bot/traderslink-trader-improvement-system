@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -1509,6 +1511,7 @@ export default async function CoachPage(props: {
     view?: string | string[] | undefined;
   }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/coach/page.tsx");
   const searchParams = await props.searchParams;
   const demoParam = Array.isArray(searchParams.demo)
     ? searchParams.demo[0]

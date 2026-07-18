@@ -131,6 +131,20 @@ An owner-access guard or fail-closed disabling of existing Intelligence routes i
 
 # 5. GA0-A1 — Containment and Architecture Boundaries
 
+## 5.0 Implementation status on 2026-07-17
+
+- Implementation candidate complete on `agent/trader-intelligence-v3-ga0-a1-containment`.
+- Acceptance remains pending focused draft-PR review; GA0-A2 has not started.
+- The machine-readable containment matrix classifies all 51 Intelligence pages and 31 relevant Intelligence APIs.
+- All owner surfaces fail closed; diagnostics and legacy level-provider APIs are local-only outside private-hosted mode.
+- Unsafe methods require exact Origin validation before legacy handler/repository work.
+- Intelligence pages and APIs are dynamic, private, and no-store.
+- Trader Intelligence remains a separate application from Academy. Its authorization maps a provisional Discord-session subject to an internal Intelligence owner through a replaceable adapter and does not use Academy roles, progress, entitlements, or product behavior.
+- Inventory and legacy hazard register are complete.
+- Architecture/private-data guards run locally and in CI.
+- No exact-financial, analytics, chart, AI, support/resistance, migration, or deployment work was added.
+- Required typecheck, focused tests, full tests, Layer 2/3 checks, and production build pass. Exact results are recorded in the v3 project log.
+
 ## 5.1 Current-system inventory
 
 Create or update:

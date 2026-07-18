@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   getJournalLevelAnalysisRawPayloadForAdminApi,
   journalLevelAnalysisDeliveryErrorResponse,
@@ -10,7 +12,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function GETHandler(
   _request: Request,
   context: { params: Promise<{ deliveryId: string }> },
 ): Promise<Response> {
@@ -32,3 +34,5 @@ export async function GET(
     }),
   );
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/admin/level-analysis/deliveries/[deliveryId]/raw/route.ts", GETHandler);

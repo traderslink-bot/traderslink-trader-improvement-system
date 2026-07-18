@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { runTraderAnalyticsReport } from "../../../../src/lib/trader-analytics";
 
 export const runtime = "nodejs";
@@ -36,7 +38,7 @@ function errorResponse(
   );
 }
 
-export async function GET(): Promise<Response> {
+async function GETHandler(): Promise<Response> {
   return Response.json({
     contractVersion: "trader_analytics_debug_api_v1",
     route: "/api/trader-analytics/debug",
@@ -63,7 +65,7 @@ export async function GET(): Promise<Response> {
   });
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function POSTHandler(request: Request): Promise<Response> {
   let document: unknown;
 
   try {
@@ -88,3 +90,7 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse(400, "invalid_request_document", message);
   }
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/trader-analytics/debug/route.ts", GETHandler);
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trader-analytics/debug/route.ts", POSTHandler);

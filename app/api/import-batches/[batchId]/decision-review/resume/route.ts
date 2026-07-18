@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import { after } from "next/server";
 import { readLevelsSystemRuntimeConfigFromEnv } from "../../../../../../src/lib/support-resistance/levels-system-runtime-options";
 import { SqliteImportCommitRepository } from "../../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
@@ -110,7 +112,7 @@ function scheduleDecisionReviewRun(args: {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ batchId: string }> },
 ): Promise<Response> {
@@ -277,3 +279,5 @@ export async function POST(
     run,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/decision-review/resume/route.ts", POSTHandler);

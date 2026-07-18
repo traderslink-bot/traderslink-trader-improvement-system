@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
@@ -585,6 +587,7 @@ export default async function TradesPage({
     month?: string;
   }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/trades/page.tsx");
   const query = await searchParams;
   const activeReviewLane = normalizeReviewLane(query?.reviewLane);
   const activeStoryFilter = normalizeStoryFilter(query?.storyFilter);

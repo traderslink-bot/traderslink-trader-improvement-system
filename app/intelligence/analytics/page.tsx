@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buildSavedReviewQueueReadModel } from "@/src/lib/trader-analytics/server/saved-review-queue";
@@ -92,6 +94,7 @@ export default async function AnalyticsPage(props: {
     view?: string | string[] | undefined;
   }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/analytics/page.tsx");
   const searchParams = await props.searchParams;
   const demoParam = Array.isArray(searchParams.demo)
     ? searchParams.demo[0]

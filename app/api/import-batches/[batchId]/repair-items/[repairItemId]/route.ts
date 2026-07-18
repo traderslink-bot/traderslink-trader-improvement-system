@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import type { ImportCommitRepairItemRecord } from "../../../../../../src/lib/trader-analytics/product/import-commit/import-commit-planner";
 import { SqliteImportCommitRepository } from "../../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
 
@@ -22,7 +24,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ batchId: string; repairItemId: string }> },
 ): Promise<Response> {
@@ -69,3 +71,5 @@ export async function POST(
     repairItem,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-batches/[batchId]/repair-items/[repairItemId]/route.ts", POSTHandler);

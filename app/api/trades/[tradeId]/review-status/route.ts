@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import type { SavedReviewStatus } from "../../../../../src/lib/trader-analytics/product/types";
 import {
   DEMO_USER_ID,
@@ -26,7 +28,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   context: { params: Promise<{ tradeId: string }> },
 ): Promise<Response> {
@@ -69,3 +71,5 @@ export async function POST(
     trade,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trades/[tradeId]/review-status/route.ts", POSTHandler);

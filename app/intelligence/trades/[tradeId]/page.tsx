@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -849,6 +851,7 @@ export default async function TradeReviewPage({
     queue?: string;
   }>;
 }) {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/trades/[tradeId]/page.tsx");
   const routeParams = await params;
   const query = await searchParams;
   const demoParam = Array.isArray(query?.demo) ? query?.demo[0] : query?.demo;

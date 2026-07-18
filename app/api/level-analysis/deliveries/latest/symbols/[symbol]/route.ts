@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   getLatestJournalLevelAnalysisSymbolSummaryForApi,
   journalLevelAnalysisDeliveryErrorResponse,
@@ -7,7 +9,7 @@ import { isLevelAnalysisDeliveryApiEnabled } from "../../../../../../../src/lib/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(
+async function GETHandler(
   request: Request,
   context: { params: Promise<{ symbol: string }> },
 ): Promise<Response> {
@@ -30,3 +32,5 @@ export async function GET(
     }),
   );
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/level-analysis/deliveries/latest/symbols/[symbol]/route.ts", GETHandler);

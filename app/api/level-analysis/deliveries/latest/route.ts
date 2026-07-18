@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   getLatestJournalLevelAnalysisDeliveryForApi,
   journalLevelAnalysisDeliveryErrorResponse,
@@ -7,7 +9,7 @@ import { isLevelAnalysisDeliveryApiEnabled } from "../../../../../src/lib/level-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request): Promise<Response> {
+async function GETHandler(request: Request): Promise<Response> {
   if (!isLevelAnalysisDeliveryApiEnabled()) {
     return journalLevelAnalysisDeliveryErrorResponse(
       404,
@@ -21,3 +23,5 @@ export async function GET(request: Request): Promise<Response> {
 
   return Response.json(getLatestJournalLevelAnalysisDeliveryForApi({ provider }));
 }
+
+export const GET = withTraderIntelligenceOwnerRoute("app/api/level-analysis/deliveries/latest/route.ts", GETHandler);

@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   DEMO_USER_ID,
   SqliteImportCommitRepository,
@@ -6,7 +8,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function POSTHandler(
   _request: Request,
   context: { params: Promise<{ tradeId: string }> },
 ): Promise<Response> {
@@ -33,3 +35,5 @@ export async function POST(
     trade,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/trades/[tradeId]/mark-closed/route.ts", POSTHandler);

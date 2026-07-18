@@ -1,3 +1,5 @@
+import { requireTraderIntelligenceOwnerPageAccess } from "@/src/lib/trader-intelligence-v3/auth";
+
 import Link from "next/link";
 import type { Metadata } from "next";
 import { buildProductWorkflowShellViewModel } from "@/src/lib/trader-analytics";
@@ -14,7 +16,8 @@ function statusClass(status: string): string {
       : "text-amber-300";
 }
 
-export default function ImportTrialsPage() {
+export default async function ImportTrialsPage() {
+  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/import-trials/page.tsx");
   const shell = buildProductWorkflowShellViewModel();
   const experience = shell.analytics.importTrialExperience;
   const harness = experience.harness;

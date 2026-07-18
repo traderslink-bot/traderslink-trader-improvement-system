@@ -1,3 +1,5 @@
+import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
+
 import {
   buildDurableImportCommitPlan,
   importCommitErrorResponse,
@@ -9,7 +11,7 @@ import { SqliteImportCommitRepository } from "../../../../src/lib/trader-analyti
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request): Promise<Response> {
+async function POSTHandler(request: Request): Promise<Response> {
   let input;
 
   try {
@@ -33,3 +35,5 @@ export async function POST(request: Request): Promise<Response> {
     plan,
   });
 }
+
+export const POST = withTraderIntelligenceOwnerRoute("app/api/import-batches/preview/route.ts", POSTHandler);
