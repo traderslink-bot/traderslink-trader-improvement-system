@@ -49,6 +49,7 @@ This log may record progress and accepted strengthening decisions. It may not si
 ### Status
 
 - Branch: `agent/trader-intelligence-v3-ga0-a1-containment`.
+- Draft PR: `https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/102`.
 - Gate: GA0-A1 implementation candidate complete; acceptance and merge remain pending focused draft-PR review.
 - Operating profile: only `private_owner_alpha` is operational.
 - Hosting: explicit `local_only` or `private_hosted`; missing/unsafe configuration fails closed.
@@ -103,12 +104,10 @@ This log may record progress and accepted strengthening decisions. It may not si
 
 ### Exact resume point
 
-1. finish documentation closeout and final focused checks;
-2. commit and push this exact branch;
-3. open the focused draft PR and record its URL;
-4. review GA0-A1 containment and known hazards;
-5. do not begin GA0-A2 until this slice is merged or explicitly accepted;
-6. do not implement analytics, chart rendering, AI, support/resistance, or deployment on this branch.
+1. review draft PR #102 and the GA0-A1 containment decisions/known hazards;
+2. merge or explicitly accept GA0-A1 before beginning GA0-A2;
+3. if accepted, create the GA0-A2 branch from the accepted baseline;
+4. do not implement analytics, chart rendering, AI, support/resistance, or deployment on this branch.
 
 ---
 
