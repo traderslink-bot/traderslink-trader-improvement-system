@@ -1,0 +1,373 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-18",
+  "paths": {
+    "app/manual-entry/manual-entry-client.tsx": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/app/manual-entry/manual-entry-client.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": true,
+        "sha256": "3834815fd30c3419f0897f9d20e5966fb8236b2e83cfdf7e49dc3f7d8c6a671b"
+      }
+    ],
+    "app/manual-entry/page.tsx": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/app/manual-entry/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": true,
+        "sha256": "547446e8365f303cbb48d71031b079f2435c931a9e4ed65da27d45d9c9f70e29"
+      }
+    ],
+    "src/lib/trader-analytics/product/manual-execution-entry.ts": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/src/lib/trader-analytics/product/manual-execution-entry.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": true,
+        "sha256": "7be826f8d1e5da1e445b6c203bebcd1edf00efc7c589991af585314a50fcaab4"
+      }
+    ],
+    "app/api/trader-reflections/generate/route.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/api/trader-reflections/generate/route.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "fc4ace73058ec9ed99ae585b75d05707085f4246d65237f635c54f3fa888a380"
+      }
+    ],
+    "app/admin/reflection-usage/page.tsx": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/admin/reflection-usage/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "bb7040acd149e1d404a22dd2b24f89f6e5737ac3ea222f7997c6cac3829960e4"
+      }
+    ],
+    "app/period-reflection-panel.tsx": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/period-reflection-panel.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "252d4c19c490b56abc05ff7198ebeb720e69462d1ca5b3826acddff6bbae3996"
+      }
+    ],
+    "app/period-reflection-regenerate-button.tsx": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/period-reflection-regenerate-button.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "b0fee47c91dba55d8701e24894d3f5434cf25481b6ec13f27211056c05331c88"
+      }
+    ],
+    "src/docs/trader-reflection-ai-summary-plan.md": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/docs/trader-reflection-ai-summary-plan.md.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "c15406dbb2ba8a07e419c4b02d6f44f8835fdf9b211b5c8547af362821a05d73"
+      }
+    ],
+    "src/lib/trader-analytics/product/period-reflections.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/product/period-reflections.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "30d344ae240bd1e03f079ceb496206b462893a3b8b401f09bfb72889f78b6264"
+      }
+    ],
+    "src/lib/trader-analytics/server/period-reflection-generation.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-generation.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "e74321871bc4593678e81904cff49888d74cef89cca5d179515538645518d5c7"
+      }
+    ],
+    "src/lib/trader-analytics/server/period-reflection-service.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-service.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "ca0649971c90ce7c0bc8a153772c3a54c42c1e0c4d885d263375ae99de446aee"
+      }
+    ],
+    "src/lib/trader-analytics/server/period-reflection-usage-report.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-usage-report.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": true,
+        "sha256": "13a91787e3a6896ea2e6246ac7cdef2e24ecfefdb1f6874c9108e4ed74ad027d"
+      }
+    ],
+    "app/api/real-coach/whop-webhook/route.ts": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/api/real-coach/whop-webhook/route.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "290dfb5c57274a42d8beca6f4a3af8ba32af0cfbd1fa934f6cbbf03a04f50923"
+      }
+    ],
+    "app/admin/coaches/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/admin/coaches/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "46d8c31be119b8bbec599231f757109a9c13e5e6ed5c13793a2e6e94392424d8"
+      }
+    ],
+    "app/coach-dashboard/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coach-dashboard/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "591880dc94ee4d58439b370edebab4e145be062584780a7758fcb1b4ce4cd02b"
+      }
+    ],
+    "app/coaches/[coachId]/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coaches/[coachId]/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "03eb137a39cb5335560e77f44992b3ac6c2708d6d4302d0a8a007e868a229861"
+      }
+    ],
+    "app/coaches/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coaches/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "4bf2ebbb2ddf6e06ae277962dd50da6398b3c0242a0fdbc2a3158fbf89a6c139"
+      }
+    ],
+    "app/coach-human/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coach-human/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "8e11f74af42916db413fabaf5538aa531c782afb8be70d9ba9111c8898da3ecc"
+      }
+    ],
+    "app/real-coach-actions.ts": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-actions.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "b09abd54d7aa5e816bd59e0172edeba5cfc62f68742f8557ab08e5b11675cf40"
+      }
+    ],
+    "app/real-coach-auth.ts": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-auth.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "d3e8d09157c3c6897174d0b3e5da7705d24966a96c3cb22886283c71413d1ed7"
+      }
+    ],
+    "app/real-coach-session/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-session/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "f7654046d1fe177fff0efa02cac382471b95df597fbd44f5e2d1a423af942bfe"
+      }
+    ],
+    "src/lib/trader-analytics/product/real-coach-marketplace.ts": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/src/lib/trader-analytics/product/real-coach-marketplace.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "425f9bb9f72eaea9d8c78623d93524ef140cbbd06e9ca9b961062a6193bc5fa0"
+      }
+    ],
+    "src/lib/trader-analytics/product/real-coach-whop-webhook.ts": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/src/lib/trader-analytics/product/real-coach-whop-webhook.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": true,
+        "sha256": "4df86b17ec78ab231fac24958cb96de6b571b10045617caf7a3a7d5791707eaa"
+      }
+    ],
+    "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts": [
+      {
+        "feature": "focused-tests",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+        "includedInPatch": true,
+        "sha256": "f4dffbf27caab728df51c7729b4e9c3d77d7f360c075c1c33d05b4c08ca49579"
+      }
+    ],
+    "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts": [
+      {
+        "feature": "focused-tests",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+        "includedInPatch": true,
+        "sha256": "15bea06a1fbda7a15e484648ce54d288ea1513539ab0f73585de638d0f2ced59"
+      }
+    ],
+    "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts": [
+      {
+        "feature": "focused-tests",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+        "includedInPatch": true,
+        "sha256": "2ba8113cc811ebe681802f9f46d1e6e7d909243f4f83c53a4f479f53b7b32eb9"
+      }
+    ],
+    "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts": [
+      {
+        "feature": "focused-tests",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+        "includedInPatch": true,
+        "sha256": "99e0caa7a1052da24d94c9e30e196a96259bb15a5f9ee051d88884e9315a7b41"
+      }
+    ],
+    "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts": [
+      {
+        "feature": "focused-tests",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+        "includedInPatch": true,
+        "sha256": "cde90400579a99485417e34678099a1049cfa6301a706df30b6f3ecc49f9fe84"
+      }
+    ],
+    "app/upload-csv/page.tsx": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/app/upload-csv/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": false,
+        "sha256": "07b03f5560cf4cbb808a6a81d507c4575d87ff1bffa675e9191e030dd4abff68"
+      }
+    ],
+    "app/workspace/page.tsx": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/app/workspace/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": false,
+        "sha256": "6d0561640752e3ab8354f5bda8126ae44248ef4d7920cdb283db0a7d1d50cf05"
+      },
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/app/workspace/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "6d0561640752e3ab8354f5bda8126ae44248ef4d7920cdb283db0a7d1d50cf05"
+      }
+    ],
+    "src/lib/trader-analytics/product/platform-module.ts": [
+      {
+        "feature": "manual-trade-entry",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/src/lib/trader-analytics/product/platform-module.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+        "includedInPatch": false,
+        "sha256": "1b47c91bf0c78ecffe98dfe2149b45974dabef34930a81f32cc80159d12758f7"
+      }
+    ],
+    "app/coach/page.tsx": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/app/coach/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "c10c974d5ae4bd9e0ca08b082986533079bcb687d4269e209b3f3c5d139b5fac"
+      }
+    ],
+    "src/lib/trader-analytics/index.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/index.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "f0c26ad06e21e2e9325bc5546fb250ff2e257d0666592983e00a47ceb39bd0cb"
+      }
+    ],
+    "src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "762818558320b33d2087afb9a33db239fa5448c9b6e50e61bf5d2345a091d69d"
+      }
+    ],
+    "src/lib/trader-analytics/product/tier-config.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/tier-config.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "2f460ca78f01bd9af17ad06cb0f826b8665753e9fe541fc706c36cff21068abb"
+      }
+    ],
+    "src/lib/trader-analytics/product/types.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/types.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "c1ee139a036cbf0e896608fea751efd0d18fa94616955a31c5ae5d0ab714f301"
+      }
+    ],
+    "src/lib/trader-analytics/product/view-model.ts": [
+      {
+        "feature": "ai-period-reflections",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/view-model.ts.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+        "includedInPatch": false,
+        "sha256": "88bd342e7e23bfafe7469d3f5aa9bb38b24e020dfb0511179087da089c30ff56"
+      }
+    ],
+    "app/admin/admin-dashboard.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/app/admin/admin-dashboard.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": false,
+        "sha256": "2bf294018a090522f04a1e7c3ddffe466a8b3b3ad345ed0f253d7f98b5a3dc57"
+      }
+    ],
+    "app/admin/page.tsx": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/app/admin/page.tsx.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": false,
+        "sha256": "c54dd7449fcc4760b835eb95d694e596e435b874b5901ece03ed13efecf7ebba"
+      }
+    ],
+    "package.json": [
+      {
+        "feature": "real-coach-whop",
+        "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/package.json.source",
+        "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+        "includedInPatch": false,
+        "sha256": "e8e13707ae6913bd16d21a844897aba843e022f757b3dfbaaeab2e7212cf9a63"
+      }
+    ]
+  }
+}

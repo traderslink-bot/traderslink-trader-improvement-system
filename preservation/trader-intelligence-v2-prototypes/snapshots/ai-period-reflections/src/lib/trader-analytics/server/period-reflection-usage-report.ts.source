@@ -1,0 +1,329 @@
+import {
+  DEFAULT_OPENAI_REFLECTION_MODEL,
+} from "./period-reflection-generation";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  SqliteImportCommitRepository,
+} from "../product/import-commit/sqlite-import-commit-repository";
+import type {
+  PersistedTraderPeriodReflectionGenerationEvent,
+  TraderAnalyticsAccountId,
+  TraderAnalyticsUserId,
+  TraderPeriodReflectionGenerationStatus,
+  TraderPeriodReflectionKind,
+  TraderPeriodReflectionProvider,
+} from "../product/types";
+
+export interface TraderPeriodReflectionUsageSummary {
+  eventCount: number;
+  meteredEventCount: number;
+  knownCostEventCount: number;
+  unknownCostEventCount: number;
+  estimatedCostUsd: number | null;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+}
+
+export interface TraderPeriodReflectionUsageModelRow
+  extends TraderPeriodReflectionUsageSummary {
+  model: string;
+}
+
+export interface TraderPeriodReflectionUsageKindRow
+  extends TraderPeriodReflectionUsageSummary {
+  kind: TraderPeriodReflectionKind;
+}
+
+export interface TraderPeriodReflectionRecentUsageEvent {
+  id: string;
+  createdAt: string;
+  kind: TraderPeriodReflectionKind;
+  periodStartDate: string;
+  periodEndDate: string;
+  status: TraderPeriodReflectionGenerationStatus;
+  provider: TraderPeriodReflectionProvider;
+  model: string | null;
+  generationAttemptCount: number;
+  estimatedCostUsd: number | null;
+  totalTokens: number;
+  errorMessage: string | null;
+}
+
+export interface TraderPeriodReflectionProviderReadiness {
+  provider: "openai_responses_api";
+  status: "configured" | "not_configured";
+  openaiApiKeyConfigured: boolean;
+  configuredModel: string;
+  defaultModel: string;
+  modelSource: "default" | "environment";
+  nextAction: string;
+}
+
+export interface TraderPeriodReflectionUsageReport {
+  contractVersion: "trader_period_reflection_usage_report_v1";
+  generatedAt: string;
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  providerReadiness: TraderPeriodReflectionProviderReadiness;
+  summary: TraderPeriodReflectionUsageSummary;
+  statusCounts: Record<TraderPeriodReflectionGenerationStatus, number>;
+  providerCounts: Record<TraderPeriodReflectionProvider, number>;
+  modelRows: TraderPeriodReflectionUsageModelRow[];
+  kindRows: TraderPeriodReflectionUsageKindRow[];
+  recentEvents: TraderPeriodReflectionRecentUsageEvent[];
+  limitation: string;
+  nextAction: string;
+}
+
+export interface TraderPeriodReflectionUsageReportRepository {
+  listPeriodReflectionGenerationEvents(args: {
+    accountId?: string;
+    kind?: TraderPeriodReflectionKind;
+    userId: TraderAnalyticsUserId;
+  }): PersistedTraderPeriodReflectionGenerationEvent[];
+}
+
+const emptyUsageSummary = (): TraderPeriodReflectionUsageSummary => ({
+  eventCount: 0,
+  meteredEventCount: 0,
+  knownCostEventCount: 0,
+  unknownCostEventCount: 0,
+  estimatedCostUsd: 0,
+  inputTokens: 0,
+  cachedInputTokens: 0,
+  outputTokens: 0,
+  reasoningOutputTokens: 0,
+  totalTokens: 0,
+});
+
+function providerReadiness(args?: {
+  apiKey?: string | null;
+  model?: string | null;
+}): TraderPeriodReflectionProviderReadiness {
+  const configuredModel = args?.model?.trim() || DEFAULT_OPENAI_REFLECTION_MODEL;
+  const openaiApiKeyConfigured = Boolean(args?.apiKey?.trim());
+
+  return {
+    provider: "openai_responses_api",
+    status: openaiApiKeyConfigured ? "configured" : "not_configured",
+    openaiApiKeyConfigured,
+    configuredModel,
+    defaultModel: DEFAULT_OPENAI_REFLECTION_MODEL,
+    modelSource: args?.model?.trim() ? "environment" : "default",
+    nextAction: openaiApiKeyConfigured
+      ? "OpenAI reflection generation is configured. Generate one saved-data reflection and confirm usage appears here."
+      : "Configure OPENAI_API_KEY before live AI reflection calls. The app will keep saving deterministic fallback summaries until then.",
+  };
+}
+
+function addEventToSummary(
+  summary: TraderPeriodReflectionUsageSummary,
+  event: PersistedTraderPeriodReflectionGenerationEvent,
+): void {
+  summary.eventCount += 1;
+
+  if (!event.usage) {
+    return;
+  }
+
+  summary.meteredEventCount += 1;
+  summary.inputTokens += event.usage.tokenUsage.inputTokens;
+  summary.cachedInputTokens += event.usage.tokenUsage.cachedInputTokens;
+  summary.outputTokens += event.usage.tokenUsage.outputTokens;
+  summary.reasoningOutputTokens += event.usage.tokenUsage.reasoningOutputTokens;
+  summary.totalTokens += event.usage.tokenUsage.totalTokens;
+
+  if (event.usage.costEstimate.estimatedCostUsd === null) {
+    summary.unknownCostEventCount += 1;
+    return;
+  }
+
+  summary.knownCostEventCount += 1;
+  summary.estimatedCostUsd =
+    (summary.estimatedCostUsd ?? 0) +
+    event.usage.costEstimate.estimatedCostUsd;
+}
+
+function finalizeSummary(
+  summary: TraderPeriodReflectionUsageSummary,
+): TraderPeriodReflectionUsageSummary {
+  return {
+    ...summary,
+    estimatedCostUsd:
+      summary.meteredEventCount > 0 && summary.knownCostEventCount === 0
+        ? null
+        : Number((summary.estimatedCostUsd ?? 0).toFixed(8)),
+  };
+}
+
+function modelKey(event: PersistedTraderPeriodReflectionGenerationEvent): string {
+  return event.model ?? event.provider;
+}
+
+function sortedModelRows(
+  events: PersistedTraderPeriodReflectionGenerationEvent[],
+): TraderPeriodReflectionUsageModelRow[] {
+  const rows = new Map<string, TraderPeriodReflectionUsageSummary>();
+
+  for (const event of events) {
+    const key = modelKey(event);
+    const row = rows.get(key) ?? emptyUsageSummary();
+    addEventToSummary(row, event);
+    rows.set(key, row);
+  }
+
+  return [...rows.entries()]
+    .map(([model, summary]) => ({
+      model,
+      ...finalizeSummary(summary),
+    }))
+    .sort(
+      (left, right) =>
+        (right.estimatedCostUsd ?? 0) - (left.estimatedCostUsd ?? 0) ||
+        right.eventCount - left.eventCount ||
+        left.model.localeCompare(right.model),
+    );
+}
+
+function sortedKindRows(
+  events: PersistedTraderPeriodReflectionGenerationEvent[],
+): TraderPeriodReflectionUsageKindRow[] {
+  const rows = new Map<
+    TraderPeriodReflectionKind,
+    TraderPeriodReflectionUsageSummary
+  >();
+
+  for (const event of events) {
+    const row = rows.get(event.kind) ?? emptyUsageSummary();
+    addEventToSummary(row, event);
+    rows.set(event.kind, row);
+  }
+
+  return (["daily", "weekly", "monthly"] as const)
+    .filter((kind) => rows.has(kind))
+    .map((kind) => ({
+      kind,
+      ...finalizeSummary(rows.get(kind) ?? emptyUsageSummary()),
+    }));
+}
+
+function statusCounts(
+  events: PersistedTraderPeriodReflectionGenerationEvent[],
+): Record<TraderPeriodReflectionGenerationStatus, number> {
+  return events.reduce<Record<TraderPeriodReflectionGenerationStatus, number>>(
+    (counts, event) => {
+      counts[event.status] += 1;
+      return counts;
+    },
+    {
+      fallback: 0,
+      failed: 0,
+      generated: 0,
+      stale: 0,
+    },
+  );
+}
+
+function providerCounts(
+  events: PersistedTraderPeriodReflectionGenerationEvent[],
+): Record<TraderPeriodReflectionProvider, number> {
+  return events.reduce<Record<TraderPeriodReflectionProvider, number>>(
+    (counts, event) => {
+      counts[event.provider] += 1;
+      return counts;
+    },
+    {
+      deterministic_reflection_v1: 0,
+      openai_responses_api: 0,
+    },
+  );
+}
+
+function recentEvents(
+  events: PersistedTraderPeriodReflectionGenerationEvent[],
+): TraderPeriodReflectionRecentUsageEvent[] {
+  return [...events]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, 20)
+    .map((event) => ({
+      id: event.id,
+      createdAt: event.createdAt,
+      kind: event.kind,
+      periodStartDate: event.periodStartDate,
+      periodEndDate: event.periodEndDate,
+      status: event.status,
+      provider: event.provider,
+      model: event.model,
+      generationAttemptCount: event.generationAttemptCount,
+      estimatedCostUsd: event.usage?.costEstimate.estimatedCostUsd ?? null,
+      totalTokens: event.usage?.tokenUsage.totalTokens ?? 0,
+      errorMessage: event.errorMessage,
+    }));
+}
+
+export function buildTraderPeriodReflectionUsageReport(args: {
+  accountId: TraderAnalyticsAccountId;
+  events: PersistedTraderPeriodReflectionGenerationEvent[];
+  generatedAt?: string;
+  providerReadiness?: TraderPeriodReflectionProviderReadiness;
+  userId: TraderAnalyticsUserId;
+}): TraderPeriodReflectionUsageReport {
+  const summary = emptyUsageSummary();
+  const readiness = args.providerReadiness ?? providerReadiness();
+
+  for (const event of args.events) {
+    addEventToSummary(summary, event);
+  }
+
+  return {
+    contractVersion: "trader_period_reflection_usage_report_v1",
+    generatedAt: args.generatedAt ?? new Date().toISOString(),
+    userId: args.userId,
+    accountId: args.accountId,
+    providerReadiness: readiness,
+    summary: finalizeSummary(summary),
+    statusCounts: statusCounts(args.events),
+    providerCounts: providerCounts(args.events),
+    modelRows: sortedModelRows(args.events),
+    kindRows: sortedKindRows(args.events),
+    recentEvents: recentEvents(args.events),
+    limitation:
+      "This report tracks generation attempts recorded after the usage-event log was added. Older canonical reflection rows may still have usage data, but they are not historical attempt events.",
+    nextAction:
+      readiness.status === "not_configured"
+        ? readiness.nextAction
+        : args.events.length === 0
+        ? "Generate at least one saved-data reflection to start recording usage."
+        : "Review model cost, failed attempts, and daily event counts before raising generation limits.",
+  };
+}
+
+export function readTraderPeriodReflectionUsageReport(args?: {
+  accountId?: TraderAnalyticsAccountId;
+  generatedAt?: string;
+  repository?: TraderPeriodReflectionUsageReportRepository;
+  userId?: TraderAnalyticsUserId;
+}): TraderPeriodReflectionUsageReport {
+  const repository = args?.repository ?? new SqliteImportCommitRepository();
+  const userId = args?.userId ?? DEMO_USER_ID;
+  const accountId = args?.accountId ?? DEMO_ACCOUNT_ID;
+  const events = repository.listPeriodReflectionGenerationEvents({
+    userId,
+    accountId,
+  });
+
+  return buildTraderPeriodReflectionUsageReport({
+    userId,
+    accountId,
+    events,
+    generatedAt: args?.generatedAt,
+    providerReadiness: providerReadiness({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_REFLECTION_MODEL,
+    }),
+  });
+}

@@ -1,0 +1,3234 @@
+import type { UserTradeAnalysisRequest } from "../../trade-analysis/request/trade-analysis-request-contract";
+import type {
+  SessionBucket,
+  SessionExposureSegment,
+} from "../../raw-trade-timeline/types/session-context";
+import type {
+  BrokerExecutionCsvCanonicalField,
+  BrokerExecutionCsvColumnMapping,
+  BrokerExecutionCsvImportIssueCode,
+  BrokerExecutionCsvImportResult,
+  BrokerExecutionCsvMappingConfidenceLevel,
+  BrokerExecutionCsvTradeGroupingDiagnostic,
+  BrokerExecutionCsvFormat,
+  BrokerExecutionCsvOptionsHandling,
+} from "../../execution-sources/csv";
+import type { ExecutionFeedbackSummary } from "../../execution-feedback/summary/build-execution-feedback-summary";
+import type {
+  TraderAnalyticsPointCategory,
+  TraderAnalyticsPointDigest,
+  TraderAnalyticsReport,
+  TraderAnalyticsTradeRow,
+} from "../types/trader-analytics-report";
+
+export type TraderAnalyticsUserId = string;
+export type TraderAnalyticsAccountId = string;
+export type SavedExecutionTradeId = string;
+export type SavedTraderAnalyticsReportId = string;
+export type SavedTraderRuleId = string;
+export type SavedTraderRuleTemplateId = string;
+export type SavedTradeImportBatchId = string;
+export type TraderWorkspaceId = string;
+export type TraderProductUserRole = "owner" | "member" | "admin" | "support";
+
+export type SavedReviewStatus =
+  | "new"
+  | "reviewed"
+  | "in_progress"
+  | "resolved"
+  | "ignored";
+
+export interface SavedReportNote {
+  id: string;
+  createdAt: string;
+  body: string;
+}
+
+export interface SavedSessionNote extends SavedReportNote {
+  accountId: TraderAnalyticsAccountId;
+  sessionDate: string;
+  userId: TraderAnalyticsUserId;
+}
+
+export interface SavedReportPeriod {
+  startDate: string;
+  endDate: string;
+  label: string;
+}
+
+export interface SavedExecutionTrade {
+  id: SavedExecutionTradeId;
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  importedAt: string;
+  importBatchId?: SavedTradeImportBatchId;
+  repairSource?: "original_csv" | "repaired_csv";
+  sourceLabel: string;
+  sampleData: boolean;
+  symbol: string;
+  tradeDirection: string;
+  sessionDate: string;
+  sessionBucket: string;
+  entrySessionBucket?: SessionBucket | string;
+  entrySessionDateEt?: string;
+  entryTimeEt?: string;
+  entryHourEt?: number | null;
+  entryHourLabelEt?: string;
+  sessionExposure?: SessionExposureSegment[];
+  heldSessionBuckets?: Array<SessionBucket | string>;
+  heldHourBucketsEt?: string[];
+  request: UserTradeAnalysisRequest;
+  reviewStatus: SavedReviewStatus;
+  notes: SavedReportNote[];
+}
+
+export interface SavedTraderAnalyticsSummaryRef {
+  tradeId: SavedExecutionTradeId;
+  requestIndex: number;
+  summary: ExecutionFeedbackSummary;
+}
+
+export interface SavedTraderAnalyticsReport {
+  id: SavedTraderAnalyticsReportId;
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  generatedAt: string;
+  reportPeriod: SavedReportPeriod;
+  sourceTradeIds: SavedExecutionTradeId[];
+  sourceSummaries: SavedTraderAnalyticsSummaryRef[];
+  report: TraderAnalyticsReport;
+  reviewStatus: SavedReviewStatus;
+  notes: SavedReportNote[];
+  sampleData: boolean;
+}
+
+export interface SavedTraderAnalyticsRepository {
+  listTrades(userId: TraderAnalyticsUserId): SavedExecutionTrade[];
+  getTrade(
+    userId: TraderAnalyticsUserId,
+    tradeId: SavedExecutionTradeId,
+  ): SavedExecutionTrade | null;
+  saveTrade(trade: SavedExecutionTrade): void;
+  listReports(userId: TraderAnalyticsUserId): SavedTraderAnalyticsReport[];
+  getReport(
+    userId: TraderAnalyticsUserId,
+    reportId: SavedTraderAnalyticsReportId,
+  ): SavedTraderAnalyticsReport | null;
+  saveReport(report: SavedTraderAnalyticsReport): void;
+  addSessionNote?(args: {
+    accountId: TraderAnalyticsAccountId;
+    body: string;
+    createdAt?: string;
+    sessionDate: string;
+    userId: TraderAnalyticsUserId;
+  }): SavedSessionNote | null;
+  listSessionNotes?(args: {
+    accountId?: TraderAnalyticsAccountId;
+    sessionDate?: string;
+    userId: TraderAnalyticsUserId;
+  }): SavedSessionNote[];
+}
+
+export interface TraderProductUser {
+  id: TraderAnalyticsUserId;
+  displayName: string;
+  role: TraderProductUserRole;
+  sampleData: boolean;
+}
+
+export interface TraderWorkspace {
+  id: TraderWorkspaceId;
+  name: string;
+  ownerUserId: TraderAnalyticsUserId;
+  accountIds: TraderAnalyticsAccountId[];
+  sampleData: boolean;
+}
+
+export interface TraderWorkspaceAccount {
+  id: TraderAnalyticsAccountId;
+  workspaceId: TraderWorkspaceId;
+  label: string;
+  brokerLabel: string;
+  timezone: string;
+  baseCurrency: string;
+  defaultBroker: BrokerExecutionCsvFormat;
+  supportedAssetClasses: TraderWorkspaceAccountAssetClass[];
+  importDefaults: TraderWorkspaceAccountImportDefaults;
+  commissionHandling: TraderWorkspaceAccountCommissionHandling;
+  sampleData: boolean;
+}
+
+export type TraderWorkspaceAccountAssetClass = "stocks" | "options";
+
+export type TraderWorkspaceAccountCommissionHandling =
+  | "prefer_broker_net_amount"
+  | "gross_minus_known_costs"
+  | "gross_only";
+
+export interface TraderWorkspaceAccountImportDefaults {
+  timestampTimezone: string;
+  optionsHandling: BrokerExecutionCsvOptionsHandling;
+  maxTradeGroupingGapMinutes: number | null;
+  splitTradesAtSessionBoundary: boolean;
+}
+
+export interface TraderWorkspaceSummary {
+  workspaceId: TraderWorkspaceId;
+  workspaceName: string;
+  userId: TraderAnalyticsUserId;
+  userRole: TraderProductUserRole;
+  activeAccountId: TraderAnalyticsAccountId;
+  activeAccountLabel: string;
+  brokerLabel: string;
+  accountTimezone: string;
+  accountBaseCurrency: string;
+  accountCount: number;
+  sampleData: boolean;
+  persistenceMode: TraderAnalyticsStorageMode;
+  nextAction: string;
+}
+
+export type TraderAnalyticsStorageMode =
+  | "sample_in_memory"
+  | "local_sqlite_single_user"
+  | "authenticated_persistent";
+
+export interface TraderAnalyticsStorageReadinessCheck {
+  id: string;
+  label: string;
+  passed: boolean;
+  required: boolean;
+}
+
+export interface TraderAnalyticsStorageReadiness {
+  mode: TraderAnalyticsStorageMode;
+  label: string;
+  readyForProductionPersistence: boolean;
+  blockerCount: number;
+  checks: TraderAnalyticsStorageReadinessCheck[];
+  nextAction: string;
+}
+
+export interface TraderAnalyticsFilter {
+  symbol?: string;
+  tradeDirection?: string;
+  sessionBucket?: string;
+  entryHourEt?: number;
+  outcome?: "winner" | "loser" | "flat";
+  lifecycle?: "closed" | "open";
+}
+
+export interface TraderAnalyticsFilterOptions {
+  symbols: string[];
+  tradeDirections: string[];
+  sessionBuckets: string[];
+  entryHoursEt: Array<{ value: number; label: string }>;
+  outcomes: Array<"winner" | "loser" | "flat">;
+  lifecycles: Array<"closed" | "open">;
+}
+
+export interface ProductTraderAnalyticsTradeRow
+  extends TraderAnalyticsTradeRow {
+  tradeId: SavedExecutionTradeId;
+}
+
+export interface FilteredTraderAnalyticsView {
+  sourceReportId: SavedTraderAnalyticsReportId;
+  totalTradeCount: number;
+  filteredTradeCount: number;
+  filters: TraderAnalyticsFilter;
+  rows: ProductTraderAnalyticsTradeRow[];
+}
+
+export type TraderAnalyticsDrillDownKind =
+  | "risk"
+  | "strength"
+  | "primary_focus"
+  | "review_prompt"
+  | "lifecycle"
+  | "pnl";
+
+export interface TraderAnalyticsDrillDown {
+  id: string;
+  kind: TraderAnalyticsDrillDownKind;
+  label: string;
+  summary: string;
+  sourceMetricId: string;
+  category: TraderAnalyticsPointCategory | "lifecycle" | "pnl";
+  tradeIds: SavedExecutionTradeId[];
+  rows: ProductTraderAnalyticsTradeRow[];
+}
+
+export interface TraderAnalyticsMetricDelta {
+  id: string;
+  label: string;
+  previousValue: number | null;
+  currentValue: number | null;
+  delta: number | null;
+  direction: "up" | "down" | "flat" | "insufficient_data";
+  favorableDirection: "up" | "down" | "neutral";
+}
+
+export interface BehaviorTrendCard {
+  behaviorId: string;
+  label: string;
+  previousRate: number | null;
+  currentRate: number | null;
+  delta: number | null;
+  direction: "improving" | "worsening" | "flat" | "insufficient_data";
+  sampleSizeWarning: boolean;
+  copy: string;
+}
+
+export interface TraderAnalyticsComparison {
+  id: string;
+  label: string;
+  leftReportId: SavedTraderAnalyticsReportId;
+  rightReportId: SavedTraderAnalyticsReportId;
+  leftLabel: string;
+  rightLabel: string;
+  metricDeltas: TraderAnalyticsMetricDelta[];
+  behaviorDeltas: BehaviorTrendCard[];
+  sampleSizeWarning: boolean;
+}
+
+export interface TraderFocusQueueItem {
+  id: string;
+  rank: number;
+  kind: "risk" | "strength" | "maintenance";
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  relatedTradeIndexes: number[];
+  suggestedReviewAction: string;
+  status: SavedReviewStatus;
+}
+
+export type TraderRuleParameterType = "number" | "boolean" | "text";
+
+export interface TraderRuleParameter {
+  id: string;
+  label: string;
+  type: TraderRuleParameterType;
+  defaultValue: number | boolean | string;
+}
+
+export interface TraderRuleTemplate {
+  id: SavedTraderRuleTemplateId;
+  label: string;
+  description: string;
+  supportedParameters: TraderRuleParameter[];
+  evaluationKey:
+    | "no_adverse_price_adds"
+    | "limit_rapid_fire_gaps"
+    | "reduce_before_third_add"
+    | "close_to_flat"
+    | "consistent_share_sizing";
+}
+
+export interface TraderRuleInstance {
+  id: SavedTraderRuleId;
+  userId: TraderAnalyticsUserId;
+  templateId: SavedTraderRuleTemplateId;
+  enabled: boolean;
+  parameters: Record<string, number | string | boolean>;
+}
+
+export interface TraderRuleEvaluation {
+  ruleId: SavedTraderRuleId;
+  templateId: SavedTraderRuleTemplateId;
+  label: string;
+  reportId: SavedTraderAnalyticsReportId;
+  passedTradeCount: number;
+  violatedTradeCount: number;
+  violationTradeIds: SavedExecutionTradeId[];
+  violationRows: ProductTraderAnalyticsTradeRow[];
+}
+
+export interface SavedTradeImportPreviewItem {
+  requestIndex: number;
+  symbol: string | null;
+  fingerprint: string | null;
+  accepted: boolean;
+  issueCount: number;
+  errorCount: number;
+  warningCount: number;
+  messages: string[];
+}
+
+export interface SavedTradeImportPreview {
+  totalCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  warningCount: number;
+  items: SavedTradeImportPreviewItem[];
+}
+
+export type BrokerCsvImportRepairSeverity =
+  | "fix_required"
+  | "review"
+  | "info";
+
+export type BrokerCsvImportRepairActionKind =
+  | "edit_row_field"
+  | "choose_timezone"
+  | "choose_options_handling"
+  | "skip_row"
+  | "skip_duplicate"
+  | "review_broker_mapping"
+  | "review_trade_grouping"
+  | "review_pnl_reconciliation";
+
+export interface BrokerCsvImportRepairItem {
+  id: string;
+  severity: BrokerCsvImportRepairSeverity;
+  actionKind: BrokerCsvImportRepairActionKind;
+  rowIndex: number | null;
+  requestIndex: number | null;
+  symbol: string | null;
+  issueCode:
+    | BrokerExecutionCsvImportIssueCode
+    | "low_mapping_confidence"
+    | "pnl_reconciliation_mismatch";
+  field: string | null;
+  title: string;
+  detail: string;
+  suggestedFix: string;
+}
+
+export interface BrokerCsvImportRepairWorkflow {
+  totalCount: number;
+  fixRequiredCount: number;
+  reviewCount: number;
+  infoCount: number;
+  items: BrokerCsvImportRepairItem[];
+}
+
+export type BrokerCsvImportSummaryTone =
+  | "good"
+  | "warning"
+  | "danger"
+  | "neutral";
+
+export interface BrokerCsvImportSummaryCard {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: BrokerCsvImportSummaryTone;
+}
+
+export type BrokerCsvImportQualityStatus =
+  | "high_confidence"
+  | "needs_review"
+  | "blocked";
+
+export interface BrokerCsvImportQualityScore {
+  status: BrokerCsvImportQualityStatus;
+  score: number;
+  blockerCount: number;
+  reviewCount: number;
+  warningCount: number;
+  positiveSignalCount: number;
+  reasons: string[];
+  nextAction: string;
+}
+
+export interface BrokerCsvNetPnlPreviewItem {
+  requestIndex: number;
+  symbol: string;
+  tradeDirection: string;
+  lifecycleStatus: "closed" | "open";
+  currency: string | null;
+  grossCashFlow: number;
+  totalCommission: number;
+  totalFees: number;
+  totalCosts: number;
+  grossMinusKnownCosts: number | null;
+  brokerNetAmountTotal: number | null;
+  estimatedNetPnl: number | null;
+  source: "broker_net_amount" | "gross_minus_costs" | "insufficient_data";
+}
+
+export interface BrokerCsvNetPnlPreview {
+  totalGrossCashFlow: number;
+  totalCosts: number;
+  totalEstimatedNetPnl: number | null;
+  items: BrokerCsvNetPnlPreviewItem[];
+}
+
+export type BrokerCsvPnlReconciliationStatus =
+  | "matched"
+  | "mismatch"
+  | "broker_net_only"
+  | "no_broker_net"
+  | "open_or_insufficient";
+
+export interface BrokerCsvPnlReconciliationItem {
+  requestIndex: number;
+  symbol: string;
+  lifecycleStatus: "closed" | "open";
+  brokerNetAmountTotal: number | null;
+  grossMinusKnownCosts: number | null;
+  difference: number | null;
+  tolerance: number;
+  status: BrokerCsvPnlReconciliationStatus;
+  message: string;
+}
+
+export interface BrokerCsvPnlReconciliation {
+  tolerance: number;
+  matchedCount: number;
+  mismatchCount: number;
+  needsReviewCount: number;
+  items: BrokerCsvPnlReconciliationItem[];
+}
+
+export interface BrokerCsvMappingLearningSignal {
+  shouldCapture: boolean;
+  reason: string;
+  broker: string;
+  confidenceLevel: BrokerExecutionCsvMappingConfidenceLevel;
+  confidenceScore: number;
+  headerFingerprint: string;
+  headers: string[];
+  detectedFields: string[];
+  missingRequiredFields: string[];
+  issueCodes: BrokerExecutionCsvImportIssueCode[];
+}
+
+export interface BrokerCsvOptionsQuarantineItem {
+  rowIndex: number | null;
+  issueCode: BrokerExecutionCsvImportIssueCode;
+  action: "rejected" | "skipped" | "allowed";
+  message: string;
+}
+
+export interface BrokerCsvOptionsQuarantine {
+  totalCount: number;
+  rejectedCount: number;
+  skippedCount: number;
+  allowedCount: number;
+  items: BrokerCsvOptionsQuarantineItem[];
+}
+
+export interface BrokerCsvImportReviewGroupedTrade {
+  requestIndex: number;
+  symbol: string;
+  tradeDirection: string;
+  lifecycleStatus: "closed" | "open";
+  groupingReason: string;
+  executionCount: number;
+  rowIndexes: number[];
+  needsReview: boolean;
+}
+
+export interface BrokerCsvImportReviewDashboard {
+  batchStatus: "ready_to_commit" | "needs_review" | "blocked";
+  summaryCards: BrokerCsvImportSummaryCard[];
+  repairWorkflow: BrokerCsvImportRepairWorkflow;
+  groupedTrades: BrokerCsvImportReviewGroupedTrade[];
+  rowOutcomes: Array<{
+    rowIndex: number;
+    status: string;
+    symbol: string | null;
+    issueCodes: BrokerExecutionCsvImportIssueCode[];
+  }>;
+  pnlReconciliation: BrokerCsvPnlReconciliation;
+  optionsQuarantine: BrokerCsvOptionsQuarantine;
+  nextAction: string;
+}
+
+export interface BrokerCsvTimezoneDiagnostic {
+  sourceTimestampTimezone: string;
+  marketSessionTimezone: "America/New_York";
+  sourceTimezoneDetail: string;
+  marketSessionDetail: string;
+  issueCount: number;
+  issueMessages: string[];
+}
+
+export interface BrokerCsvTradeReconstructionExecutionStep {
+  index: number;
+  rowIndex: number | null;
+  timestamp: string;
+  side: string;
+  shares: number;
+  price: number;
+  positionAfterExecution: number;
+  cashFlow: number;
+}
+
+export interface BrokerCsvTradeReconstructionPreviewItem {
+  requestIndex: number;
+  symbol: string;
+  tradeDirection: string;
+  lifecycleStatus: "closed" | "open";
+  groupingReason: string;
+  executionCount: number;
+  rowIndexes: number[];
+  grossCashFlow: number;
+  estimatedNetPnl: number | null;
+  brokerNetAmountTotal: number | null;
+  grossMinusKnownCosts: number | null;
+  needsReview: boolean;
+  warnings: string[];
+  timeline: BrokerCsvTradeReconstructionExecutionStep[];
+}
+
+export interface BrokerCsvTradeReconstructionPreview {
+  totalCount: number;
+  needsReviewCount: number;
+  items: BrokerCsvTradeReconstructionPreviewItem[];
+}
+
+export type BrokerCsvImportCommitStatus =
+  | "ready_to_commit"
+  | "needs_user_review"
+  | "blocked";
+
+export type BrokerCsvImportCommitStepStatus =
+  | "ready"
+  | "blocked"
+  | "needs_user_review"
+  | "planned";
+
+export interface BrokerCsvImportCommitStep {
+  id: string;
+  label: string;
+  status: BrokerCsvImportCommitStepStatus;
+  detail: string;
+}
+
+export interface BrokerCsvImportCommitPlan {
+  status: BrokerCsvImportCommitStatus;
+  canCommitNow: boolean;
+  batchId: SavedTradeImportBatchId;
+  fileAlreadyImported: boolean;
+  executionCountToSave: number;
+  tradeCountToSave: number;
+  analysisJobCountToQueue: number;
+  blockedReasons: string[];
+  reviewReasons: string[];
+  steps: BrokerCsvImportCommitStep[];
+}
+
+export interface BrokerCsvImportProductDiagnostics {
+  confidenceLevel: BrokerExecutionCsvMappingConfidenceLevel;
+  timezoneDiagnostic: BrokerCsvTimezoneDiagnostic;
+  qualityScore: BrokerCsvImportQualityScore;
+  repairWorkflow: BrokerCsvImportRepairWorkflow;
+  summaryCards: BrokerCsvImportSummaryCard[];
+  netPnlPreview: BrokerCsvNetPnlPreview;
+  pnlReconciliation: BrokerCsvPnlReconciliation;
+  mappingLearningSignal: BrokerCsvMappingLearningSignal;
+  optionsQuarantine: BrokerCsvOptionsQuarantine;
+  reviewDashboard: BrokerCsvImportReviewDashboard;
+  reconstructionPreview: BrokerCsvTradeReconstructionPreview;
+  commitPlan: BrokerCsvImportCommitPlan;
+  groupingDiagnostics: BrokerExecutionCsvTradeGroupingDiagnostic[];
+}
+
+export type SavedTradeImportInboxStatus =
+  | "ready_to_save"
+  | "needs_review"
+  | "rejected";
+
+export interface SavedTradeImportInboxItem {
+  id: string;
+  batchId: SavedTradeImportBatchId;
+  requestIndex: number;
+  symbol: string | null;
+  status: SavedTradeImportInboxStatus;
+  issueCount: number;
+  errorCount: number;
+  warningCount: number;
+  messages: string[];
+  primaryAction: string;
+}
+
+export interface SavedTradeImportInbox {
+  batchId: SavedTradeImportBatchId;
+  totalCount: number;
+  readyCount: number;
+  needsReviewCount: number;
+  rejectedCount: number;
+  warningCount: number;
+  items: SavedTradeImportInboxItem[];
+}
+
+export type ImportReconciliationStatus =
+  | "ready"
+  | "needs_review"
+  | "duplicate"
+  | "rejected";
+
+export interface ImportReconciliationItem {
+  id: string;
+  batchId: SavedTradeImportBatchId;
+  requestIndex: number;
+  symbol: string | null;
+  fingerprint: string | null;
+  status: ImportReconciliationStatus;
+  duplicateTradeId: SavedExecutionTradeId | null;
+  duplicateOfRequestIndex: number | null;
+  duplicateKind: "existing_saved_trade" | "within_import_batch" | null;
+  issueCount: number;
+  warningCount: number;
+  errorCount: number;
+  recommendedAction: string;
+  messages: string[];
+}
+
+export interface ImportReconciliationBatch {
+  batchId: SavedTradeImportBatchId;
+  totalCount: number;
+  readyCount: number;
+  needsReviewCount: number;
+  duplicateCount: number;
+  existingDuplicateCount: number;
+  withinBatchDuplicateCount: number;
+  rejectedCount: number;
+  items: ImportReconciliationItem[];
+}
+
+export interface SavedReportSnapshotCard {
+  id: SavedTraderAnalyticsReportId;
+  label: string;
+  generatedAt: string;
+  completedTradeCount: number;
+  grossTotalRealizedPnl: number;
+  grossWinRate: number | null;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  noteCount: number;
+  reviewStatus: SavedReviewStatus;
+  sampleData: boolean;
+}
+
+export type TraderBehaviorStreakStatus = "active" | "broken" | "insufficient_data";
+
+export interface TraderBehaviorStreak {
+  id: string;
+  label: string;
+  currentCount: number;
+  status: TraderBehaviorStreakStatus;
+  tradeIds: SavedExecutionTradeId[];
+  summary: string;
+}
+
+export interface TraderJournalPrompt {
+  id: string;
+  targetKind: "trade" | "report" | "weekly_review";
+  targetId: string;
+  label: string;
+  prompt: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface TraderRuleComplianceSummary {
+  reportId: SavedTraderAnalyticsReportId;
+  totalRules: number;
+  passingRules: number;
+  violatedRules: number;
+  totalViolations: number;
+  worstViolation:
+    | {
+        ruleId: SavedTraderRuleId;
+        label: string;
+        violationCount: number;
+        tradeIds: SavedExecutionTradeId[];
+      }
+    | null;
+  summary: string;
+}
+
+export interface TraderWeeklyReviewDashboard {
+  reportId: SavedTraderAnalyticsReportId;
+  label: string;
+  completedTradeCount: number;
+  grossTotalRealizedPnl: number;
+  primaryFocusTitle: string | null;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  ruleViolationCount: number;
+  bestStreak: TraderBehaviorStreak | null;
+  nextAction: string;
+}
+
+export interface TraderMarketContextAddOnStatus {
+  id: "market_context_add_on";
+  enabledForDisplay: boolean;
+  calibrationStatus: "not_started" | "collecting_samples" | "ready_for_internal_review";
+  usedForExecutionAnalytics: false;
+  sources: string[];
+  summary: string;
+  nextAction: string;
+}
+
+export type TraderReviewWorkflowStatus =
+  | "needs_review"
+  | "reviewed"
+  | "lesson_captured"
+  | "rule_created"
+  | "resolved";
+
+export interface TraderReviewWorkflowItem {
+  id: string;
+  status: TraderReviewWorkflowStatus;
+  title: string;
+  summary: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  priority: number;
+}
+
+export interface TraderReviewWorkflow {
+  totalCount: number;
+  needsReviewCount: number;
+  reviewedCount: number;
+  lessonCapturedCount: number;
+  ruleCreatedCount: number;
+  resolvedCount: number;
+  items: TraderReviewWorkflowItem[];
+}
+
+export interface TradeSetupTag {
+  id: string;
+  label: string;
+  source: "execution_only" | "user_defined";
+}
+
+export interface TaggedTradeSegment {
+  tagId: string;
+  label: string;
+  tradeIds: SavedExecutionTradeId[];
+  tradeCount: number;
+  grossTotalRealizedPnl: number;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+}
+
+export interface TradeTaggingSummary {
+  tags: TradeSetupTag[];
+  segments: TaggedTradeSegment[];
+}
+
+export type TraderActionPlanStatus = "active" | "queued" | "completed";
+
+export interface TraderActionPlanItem {
+  id: string;
+  title: string;
+  behaviorId: string;
+  measurementWindow: string;
+  successMetric: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  priority: number;
+  status: TraderActionPlanStatus;
+}
+
+export interface TraderActionPlan {
+  reportId: SavedTraderAnalyticsReportId;
+  items: TraderActionPlanItem[];
+  nextAction: string;
+}
+
+export type ProductRouteAudience = "end_user" | "admin_debug";
+
+export interface ProductRouteAccessPolicy {
+  route: string;
+  audience: ProductRouteAudience;
+  requiresAuthenticatedUser: boolean;
+  allowsRawJson: boolean;
+  allowsExport: boolean;
+  label: string;
+}
+
+export interface ProductPermissionSummary {
+  productionRouteCount: number;
+  adminDebugRouteCount: number;
+  endUserExportAllowed: boolean;
+  rawJsonRestrictedToAdmin: boolean;
+  policies: ProductRouteAccessPolicy[];
+  issues: string[];
+}
+
+export type TraderAnalysisJobStatus =
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "needs_user_fix";
+
+export interface TraderAnalysisJob {
+  id: string;
+  sourceItemId: string;
+  symbol: string | null;
+  status: TraderAnalysisJobStatus;
+  summary: string;
+  nextAction: string;
+}
+
+export interface TraderAnalysisJobQueue {
+  totalCount: number;
+  queuedCount: number;
+  processingCount: number;
+  completedCount: number;
+  failedCount: number;
+  needsUserFixCount: number;
+  jobs: TraderAnalysisJob[];
+}
+
+export type ProductVisualQaStatus = "pending" | "passed" | "needs_review";
+
+export interface ProductVisualQaCheck {
+  id: string;
+  route: string;
+  viewport: "desktop" | "mobile";
+  label: string;
+  status: ProductVisualQaStatus;
+}
+
+export interface ProductVisualQaPlan {
+  totalCount: number;
+  passedCount: number;
+  needsReviewCount: number;
+  checks: ProductVisualQaCheck[];
+}
+
+export type MarketContextCalibrationQueueStatus =
+  | "sample_only"
+  | "waiting_for_real_trade"
+  | "ready_for_calibration"
+  | "reviewed";
+
+export interface MarketContextCalibrationQueueItem {
+  id: string;
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  status: MarketContextCalibrationQueueStatus;
+  sampleData: boolean;
+  reason: string;
+}
+
+export interface MarketContextCalibrationQueue {
+  totalCount: number;
+  readyCount: number;
+  sampleOnlyCount: number;
+  items: MarketContextCalibrationQueueItem[];
+  executionAnalyticsIsolated: true;
+  nextAction: string;
+}
+
+export type AnalysisConfidenceBadgeSource =
+  | "execution_only"
+  | "execution_plus_levels"
+  | "market_structure_observational"
+  | "fully_calibrated_market_context";
+
+export interface AnalysisConfidenceBadge {
+  source: AnalysisConfidenceBadgeSource;
+  label: string;
+  confidence: "high" | "medium" | "low";
+  userVisible: boolean;
+  marketStructureUsedForScoring: boolean;
+  detail: string;
+}
+
+export interface ProductDataRetentionPolicy {
+  rawCsvRetentionDays: number;
+  rawRowRetentionDays: number;
+  normalizedExecutionRetention: "until_user_deletes_account";
+  reportRetention: "until_user_deletes_account";
+  userExportAllowed: false;
+  deletionActions: Array<{
+    id: string;
+    label: string;
+    deletesRawData: boolean;
+    deletesNormalizedData: boolean;
+    deletesReports: boolean;
+  }>;
+  summary: string;
+}
+
+export type TraderMistakeTaxonomyId =
+  | "chased_entry"
+  | "scaled_loser"
+  | "revenge_reentry_cluster"
+  | "add_after_adverse_move"
+  | "overbuilt_losing_position"
+  | "poor_first_reduction"
+  | "all_or_nothing_exit_after_many_adds"
+  | "early_winner_exit"
+  | "held_loser_too_long"
+  | "overtraded_same_ticker"
+  | "impulsive_reversal"
+  | "partialed_without_plan"
+  | "added_after_failed_premise"
+  | "left_open_position"
+  | "inconsistent_sizing"
+  | "repeated_rule_violation";
+
+export interface TraderMistakeTaxonomyItem {
+  id: TraderMistakeTaxonomyId;
+  label: string;
+  description: string;
+  severity: "low" | "medium" | "high";
+  sourceKind: "execution_only" | "market_context_later";
+  relatedRiskIds: string[];
+}
+
+export interface TraderMistakeObservation {
+  taxonomyId: TraderMistakeTaxonomyId;
+  label: string;
+  tradeIds: SavedExecutionTradeId[];
+  requestIndexes: number[];
+  occurrenceCount: number;
+  sourceRiskIds: string[];
+  confidence: "low" | "medium" | "high";
+  reason: string;
+  suggestedReviewAction: string;
+}
+
+export interface TraderMistakeTaxonomySummary {
+  taxonomy: TraderMistakeTaxonomyItem[];
+  observations: TraderMistakeObservation[];
+}
+
+export type TraderScoreDimensionId =
+  | "discipline"
+  | "exit_quality"
+  | "risk_control"
+  | "consistency"
+  | "pnl_quality"
+  | "overall";
+
+export interface TraderScoreDimension {
+  id: TraderScoreDimensionId;
+  label: string;
+  score: number;
+  sampleSizeWarning: boolean;
+  detail: string;
+}
+
+export interface TraderScoreTrend {
+  id: TraderScoreDimensionId;
+  label: string;
+  previousScore: number | null;
+  currentScore: number;
+  delta: number | null;
+  direction: "improving" | "worsening" | "flat" | "insufficient_data";
+  detail: string;
+}
+
+export interface TraderScorecard {
+  source: "execution_only";
+  reportId: SavedTraderAnalyticsReportId;
+  dimensions: TraderScoreDimension[];
+  trends: TraderScoreTrend[];
+  sampleSizeWarning: boolean;
+  summary: string;
+}
+
+export interface TraderMistakeCostEstimate {
+  taxonomyId: TraderMistakeTaxonomyId;
+  label: string;
+  affectedTradeCount: number;
+  relatedTradeIds: SavedExecutionTradeId[];
+  estimatedGrossCost: number;
+  averageCostPerAffectedTrade: number;
+  confidence: "low" | "medium";
+  calculationNote: string;
+}
+
+export interface TraderMistakeCostEstimateSummary {
+  source: "execution_only";
+  totalEstimatedGrossCost: number;
+  topCostDriver: TraderMistakeCostEstimate | null;
+  items: TraderMistakeCostEstimate[];
+  limitation: string;
+}
+
+export interface TraderRuleBuilderRecommendation {
+  id: string;
+  suggestedTemplateId: SavedTraderRuleTemplateId | null;
+  suggestedRuleTitle: string;
+  label: string;
+  reason: string;
+  defaultParameters: Record<string, number | string | boolean>;
+  relatedTradeIds: SavedExecutionTradeId[];
+  expectedSuccessMetric: string;
+  priority: number;
+}
+
+export type TradeQualityDimensionId =
+  | "entry_discipline"
+  | "add_discipline"
+  | "exit_discipline"
+  | "risk_control"
+  | "sizing_consistency"
+  | "overall";
+
+export interface TradeQualityDimension {
+  id: TradeQualityDimensionId;
+  label: string;
+  score: number;
+  detail: string;
+  evidence: string[];
+}
+
+export interface TradeQualityScorecard {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  source: "execution_only";
+  marketContextUsedForScoring: false;
+  overallScore: number;
+  dimensions: TradeQualityDimension[];
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  limitations: string[];
+}
+
+export type TradeExecutionAutopsyDecisionTone =
+  | "positive"
+  | "negative"
+  | "warning"
+  | "neutral";
+
+export interface TradeExecutionAutopsyDecision {
+  id: string;
+  executionIndex: number;
+  role: string;
+  label: string;
+  detail: string;
+  tone: TradeExecutionAutopsyDecisionTone;
+  relatedPointLabels: string[];
+}
+
+export interface TradeExecutionAutopsy {
+  tradeId: SavedExecutionTradeId;
+  summary: string;
+  finalOutcome: "winner" | "loser" | "flat" | "open";
+  topMistakeLabel: string | null;
+  topStrengthLabel: string | null;
+  quality: TradeQualityScorecard;
+  decisions: TradeExecutionAutopsyDecision[];
+  marketContextUsedForConclusions: false;
+}
+
+export type PlaybookBucketId =
+  | "clean_single_entry_trade"
+  | "scale_in_management_trade"
+  | "partial_exit_management_trade"
+  | "rapid_fire_problem_trade"
+  | "open_position_problem_trade";
+
+export interface PlaybookBucketSummary {
+  id: PlaybookBucketId;
+  label: string;
+  source: "execution_only";
+  tradeIds: SavedExecutionTradeId[];
+  tradeCount: number;
+  grossTotalRealizedPnl: number;
+  averageQualityScore: number | null;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  readyForUserSetup: false;
+}
+
+export interface PlaybookTradeAssignment {
+  tradeId: SavedExecutionTradeId;
+  bucketId: PlaybookBucketId;
+  bucketLabel: string;
+  reason: string;
+}
+
+export interface DailyCoachTradeRef {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  grossRealizedPnl: number;
+  qualityScore: number | null;
+}
+
+export interface DailyCoachReport {
+  reportId: SavedTraderAnalyticsReportId;
+  sessionDate: string;
+  tradeCount: number;
+  bestTrade: DailyCoachTradeRef | null;
+  worstTrade: DailyCoachTradeRef | null;
+  biggestMistake: TraderMistakeObservation | null;
+  bestRepeatableBehavior: string | null;
+  ruleFocus: string | null;
+  sessionTimeInsight: string;
+  fixNextSession: string;
+  preserveNextSession: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  marketContextUsedForConclusions: false;
+}
+
+export type TraderPeriodReflectionKind = "daily" | "weekly" | "monthly";
+
+export type TraderPeriodReflectionNarrativeSource =
+  | "deterministic_reflection_v1"
+  | "ai_ready_prompt_v1"
+  | "openai_responses_api";
+
+export type TraderPeriodReflectionProvider =
+  | "deterministic_reflection_v1"
+  | "openai_responses_api";
+
+export type TraderPeriodReflectionGenerationStatus =
+  | "fallback"
+  | "failed"
+  | "generated"
+  | "stale";
+
+export type TraderPeriodReflectionGenerationAvailabilityReason =
+  | "already_generated"
+  | "generation_limit_reached"
+  | "not_saved_data"
+  | "no_trades"
+  | "ready"
+  | "source_changed"
+  | "stale_or_failed"
+  | "too_early";
+
+export interface TraderPeriodReflectionGenerationAvailability {
+  kind: TraderPeriodReflectionKind;
+  canGenerate: boolean;
+  action: "generate" | "update" | null;
+  reason: TraderPeriodReflectionGenerationAvailabilityReason;
+  label: string;
+  detail: string;
+  earliestAvailableAt: string | null;
+  periodStartDate: string;
+  periodEndDate: string;
+  existingStatus: TraderPeriodReflectionGenerationStatus | null;
+  existingRecordId: string | null;
+  generationAttemptCount: number;
+  generationAttemptLimit: number | null;
+}
+
+export interface TraderPeriodReflectionGenerationAvailabilitySet {
+  daily: TraderPeriodReflectionGenerationAvailability;
+  weekly: TraderPeriodReflectionGenerationAvailability;
+  monthly: TraderPeriodReflectionGenerationAvailability;
+}
+
+export type TraderPeriodReflectionStaleReason =
+  | "day_note_changed"
+  | "source_report_changed"
+  | "source_trade_changed"
+  | "trade_note_changed";
+
+export type TraderPeriodReflectionEvidenceKind =
+  | "comparison"
+  | "note"
+  | "pnl"
+  | "risk"
+  | "rule"
+  | "strength"
+  | "timing"
+  | "trade";
+
+export interface TraderPeriodReflectionEvidence {
+  id: string;
+  kind: TraderPeriodReflectionEvidenceKind;
+  label: string;
+  detail: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface TraderPeriodReflectionPromptInput {
+  periodKind: TraderPeriodReflectionKind;
+  periodLabel: string;
+  tradeCount: number;
+  grossTotalRealizedPnl: number;
+  topRisks: string[];
+  topStrengths: string[];
+  userNoteThemes: string[];
+  comparison: {
+    previousPeriodLabel: string | null;
+    improved: string[];
+    worsened: string[];
+    repeated: string[];
+  };
+  requiredNextFocus: string;
+  evidenceTradeIds: SavedExecutionTradeId[];
+}
+
+export interface TraderPeriodReflectionPromptSeed {
+  systemInstruction: string;
+  userInstruction: string;
+  input: TraderPeriodReflectionPromptInput;
+}
+
+export interface TraderPeriodReflection {
+  id: string;
+  kind: TraderPeriodReflectionKind;
+  reportId: SavedTraderAnalyticsReportId;
+  label: string;
+  startDate: string;
+  endDate: string;
+  generatedAt: string;
+  tradeCount: number;
+  noteCount: number;
+  grossTotalRealizedPnl: number;
+  title: string;
+  headline: string;
+  summary: string;
+  whatWentWell: string;
+  whatNeedsWork: string;
+  noteInsight: string;
+  progressInsight: string;
+  nextFocus: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  evidence: TraderPeriodReflectionEvidence[];
+  promptSeed: TraderPeriodReflectionPromptSeed;
+  narrativeSource: TraderPeriodReflectionNarrativeSource;
+}
+
+export interface TraderPeriodReflectionSystem {
+  daily: TraderPeriodReflection;
+  weekly: TraderPeriodReflection;
+  monthly: TraderPeriodReflection;
+  generation: TraderPeriodReflectionGenerationAvailabilitySet;
+  policy: {
+    evidenceFirst: true;
+    provider: "openai_responses_api";
+    aiNarrativeEnabled: boolean;
+    providerStatus: "not_configured" | "configured";
+    requiredEnvVars: string[];
+    modelEnvVar: "OPENAI_REFLECTION_MODEL";
+    summary: string;
+    nextAction: string;
+  };
+}
+
+export interface TraderPeriodReflectionTokenUsage {
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+}
+
+export type TraderPeriodReflectionPricingSource =
+  | "openai_api_pricing_2026_06_13"
+  | "unknown_model";
+
+export interface TraderPeriodReflectionCostEstimate {
+  currency: "USD";
+  estimatedCostUsd: number | null;
+  inputUsdPerMillion: number | null;
+  cachedInputUsdPerMillion: number | null;
+  outputUsdPerMillion: number | null;
+  pricingModel: string;
+  pricingSource: TraderPeriodReflectionPricingSource;
+}
+
+export interface TraderPeriodReflectionUsage {
+  tokenUsage: TraderPeriodReflectionTokenUsage;
+  costEstimate: TraderPeriodReflectionCostEstimate;
+}
+
+export interface PersistedTraderPeriodReflection {
+  id: string;
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  reportId: SavedTraderAnalyticsReportId;
+  kind: TraderPeriodReflectionKind;
+  periodStartDate: string;
+  periodEndDate: string;
+  status: TraderPeriodReflectionGenerationStatus;
+  provider: TraderPeriodReflectionProvider;
+  model: string | null;
+  sourceReportGeneratedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  reflection: TraderPeriodReflection;
+  errorMessage: string | null;
+  generationAttemptCount: number;
+  staleReason?: TraderPeriodReflectionStaleReason | null;
+  usage?: TraderPeriodReflectionUsage | null;
+}
+
+export interface PersistedTraderPeriodReflectionGenerationEvent {
+  id: string;
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  reflectionRecordId: string;
+  reportId: SavedTraderAnalyticsReportId;
+  kind: TraderPeriodReflectionKind;
+  periodStartDate: string;
+  periodEndDate: string;
+  status: TraderPeriodReflectionGenerationStatus;
+  provider: TraderPeriodReflectionProvider;
+  model: string | null;
+  sourceReportGeneratedAt: string;
+  createdAt: string;
+  generationAttemptCount: number;
+  errorMessage: string | null;
+  usage: TraderPeriodReflectionUsage | null;
+}
+
+export type TraderImprovementVisualKind = "bar" | "bucket" | "heatmap";
+export type TraderImprovementVisualTone =
+  | "positive"
+  | "negative"
+  | "warning"
+  | "neutral"
+  | "info";
+
+export interface TraderImprovementVisualDatum {
+  id: string;
+  label: string;
+  value: number;
+  secondaryValue: number | null;
+  tone: TraderImprovementVisualTone;
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface TraderImprovementVisual {
+  id: string;
+  title: string;
+  kind: TraderImprovementVisualKind;
+  total: number;
+  items: TraderImprovementVisualDatum[];
+}
+
+export interface TraderImprovementVisuals {
+  qualityByTrade: TraderImprovementVisual;
+  mistakeFrequency: TraderImprovementVisual;
+  ruleViolationFrequency: TraderImprovementVisual;
+  executionCountBuckets: TraderImprovementVisual;
+  durationBuckets: TraderImprovementVisual;
+  sessionBehaviorHeatmap: TraderImprovementVisual;
+}
+
+export interface BestWorstPatternItem {
+  id: string;
+  label: string;
+  detail: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  value: number | null;
+}
+
+export interface BestWorstPatternFinderResult {
+  reportId: SavedTraderAnalyticsReportId;
+  bestPerformingCluster: BestWorstPatternItem | null;
+  worstPerformingCluster: BestWorstPatternItem | null;
+  highestCostMistake: BestWorstPatternItem | null;
+  mostRepeatedMistake: BestWorstPatternItem | null;
+  mostPromisingStrength: BestWorstPatternItem | null;
+  lossAssociatedAttribute: BestWorstPatternItem | null;
+}
+
+export interface TraderImprovementIntelligence {
+  source: "execution_only";
+  marketContextUsedForScoring: false;
+  tradeQualityScorecards: TradeQualityScorecard[];
+  tradeAutopsies: TradeExecutionAutopsy[];
+  mistakeObservations: TraderMistakeObservation[];
+  playbookBuckets: PlaybookBucketSummary[];
+  playbookAssignments: PlaybookTradeAssignment[];
+  dailyCoachReport: DailyCoachReport;
+  visuals: TraderImprovementVisuals;
+  bestWorstPatterns: BestWorstPatternFinderResult;
+}
+
+export interface CoachMistakeTimelineItem {
+  id: string;
+  tradeId: SavedExecutionTradeId;
+  taxonomyId: TraderMistakeTaxonomyId;
+  label: string;
+  executionIndex: number;
+  timestamp: string | null;
+  role: string;
+  detail: string;
+  confidence: "low" | "medium" | "high";
+  suggestedReviewAction: string;
+}
+
+export interface CoachMistakeTimeline {
+  totalCount: number;
+  items: CoachMistakeTimelineItem[];
+}
+
+export interface CoachRuleSimulation {
+  id: string;
+  recommendationId: string;
+  suggestedRuleTitle: string;
+  suggestedTemplateId: SavedTraderRuleTemplateId | null;
+  flaggedTradeIds: SavedExecutionTradeId[];
+  flaggedTradeCount: number;
+  expectedSuccessMetric: string;
+  limitation: string;
+}
+
+export type TraderArchetypeId =
+  | "reactive_scaler"
+  | "early_seller"
+  | "over_holder"
+  | "clean_executor"
+  | "inconsistent_sizer"
+  | "overtrader";
+
+export interface TraderArchetypeSignal {
+  id: TraderArchetypeId;
+  label: string;
+  score: number;
+  confidence: "low" | "medium" | "high";
+  evidence: string[];
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface TraderArchetypeProfile {
+  primary: TraderArchetypeSignal | null;
+  signals: TraderArchetypeSignal[];
+  summary: string;
+}
+
+export interface CoachSessionPrepCard {
+  sessionDate: string;
+  title: string;
+  ruleFocus: string;
+  avoidBehavior: string;
+  repeatBehavior: string;
+  sessionTimeInsight: string;
+  reviewTradeIds: SavedExecutionTradeId[];
+  checklist: string[];
+}
+
+export type CoachReviewCompletionStepStatus =
+  | "not_started"
+  | "in_progress"
+  | "complete";
+
+export interface CoachReviewCompletionStep {
+  id: string;
+  label: string;
+  status: CoachReviewCompletionStepStatus;
+  detail: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface CoachReviewCompletionLoop {
+  completionPct: number;
+  nextStep: CoachReviewCompletionStep | null;
+  steps: CoachReviewCompletionStep[];
+}
+
+export interface SimilarTradeRef {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  grossRealizedPnl: number;
+  qualityScore: number | null;
+  sharedReasons: string[];
+  similarityScore: number;
+}
+
+export interface TradeSimilarityGroup {
+  anchorTradeId: SavedExecutionTradeId;
+  similarTrades: SimilarTradeRef[];
+}
+
+export interface TradeSimilarityFinder {
+  groups: TradeSimilarityGroup[];
+}
+
+export interface MistakeSeverityLadderItem {
+  id: string;
+  taxonomyId: TraderMistakeTaxonomyId;
+  label: string;
+  severityScore: number;
+  frequency: number;
+  estimatedGrossCost: number;
+  confidence: "low" | "medium" | "high";
+  ruleViolationLinked: boolean;
+  recurrenceLinked: boolean;
+  relatedTradeIds: SavedExecutionTradeId[];
+  nextAction: string;
+}
+
+export interface MistakeSeverityLadder {
+  topSeverity: MistakeSeverityLadderItem | null;
+  items: MistakeSeverityLadderItem[];
+}
+
+export type CoachConfidencePhrase =
+  | "strongly_suggests"
+  | "may_indicate"
+  | "review_manually";
+
+export interface CoachConfidenceLanguageItem {
+  sourceId: string;
+  phrase: CoachConfidencePhrase;
+  copy: string;
+  evidenceLevel: "strong" | "moderate" | "limited";
+}
+
+export interface CoachConfidenceLanguage {
+  items: CoachConfidenceLanguageItem[];
+}
+
+export type CoachEmptyStateKind =
+  | "no_trades"
+  | "one_trade"
+  | "all_winners"
+  | "all_losers"
+  | "sample_data"
+  | "ready";
+
+export interface CoachEmptyState {
+  kind: CoachEmptyStateKind;
+  title: string;
+  message: string;
+  nextAction: string;
+}
+
+export interface CoachHomeAction {
+  id: string;
+  label: string;
+  detail: string;
+  href: string;
+  priority: number;
+  relatedTradeIds: SavedExecutionTradeId[];
+}
+
+export interface CoachHomeViewModel {
+  headline: string;
+  subhead: string;
+  primaryAction: CoachHomeAction;
+  actions: CoachHomeAction[];
+}
+
+export type WeeklyLossDriverConfidence = "high" | "medium" | "low";
+
+export interface WeeklyLossDriverItem {
+  id: string;
+  label: string;
+  grossLoss: number;
+  tradeCount: number;
+  relatedTradeIds: SavedExecutionTradeId[];
+  reason: string;
+  confidence: WeeklyLossDriverConfidence;
+  nextAction: string;
+}
+
+export interface WeeklyLossDrivers {
+  weekStartDate: string;
+  weekEndDate: string;
+  totalGrossLoss: number;
+  items: WeeklyLossDriverItem[];
+}
+
+export interface TraderCoachActionLoop {
+  source: "execution_only";
+  marketContextUsedForConclusions: false;
+  mistakeTimeline: CoachMistakeTimeline;
+  ruleSimulations: CoachRuleSimulation[];
+  archetypeProfile: TraderArchetypeProfile;
+  sessionPrepCard: CoachSessionPrepCard;
+  reviewCompletionLoop: CoachReviewCompletionLoop;
+  tradeSimilarity: TradeSimilarityFinder;
+  mistakeSeverityLadder: MistakeSeverityLadder;
+  confidenceLanguage: CoachConfidenceLanguage;
+  emptyState: CoachEmptyState;
+  coachHome: CoachHomeViewModel;
+  weeklyLossDrivers: WeeklyLossDrivers;
+}
+
+export type ProductEvidenceCardSource =
+  | "mistake"
+  | "quality"
+  | "rule"
+  | "import"
+  | "strength"
+  | "review";
+
+export type ProductEvidenceConfidence = "low" | "medium" | "high";
+
+export interface ProductEvidenceCard {
+  id: string;
+  source: ProductEvidenceCardSource;
+  title: string;
+  whatHappened: string;
+  whyItMatters: string;
+  confidence: ProductEvidenceConfidence;
+  confidenceCopy: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  primaryRoute: string;
+  reviewAction: string;
+  marketContextUsedForConclusion: false;
+}
+
+export type TradeGradeDriverTone = "positive" | "negative" | "neutral";
+
+export interface TradeGradeDriver {
+  id: string;
+  label: string;
+  score: number;
+  tone: TradeGradeDriverTone;
+  explanation: string;
+  evidence: string[];
+}
+
+export interface TradeGradeExplainability {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  overallScore: number;
+  gradeBand: "excellent" | "solid" | "mixed" | "weak";
+  summary: string;
+  positiveDrivers: TradeGradeDriver[];
+  negativeDrivers: TradeGradeDriver[];
+  neutralDrivers: TradeGradeDriver[];
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  limitations: string[];
+  nextReviewAction: string;
+  marketContextUsedForScoring: false;
+}
+
+export type FirstImportExperienceStepStatus =
+  | "complete"
+  | "needs_review"
+  | "blocked"
+  | "upcoming";
+
+export interface FirstImportExperienceStep {
+  id: string;
+  label: string;
+  status: FirstImportExperienceStepStatus;
+  detail: string;
+  nextAction: string;
+}
+
+export interface FirstImportExperience {
+  status: "ready" | "needs_review" | "blocked";
+  headline: string;
+  summary: string;
+  supportedBrokerLabels: string[];
+  acceptedTradeCount: number;
+  rejectedTradeCount: number;
+  warningCount: number;
+  duplicateCount: number;
+  needsReviewCount: number;
+  nextAction: string;
+  steps: FirstImportExperienceStep[];
+}
+
+export type TradeRepairInboxItemSeverity = "blocker" | "warning" | "review";
+
+export interface TradeRepairInboxItem {
+  id: string;
+  severity: TradeRepairInboxItemSeverity;
+  source: "validation" | "reconciliation";
+  title: string;
+  issueSummary: string;
+  requestIndex: number | null;
+  relatedTradeIds: SavedExecutionTradeId[];
+  suggestedFix: string;
+  blocksAnalysis: boolean;
+  priority: number;
+}
+
+export interface TradeRepairInbox {
+  totalCount: number;
+  blockerCount: number;
+  warningCount: number;
+  reviewCount: number;
+  readyToAnalyze: boolean;
+  nextAction: string;
+  items: TradeRepairInboxItem[];
+}
+
+export type PersonalPatternMemoryKind =
+  | "leak_to_fix"
+  | "behavior_to_protect"
+  | "watch_pattern";
+
+export interface PersonalPatternMemoryItem {
+  id: string;
+  kind: PersonalPatternMemoryKind;
+  label: string;
+  summary: string;
+  occurrenceCount: number;
+  confidence: ProductEvidenceConfidence;
+  relatedTradeIds: SavedExecutionTradeId[];
+  lastSeenSessionDate: string | null;
+  nextAction: string;
+}
+
+export interface PersonalPatternMemory {
+  totalCount: number;
+  primaryLeak: PersonalPatternMemoryItem | null;
+  primaryStrength: PersonalPatternMemoryItem | null;
+  items: PersonalPatternMemoryItem[];
+}
+
+export type RuleCandidateReadiness =
+  | "ready_to_test"
+  | "needs_review"
+  | "needs_more_data";
+
+export interface RuleCandidateLabItem {
+  id: string;
+  suggestedRuleTitle: string;
+  reason: string;
+  defaultParameters: Record<string, number | string | boolean>;
+  flaggedTradeIds: SavedExecutionTradeId[];
+  expectedSuccessMetric: string;
+  readiness: RuleCandidateReadiness;
+  reviewStatus: "draft_not_saved" | "review_before_saving";
+  limitation: string;
+}
+
+export interface RuleCandidateLab {
+  totalCount: number;
+  readyCount: number;
+  nextAction: string;
+  items: RuleCandidateLabItem[];
+}
+
+export interface SessionRecapViewModel {
+  sessionDate: string;
+  tradeCount: number;
+  headline: string;
+  bestTrade: DailyCoachTradeRef | null;
+  worstTrade: DailyCoachTradeRef | null;
+  biggestLeak: string | null;
+  repeatableBehavior: string | null;
+  ruleFocus: string | null;
+  nextAction: string;
+  reviewTradeIds: SavedExecutionTradeId[];
+  marketContextUsedForConclusions: false;
+}
+
+export type ConfidenceCalibrationPhrase =
+  | "strongly_suggests"
+  | "may_indicate"
+  | "review_manually";
+
+export interface ConfidenceCalibrationItem {
+  id: string;
+  sourceId: string;
+  label: string;
+  evidenceCount: number;
+  sampleSize: number;
+  confidence: ProductEvidenceConfidence;
+  phrase: ConfidenceCalibrationPhrase;
+  copy: string;
+}
+
+export interface ConfidenceCalibration {
+  sampleSize: number;
+  sampleData: boolean;
+  summary: string;
+  items: ConfidenceCalibrationItem[];
+}
+
+export interface ExecutionQualityTrendPoint {
+  tradeId: SavedExecutionTradeId;
+  label: string;
+  score: number;
+  previousScore: number | null;
+  delta: number | null;
+  direction: "improving" | "worsening" | "flat" | "first";
+  gradeBand: TradeGradeExplainability["gradeBand"];
+  nextReviewAction: string;
+}
+
+export interface ExecutionQualityTrendline {
+  averageScore: number | null;
+  bestScore: number | null;
+  worstScore: number | null;
+  improvingCount: number;
+  worseningCount: number;
+  reportTrendSummary: string;
+  points: ExecutionQualityTrendPoint[];
+}
+
+export type CoachReviewQueueLane =
+  | "import_repair"
+  | "cost_driver"
+  | "behavior_memory"
+  | "rule_candidate"
+  | "trade_grade"
+  | "strength";
+
+export interface CoachReviewQueueItem {
+  id: string;
+  lane: CoachReviewQueueLane;
+  priority: number;
+  title: string;
+  reason: string;
+  href: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  nextAction: string;
+}
+
+export interface CoachReviewQueue {
+  totalCount: number;
+  primaryItem: CoachReviewQueueItem | null;
+  items: CoachReviewQueueItem[];
+}
+
+export interface TraderProductPolishViewModel {
+  source: "execution_only";
+  marketContextUsedForConclusions: false;
+  evidenceCards: ProductEvidenceCard[];
+  gradeExplainability: TradeGradeExplainability[];
+  firstImportExperience: FirstImportExperience;
+  tradeRepairInbox: TradeRepairInbox;
+  personalPatternMemory: PersonalPatternMemory;
+  ruleCandidateLab: RuleCandidateLab;
+  sessionRecap: SessionRecapViewModel;
+  confidenceCalibration: ConfidenceCalibration;
+  executionQualityTrendline: ExecutionQualityTrendline;
+  coachReviewQueue: CoachReviewQueue;
+}
+
+export type MistakeRuleConversionReadiness =
+  | "ready_to_review"
+  | "needs_more_trades"
+  | "needs_manual_review";
+
+export interface MistakeRuleConversionDraft {
+  id: string;
+  taxonomyId: TraderMistakeTaxonomyId;
+  mistakeLabel: string;
+  suggestedRuleTitle: string;
+  reason: string;
+  defaultParameters: Record<string, number | string | boolean>;
+  affectedTradeIds: SavedExecutionTradeId[];
+  measurementMetric: string;
+  readiness: MistakeRuleConversionReadiness;
+  reviewStatus: "draft_not_saved" | "review_ready";
+  limitation: string;
+}
+
+export interface MistakeRuleConversionFlow {
+  totalDrafts: number;
+  readyDraftCount: number;
+  nextAction: string;
+  drafts: MistakeRuleConversionDraft[];
+}
+
+export type TradeReviewChecklistItemId =
+  | "entry_review"
+  | "add_review"
+  | "exit_review"
+  | "sizing_review"
+  | "risk_review"
+  | "lesson_review"
+  | "rule_review";
+
+export type TradeReviewChecklistItemStatus =
+  | "complete"
+  | "attention"
+  | "todo";
+
+export interface TradeReviewChecklistItem {
+  id: TradeReviewChecklistItemId;
+  label: string;
+  status: TradeReviewChecklistItemStatus;
+  evidence: string;
+  linkedLabels: string[];
+  nextAction: string;
+}
+
+export interface TradeReviewChecklist {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  completionPct: number;
+  needsAttentionCount: number;
+  items: TradeReviewChecklistItem[];
+  nextAction: string;
+}
+
+export type BehaviorChangeDirection =
+  | "improving"
+  | "worsening"
+  | "flat"
+  | "insufficient_data";
+
+export interface BehaviorChangeTrackerItem {
+  id: string;
+  label: string;
+  currentValue: number | null;
+  previousValue: number | null;
+  delta: number | null;
+  direction: BehaviorChangeDirection;
+  favorableDirection: "up" | "down";
+  sampleSizeWarning: boolean;
+  relatedTradeIds: SavedExecutionTradeId[];
+  nextAction: string;
+}
+
+export interface BehaviorChangeTracker {
+  totalCount: number;
+  improvingCount: number;
+  worseningCount: number;
+  summary: string;
+  items: BehaviorChangeTrackerItem[];
+}
+
+export type UserFacingDataQualityStatus =
+  | "clean"
+  | "needs_review"
+  | "blocked";
+
+export interface UserFacingDataQualityCheck {
+  id: string;
+  label: string;
+  passed: boolean;
+  severity: "blocker" | "warning" | "info";
+  detail: string;
+}
+
+export interface UserFacingDataQualityScore {
+  score: number;
+  status: UserFacingDataQualityStatus;
+  blockerCount: number;
+  warningCount: number;
+  nextAction: string;
+  checks: UserFacingDataQualityCheck[];
+}
+
+export interface CoachLanguageGuideline {
+  id: string;
+  label: string;
+  guidance: string;
+}
+
+export interface ProductSafetyCopyViolation {
+  id: string;
+  sourceId: string;
+  phrase: string;
+  text: string;
+}
+
+export interface ProductSafetyCopyAudit {
+  passed: boolean;
+  checkedTextCount: number;
+  forbiddenPhrases: string[];
+  violations: ProductSafetyCopyViolation[];
+}
+
+export interface CoachLanguageRefinement {
+  guidelines: CoachLanguageGuideline[];
+  safetyAudit: ProductSafetyCopyAudit;
+}
+
+export type ExecutionPlaybookDraftReadiness =
+  | "ready_to_name"
+  | "needs_more_examples"
+  | "watch_only";
+
+export interface ExecutionPlaybookDraft {
+  id: string;
+  sourceBucketId: PlaybookBucketId;
+  title: string;
+  qualifyingTradeIds: SavedExecutionTradeId[];
+  tradeCount: number;
+  grossTotalRealizedPnl: number;
+  averageQualityScore: number | null;
+  protectFocus: string | null;
+  fixFocus: string | null;
+  readiness: ExecutionPlaybookDraftReadiness;
+  nextAction: string;
+  marketContextUsedForSetupQuality: false;
+}
+
+export interface ExecutionPlaybookDrafting {
+  totalDrafts: number;
+  readyDraftCount: number;
+  drafts: ExecutionPlaybookDraft[];
+}
+
+export interface TradeComparisonSide {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  grossRealizedPnl: number;
+  qualityScore: number | null;
+  executionCount: number;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+}
+
+export interface TradeComparisonViewModel {
+  id: string;
+  title: string;
+  left: TradeComparisonSide;
+  right: TradeComparisonSide;
+  pnlDelta: number;
+  qualityDelta: number | null;
+  sharedBehavior: string;
+  keyDifference: string;
+  reviewPrompt: string;
+  marketContextUsedForComparison: false;
+}
+
+export interface ReviewHabitMetric {
+  id: string;
+  label: string;
+  value: number;
+  target: number;
+  status: "on_track" | "needs_attention";
+  detail: string;
+}
+
+export interface ReviewHabitTracker {
+  completionPct: number;
+  activeStreakCount: number;
+  nextHabitAction: string;
+  metrics: ReviewHabitMetric[];
+}
+
+export type EndUserOnboardingStepStatus =
+  | "complete"
+  | "current"
+  | "upcoming"
+  | "blocked";
+
+export interface EndUserOnboardingStep {
+  id: string;
+  label: string;
+  status: EndUserOnboardingStepStatus;
+  detail: string;
+  href: string;
+  nextAction: string;
+}
+
+export interface EndUserOnboardingPath {
+  headline: string;
+  completionPct: number;
+  currentStep: EndUserOnboardingStep | null;
+  steps: EndUserOnboardingStep[];
+}
+
+export interface TraderReviewHabitLoopViewModel {
+  source: "execution_only";
+  marketContextUsedForConclusions: false;
+  mistakeRuleConversion: MistakeRuleConversionFlow;
+  tradeReviewChecklists: TradeReviewChecklist[];
+  behaviorChangeTracker: BehaviorChangeTracker;
+  dataQualityScore: UserFacingDataQualityScore;
+  coachLanguageRefinement: CoachLanguageRefinement;
+  playbookDrafting: ExecutionPlaybookDrafting;
+  tradeComparison: TradeComparisonViewModel | null;
+  reviewHabitTracker: ReviewHabitTracker;
+  onboardingPath: EndUserOnboardingPath;
+  safetyCopyAudit: ProductSafetyCopyAudit;
+}
+
+export type SyntheticBrokerFixtureKind =
+  | "broker_representative"
+  | "generic_compatibility"
+  | "edge_case";
+
+export type ImportTrialResultStatus = "pass" | "needs_repair" | "blocked";
+
+export interface SyntheticBrokerImportFixture {
+  id: string;
+  label: string;
+  broker: BrokerExecutionCsvFormat;
+  fixtureKind: SyntheticBrokerFixtureKind;
+  fixtureFileName: string | null;
+  synthetic: true;
+  headerConfidence: "official" | "observed" | "best_effort";
+  expectedBehavior: string;
+  scenarios: string[];
+  includesFeesOrCommissions: boolean;
+  includesOptionsRows: boolean;
+  includesOpenPosition: boolean;
+  notes: string[];
+}
+
+export interface ImportTrialResult {
+  fixtureId: string;
+  label: string;
+  broker: BrokerExecutionCsvFormat;
+  status: ImportTrialResultStatus;
+  acceptedExecutionCount: number;
+  groupedTradeCount: number;
+  rejectedRowCount: number;
+  skippedRowCount: number;
+  issueCount: number;
+  warningCount: number;
+  blockerCount: number;
+  mappingConfidence: BrokerExecutionCsvMappingConfidenceLevel;
+  qualityScore: number;
+  qualityStatus: BrokerCsvImportQualityStatus;
+  issueCodes: Array<
+    | BrokerExecutionCsvImportIssueCode
+    | "low_mapping_confidence"
+    | "pnl_reconciliation_mismatch"
+  >;
+  evidence: string[];
+  nextAction: string;
+}
+
+export interface ImportTrialHarness {
+  generatedAt: string;
+  fixtureStrategy: string;
+  totalCount: number;
+  passCount: number;
+  needsRepairCount: number;
+  blockedCount: number;
+  fixtures: SyntheticBrokerImportFixture[];
+  results: ImportTrialResult[];
+}
+
+export type GuidedDataRepairSeverity = "blocker" | "review" | "info";
+
+export interface GuidedDataRepairStep {
+  id: string;
+  priority: number;
+  label: string;
+  severity: GuidedDataRepairSeverity;
+  issueCode:
+    | BrokerExecutionCsvImportIssueCode
+    | "low_mapping_confidence"
+    | "pnl_reconciliation_mismatch";
+  affectedFixtureIds: string[];
+  affectedRows: number[];
+  affectedTradeIds: SavedExecutionTradeId[];
+  explanation: string;
+  repairAction: string;
+  canProceedAfterReview: boolean;
+}
+
+export interface GuidedDataRepairWizard {
+  status: "ready" | "needs_repair" | "blocked";
+  syntheticFixtureMode: true;
+  totalStepCount: number;
+  blockerCount: number;
+  reviewCount: number;
+  nextAction: string;
+  steps: GuidedDataRepairStep[];
+}
+
+export type ReviewSessionCockpitLane =
+  | "import"
+  | "repair"
+  | "review"
+  | "rule"
+  | "replay"
+  | "progress";
+
+export interface ReviewSessionCockpitAction {
+  id: string;
+  rank: number;
+  lane: ReviewSessionCockpitLane;
+  title: string;
+  reason: string;
+  href: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  sourceIds: string[];
+  nextAction: string;
+}
+
+export interface ReviewSessionCockpit {
+  readinessScore: number;
+  title: string;
+  summary: string;
+  primaryAction: ReviewSessionCockpitAction | null;
+  actions: ReviewSessionCockpitAction[];
+  marketContextUsedForPriority: false;
+}
+
+export type RuleLifecycleSimulationStage =
+  | "draft"
+  | "review"
+  | "simulated_active"
+  | "measured"
+  | "promoted_later";
+
+export interface RuleLifecycleSimulationItem {
+  id: string;
+  ruleTitle: string;
+  currentStage: RuleLifecycleSimulationStage;
+  stages: RuleLifecycleSimulationStage[];
+  evidenceCount: number;
+  relatedTradeIds: SavedExecutionTradeId[];
+  expectedSuccessMetric: string;
+  limitation: string;
+  nextAction: string;
+}
+
+export interface RuleLifecycleSimulation {
+  totalCount: number;
+  readyCount: number;
+  nextAction: string;
+  items: RuleLifecycleSimulationItem[];
+}
+
+export type TradeReplayMarkerTone =
+  | "entry"
+  | "risk_increase"
+  | "risk_reduction"
+  | "exit"
+  | "warning";
+
+export type TradeReplayVisualRole =
+  | "initial_entry"
+  | "add"
+  | "trim"
+  | "full_exit"
+  | "readd"
+  | "open_leftover";
+
+export interface TradeReplayVisualMarkerContract {
+  role: TradeReplayVisualRole;
+  tone: TradeReplayMarkerTone;
+  label: string;
+  copy: string;
+}
+
+export interface TradeReplayVisualLaneContract {
+  id: string;
+  label: string;
+  meaning: string;
+  canRenderWithCss: true;
+}
+
+export interface TradeReplayVisualUpgradeContract {
+  route: "/trades/[tradeId]";
+  markers: TradeReplayVisualMarkerContract[];
+  lanes: TradeReplayVisualLaneContract[];
+  routeCopy: string;
+  marketContextRequired: false;
+}
+
+export interface ProductCopyQualityIssue {
+  id: string;
+  sourceId: string;
+  phrase: string;
+  text: string;
+  severity: "blocker" | "review";
+  reason: string;
+}
+
+export interface ProductCopyQualitySystem {
+  passed: boolean;
+  checkedTextCount: number;
+  forbiddenPhrases: string[];
+  issues: ProductCopyQualityIssue[];
+  guidelines: CoachLanguageGuideline[];
+}
+
+export interface BrokerFixtureCoverage {
+  closedStockTrade: boolean;
+  shortTrade: boolean;
+  feesOrCommissions: boolean;
+  cancelledOrNonTradeSkip: boolean;
+  openTrade: boolean;
+  rowRepair: boolean;
+  pnlMismatch: boolean;
+}
+
+export interface BrokerFixtureLibraryItem {
+  broker: BrokerExecutionCsvFormat;
+  label: string;
+  fixtureCount: number;
+  headerConfidence: "official" | "observed" | "best_effort";
+  coverage: BrokerFixtureCoverage;
+  limitation: string;
+  nextAction: string;
+}
+
+export interface BrokerFixtureLibrarySummary {
+  totalBrokers: number;
+  representativeFixtureCount: number;
+  edgeCaseFixtureCount: number;
+  unsupportedBrokerCopy: string;
+  brokers: BrokerFixtureLibraryItem[];
+}
+
+export interface MobileProductQaRouteItem {
+  id: string;
+  route: string;
+  viewport: "mobile";
+  status: "contract_ready" | "needs_visual_pass";
+  checks: string[];
+}
+
+export interface MobileProductQaPass {
+  totalRoutes: number;
+  noExportRouteCount: number;
+  items: MobileProductQaRouteItem[];
+}
+
+export interface WhyLayerExplanation {
+  id: string;
+  title: string;
+  reason: string;
+  evidenceLabels: string[];
+  relatedTradeIds: SavedExecutionTradeId[];
+  relatedFixtureIds: string[];
+  sourceModel: string;
+  limitation: string;
+}
+
+export interface WhyAmISeeingThisLayer {
+  totalCount: number;
+  explanations: WhyLayerExplanation[];
+}
+
+export interface CalibrationDashboardMetric {
+  id: string;
+  label: string;
+  value: number;
+  target: number;
+  status: "waiting_for_real_data" | "watch" | "ready";
+  detail: string;
+}
+
+export interface CalibrationDashboard {
+  status: "waiting_for_real_imports" | "calibrating" | "ready";
+  syntheticTrialCount: number;
+  realImportCount: number;
+  marketContextUsedForCalibration: false;
+  metrics: CalibrationDashboardMetric[];
+  nextDataNeeded: string[];
+  nextAction: string;
+}
+
+export interface TraderImportTrialExperienceViewModel {
+  source: "synthetic_fixture_trial";
+  marketContextUsedForConclusions: false;
+  harness: ImportTrialHarness;
+  repairWizard: GuidedDataRepairWizard;
+  reviewCockpit: ReviewSessionCockpit;
+  ruleLifecycleSimulation: RuleLifecycleSimulation;
+  replayVisualUpgrade: TradeReplayVisualUpgradeContract;
+  copyQuality: ProductCopyQualitySystem;
+  fixtureLibrary: BrokerFixtureLibrarySummary;
+  mobileQa: MobileProductQaPass;
+  whyLayer: WhyAmISeeingThisLayer;
+  calibrationDashboard: CalibrationDashboard;
+}
+
+export interface CsvDryRunSamplePreset {
+  id: string;
+  label: string;
+  broker: BrokerExecutionCsvFormat;
+  csvText: string;
+  description: string;
+}
+
+export type CsvDryRunConfidenceGateStatus =
+  | "ready"
+  | "needs_review"
+  | "blocked";
+
+export interface CsvDryRunConfidenceGate {
+  status: CsvDryRunConfidenceGateStatus;
+  score: number;
+  title: string;
+  reasons: string[];
+  blockedReasons: string[];
+  reviewReasons: string[];
+  canStartAnalysisLater: boolean;
+  nextAction: string;
+}
+
+export type CsvDryRunMappingStatus = "ready" | "needs_review" | "blocked";
+
+export interface CsvDryRunColumnMappingRow {
+  field: BrokerExecutionCsvCanonicalField;
+  required: boolean;
+  detectedHeader: string | null;
+  explicitHeader: string | null;
+  status: "mapped" | "missing" | "optional";
+  helperText: string;
+}
+
+export interface CsvDryRunColumnMappingAssistant {
+  status: CsvDryRunMappingStatus;
+  headers: string[];
+  rows: CsvDryRunColumnMappingRow[];
+  missingRequiredFields: BrokerExecutionCsvCanonicalField[];
+  suggestedNextMappingField: BrokerExecutionCsvCanonicalField | null;
+  nextAction: string;
+}
+
+export interface CsvDryRunSessionStage {
+  id:
+    | "selected"
+    | "parsed"
+    | "mapped"
+    | "repaired"
+    | "grouped"
+    | "ready_for_analysis";
+  label: string;
+  status: "complete" | "current" | "blocked" | "upcoming";
+  detail: string;
+}
+
+export interface CsvDryRunSessionState {
+  id: string;
+  status: "not_started" | "in_progress" | "blocked" | "ready_for_analysis";
+  stages: CsvDryRunSessionStage[];
+  nextAction: string;
+}
+
+export interface CsvDryRunTradeGroupingExecution {
+  index: number;
+  rowIndex: number | null;
+  timestamp: string;
+  side: string;
+  shares: number;
+  price: number;
+  positionAfterExecution: number;
+}
+
+export interface CsvDryRunTradeGroupingReviewItem {
+  requestIndex: number;
+  symbol: string;
+  tradeDirection: string;
+  lifecycleStatus: "closed" | "open";
+  groupingReason: string;
+  executionCount: number;
+  rowIndexes: number[];
+  finalPositionShares: number;
+  entrySessionBucket: string;
+  entryHourLabelEt: string;
+  heldSessionBuckets: string[];
+  heldHourBucketsEt: string[];
+  heldPremarketIntoOpen: boolean;
+  heldOpenIntoMidday: boolean;
+  heldMiddayIntoPostmarket: boolean;
+  heldPostmarketIntoOvernight: boolean;
+  heldOvernight: boolean;
+  needsReview: boolean;
+  warnings: string[];
+  timeline: CsvDryRunTradeGroupingExecution[];
+}
+
+export interface CsvDryRunTradeGroupingReview {
+  totalCount: number;
+  needsReviewCount: number;
+  items: CsvDryRunTradeGroupingReviewItem[];
+}
+
+export interface CsvDryRunWalkthroughStep {
+  id: string;
+  label: string;
+  status: "complete" | "current" | "upcoming" | "blocked";
+  detail: string;
+  href: string | null;
+}
+
+export interface CsvDryRunFirstTradeReviewWalkthrough {
+  title: string;
+  tradeLabel: string | null;
+  steps: CsvDryRunWalkthroughStep[];
+  nextAction: string;
+}
+
+export interface CsvDryRunBrokerCoveragePanel {
+  selectedBroker: BrokerExecutionCsvFormat;
+  selectedBrokerLabel: string;
+  confidence: "official" | "observed" | "best_effort";
+  supportCopy: string;
+  coverageLabels: string[];
+  limitation: string;
+}
+
+export interface CsvDryRunEvidenceRecord {
+  id: string;
+  title: string;
+  source:
+    | "import_repair"
+    | "confidence_gate"
+    | "grouping"
+    | "feedback_preview"
+    | "sample_mistake";
+  evidenceLabels: string[];
+  sourceFacts: string[];
+  relatedTradeIds: SavedExecutionTradeId[];
+  limitation: string;
+}
+
+export interface CsvDryRunEvidenceDrillIn {
+  totalCount: number;
+  records: CsvDryRunEvidenceRecord[];
+}
+
+export interface CsvDryRunCopyAudit {
+  passed: boolean;
+  checkedTextCount: number;
+  forbiddenPhrases: string[];
+  issues: ProductCopyQualityIssue[];
+  safeCopyExamples: Array<{
+    id: string;
+    label: string;
+    copy: string;
+  }>;
+}
+
+export interface CsvDryRunCalibrationQueueItem {
+  id: string;
+  label: string;
+  status: "waiting_for_real_imports" | "ready_to_collect_later";
+  dataNeeded: string;
+  reason: string;
+  marketContextRequired: boolean;
+}
+
+export interface CsvDryRunCalibrationQueue {
+  totalCount: number;
+  waitingCount: number;
+  marketContextUsedNow: false;
+  items: CsvDryRunCalibrationQueueItem[];
+}
+
+export interface CsvDryRunEditableCell {
+  header: string;
+  value: string;
+  important: boolean;
+}
+
+export interface CsvDryRunEditableRow {
+  rowNumber: number;
+  status: "accepted" | "skipped" | "rejected" | "unknown";
+  issueCodes: BrokerExecutionCsvImportIssueCode[];
+  cells: CsvDryRunEditableCell[];
+  suggestedAction: string;
+}
+
+export interface CsvDryRunEditableRowRepairTable {
+  headers: string[];
+  totalRows: number;
+  rejectedRowCount: number;
+  skippedRowCount: number;
+  editableRows: CsvDryRunEditableRow[];
+  privacyReminder: string;
+}
+
+export type CsvDryRunGroupingDecisionKind =
+  | "confirm_grouping"
+  | "split_later"
+  | "merge_later"
+  | "mark_separate_trade"
+  | "review_open_position";
+
+export interface CsvDryRunGroupingDecisionOption {
+  kind: CsvDryRunGroupingDecisionKind;
+  label: string;
+  detail: string;
+  recommended: boolean;
+}
+
+export interface CsvDryRunGroupingDecisionItem {
+  requestIndex: number;
+  symbol: string;
+  currentRecommendation: CsvDryRunGroupingDecisionKind;
+  options: CsvDryRunGroupingDecisionOption[];
+  persistenceStatus: "client_state_only";
+}
+
+export interface CsvDryRunGroupingDecisionReview {
+  totalCount: number;
+  reviewNeededCount: number;
+  items: CsvDryRunGroupingDecisionItem[];
+}
+
+export interface CsvDryRunExecutionFeedbackPreviewItem {
+  requestIndex: number;
+  symbol: string | null;
+  status: "completed" | "validation_failed" | "failed";
+  tradeLabel: string;
+  grossRealizedPnl: number | null;
+  primaryFocusLabel: string | null;
+  topRiskLabel: string | null;
+  topStrengthLabel: string | null;
+  warningCount: number;
+  limitations: string[];
+}
+
+export interface CsvDryRunExecutionFeedbackPreview {
+  totalCount: number;
+  completedCount: number;
+  failedCount: number;
+  source: "executions_only";
+  marketContextUsed: false;
+  items: CsvDryRunExecutionFeedbackPreviewItem[];
+}
+
+export interface CsvDryRunReplayPreviewStep {
+  index: number;
+  timestamp: string;
+  side: string;
+  shares: number;
+  price: number;
+  positionAfterExecution: number;
+  roleLabel: string;
+  riskDirection: "increased" | "reduced" | "closed" | "unchanged";
+}
+
+export interface CsvDryRunReplayPreview {
+  tradeLabel: string | null;
+  lifecycleStatus: "closed" | "open" | "none";
+  openPositionWarning: string | null;
+  steps: CsvDryRunReplayPreviewStep[];
+}
+
+export interface CsvDryRunBrokerHelpPanel {
+  broker: BrokerExecutionCsvFormat;
+  title: string;
+  expectedExportName: string;
+  requiredFields: string[];
+  commonGotchas: string[];
+  supportConfidence: "official" | "observed" | "best_effort";
+  fallbackPath: string;
+  limitation: string;
+}
+
+export interface CsvDryRunErrorLibraryEntry {
+  issueCode:
+    | BrokerExecutionCsvImportIssueCode
+    | "low_mapping_confidence"
+    | "pnl_reconciliation_mismatch"
+    | "open_position";
+  title: string;
+  whyItHappened: string;
+  howToFix: string;
+  canContinue: boolean;
+}
+
+export interface CsvDryRunErrorLibrary {
+  totalCount: number;
+  matchedCount: number;
+  entries: CsvDryRunErrorLibraryEntry[];
+}
+
+export interface CsvDryRunPrivacyNotice {
+  title: string;
+  body: string;
+  bullets: string[];
+  savedInThisFlow: false;
+}
+
+export interface CsvDryRunMobileQaPanel {
+  totalCount: number;
+  items: MobileProductQaRouteItem[];
+}
+
+export type CsvDryRunDecisionType =
+  | "confirmed_mapping"
+  | "edited_row"
+  | "ignored_warning"
+  | "confirmed_grouping"
+  | "requested_split_later"
+  | "requested_merge_later"
+  | "approved_feedback_preview"
+  | "selected_setup_tag"
+  | "deferred_import";
+
+export interface CsvDryRunDecisionCaptureItem {
+  id: string;
+  type: CsvDryRunDecisionType;
+  label: string;
+  detail: string;
+  persistenceStatus: "client_state_only";
+}
+
+export interface CsvDryRunDecisionCaptureModel {
+  totalCount: number;
+  items: CsvDryRunDecisionCaptureItem[];
+  nextAction: string;
+}
+
+export interface CsvDryRunRepairImpactSnapshot {
+  acceptedExecutionCount: number;
+  rejectedRowCount: number;
+  skippedRowCount: number;
+  groupedTradeCount: number;
+  confidenceScore: number;
+}
+
+export interface CsvDryRunRepairImpactDelta {
+  acceptedExecutions: number;
+  rejectedRows: number;
+  skippedRows: number;
+  groupedTrades: number;
+  confidenceScore: number;
+}
+
+export interface CsvDryRunRepairImpactDiff {
+  hasBaseline: boolean;
+  baselineSnapshot: CsvDryRunRepairImpactSnapshot | null;
+  currentSnapshot: CsvDryRunRepairImpactSnapshot;
+  delta: CsvDryRunRepairImpactDelta;
+  remainingRepairCount: number;
+  summary: string;
+  nextAction: string;
+}
+
+export type CsvDryRunReadinessDimensionId =
+  | "column_mapping"
+  | "row_validity"
+  | "grouping_confidence"
+  | "pnl_confidence"
+  | "duplicate_risk"
+  | "broker_support";
+
+export interface CsvDryRunReadinessDimension {
+  id: CsvDryRunReadinessDimensionId;
+  label: string;
+  score: number;
+  status: "ready" | "needs_review" | "blocked";
+  detail: string;
+  nextAction: string;
+  weight: number;
+}
+
+export interface CsvDryRunReadinessScoreBreakdown {
+  overallScore: number;
+  status: "ready" | "needs_review" | "blocked";
+  blockerCount: number;
+  reviewCount: number;
+  dimensions: CsvDryRunReadinessDimension[];
+  nextAction: string;
+}
+
+export interface CsvDryRunPnlReconciliationAssistantItem {
+  requestIndex: number;
+  symbol: string;
+  lifecycleStatus: "closed" | "open";
+  brokerNetAmountTotal: number | null;
+  grossMinusKnownCosts: number | null;
+  difference: number | null;
+  status: BrokerCsvPnlReconciliationStatus;
+  explanation: string;
+  suggestedReviewAction: string;
+}
+
+export interface CsvDryRunPnlReconciliationAssistant {
+  status: "ready" | "needs_review" | "insufficient_data";
+  summary: string;
+  mismatchCount: number;
+  needsReviewCount: number;
+  worstMismatch: CsvDryRunPnlReconciliationAssistantItem | null;
+  items: CsvDryRunPnlReconciliationAssistantItem[];
+}
+
+export type CsvDryRunCostVisibilityStatus =
+  | "no_costs_detected"
+  | "costs_detected"
+  | "needs_review";
+
+export interface CsvDryRunCostVisibilityItem {
+  requestIndex: number;
+  symbol: string;
+  lifecycleStatus: "closed" | "open";
+  currency: string | null;
+  totalCommission: number;
+  totalFees: number;
+  totalCosts: number;
+  brokerNetAmountTotal: number | null;
+  grossMinusKnownCosts: number | null;
+  hasBrokerNetAmount: boolean;
+  status: CsvDryRunCostVisibilityStatus;
+  detail: string;
+}
+
+export interface CsvDryRunCostVisibilityPanel {
+  status: CsvDryRunCostVisibilityStatus;
+  summary: string;
+  acceptedExecutionCount: number;
+  hasCommission: boolean;
+  hasFees: boolean;
+  hasBrokerNetAmount: boolean;
+  totalCommission: number;
+  totalFees: number;
+  totalCosts: number;
+  currencies: string[];
+  mixedCurrencies: boolean;
+  scoringPolicy: "gross_execution_pnl_only";
+  scoringPolicyDetail: string;
+  items: CsvDryRunCostVisibilityItem[];
+  marketContextUsed: false;
+}
+
+export type CsvDryRunReviewQueueLane =
+  | "repair"
+  | "grouping"
+  | "pnl"
+  | "feedback"
+  | "anomaly"
+  | "ready";
+
+export interface CsvDryRunPostImportReviewQueueItem {
+  id: string;
+  lane: CsvDryRunReviewQueueLane;
+  priority: number;
+  severity: "info" | "review" | "urgent";
+  title: string;
+  reason: string;
+  relatedRowIndexes: number[];
+  relatedRequestIndexes: number[];
+  suggestedNextAction: string;
+}
+
+export interface CsvDryRunPostImportReviewQueuePreview {
+  totalCount: number;
+  urgentCount: number;
+  reviewCount: number;
+  readyCount: number;
+  items: CsvDryRunPostImportReviewQueueItem[];
+  nextAction: string;
+}
+
+export interface CsvDryRunFeedbackComparisonTradeRef {
+  requestIndex: number;
+  tradeLabel: string;
+  symbol: string | null;
+  grossRealizedPnl: number | null;
+  label: string | null;
+}
+
+export interface CsvDryRunFeedbackComparison {
+  bestPreviewTrade: CsvDryRunFeedbackComparisonTradeRef | null;
+  worstPreviewTrade: CsvDryRunFeedbackComparisonTradeRef | null;
+  mostRiskyExecutionBehavior: string | null;
+  mostRepeatableStrength: string | null;
+  highestPriorityReviewItemTitle: string | null;
+  sampleSizeWarning: boolean;
+  marketContextUsed: false;
+  limitation: string;
+}
+
+export interface CsvDryRunBrokerMappingLearningField {
+  field: BrokerExecutionCsvCanonicalField;
+  detectedHeader: string | null;
+  explicitHeader: string | null;
+  status: "mapped" | "missing" | "optional";
+}
+
+export interface CsvDryRunBrokerMappingLearningConsole {
+  selectedBroker: BrokerExecutionCsvFormat;
+  confidenceLevel: BrokerExecutionCsvMappingConfidenceLevel;
+  confidenceScore: number;
+  detectedHeaders: string[];
+  mappedFields: CsvDryRunBrokerMappingLearningField[];
+  missingRequiredFields: BrokerExecutionCsvCanonicalField[];
+  unknownHeaders: string[];
+  explicitMappingCount: number;
+  learningUrgency: "low" | "medium" | "high";
+  recommendation: string;
+  persistenceStatus: "not_saved";
+}
+
+export interface CsvDryRunSessionSummary {
+  status: "not_started" | "blocked" | "needs_review" | "ready";
+  rowsParsed: number;
+  acceptedExecutionCount: number;
+  rejectedRowCount: number;
+  skippedRowCount: number;
+  groupedTradeCount: number;
+  readyTradeCount: number;
+  tradesNeedingReviewCount: number;
+  feedbackPreviewCount: number;
+  highestPriorityNextAction: string;
+  summary: string;
+}
+
+export type CsvDryRunAnomalyType =
+  | "duplicate_like_fill"
+  | "over_reduction_or_reversal"
+  | "open_leftover"
+  | "huge_size_jump"
+  | "invalid_price_or_size"
+  | "same_timestamp_cluster"
+  | "fees_larger_than_trade_value"
+  | "options_row_rejected"
+  | "skipped_non_filled_order";
+
+export interface CsvDryRunExecutionAnomaly {
+  id: string;
+  type: CsvDryRunAnomalyType;
+  severity: "info" | "review" | "urgent";
+  confidence: "low" | "medium" | "high";
+  title: string;
+  evidence: string[];
+  relatedRowIndexes: number[];
+  relatedRequestIndexes: number[];
+  suggestedAction: string;
+}
+
+export interface CsvDryRunExecutionAnomalyDetector {
+  totalCount: number;
+  urgentCount: number;
+  reviewCount: number;
+  marketContextUsed: false;
+  items: CsvDryRunExecutionAnomaly[];
+}
+
+export type CsvDryRunSetupTagKind =
+  | "scalp"
+  | "breakout"
+  | "reversal"
+  | "dip_buy"
+  | "momentum"
+  | "unknown";
+
+export interface CsvDryRunSetupTagOption {
+  kind: CsvDryRunSetupTagKind;
+  label: string;
+  detail: string;
+}
+
+export interface CsvDryRunSetupTaggingItem {
+  requestIndex: number;
+  symbol: string;
+  selectedTag: CsvDryRunSetupTagKind;
+  suggestedTag: CsvDryRunSetupTagKind;
+  reason: string;
+  persistenceStatus: "client_state_only";
+}
+
+export interface CsvDryRunSetupTaggingModel {
+  options: CsvDryRunSetupTagOption[];
+  items: CsvDryRunSetupTaggingItem[];
+  marketValidated: false;
+  limitation: string;
+}
+
+export interface CsvDryRunImportPreview {
+  importResult: BrokerExecutionCsvImportResult;
+  savedTradePreview: SavedTradeImportPreview;
+  fileFingerprint: string;
+  fileAlreadyImported: boolean;
+  productDiagnostics: BrokerCsvImportProductDiagnostics;
+}
+
+export interface CsvDryRunImportExperience {
+  source: "client_dry_run";
+  broker: BrokerExecutionCsvFormat;
+  accountTimezone: string;
+  csvText: string;
+  columnMapping: BrokerExecutionCsvColumnMapping;
+  preview: CsvDryRunImportPreview;
+  confidenceGate: CsvDryRunConfidenceGate;
+  columnMappingAssistant: CsvDryRunColumnMappingAssistant;
+  sessionState: CsvDryRunSessionState;
+  tradeGroupingReview: CsvDryRunTradeGroupingReview;
+  firstTradeWalkthrough: CsvDryRunFirstTradeReviewWalkthrough;
+  brokerCoverage: CsvDryRunBrokerCoveragePanel;
+  evidenceDrillIn: CsvDryRunEvidenceDrillIn;
+  copyAudit: CsvDryRunCopyAudit;
+  calibrationQueue: CsvDryRunCalibrationQueue;
+  rowRepairTable: CsvDryRunEditableRowRepairTable;
+  groupingDecisionReview: CsvDryRunGroupingDecisionReview;
+  executionFeedbackPreview: CsvDryRunExecutionFeedbackPreview;
+  replayPreview: CsvDryRunReplayPreview;
+  brokerHelp: CsvDryRunBrokerHelpPanel;
+  errorLibrary: CsvDryRunErrorLibrary;
+  privacyNotice: CsvDryRunPrivacyNotice;
+  mobileQaPanel: CsvDryRunMobileQaPanel;
+  decisionCapture: CsvDryRunDecisionCaptureModel;
+  repairImpactDiff: CsvDryRunRepairImpactDiff;
+  readinessScoreBreakdown: CsvDryRunReadinessScoreBreakdown;
+  pnlReconciliationAssistant: CsvDryRunPnlReconciliationAssistant;
+  costVisibility: CsvDryRunCostVisibilityPanel;
+  postImportReviewQueuePreview: CsvDryRunPostImportReviewQueuePreview;
+  feedbackComparison: CsvDryRunFeedbackComparison;
+  brokerMappingLearningConsole: CsvDryRunBrokerMappingLearningConsole;
+  importSessionSummary: CsvDryRunSessionSummary;
+  executionAnomalyDetector: CsvDryRunExecutionAnomalyDetector;
+  setupTagging: CsvDryRunSetupTaggingModel;
+  marketContextUsedForConclusions: false;
+}
+
+export type BehaviorRecurrenceAlertSeverity = "info" | "review" | "urgent";
+
+export interface BehaviorRecurrenceAlert {
+  id: string;
+  severity: BehaviorRecurrenceAlertSeverity;
+  title: string;
+  detail: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  occurrenceCount: number;
+  nextAction: string;
+}
+
+export type UnifiedReviewQueueLane =
+  | "import"
+  | "behavior"
+  | "rule"
+  | "cost"
+  | "market_context";
+
+export interface UnifiedReviewQueueItem {
+  id: string;
+  lane: UnifiedReviewQueueLane;
+  priority: number;
+  title: string;
+  detail: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  sourceIds: string[];
+  status: SavedReviewStatus;
+  nextAction: string;
+}
+
+export interface UnifiedReviewQueue {
+  totalCount: number;
+  byLane: Record<UnifiedReviewQueueLane, number>;
+  items: UnifiedReviewQueueItem[];
+}
+
+export type BrokerImportFingerprintPromotionStatus =
+  | "candidate"
+  | "needs_mapping_review"
+  | "promoted";
+
+export interface BrokerImportFingerprintLibraryEntry {
+  headerFingerprint: string;
+  broker: string;
+  confidenceLevel: BrokerExecutionCsvMappingConfidenceLevel;
+  promotedStatus: BrokerImportFingerprintPromotionStatus;
+  headerCount: number;
+  detectedFields: string[];
+  missingRequiredFields: string[];
+  issueCodes: BrokerExecutionCsvImportIssueCode[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  sampleCount: number;
+  recommendedAction: string;
+}
+
+export interface BrokerImportFingerprintLibrary {
+  totalCount: number;
+  promotedCount: number;
+  needsReviewCount: number;
+  entries: BrokerImportFingerprintLibraryEntry[];
+}
+
+export interface MarketContextReadinessGateItem {
+  tradeId: SavedExecutionTradeId;
+  symbol: string;
+  executionAnalysisStatus: "ready" | "missing";
+  levelsStatus: "not_requested" | "attached";
+  marketStructureStatus: "not_requested" | "observational";
+  calibratedMarketContextStatus: "not_ready" | "ready";
+  userVisibleBadge: AnalysisConfidenceBadgeSource;
+  usedForScoring: boolean;
+  nextAction: string;
+}
+
+export interface MarketContextReadinessGate {
+  totalCount: number;
+  executionReadyCount: number;
+  levelsAttachedCount: number;
+  marketStructureObservationalCount: number;
+  calibratedCount: number;
+  items: MarketContextReadinessGateItem[];
+}
+
+export interface TraderProductIntelligenceViewModel {
+  mistakeTaxonomy: TraderMistakeTaxonomySummary;
+  scorecard: TraderScorecard;
+  mistakeCostEstimates: TraderMistakeCostEstimateSummary;
+  ruleBuilderRecommendations: TraderRuleBuilderRecommendation[];
+  recurrenceAlerts: BehaviorRecurrenceAlert[];
+  unifiedReviewQueue: UnifiedReviewQueue;
+  marketContextReadiness: MarketContextReadinessGate;
+}
+
+export interface TraderAnalyticsProductizationViewModel {
+  workspace: TraderWorkspaceSummary;
+  reconciliation: ImportReconciliationBatch;
+  reviewWorkflow: TraderReviewWorkflow;
+  tagging: TradeTaggingSummary;
+  actionPlan: TraderActionPlan;
+  permissionSummary: ProductPermissionSummary;
+  jobQueue: TraderAnalysisJobQueue;
+  visualQa: ProductVisualQaPlan;
+  marketContextCalibrationQueue: MarketContextCalibrationQueue;
+  analysisConfidenceBadges: AnalysisConfidenceBadge[];
+  dataRetentionPolicy: ProductDataRetentionPolicy;
+}
+
+export interface ProductionAnalyticsGuardrailCheck {
+  id: string;
+  label: string;
+  required: boolean;
+}
+
+export interface ProductionAnalyticsSurfaceAuditInput {
+  route: string;
+  hasRawJsonPanel: boolean;
+  hasExportControl: boolean;
+  hasDebugCopy: boolean;
+  fixtureBacked?: boolean;
+  hasFixtureOnlyDataLabel: boolean;
+}
+
+export interface ProductionAnalyticsSurfaceAudit {
+  route: string;
+  passed: boolean;
+  issues: string[];
+}
+
+export interface TradeExecutionTimelinePoint {
+  index: number;
+  timestamp: string;
+  side: string;
+  shares: number;
+  price: number;
+  positionAfterExecution: number;
+}
+
+export interface SavedTradeReviewViewModel {
+  trade: SavedExecutionTrade;
+  reportId: SavedTraderAnalyticsReportId | null;
+  reportRow: ProductTraderAnalyticsTradeRow | null;
+  summary: ExecutionFeedbackSummary | null;
+  executionTimeline: TradeExecutionTimelinePoint[];
+  risks: TraderAnalyticsPointDigest[];
+  strengths: TraderAnalyticsPointDigest[];
+  journalPrompts: TraderJournalPrompt[];
+}
+
+export interface ProductTraderAnalyticsViewModel {
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  latestReport: SavedTraderAnalyticsReport;
+  reportHistory: SavedTraderAnalyticsReport[];
+  filterOptions: TraderAnalyticsFilterOptions;
+  filteredView: FilteredTraderAnalyticsView;
+  drillDowns: TraderAnalyticsDrillDown[];
+  comparison: TraderAnalyticsComparison | null;
+  behaviorTrends: BehaviorTrendCard[];
+  focusQueue: TraderFocusQueueItem[];
+  ruleTemplates: TraderRuleTemplate[];
+  ruleEvaluations: TraderRuleEvaluation[];
+  storageReadiness: TraderAnalyticsStorageReadiness;
+  importInbox: SavedTradeImportInbox;
+  reportSnapshots: SavedReportSnapshotCard[];
+  weeklyReview: TraderWeeklyReviewDashboard;
+  behaviorStreaks: TraderBehaviorStreak[];
+  journalPrompts: TraderJournalPrompt[];
+  ruleComplianceSummary: TraderRuleComplianceSummary;
+  marketContextAddOn: TraderMarketContextAddOnStatus;
+  productization: TraderAnalyticsProductizationViewModel;
+  productIntelligence: TraderProductIntelligenceViewModel;
+  improvementIntelligence: TraderImprovementIntelligence;
+  coachActionLoop: TraderCoachActionLoop;
+  productPolish: TraderProductPolishViewModel;
+  reviewHabitLoop: TraderReviewHabitLoopViewModel;
+  importTrialExperience: TraderImportTrialExperienceViewModel;
+  periodReflections: TraderPeriodReflectionSystem;
+  onboarding: {
+    sampleData: boolean;
+    title: string;
+    summary: string;
+    nextAction: string;
+  };
+  productionGuardrails: ProductionAnalyticsGuardrailCheck[];
+}

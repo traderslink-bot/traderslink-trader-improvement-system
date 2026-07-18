@@ -1,0 +1,135 @@
+"use client";
+
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import type {
+  TraderPeriodReflectionGenerationAvailability,
+  TraderPeriodReflectionKind,
+} from "../src/lib/trader-analytics/product/types";
+
+type ReflectionGenerationResponse = {
+  statusCounts?: {
+    fallback?: number;
+    failed?: number;
+    generated?: number;
+    stale?: number;
+  };
+  error?: {
+    message?: string;
+  };
+};
+
+function statusMessage(body: ReflectionGenerationResponse): string {
+  const generated = body.statusCounts?.generated ?? 0;
+  const fallback = body.statusCounts?.fallback ?? 0;
+  const failed = body.statusCounts?.failed ?? 0;
+
+  if (failed > 0) {
+    return "Fallback saved.";
+  }
+
+  if (generated > 0) {
+    return "Updated.";
+  }
+
+  if (fallback > 0) {
+    return "Fallback saved.";
+  }
+
+  return "Checked.";
+}
+
+function buttonLabel(args: {
+  availability: TraderPeriodReflectionGenerationAvailability;
+  pending: boolean;
+}): string {
+  if (args.pending) {
+    return "Updating...";
+  }
+
+  if (args.availability.action === "update") {
+    return args.availability.label;
+  }
+
+  if (args.availability.action === "generate") {
+    return args.availability.label;
+  }
+
+  return args.availability.label;
+}
+
+export function PeriodReflectionRegenerateButton({
+  availability,
+  kind,
+}: {
+  availability: TraderPeriodReflectionGenerationAvailability;
+  kind: TraderPeriodReflectionKind;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const disabled = pending || !availability.canGenerate;
+
+  async function regenerate() {
+    if (!availability.canGenerate) {
+      return;
+    }
+
+    setPending(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/trader-reflections/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kinds: [kind] }),
+      });
+      const body = (await response.json().catch(() => ({}))) as
+        | ReflectionGenerationResponse
+        | Record<string, never>;
+
+      if (!response.ok) {
+        setMessage(
+          "error" in body && body.error?.message
+            ? body.error.message
+            : "Could not update.",
+        );
+        setPending(false);
+        return;
+      }
+
+      setMessage(statusMessage(body));
+      setPending(false);
+      router.refresh();
+    } catch {
+      setMessage("Could not update.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-col items-start gap-2 sm:items-end"
+      data-testid={`period-reflection-regenerate-control-${kind}`}
+    >
+      <button
+        className="inline-flex items-center gap-2 rounded-md border border-sky-800 bg-sky-950/40 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        data-testid={`period-reflection-regenerate-button-${kind}`}
+        disabled={disabled}
+        onClick={regenerate}
+        title={availability.detail}
+        type="button"
+      >
+        <RefreshRoundedIcon fontSize="small" />
+        {buttonLabel({ availability, pending })}
+      </button>
+      <div
+        className="min-h-4 text-xs text-zinc-500"
+        data-testid={`period-reflection-regenerate-message-${kind}`}
+      >
+        {message || availability.detail}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,61 @@
+import Whop from "@whop/sdk";
+import { NextResponse, type NextRequest } from "next/server";
+import { processVerifiedWhopPaymentWebhook } from "../../../../src/lib/trader-analytics/product/real-coach-whop-webhook";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+function requestHeadersObject(request: NextRequest): Record<string, string> {
+  return Object.fromEntries(request.headers.entries());
+}
+
+export async function POST(request: NextRequest) {
+  const webhookSecret = process.env.WHOP_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "WHOP_WEBHOOK_SECRET is not configured.",
+      },
+      { status: 503 },
+    );
+  }
+
+  const body = await request.text();
+  const client = new Whop({ webhookKey: webhookSecret });
+
+  let event: unknown;
+  try {
+    event = client.webhooks.unwrap(body, {
+      headers: requestHeadersObject(request),
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Whop webhook signature verification failed.",
+      },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const result = processVerifiedWhopPaymentWebhook(event);
+    return NextResponse.json({
+      ok: result.status === "processed" || result.status === "duplicate",
+      status: result.status,
+      message: result.message,
+      accessPassId: result.accessPass?.id ?? null,
+      paymentEventId: result.event.id,
+    });
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Whop webhook payload could not be processed.",
+      },
+      { status: 400 },
+    );
+  }
+}

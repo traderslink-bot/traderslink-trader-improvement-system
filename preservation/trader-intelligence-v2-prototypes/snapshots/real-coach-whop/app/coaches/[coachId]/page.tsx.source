@@ -1,0 +1,249 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { requestCoachAction } from "../../real-coach-actions";
+import { getRealCoachActor } from "../../real-coach-auth";
+import { createRealCoachMarketplaceRepository } from "../../../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const metadata: Metadata = {
+  title: "Coach Profile | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+function messageForRequestError(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  switch (raw) {
+    case "coach_capacity_full":
+      return "This coach is at capacity. Requests are disabled until a student slot opens.";
+    case "app_access_fee_required":
+      return "Pay the Trader Intelligence per-coach access fee before requesting this coach.";
+    case "coach_not_approved":
+      return "This coach is not approved for requests.";
+    case "consent_required":
+      return "Confirm coach read-only access consent before requesting this coach.";
+    case "request_failed":
+      return "The coach request could not be created.";
+    default:
+      return null;
+  }
+}
+
+export default async function CoachProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ coachId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { coachId } = await params;
+  const query = searchParams ? await searchParams : {};
+  const actor = await getRealCoachActor();
+  const repository = createRealCoachMarketplaceRepository();
+  const coach = repository.getCoachProfile(decodeURIComponent(coachId));
+
+  if (!coach || coach.status !== "approved") {
+    notFound();
+  }
+
+  const card = repository.buildDirectoryCard(coach);
+  const studentActor = actor?.role === "student" ? actor : null;
+  const accessPass = studentActor
+    ? repository.getActiveAccessPass({
+        coachId: coach.id,
+        userId: studentActor.userId,
+      })
+    : null;
+  const relationship = studentActor
+    ? repository.getCurrentRelationship({
+        coachId: coach.id,
+        userId: studentActor.userId,
+      })
+    : null;
+  const requestError = messageForRequestError(query.requestError);
+  const canRequest =
+    Boolean(studentActor) && Boolean(accessPass) && !card.requestsDisabled && !relationship;
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
+            Back to coaches
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Approved Coach
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            {coach.displayName}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
+            {coach.headline}
+          </p>
+        </header>
+
+        {requestError ? (
+          <section className="border border-rose-900/70 bg-rose-950/10 p-4 text-sm text-rose-200">
+            {requestError}
+          </section>
+        ) : null}
+
+        {query.requested ? (
+          <section className="border border-emerald-900/70 bg-emerald-950/10 p-4 text-sm text-emerald-200">
+            Coach request created. Pay the coach through their Whop link, then
+            an admin or coach can mark the relationship active.
+          </section>
+        ) : null}
+
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <article className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              Coach Profile
+            </h2>
+            <p className="mt-4 whitespace-pre-line text-sm leading-6 text-zinc-400">
+              {coach.bio}
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {coach.specialties.map((specialty) => (
+                <span
+                  className="border border-zinc-800 px-2 py-1 text-xs text-zinc-400"
+                  key={specialty}
+                >
+                  {specialty}
+                </span>
+              ))}
+            </div>
+
+            {coach.socialLinks.length > 0 ? (
+              <div className="mt-6 grid gap-2 border-t border-zinc-900 pt-4">
+                {coach.socialLinks.map((link) => (
+                  <a
+                    className="text-sm text-sky-300 hover:text-sky-200"
+                    href={link.url}
+                    key={`${link.label}-${link.url}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            ) : null}
+          </article>
+
+          <aside className="grid gap-4">
+            <section className="border border-zinc-800 bg-zinc-950 p-4">
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Request Status
+              </h2>
+              <div className="mt-4 grid gap-2 text-sm text-zinc-400">
+                <div>App access: {coach.appAccessFeeText}</div>
+                <div>Coach fee: {coach.coachFeeText}</div>
+                <div>
+                  Capacity: {card.reservedStudentCount} / {coach.studentCap}
+                </div>
+                <div>
+                  App access pass: {accessPass ? "paid for this month" : "not paid"}
+                </div>
+                <div>
+                  Relationship:{" "}
+                  {relationship
+                    ? `${relationship.status} / coach payment ${relationship.coachPaymentStatus}`
+                    : "none"}
+                </div>
+              </div>
+            </section>
+
+            <section className="border border-amber-900/70 bg-amber-950/10 p-4">
+              <h2 className="text-sm font-semibold text-amber-200">
+                Payment Boundary
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Trader Intelligence collects the per-coach app access fee. The
+                coach collects their coaching fee through Whop and handles coach
+                payment refunds, chargebacks, and disputes.
+              </p>
+            </section>
+
+            {!studentActor ? (
+              <section className="border border-sky-900/70 bg-sky-950/10 p-4">
+                <h2 className="text-sm font-semibold text-sky-200">
+                  Student view required
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Browsing is public, but app access payment and coach requests
+                  require the student view.
+                </p>
+                <Link
+                  className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
+                  href={`/real-coach-session?required=student&next=/coaches/${encodeURIComponent(coach.slug)}`}
+                >
+                  Choose student view
+                </Link>
+              </section>
+            ) : null}
+
+            {studentActor && !accessPass ? (
+              <section className="border border-sky-900/70 bg-sky-950/10 p-4">
+                <h2 className="text-sm font-semibold text-sky-200">
+                  App Access Payment Pending
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Trader Intelligence app access is granted only after a
+                  verified Whop payment webhook or an admin-only local fallback
+                  records the one-month access fee for this coach.
+                </p>
+              </section>
+            ) : null}
+
+            <form
+              action={requestCoachAction}
+              className="border border-zinc-800 bg-zinc-950 p-4"
+            >
+              <input name="coachId" type="hidden" value={coach.id} />
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Request Coach
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">
+                Requesting this coach gives them read-only access to all saved
+                trades while the relationship is active.
+              </p>
+              <label className="mt-4 flex gap-2 text-sm text-zinc-400">
+                <input required type="checkbox" name="consent" />
+                I consent to this coach reviewing my saved trades and coaching
+                reports.
+              </label>
+              <button
+                className="mt-4 border border-emerald-800 px-4 py-2 text-sm font-medium text-emerald-300 enabled:hover:border-emerald-400 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
+                disabled={!canRequest}
+                type="submit"
+              >
+                {card.requestsDisabled
+                  ? "Coach is full"
+                  : relationship
+                    ? "Request already created"
+                    : accessPass && studentActor
+                      ? "Request coach"
+                      : studentActor
+                        ? "Pay app access first"
+                        : "Choose student view"}
+              </button>
+            </form>
+
+            {relationship ? (
+              <a
+                className="border border-sky-800 px-4 py-3 text-center text-sm text-sky-300 hover:text-sky-200"
+                href={coach.whopUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Open coach Whop payment
+              </a>
+            ) : null}
+          </aside>
+        </section>
+      </div>
+    </main>
+  );
+}

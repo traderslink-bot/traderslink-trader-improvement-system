@@ -1,0 +1,589 @@
+# Trader Reflection AI Summary Plan
+
+## Product Goal
+
+Build a trader-level reflection loop that turns saved executions, deterministic
+trade feedback, and the user's own trade notes into plain-language daily,
+weekly, and monthly coaching summaries.
+
+The feature should help the trader answer:
+
+1. What did I do today?
+2. What behavior helped or hurt me this week?
+3. Did I improve compared with the prior period?
+4. Which mistake is repeating?
+5. What should I focus on next session, next week, and next month?
+
+## Core Product Principle
+
+AI writes the narrative, but deterministic Trader Intelligence evidence controls
+the conclusions.
+
+The model should not decide whether the trader chased, protected profit,
+averaged down, exited early, or improved. Those conclusions must come from the
+existing analysis, behavior, review, and coaching layers. AI receives a bounded
+evidence package and converts it into normal written language.
+
+## Existing System Pieces To Reuse
+
+- Saved trade notes already exist in `saved_trade_notes`.
+- Trade detail pages already let users write review notes.
+- The review checklist already marks reviewed work.
+- `DailyCoachReport` already identifies the latest session, best trade, worst
+  trade, fix-next-session text, preserve-next-session text, and related trades.
+- `TraderWeeklyReviewDashboard` already summarizes current-period P/L, primary
+  focus, top risk, top strength, rule violations, and streaks.
+- `TraderAnalyticsComparison` and behavior trend cards already compare current
+  and prior reports.
+- The product view model already centralizes the data that workspace, analytics,
+  coach, and progress routes consume.
+
+## New Product Object
+
+Add a `TraderPeriodReflectionSystem` to the product view model.
+
+It should contain:
+
+- `daily`: latest trading-day reflection
+- `weekly`: current period / week reflection
+- `monthly`: current month lookback
+- `policy`: evidence-first AI policy and provider status
+
+Each period reflection should include:
+
+- period kind: `daily`, `weekly`, or `monthly`
+- period label, start date, end date
+- generated timestamp
+- trade count
+- note count
+- P/L summary
+- title
+- headline
+- human-readable summary
+- what went well
+- what needs work
+- user-note insight
+- progress/comparison insight
+- next focus
+- related trade ids
+- evidence points
+- AI prompt seed / narrative input
+- narrative source
+
+## Daily Reflection
+
+Daily reflections should use:
+
+- latest session date
+- trades from that session
+- daily coach report
+- notes attached to trades from that session
+- best and worst trade refs
+- top same-day risk/strength
+- rule focus
+
+The daily user-facing card should answer:
+
+- "What happened today?"
+- "What should I fix tomorrow?"
+- "What should I preserve tomorrow?"
+- "Which trades should I reread?"
+
+## Weekly Reflection
+
+Weekly reflections should use:
+
+- current report period
+- weekly review dashboard
+- current focus queue
+- current top risk and strength
+- rule compliance
+- behavior streaks
+- notes across current-period trades
+- previous report comparison when available
+
+The weekly user-facing card should answer:
+
+- "What pattern dominated the week?"
+- "What improved or worsened compared with last week?"
+- "Which note theme kept showing up?"
+- "What is the next weekly focus?"
+
+## Monthly Reflection
+
+Monthly reflections should use:
+
+- current calendar month when available
+- current report period when calendar grouping is not available
+- weekly reflection summaries from available report snapshots
+- current vs prior report comparison
+- month-level top risks and strengths
+- month-level note themes
+
+The monthly user-facing card should answer:
+
+- "Did the trader improve this month?"
+- "Which mistake repeated?"
+- "Which strength became more consistent?"
+- "What should next month focus on?"
+
+## Notes And Voice
+
+Text notes are the MVP input because the app already persists them.
+
+Voice notes should come after the text-note loop is useful:
+
+1. Add a small "record note" control on trade review.
+2. Transcribe speech to text server-side.
+3. Save the transcript as a normal trade note with metadata.
+4. Feed the saved text into the same reflection builders.
+
+The reflection system should not care whether a note was typed or transcribed.
+
+## AI Narrative Contract
+
+Provider decision:
+
+- Use the OpenAI API.
+- Use the Responses API for text generation instead of the older Chat
+  Completions path.
+- Prefer structured outputs for the reflection writer so the app receives
+  separate fields for headline, summary, what went well, what needs work, note
+  insight, progress insight, and next focus.
+- Required server environment variable: `OPENAI_API_KEY`.
+- Optional server environment variable: `OPENAI_REFLECTION_MODEL`.
+- The model should remain configurable by environment so the app can upgrade
+  models without changing the reflection contract.
+
+The AI writer receives a compact JSON package:
+
+```json
+{
+  "periodKind": "weekly",
+  "periodLabel": "Week of 2026-06-08",
+  "tradeCount": 18,
+  "grossPnl": 1240.5,
+  "topRisks": ["Adding into weakness", "Premature final exit"],
+  "topStrengths": ["Trimmed into strength", "Protected profit earlier"],
+  "userNoteThemes": ["frustration after first loss", "hesitation before exit"],
+  "comparison": {
+    "previousPeriod": "Week of 2026-06-01",
+    "improved": ["fewer adverse adds"],
+    "repeated": ["late chase entries"]
+  },
+  "requiredNextFocus": "Wait for repair before adding size.",
+  "evidenceTradeIds": ["trade-1", "trade-4"]
+}
+```
+
+The prompt rules:
+
+- Write like a direct human coach.
+- Do not invent facts.
+- Do not mention unsupported indicators or market context.
+- Use "you" language.
+- Keep the response specific.
+- Include one next action.
+- If evidence is thin, say the sample is thin.
+
+The AI output should be stored with:
+
+- prompt input
+- model/provider metadata
+- generated text
+- generated time
+- evidence trade ids
+- status: generated, fallback, failed, or stale
+
+## Implementation Phases
+
+### Phase 1 - Deterministic reflection objects
+
+- Add reflection types.
+- Build daily, weekly, and monthly reflection objects from existing reports,
+  notes, coach data, and comparisons.
+- Add deterministic human-readable fallback narrative.
+- Add AI prompt seed data but do not require a live provider.
+- Add unit tests.
+
+### Phase 2 - Product UI
+
+- Add reflection cards to `/workspace`.
+- Add reflection cards to `/coach`.
+- Link reflection evidence to related trade reviews.
+- Keep the UI inside the existing dashboard design language.
+
+### Phase 3 - Persistence
+
+- Add a `period_reflections` table.
+- Store generated reflections by user, account, period kind, start date, and end
+  date.
+- Read prior weekly/monthly summaries when building the next reflection.
+- Mark summaries stale when notes or source report data change.
+
+### Phase 4 - AI provider
+
+- Add a server-only OpenAI Responses API reflection writer.
+- Gate live AI behind environment configuration.
+- Use deterministic fallback when the provider is not configured.
+- Store provider metadata and generated output.
+- Add provider failure handling.
+
+### Phase 5 - Voice notes
+
+- Add a client record control.
+- Add server transcription.
+- Save transcript as a normal trade note.
+- Include transcript source metadata in the note JSON later.
+
+## Initial Build Slice
+
+The first implementation slice should complete Phase 1 and most of Phase 2:
+
+1. Add `TraderPeriodReflectionSystem` types.
+2. Add deterministic daily, weekly, and monthly builders.
+3. Wire the reflection system into `ProductTraderAnalyticsViewModel`.
+4. Add workspace and coach cards that clearly show the latest daily, weekly,
+   and monthly summaries.
+5. Add tests proving notes, current evidence, and prior-period comparison are
+   included.
+
+## Persistence Slice
+
+The second implementation slice adds the durable storage needed before live AI
+generation:
+
+1. Add a `period_reflections` SQLite table keyed by user, account, period kind,
+   start date, and end date.
+2. Add repository methods to save, list, and read generated reflections.
+3. Add a persisted reflection wrapper that records provider, model, status,
+   source report timestamp, and any generation error.
+4. Add tests proving deterministic fallback records can be saved and later
+   upserted with OpenAI-generated metadata for the same period.
+
+## OpenAI Writer Slice
+
+The third implementation slice adds the server-only OpenAI adapter:
+
+1. Add `src/lib/trader-analytics/server/period-reflection-generation.ts`.
+2. Use the OpenAI Responses API endpoint directly from the server with
+   `fetch`, avoiding browser imports and package churn.
+3. Use structured JSON output for headline, summary, what went well, what needs
+   work, note insight, progress insight, and next focus.
+4. Save deterministic fallback records when `OPENAI_API_KEY` is missing.
+5. Save generated records when OpenAI returns valid structured output.
+6. Save failed records with bounded error metadata when the provider call fails.
+7. Include prior persisted weekly/monthly reflection memory in the prompt input
+   so future summaries can compare improvement and repeated mistakes.
+
+## Generation Trigger And Read Slice
+
+The fourth implementation slice connects the writer to the app:
+
+1. Add `POST /api/trader-reflections/generate`.
+2. Accept optional `kinds` (`daily`, `weekly`, `monthly`) and `generatedAt`.
+3. Generate and persist requested reflections from the current saved analytics
+   report.
+4. Return status counts for generated, fallback, failed, and stale records.
+5. Prefer persisted generated summaries in the product view model when they
+   match the current user, account, report timestamp, period kind, start date,
+   and end date.
+6. Keep deterministic reflections available with
+   `includePersistedPeriodReflections: false` so generation prompts do not
+   rewrite from a prior AI rewrite of the same period.
+
+## Stale Handling Slice
+
+The fifth implementation slice protects users from reading outdated AI
+summaries:
+
+1. Add `TraderPeriodReflectionStaleReason`.
+2. Mark matching saved reflections `stale` when a related trade note changes.
+3. Mark matching saved reflections `stale` when source report data is replaced.
+4. Keep stale records stored for history/audit.
+5. Keep stale records out of the product view overlay so the UI falls back to
+   current deterministic evidence until generation runs again.
+
+## Manual Regeneration Control Slice
+
+The sixth implementation slice gives saved-data users a visible way to refresh
+the summaries:
+
+1. Add a client-side regenerate button to the reflection panel.
+2. Call `POST /api/trader-reflections/generate` for daily, weekly, and monthly
+   reflections.
+3. Refresh the current dashboard after generation completes.
+4. Show the control only for saved-data views, not sample/demo views.
+5. Keep deterministic fallback behavior when `OPENAI_API_KEY` is not configured.
+
+## Period Eligibility Slice
+
+The seventh implementation slice makes generation intentional and period-bound:
+
+1. Daily reviews require at least one trade in the daily period and can be
+   generated before 4:00 PM Eastern as an in-progress "day so far" review.
+   After market close, unchanged evidence stays already generated; new trades,
+   notes, or source report changes unlock an update.
+2. Weekly reviews use the latest Monday-Friday market week and unlock after
+   4:00 PM Eastern on Friday.
+3. Monthly reviews use calendar months and unlock after 4:00 PM Eastern on the
+   final weekday of the month.
+4. Each period has one canonical saved review. Generated or fallback records
+   block another generation for the same current source period.
+5. Stale or failed records can be updated. For daily reviews, new trades,
+   regenerated source reports, or new trade notes are what unlock another
+   generation, which keeps API cost tied to evidence changes instead of repeat
+   clicks.
+6. The API rejects ineligible generation requests with period-level reasons.
+7. The UI shows one button per period card, with disabled/readiness messaging
+   when a period is too early, missing trades, or already generated.
+
+## Daily In-Progress Review Update Slice
+
+The eighth implementation slice adjusts the daily timing rule after product
+review:
+
+1. Daily summaries no longer force the trader to wait until 4:00 PM Eastern if
+   the saved report already has trades for that trading day.
+2. Before close, the button reads "Summarize day so far" and stores a normal
+   canonical daily reflection for the current evidence.
+3. If the user clicks again without new trades, a new report, or a new note, the
+   API still rejects the request as `already_generated`.
+4. If a note or source report changes, the existing stale/update path unlocks
+   another run. This allows a trader who stops at 11:00 AM to get value while
+   still protecting OpenAI spend from unlimited refreshes.
+5. Weekly and monthly close-time gates are unchanged.
+
+## Daily Cost Guard And Note Cap Slice
+
+The ninth implementation slice adds hard cost and input-size controls:
+
+1. Daily review generation is capped at three saved attempts per account and
+   trading day.
+2. The cap includes the first day-so-far review, evidence-change updates, and
+   failed provider attempts.
+3. A pre-close daily review does not require a separate finalization click
+   after market close. The same saved daily review is updated only when the
+   day's evidence changes.
+4. A fourth daily request is rejected with `generation_limit_reached`; later
+   same-day notes remain saved and still feed weekly/monthly reviews.
+5. Weekly and monthly reviews remain one canonical saved review, with update
+   allowed only when evidence changes.
+6. Trade review notes are capped at 2,000 characters across the UI, API route,
+   and repository persistence layer. Over-limit notes are rejected instead of
+   silently truncated.
+
+## Model Default And Usage Tracking Slice
+
+The tenth implementation slice adds basic OpenAI spend visibility:
+
+1. The default reflection model is `gpt-5.4-mini`, while
+   `OPENAI_REFLECTION_MODEL` can still override it.
+2. Successful OpenAI Responses API records store reported token usage:
+   input tokens, cached input tokens, output tokens, reasoning output tokens,
+   and total tokens.
+3. Known OpenAI reflection models store an estimated USD cost using the
+   published input, cached-input, and output token rates. Unknown override
+   models still store token usage, but the cost estimate remains `null`.
+4. `POST /api/trader-reflections/generate` returns an aggregate usage summary
+   for the generated records so future product or admin surfaces can show
+   request-level usage without reading each saved record manually.
+
+## Admin Usage Surface Slice
+
+The eleventh implementation slice makes spend tracking visible to operators:
+
+1. Add an append-only `period_reflection_generation_events` table so repeated
+   daily attempts are tracked even when the canonical period reflection row is
+   overwritten.
+2. Log one generation event for every saved reflection attempt: generated,
+   fallback, or failed.
+3. Build an internal usage report from generation events, grouped by model and
+   period kind.
+4. Add `/admin/reflection-usage` and link it from the internal admin dashboard.
+5. Show provider readiness on the admin page without exposing secrets:
+   `OPENAI_API_KEY` configured/not configured, selected model, and model source.
+6. Keep the page operator-facing; do not expose token/cost telemetry in the
+   normal trader workspace unless there is a product reason later.
+
+## Daily Session Evidence Slice
+
+The twelfth implementation slice feeds full-day session story evidence into
+daily AI-ready reflection prompts:
+
+1. Reuse the saved trade thread/session story model for daily reflection input.
+2. When the latest daily session has green-to-red, many same-symbol attempts,
+   high trade count, repeated losing attempts, or profit giveback evidence, add
+   that as daily reflection evidence.
+3. Keep language evidence-first: the prompt can say many attempts, high trade
+   count, green-to-red, or repeated losing attempts, but must not invent revenge
+   trading, emotions, or intent.
+4. Keep the daily review canonical. Session evidence changes the next generated
+   daily review text, but updates still overwrite the same saved daily review
+   row for that day.
+
+## Daily Evidence Visibility Slice
+
+The thirteenth implementation slice makes the daily review's reasoning visible
+in the trader workspace:
+
+1. The daily reflection card surfaces compact session evidence when the day was
+   flagged for repeated same-symbol attempts, green-to-red behavior, high trade
+   count, repeated losing attempts, or profit giveback.
+2. The evidence line is read-only and comes from the same evidence package sent
+   to the AI writer, so the UI does not add unsupported interpretations.
+3. The detail text is capped in the card to keep daily, weekly, and monthly
+   cards scannable.
+4. A live daily OpenAI generation against the saved `2026-05-01` data produced
+   an evidence-based review focused on 11 trades, +235 gross P/L, and repeated
+   AAPL attempts. Estimated cost was `0.00549075` USD.
+
+## Coaching Interpretation Pivot
+
+The fourteenth implementation slice moves the feature away from AI recap and
+toward AI coaching:
+
+1. Daily is now framed as a journal/replay prompt, not a full coaching verdict.
+   The day-session and trade-detail pages already show the day recap.
+2. Weekly is the primary AI coaching surface because it has enough trades to
+   detect repeated behavior, compare against prior memory, and use written notes.
+3. Monthly is a progress lookback that should compare weekly memories and
+   recurring note themes.
+4. A new narrative contract marker, `coach_interpretation_v2`, prevents old
+   recap-style generated records from overlaying the new cards.
+5. The OpenAI prompt now explicitly tells the model not to restate P/L totals,
+   trade counts, best trades, or worst trades as the main value.
+6. Saved trade notes remain the input path for user comments. On mobile, native
+   keyboard dictation can fill the same text note field, so custom audio
+   recording/transcription is deferred unless there is a stronger product need.
+7. A live weekly generation under the new contract produced behavior-first
+   coaching and explicitly stated that no written notes were available.
+
+## Rough Notes Capture Slice
+
+The fifteenth implementation slice makes user thought dumps a first-class input
+for AI coaching:
+
+1. Trade notes remain attached to individual round trips/ticker stories.
+2. Day notes are now attached to a full trading session, so users can dump the
+   overall day context after reviewing the day-session view.
+3. Day notes use the same 2,000-character cap as trade notes.
+4. Saving a day note marks matching daily, weekly, and monthly generated
+   reflections stale, so AI can re-run from the new user context.
+5. Daily reflections receive the note for that exact day; weekly/monthly
+   reflections receive notes inside their period.
+6. The day-session page now shows a `Day Notes` panel with a rough thought-dump
+   textarea and native mobile dictation can fill that textarea.
+7. The prompt seed combines trade notes and day notes into note themes for
+   weekly/monthly AI.
+
+## Weekly And Monthly Review Surface Slice
+
+The sixteenth implementation slice makes the week/month review a visible
+evaluation workflow instead of only a compact card:
+
+1. The workspace reflection section now includes an `End Of Week Review` panel.
+2. The weekly panel frames the review around what repeated, what improved, what
+   got worse, and what rule should guide the next week.
+3. The workspace reflection section now includes an `End Of Month Review` panel.
+4. The monthly panel frames the review around progress across weekly memories,
+   recurring notes, and repeated behavior.
+5. Each panel shows what to understand, keep doing, improve next, notes/progress,
+   the next rule to test, and the evidence AI reviewed.
+6. These panels use the same canonical weekly/monthly reflection records and
+   generation controls, so there is still one saved review per period.
+
+## Daily Card Cleanup Slice
+
+The seventeenth implementation slice keeps daily from pretending to be a full
+AI review:
+
+1. Removed `Daily replay prompts` wording from the workspace copy.
+2. Renamed the compact daily card from `Daily Journal Prompt` to `Daily Notes`.
+3. Removed the daily `Preserve`, `Improve`, and `Notes` blocks from the compact
+   card because they read like instructions, not a daily review.
+4. The daily card now stays lightweight: date, generation state, main journal
+   question, evidence checked, and a link to open the day notes.
+5. Weekly/monthly review panels remain the main AI evaluation surfaces.
+
+## Trade Rough Notes Slice
+
+The eighteenth implementation slice makes individual trade notes easier to use
+as raw coaching material:
+
+1. Renamed the trade-detail note section to `Trade Thoughts`.
+2. Reframed the copy around rough thought dumps instead of polished lessons.
+3. Added prompt chips for thinking, emotion, execution, repeat, and change.
+4. Changed the placeholder to a realistic rough note about chasing, execution,
+   and a next rule.
+5. Changed the action label to `Save Trade Note`.
+6. Kept the 2,000-character cap visible in the UI and enforced before save.
+7. These trade notes remain attached to each ticker/round trip and continue to
+   feed weekly/monthly AI review prompts.
+
+## Weekly Review Language Correction Slice
+
+The nineteenth implementation slice tightens weekly AI language after product
+review:
+
+1. Bumped the narrative contract to `coach_interpretation_v4` so older awkward
+   weekly outputs no longer count as current generated reviews.
+2. Removed weekly prompt language that asked AI to tell the user what to
+   journal.
+3. Added explicit OpenAI instructions to avoid phrases like `decision point to
+   inspect`, `not the week's result`, and `your journal should capture`.
+4. Changed weekly `nextFocus` generation into a direct trading rule instead of
+   an app/navigation task like opening or reviewing trades.
+5. Added regression coverage that weekly `nextFocus` does not start from
+   `open`, `inspect`, `review`, `journal`, or `write down`.
+6. Regenerated the local weekly review with the synthetic notes; the corrected
+   review speaks directly about the trades and uses the rule:
+   `Before reducing after an adverse move, decide whether the trade is actually
+   invalid; if it is not invalid, wait for repair before changing size.`
+
+## Monthly Review Language QA Slice
+
+The twentieth implementation slice applies the same language standard to the
+monthly review:
+
+1. Generated a local monthly review from the note-aware test data and inspected
+   the compact card plus expanded `End Of Month Review` panel.
+2. Tightened the OpenAI writer to avoid internal product terms such as
+   `snapshot`, `report`, `evidence package`, `source data`, and
+   `deterministic draft` in user-facing output.
+3. Replaced monthly evidence copy from `Available report snapshots` to
+   `Saved review context`.
+4. Cleaned the local synthetic note marker from note body/json payloads so the
+   browser QA data reads like normal user notes.
+5. Bumped the narrative contract to `coach_interpretation_v7` so old generated
+   reviews do not overlay the corrected copy.
+6. Regenerated weekly and monthly reviews together; both now use direct trading
+   behavior language, no app-instruction wording, and no test-note marker.
+
+## Local QA Cleanup And Mobile Check Slice
+
+The twenty-first implementation slice cleaned the local QA state without adding
+a throwaway cleanup script:
+
+1. Deleted the three synthetic trade notes and one synthetic day note that were
+   added for AI language testing.
+2. Marked weekly/monthly reflections stale and regenerated both reviews.
+3. Confirmed both regenerated reviews now have `noteCount: 0` and say the note
+   conclusion is behavior-only.
+4. Ran a 390px mobile-width browser check for `/workspace`, one trade note box,
+   and one day-note box.
+5. Confirmed the mobile views render the weekly/monthly expanded review panels,
+   trade note textarea, day note textarea, save buttons, and 2,000-character
+   caps without rejected AI language or test-note markers.
+
+## Open Items After Period Eligibility Slice
+
+- Configure `OPENAI_API_KEY` in the deployment environment.
+- Decide whether a scheduled job should call the same generation service at the
+  end of each trading day, week, and month, now that usage events can show the
+  cost impact.
+- Continue reviewing the weekly/monthly generated language in the browser and
+  tighten the contract whenever phrasing sounds like app instructions instead of
+  feedback on the user's trades.
+- Add voice note transcription only if native mobile dictation is not enough.
+- Add production data retention rules before storing transcript/audio artifacts.

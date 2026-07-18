@@ -1,0 +1,772 @@
+import {
+  buildPersistedTraderPeriodReflection,
+  PERIOD_REFLECTION_NARRATIVE_CONTRACT,
+} from "../product/period-reflections";
+import type {
+  PersistedTraderPeriodReflectionGenerationEvent,
+  PersistedTraderPeriodReflection,
+  TraderAnalyticsAccountId,
+  TraderAnalyticsUserId,
+  TraderPeriodReflection,
+  TraderPeriodReflectionKind,
+  TraderPeriodReflectionTokenUsage,
+  TraderPeriodReflectionUsage,
+} from "../product/types";
+
+export const DEFAULT_OPENAI_REFLECTION_MODEL = "gpt-5.4-mini";
+export const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
+export const OPENAI_REFLECTION_PRICING_SOURCE =
+  "openai_api_pricing_2026_06_13";
+
+type FetchLike = typeof fetch;
+
+interface OpenAIReflectionModelPricing {
+  inputUsdPerMillion: number;
+  cachedInputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+}
+
+const knownOpenAIReflectionModelPricing: Record<
+  string,
+  OpenAIReflectionModelPricing
+> = {
+  "gpt-5.5": {
+    inputUsdPerMillion: 5,
+    cachedInputUsdPerMillion: 0.5,
+    outputUsdPerMillion: 30,
+  },
+  "gpt-5.4": {
+    inputUsdPerMillion: 2.5,
+    cachedInputUsdPerMillion: 0.25,
+    outputUsdPerMillion: 15,
+  },
+  "gpt-5.4-mini": {
+    inputUsdPerMillion: 0.75,
+    cachedInputUsdPerMillion: 0.075,
+    outputUsdPerMillion: 4.5,
+  },
+  "gpt-5.4-nano": {
+    inputUsdPerMillion: 0.1,
+    cachedInputUsdPerMillion: 0.01,
+    outputUsdPerMillion: 0.6,
+  },
+};
+
+export interface TraderPeriodReflectionRepository {
+  listPeriodReflections(args: {
+    accountId?: string;
+    kind?: TraderPeriodReflectionKind;
+    userId: TraderAnalyticsUserId;
+  }): PersistedTraderPeriodReflection[];
+  savePeriodReflection(
+    record: PersistedTraderPeriodReflection,
+  ): PersistedTraderPeriodReflection;
+  savePeriodReflectionGenerationEvent?: (
+    event: PersistedTraderPeriodReflectionGenerationEvent,
+  ) => PersistedTraderPeriodReflectionGenerationEvent;
+}
+
+export interface OpenAIReflectionWriterConfig {
+  apiKey?: string | null;
+  endpoint?: string;
+  fetchImpl?: FetchLike;
+  model?: string | null;
+}
+
+export interface GenerateTraderPeriodReflectionArgs {
+  accountId: TraderAnalyticsAccountId;
+  generatedAt?: string;
+  openai?: OpenAIReflectionWriterConfig;
+  reflection: TraderPeriodReflection;
+  repository: TraderPeriodReflectionRepository;
+  sourceReportGeneratedAt: string;
+  userId: TraderAnalyticsUserId;
+}
+
+export interface TraderPeriodReflectionNarrativeOutput {
+  headline: string;
+  summary: string;
+  whatWentWell: string;
+  whatNeedsWork: string;
+  noteInsight: string;
+  progressInsight: string;
+  nextFocus: string;
+}
+
+interface TraderPeriodReflectionNarrativeResult {
+  narrative: TraderPeriodReflectionNarrativeOutput;
+  usage: TraderPeriodReflectionUsage | null;
+}
+
+interface OpenAIReflectionPromptMemory {
+  kind: TraderPeriodReflectionKind;
+  periodStartDate: string;
+  periodEndDate: string;
+  status: PersistedTraderPeriodReflection["status"];
+  provider: PersistedTraderPeriodReflection["provider"];
+  headline: string;
+  summary: string;
+  whatNeedsWork: string;
+  nextFocus: string;
+  generatedAt: string;
+}
+
+const narrativeOutputKeys: Array<keyof TraderPeriodReflectionNarrativeOutput> = [
+  "headline",
+  "summary",
+  "whatWentWell",
+  "whatNeedsWork",
+  "noteInsight",
+  "progressInsight",
+  "nextFocus",
+];
+
+const traderReflectionResponseSchema = {
+  type: "object",
+  properties: {
+    headline: { type: "string" },
+    summary: { type: "string" },
+    whatWentWell: { type: "string" },
+    whatNeedsWork: { type: "string" },
+    noteInsight: { type: "string" },
+    progressInsight: { type: "string" },
+    nextFocus: { type: "string" },
+  },
+  required: narrativeOutputKeys,
+  additionalProperties: false,
+} as const;
+
+function compact(value: string, maxLength = 240): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}...`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.trunc(value));
+}
+
+function numericUsageField(
+  record: Record<string, unknown> | null,
+  key: string,
+): number | null {
+  return record ? nonNegativeInteger(record[key]) : null;
+}
+
+function nestedRecord(
+  record: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | null {
+  const value = record[key];
+
+  return isRecord(value) ? value : null;
+}
+
+function pricingForModel(model: string): {
+  model: string;
+  pricing: OpenAIReflectionModelPricing | null;
+} {
+  const normalized = model.trim().toLowerCase();
+  const modelKey = Object.keys(knownOpenAIReflectionModelPricing)
+    .sort((left, right) => right.length - left.length)
+    .find((key) => normalized === key || normalized.startsWith(`${key}-`));
+
+  if (!modelKey) {
+    return {
+      model: normalized || model,
+      pricing: null,
+    };
+  }
+
+  return {
+    model: modelKey,
+    pricing: knownOpenAIReflectionModelPricing[modelKey] ?? null,
+  };
+}
+
+function estimateOpenAIReflectionCost(args: {
+  model: string;
+  tokenUsage: TraderPeriodReflectionTokenUsage;
+}): TraderPeriodReflectionUsage["costEstimate"] {
+  const { model, pricing } = pricingForModel(args.model);
+
+  if (!pricing) {
+    return {
+      currency: "USD",
+      estimatedCostUsd: null,
+      inputUsdPerMillion: null,
+      cachedInputUsdPerMillion: null,
+      outputUsdPerMillion: null,
+      pricingModel: model,
+      pricingSource: "unknown_model",
+    };
+  }
+
+  const cachedInputTokens = Math.min(
+    args.tokenUsage.inputTokens,
+    args.tokenUsage.cachedInputTokens,
+  );
+  const freshInputTokens = Math.max(
+    0,
+    args.tokenUsage.inputTokens - cachedInputTokens,
+  );
+  const estimatedCostUsd =
+    (freshInputTokens * pricing.inputUsdPerMillion +
+      cachedInputTokens * pricing.cachedInputUsdPerMillion +
+      args.tokenUsage.outputTokens * pricing.outputUsdPerMillion) /
+    1_000_000;
+
+  return {
+    currency: "USD",
+    estimatedCostUsd: Number(estimatedCostUsd.toFixed(8)),
+    inputUsdPerMillion: pricing.inputUsdPerMillion,
+    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
+    outputUsdPerMillion: pricing.outputUsdPerMillion,
+    pricingModel: model,
+    pricingSource: OPENAI_REFLECTION_PRICING_SOURCE,
+  };
+}
+
+export function buildOpenAIReflectionUsage(args: {
+  body: unknown;
+  model: string;
+}): TraderPeriodReflectionUsage | null {
+  if (!isRecord(args.body) || !isRecord(args.body.usage)) {
+    return null;
+  }
+
+  const usage = args.body.usage;
+  const inputDetails =
+    nestedRecord(usage, "input_tokens_details") ??
+    nestedRecord(usage, "prompt_tokens_details");
+  const outputDetails =
+    nestedRecord(usage, "output_tokens_details") ??
+    nestedRecord(usage, "completion_tokens_details");
+  const inputTokens =
+    numericUsageField(usage, "input_tokens") ??
+    numericUsageField(usage, "prompt_tokens") ??
+    0;
+  const outputTokens =
+    numericUsageField(usage, "output_tokens") ??
+    numericUsageField(usage, "completion_tokens") ??
+    0;
+  const cachedInputTokens =
+    numericUsageField(inputDetails, "cached_tokens") ?? 0;
+  const reasoningOutputTokens =
+    numericUsageField(outputDetails, "reasoning_tokens") ?? 0;
+  const totalTokens =
+    numericUsageField(usage, "total_tokens") ?? inputTokens + outputTokens;
+
+  if (inputTokens + outputTokens + totalTokens === 0) {
+    return null;
+  }
+
+  const tokenUsage: TraderPeriodReflectionTokenUsage = {
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    reasoningOutputTokens,
+    totalTokens,
+  };
+
+  return {
+    tokenUsage,
+    costEstimate: estimateOpenAIReflectionCost({
+      model: args.model,
+      tokenUsage,
+    }),
+  };
+}
+
+function samePeriod(
+  record: PersistedTraderPeriodReflection,
+  reflection: TraderPeriodReflection,
+): boolean {
+  return (
+    record.kind === reflection.kind &&
+    record.periodStartDate === reflection.startDate &&
+    record.periodEndDate === reflection.endDate
+  );
+}
+
+function uniqueById(
+  records: PersistedTraderPeriodReflection[],
+): PersistedTraderPeriodReflection[] {
+  const seen = new Set<string>();
+  const unique: PersistedTraderPeriodReflection[] = [];
+
+  for (const record of records) {
+    if (seen.has(record.id)) {
+      continue;
+    }
+
+    seen.add(record.id);
+    unique.push(record);
+  }
+
+  return unique;
+}
+
+function memoryForPrompt(
+  record: PersistedTraderPeriodReflection,
+): OpenAIReflectionPromptMemory {
+  return {
+    kind: record.kind,
+    periodStartDate: record.periodStartDate,
+    periodEndDate: record.periodEndDate,
+    status: record.status,
+    provider: record.provider,
+    headline: compact(record.reflection.headline),
+    summary: compact(record.reflection.summary, 360),
+    whatNeedsWork: compact(record.reflection.whatNeedsWork),
+    nextFocus: compact(record.reflection.nextFocus),
+    generatedAt: record.updatedAt,
+  };
+}
+
+function recordMatchesCurrentNarrativeContract(
+  record: PersistedTraderPeriodReflection,
+): boolean {
+  return record.reflection.promptSeed.systemInstruction.includes(
+    PERIOD_REFLECTION_NARRATIVE_CONTRACT,
+  );
+}
+
+export function selectPriorPeriodReflectionMemory(args: {
+  accountId: TraderAnalyticsAccountId;
+  reflection: TraderPeriodReflection;
+  repository: TraderPeriodReflectionRepository;
+  userId: TraderAnalyticsUserId;
+}): PersistedTraderPeriodReflection[] {
+  const sameKind = args.repository.listPeriodReflections({
+    userId: args.userId,
+    accountId: args.accountId,
+    kind: args.reflection.kind,
+  });
+  const monthlyWeekly =
+    args.reflection.kind === "monthly"
+      ? args.repository
+          .listPeriodReflections({
+            userId: args.userId,
+            accountId: args.accountId,
+            kind: "weekly",
+          })
+          .filter(
+            (record) =>
+              record.periodStartDate >= args.reflection.startDate &&
+              record.periodEndDate <= args.reflection.endDate,
+          )
+      : [];
+
+  return uniqueById([...sameKind, ...monthlyWeekly])
+    .filter(recordMatchesCurrentNarrativeContract)
+    .filter((record) => !samePeriod(record, args.reflection))
+    .filter((record) => record.periodEndDate <= args.reflection.endDate)
+    .sort((left, right) => right.periodEndDate.localeCompare(left.periodEndDate))
+    .slice(0, 6);
+}
+
+export function buildOpenAITraderPeriodReflectionRequest(args: {
+  model: string;
+  previousReflections: PersistedTraderPeriodReflection[];
+  reflection: TraderPeriodReflection;
+}): Record<string, unknown> {
+  const deterministicDraft = {
+    headline: args.reflection.headline,
+    summary: args.reflection.summary,
+    whatWentWell: args.reflection.whatWentWell,
+    whatNeedsWork: args.reflection.whatNeedsWork,
+    noteInsight: args.reflection.noteInsight,
+    progressInsight: args.reflection.progressInsight,
+    nextFocus: args.reflection.nextFocus,
+  };
+  const promptPackage = {
+    period: {
+      kind: args.reflection.kind,
+      label: args.reflection.label,
+      startDate: args.reflection.startDate,
+      endDate: args.reflection.endDate,
+      reportId: args.reflection.reportId,
+    },
+    currentEvidence: args.reflection.promptSeed.input,
+    deterministicDraft,
+    evidence: args.reflection.evidence.map((item) => ({
+      kind: item.kind,
+      label: item.label,
+      detail: item.detail,
+      relatedTradeIds: item.relatedTradeIds,
+    })),
+    previousReflectionMemory: args.previousReflections.map(memoryForPrompt),
+  };
+
+  return {
+    model: args.model,
+    store: false,
+    input: [
+      {
+        role: "system",
+        content: [
+          args.reflection.promptSeed.systemInstruction,
+          "You are the final narrative writer for Trader Intelligence period reflections.",
+          "Use only the supplied evidence and prior reflection memory. Do not invent trades, emotions, indicators, market conditions, or improvement claims.",
+          "Do not merely restate the deterministic draft, P/L totals, trade count, best trade, or worst trade. The interface already shows those facts.",
+          "Add value by identifying the repeated trade-management behavior, what changed or repeated, and the next trading rule. If there are saved notes, synthesize what the trader said as evidence; if notes are missing, say the conclusion is behavior-only.",
+          "For weekly and monthly output, do not tell the trader what their journal should capture, what to inspect, or that the week result is not the point. Speak directly about what their trades show and what behavior should change next.",
+          "The nextFocus field must be a trading rule or behavior focus, not an instruction to open, inspect, review, or write notes.",
+          "Avoid awkward phrases such as \"decision point to inspect\", \"not the week's result\", and \"your journal should capture\".",
+          "Avoid internal product terms in user-facing text, including \"snapshot\", \"report\", \"evidence package\", \"source data\", and \"deterministic draft\". Say \"prior period\", \"earlier period\", or \"your trades\" instead.",
+          "For daily output, stay humble: one day can produce a replay question, not a proven habit. For weekly and monthly output, compare repeated behavior and prior reflection memory when available.",
+          "Write in normal second-person language as a direct human coach.",
+        ].join("\n\n"),
+      },
+      {
+        role: "user",
+        content: [
+          args.reflection.promptSeed.userInstruction,
+          "Return concise JSON matching the provided schema. Keep each field specific and useful.",
+          JSON.stringify(promptPackage, null, 2),
+        ].join("\n\n"),
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "trader_period_reflection_v1",
+        schema: traderReflectionResponseSchema,
+        strict: true,
+      },
+    },
+    max_output_tokens: 1200,
+  };
+}
+
+function validateNarrativeOutput(
+  value: unknown,
+): TraderPeriodReflectionNarrativeOutput {
+  if (!isRecord(value)) {
+    throw new Error("OpenAI reflection output was not an object.");
+  }
+
+  const output = {} as TraderPeriodReflectionNarrativeOutput;
+
+  for (const key of narrativeOutputKeys) {
+    const field = value[key];
+
+    if (typeof field !== "string" || field.trim().length === 0) {
+      throw new Error(`OpenAI reflection output is missing ${key}.`);
+    }
+
+    output[key] = field.trim();
+  }
+
+  return output;
+}
+
+function responseOutputText(body: unknown): string {
+  if (!isRecord(body)) {
+    throw new Error("OpenAI response body was not an object.");
+  }
+
+  if (typeof body.output_text === "string" && body.output_text.trim()) {
+    return body.output_text;
+  }
+
+  if (Array.isArray(body.output)) {
+    for (const item of body.output) {
+      if (!isRecord(item) || !Array.isArray(item.content)) {
+        continue;
+      }
+
+      for (const content of item.content) {
+        if (
+          isRecord(content) &&
+          typeof content.text === "string" &&
+          content.text.trim()
+        ) {
+          return content.text;
+        }
+      }
+    }
+  }
+
+  throw new Error("OpenAI response did not include output_text.");
+}
+
+async function readOpenAIError(response: Response): Promise<string> {
+  const fallback = `OpenAI Responses API request failed with ${response.status}.`;
+
+  try {
+    const text = await response.text();
+
+    if (!text) {
+      return fallback;
+    }
+
+    const body = JSON.parse(text);
+
+    if (isRecord(body.error) && typeof body.error.message === "string") {
+      return `${fallback} ${body.error.message}`;
+    }
+
+    return `${fallback} ${compact(text)}`;
+  } catch {
+    return fallback;
+  }
+}
+
+async function requestOpenAIReflectionNarrative(args: {
+  apiKey: string;
+  endpoint: string;
+  fetchImpl: FetchLike;
+  model: string;
+  previousReflections: PersistedTraderPeriodReflection[];
+  reflection: TraderPeriodReflection;
+}): Promise<TraderPeriodReflectionNarrativeResult> {
+  const response = await args.fetchImpl(args.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(
+      buildOpenAITraderPeriodReflectionRequest({
+        model: args.model,
+        previousReflections: args.previousReflections,
+        reflection: args.reflection,
+      }),
+    ),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readOpenAIError(response));
+  }
+
+  const body = await response.json();
+  const text = responseOutputText(body);
+  const parsed = JSON.parse(text);
+
+  return {
+    narrative: validateNarrativeOutput(parsed),
+    usage: buildOpenAIReflectionUsage({
+      body,
+      model: args.model,
+    }),
+  };
+}
+
+function generatedReflection(args: {
+  generatedAt: string;
+  narrative: TraderPeriodReflectionNarrativeOutput;
+  reflection: TraderPeriodReflection;
+}): TraderPeriodReflection {
+  return {
+    ...args.reflection,
+    generatedAt: args.generatedAt,
+    headline: args.narrative.headline,
+    summary: args.narrative.summary,
+    whatWentWell: args.narrative.whatWentWell,
+    whatNeedsWork: args.narrative.whatNeedsWork,
+    noteInsight: args.narrative.noteInsight,
+    progressInsight: args.narrative.progressInsight,
+    nextFocus: args.narrative.nextFocus,
+    narrativeSource: "openai_responses_api",
+  };
+}
+
+function currentPeriodRecord(args: {
+  accountId: TraderAnalyticsAccountId;
+  reflection: TraderPeriodReflection;
+  repository: TraderPeriodReflectionRepository;
+  userId: TraderAnalyticsUserId;
+}): PersistedTraderPeriodReflection | null {
+  return (
+    args.repository
+      .listPeriodReflections({
+        userId: args.userId,
+        accountId: args.accountId,
+        kind: args.reflection.kind,
+      })
+      .find(
+        (record) =>
+          record.periodStartDate === args.reflection.startDate &&
+          record.periodEndDate === args.reflection.endDate,
+      ) ?? null
+  );
+}
+
+function nextGenerationAttemptCount(
+  record: PersistedTraderPeriodReflection | null,
+): number {
+  return Math.max(1, (record?.generationAttemptCount ?? 0) + 1);
+}
+
+function generationEventId(
+  record: PersistedTraderPeriodReflection,
+): string {
+  return [
+    "period-reflection-generation-event",
+    record.userId,
+    record.accountId,
+    record.kind,
+    record.periodStartDate,
+    record.periodEndDate,
+    record.generationAttemptCount,
+    record.updatedAt,
+  ].join(":");
+}
+
+function generationEventFromRecord(
+  record: PersistedTraderPeriodReflection,
+): PersistedTraderPeriodReflectionGenerationEvent {
+  return {
+    id: generationEventId(record),
+    userId: record.userId,
+    accountId: record.accountId,
+    reflectionRecordId: record.id,
+    reportId: record.reportId,
+    kind: record.kind,
+    periodStartDate: record.periodStartDate,
+    periodEndDate: record.periodEndDate,
+    status: record.status,
+    provider: record.provider,
+    model: record.model,
+    sourceReportGeneratedAt: record.sourceReportGeneratedAt,
+    createdAt: record.updatedAt,
+    generationAttemptCount: record.generationAttemptCount,
+    errorMessage: record.errorMessage,
+    usage: record.usage ?? null,
+  };
+}
+
+function saveGenerationEventIfSupported(args: {
+  record: PersistedTraderPeriodReflection;
+  repository: TraderPeriodReflectionRepository;
+}): PersistedTraderPeriodReflection {
+  args.repository.savePeriodReflectionGenerationEvent?.(
+    generationEventFromRecord(args.record),
+  );
+
+  return args.record;
+}
+
+export async function generateAndSaveTraderPeriodReflection(
+  args: GenerateTraderPeriodReflectionArgs,
+): Promise<PersistedTraderPeriodReflection> {
+  const generatedAt = args.generatedAt ?? new Date().toISOString();
+  const previousCurrentPeriodRecord = currentPeriodRecord({
+    repository: args.repository,
+    userId: args.userId,
+    accountId: args.accountId,
+    reflection: args.reflection,
+  });
+  const generationAttemptCount = nextGenerationAttemptCount(
+    previousCurrentPeriodRecord,
+  );
+  const createdAt = previousCurrentPeriodRecord?.createdAt ?? generatedAt;
+  const apiKey = args.openai?.apiKey ?? process.env.OPENAI_API_KEY ?? "";
+  const model =
+    args.openai?.model ??
+    process.env.OPENAI_REFLECTION_MODEL ??
+    DEFAULT_OPENAI_REFLECTION_MODEL;
+  const endpoint = args.openai?.endpoint ?? OPENAI_RESPONSES_ENDPOINT;
+  const fetchImpl = args.openai?.fetchImpl ?? fetch;
+
+  if (!apiKey.trim()) {
+    const record = args.repository.savePeriodReflection(
+      buildPersistedTraderPeriodReflection({
+        userId: args.userId,
+        accountId: args.accountId,
+        reflection: args.reflection,
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+        createdAt,
+        updatedAt: generatedAt,
+        generationAttemptCount,
+        status: "fallback",
+        provider: "deterministic_reflection_v1",
+      }),
+    );
+
+    return saveGenerationEventIfSupported({
+      repository: args.repository,
+      record,
+    });
+  }
+
+  const previousReflections = selectPriorPeriodReflectionMemory({
+    repository: args.repository,
+    userId: args.userId,
+    accountId: args.accountId,
+    reflection: args.reflection,
+  });
+
+  try {
+    const result = await requestOpenAIReflectionNarrative({
+      apiKey,
+      endpoint,
+      fetchImpl,
+      model,
+      previousReflections,
+      reflection: args.reflection,
+    });
+
+    const record = args.repository.savePeriodReflection(
+      buildPersistedTraderPeriodReflection({
+        userId: args.userId,
+        accountId: args.accountId,
+        reflection: generatedReflection({
+          reflection: args.reflection,
+          narrative: result.narrative,
+          generatedAt,
+        }),
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+        createdAt,
+        updatedAt: generatedAt,
+        generationAttemptCount,
+        status: "generated",
+        provider: "openai_responses_api",
+        model,
+        usage: result.usage,
+      }),
+    );
+
+    return saveGenerationEventIfSupported({
+      repository: args.repository,
+      record,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    const record = args.repository.savePeriodReflection(
+      buildPersistedTraderPeriodReflection({
+        userId: args.userId,
+        accountId: args.accountId,
+        reflection: args.reflection,
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+        createdAt,
+        updatedAt: generatedAt,
+        generationAttemptCount,
+        status: "failed",
+        provider: "openai_responses_api",
+        model,
+        errorMessage: compact(message, 480),
+      }),
+    );
+
+    return saveGenerationEventIfSupported({
+      repository: args.repository,
+      record,
+    });
+  }
+}

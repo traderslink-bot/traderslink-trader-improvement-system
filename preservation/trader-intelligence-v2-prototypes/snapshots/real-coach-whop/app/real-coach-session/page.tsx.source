@@ -1,0 +1,168 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  clearPrototypeRealCoachActorAction,
+  setPrototypeRealCoachActorAction,
+} from "../real-coach-actions";
+import { actorLabel, getRealCoachActor } from "../real-coach-auth";
+import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const metadata: Metadata = {
+  title: "Coach Access Session | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function RealCoachSessionPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    next?: string | string[] | undefined;
+    required?: string | string[] | undefined;
+    error?: string | string[] | undefined;
+  }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const next = Array.isArray(query.next) ? query.next[0] : query.next;
+  const required = Array.isArray(query.required)
+    ? query.required[0]
+    : query.required;
+  const error = Array.isArray(query.error) ? query.error[0] : query.error;
+  const actor = await getRealCoachActor();
+  const coaches = createRealCoachMarketplaceRepository()
+    .listCoachProfiles()
+    .filter((coach) => coach.status === "approved");
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
+            Back to coaches
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-300">
+            Local Coach Access
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            Real Coach Session
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+            Choose the role you want to use in this local workspace. Live
+            accounts should use normal student, coach, and admin sign-in.
+          </p>
+        </header>
+
+        {required ? (
+          <section className="border border-amber-900/70 bg-amber-950/10 p-4 text-sm text-amber-200">
+            This route or action requires the {required} role.
+          </section>
+        ) : null}
+
+        {error === "missing-coach" ? (
+          <section className="border border-rose-900/70 bg-rose-950/10 p-4 text-sm text-rose-200">
+            Select an approved coach before switching into coach mode.
+          </section>
+        ) : null}
+
+        <section className="border border-zinc-800 bg-zinc-950 p-5">
+          <h2 className="text-sm font-semibold text-zinc-100">
+            Current Role
+          </h2>
+          <p className="mt-2 text-sm text-zinc-400">{actorLabel(actor)}</p>
+          {actor ? (
+            <form action={clearPrototypeRealCoachActorAction} className="mt-4">
+              <button
+                className="border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
+                type="submit"
+              >
+                Clear role
+              </button>
+            </form>
+          ) : null}
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <form
+            action={setPrototypeRealCoachActorAction}
+            className="border border-zinc-800 bg-zinc-950 p-5"
+          >
+            <input name="role" type="hidden" value="admin" />
+            <input name="next" type="hidden" value={next || "/admin/coaches"} />
+            <h2 className="text-sm font-semibold text-zinc-100">Admin</h2>
+            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-500">
+              Create and approve coaches, set capacity, seed the demo coach, and
+              activate manually confirmed coach payments.
+            </p>
+            <button
+              className="mt-4 border border-amber-800 px-4 py-2 text-sm text-amber-300 hover:border-amber-400"
+              type="submit"
+            >
+              Use admin view
+            </button>
+          </form>
+
+          <form
+            action={setPrototypeRealCoachActorAction}
+            className="border border-zinc-800 bg-zinc-950 p-5"
+          >
+            <input name="role" type="hidden" value="student" />
+            <input name="next" type="hidden" value={next || "/coaches"} />
+            <h2 className="text-sm font-semibold text-zinc-100">Student</h2>
+            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-500">
+              Browse coaches, mark app access paid locally, request a
+              coach with consent, and complete assigned work.
+            </p>
+            <button
+              className="mt-4 border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
+              type="submit"
+            >
+              Use student view
+            </button>
+          </form>
+
+          <form
+            action={setPrototypeRealCoachActorAction}
+            className="border border-zinc-800 bg-zinc-950 p-5"
+          >
+            <input name="role" type="hidden" value="coach" />
+            <input name="next" type="hidden" value={next || "/coach-dashboard"} />
+            <h2 className="text-sm font-semibold text-zinc-100">Coach</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              Review assigned students, confirm coach-owned payment when
+              appropriate, save private notes, publish feedback, and assign work.
+            </p>
+            <select
+              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+              name="coachId"
+              required
+            >
+              <option value="">Select approved coach</option>
+              {coaches.map((coach) => (
+                <option key={coach.id} value={coach.id}>
+                  {coach.displayName}
+                </option>
+              ))}
+            </select>
+            <button
+              className="mt-4 border border-emerald-800 px-4 py-2 text-sm text-emerald-300 hover:border-emerald-400"
+              type="submit"
+            >
+              Use coach view
+            </button>
+          </form>
+        </section>
+
+        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
+          <h2 className="text-sm font-semibold text-amber-200">
+            Live Account Boundary
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            This local session switcher is not live account sign-in. It keeps
+            role-specific coaching screens testable while Whop payment webhooks
+            and live login are connected.
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}

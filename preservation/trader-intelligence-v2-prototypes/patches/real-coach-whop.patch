@@ -1,0 +1,3947 @@
+diff --git a/app/api/real-coach/whop-webhook/route.ts b/app/api/real-coach/whop-webhook/route.ts
+new file mode 100644
+index 00000000..bac72bf3
+--- /dev/null
++++ b/app/api/real-coach/whop-webhook/route.ts
+@@ -0,0 +1,61 @@
++import Whop from "@whop/sdk";
++import { NextResponse, type NextRequest } from "next/server";
++import { processVerifiedWhopPaymentWebhook } from "../../../../src/lib/trader-analytics/product/real-coach-whop-webhook";
++
++export const dynamic = "force-dynamic";
++export const runtime = "nodejs";
++
++function requestHeadersObject(request: NextRequest): Record<string, string> {
++  return Object.fromEntries(request.headers.entries());
++}
++
++export async function POST(request: NextRequest) {
++  const webhookSecret = process.env.WHOP_WEBHOOK_SECRET;
++
++  if (!webhookSecret) {
++    return NextResponse.json(
++      {
++        ok: false,
++        error: "WHOP_WEBHOOK_SECRET is not configured.",
++      },
++      { status: 503 },
++    );
++  }
++
++  const body = await request.text();
++  const client = new Whop({ webhookKey: webhookSecret });
++
++  let event: unknown;
++  try {
++    event = client.webhooks.unwrap(body, {
++      headers: requestHeadersObject(request),
++    });
++  } catch {
++    return NextResponse.json(
++      {
++        ok: false,
++        error: "Whop webhook signature verification failed.",
++      },
++      { status: 401 },
++    );
++  }
++
++  try {
++    const result = processVerifiedWhopPaymentWebhook(event);
++    return NextResponse.json({
++      ok: result.status === "processed" || result.status === "duplicate",
++      status: result.status,
++      message: result.message,
++      accessPassId: result.accessPass?.id ?? null,
++      paymentEventId: result.event.id,
++    });
++  } catch {
++    return NextResponse.json(
++      {
++        ok: false,
++        error: "Whop webhook payload could not be processed.",
++      },
++      { status: 400 },
++    );
++  }
++}
+diff --git a/app/admin/coaches/page.tsx b/app/admin/coaches/page.tsx
+new file mode 100644
+index 00000000..2650c6e5
+--- /dev/null
++++ b/app/admin/coaches/page.tsx
+@@ -0,0 +1,413 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import {
++  adminGrantPrototypeAppAccessAction,
++  confirmCoachPaymentAction,
++  createCoachProfileAction,
++  seedPrototypeCoachAction,
++  updateCoachCapacityAction,
++  updateCoachStatusAction,
++} from "../../real-coach-actions";
++import { getRealCoachActor } from "../../real-coach-auth";
++import { createRealCoachMarketplaceRepository } from "../../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Coach Admin | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++export default async function CoachAdminPage() {
++  const actor = await getRealCoachActor();
++
++  if (actor?.role !== "admin") {
++    return (
++      <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/admin">
++            Back to admin
++          </Link>
++          <section className="border border-amber-900/70 bg-amber-950/10 p-5">
++            <h1 className="text-2xl font-semibold text-zinc-50">
++              Admin view required
++            </h1>
++            <p className="mt-2 text-sm leading-6 text-zinc-400">
++              Coach marketplace administration now requires an explicit admin
++              view. Choose the admin view before creating coaches or changing
++              payment/access state.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-amber-800 px-4 py-2 text-sm text-amber-300 hover:border-amber-400"
++              href="/real-coach-session?required=admin&next=/admin/coaches"
++            >
++              Choose admin view
++            </Link>
++          </section>
++        </div>
++      </main>
++    );
++  }
++
++  const repository = createRealCoachMarketplaceRepository();
++  const coaches = repository.listCoachProfiles();
++  const paymentEvents = repository.listPaymentEvents(12);
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/admin">
++            Back to admin
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-300">
++            Coach Admin
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            Real Coach Marketplace Admin
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Manually approve coaches, set capacity, and activate student access
++            after coach-owned Whop payment is confirmed outside the app.
++          </p>
++        </header>
++
++        <section className="border border-emerald-900/70 bg-emerald-950/10 p-4">
++          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
++            <div>
++              <h2 className="text-sm font-semibold text-emerald-200">
++                Local Demo Coach
++              </h2>
++              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
++                Add one approved demo coach so the directory, app-access fee,
++                request, activation, feedback, and action-item flow can be
++                tested without manually filling the profile form.
++              </p>
++            </div>
++            <form action={seedPrototypeCoachAction}>
++              <button
++                className="border border-emerald-700 px-4 py-2 text-sm font-medium text-emerald-200 hover:border-emerald-400"
++                type="submit"
++              >
++                Seed demo coach
++              </button>
++            </form>
++          </div>
++        </section>
++
++        <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
++          <form
++            action={createCoachProfileAction}
++            className="border border-zinc-800 bg-zinc-950 p-5"
++          >
++            <h2 className="text-sm font-semibold text-zinc-100">
++              Add Coach Profile
++            </h2>
++            <div className="mt-4 grid gap-3">
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="displayName"
++                placeholder="Coach display name"
++                required
++              />
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="headline"
++                placeholder="Short headline"
++              />
++              <textarea
++                className="min-h-28 border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="bio"
++                placeholder="Coach bio"
++              />
++              <textarea
++                className="min-h-20 border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="specialtiesText"
++                placeholder="Specialties, comma or line separated"
++              />
++              <textarea
++                className="min-h-20 border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="socialLinksText"
++                placeholder="Social links, one per line: YouTube | https://..."
++              />
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="whopUrl"
++                placeholder="Coach Whop URL"
++              />
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="appAccessFeeText"
++                placeholder="Trader Intelligence app access fee"
++              />
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                name="coachFeeText"
++                placeholder="Coach Whop fee text"
++              />
++              <input
++                className="border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                min="0"
++                name="studentCap"
++                placeholder="Student cap"
++                type="number"
++              />
++              <label className="flex items-center gap-2 text-sm text-zinc-400">
++                <input name="status" type="checkbox" value="approved" />
++                Approve immediately
++              </label>
++              <button
++                className="border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
++                type="submit"
++              >
++                Create coach
++              </button>
++            </div>
++          </form>
++
++          <section className="grid gap-4">
++            {coaches.length > 0 ? (
++              coaches.map((coach) => {
++                const card = repository.buildDirectoryCard(coach);
++                const relationships = repository.listRelationshipsForCoach({
++                  coachId: coach.id,
++                });
++
++                return (
++                  <article
++                    className="border border-zinc-800 bg-zinc-950 p-5"
++                    key={coach.id}
++                  >
++                    <div className="flex flex-col justify-between gap-4 border-b border-zinc-900 pb-4 lg:flex-row">
++                      <div>
++                        <p className="text-xs uppercase tracking-wide text-zinc-500">
++                          {coach.status} / {card.reservedStudentCount} reserved
++                        </p>
++                        <h2 className="mt-1 text-lg font-semibold text-zinc-50">
++                          {coach.displayName}
++                        </h2>
++                        <p className="mt-1 text-sm text-zinc-500">
++                          {coach.headline}
++                        </p>
++                      </div>
++                      <div className="flex flex-wrap gap-2">
++                        {(["approved", "draft", "hidden"] as const).map((status) => (
++                          <form action={updateCoachStatusAction} key={status}>
++                            <input name="coachId" type="hidden" value={coach.id} />
++                            <input name="status" type="hidden" value={status} />
++                            <button
++                              className={`border px-3 py-2 text-xs uppercase tracking-wide ${
++                                coach.status === status
++                                  ? "border-emerald-800 text-emerald-300"
++                                  : "border-zinc-800 text-zinc-500 hover:text-zinc-300"
++                              }`}
++                              type="submit"
++                            >
++                              {status}
++                            </button>
++                          </form>
++                        ))}
++                      </div>
++                    </div>
++
++                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
++                      <form
++                        action={updateCoachCapacityAction}
++                        className="border border-zinc-900 p-4"
++                      >
++                        <input name="coachId" type="hidden" value={coach.id} />
++                        <label className="text-xs uppercase tracking-wide text-zinc-500">
++                          Student cap
++                        </label>
++                        <div className="mt-2 flex gap-2">
++                          <input
++                            className="min-w-0 flex-1 border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                            defaultValue={coach.studentCap}
++                            min="0"
++                            name="studentCap"
++                            type="number"
++                          />
++                          <button
++                            className="border border-zinc-700 px-3 py-2 text-sm text-zinc-200"
++                            type="submit"
++                          >
++                            Save
++                          </button>
++                        </div>
++                      </form>
++
++                      <div className="border border-zinc-900 p-4 text-sm text-zinc-400">
++                        <p className="text-xs uppercase tracking-wide text-zinc-500">
++                          Payments
++                        </p>
++                        <p className="mt-2">App fee: {coach.appAccessFeeText}</p>
++                        <p className="mt-1">Coach fee: {coach.coachFeeText}</p>
++                        <form
++                          action={adminGrantPrototypeAppAccessAction}
++                          className="mt-3"
++                        >
++                          <input name="coachId" type="hidden" value={coach.id} />
++                          <input
++                            name="paymentReference"
++                            type="hidden"
++                            value={`prototype-admin:${coach.slug}`}
++                          />
++                          <button
++                            className="border border-amber-800 px-3 py-2 text-xs font-medium uppercase tracking-wide text-amber-300 hover:border-amber-400"
++                            type="submit"
++                          >
++                            Grant demo app access
++                          </button>
++                        </form>
++                      </div>
++
++                      <div className="border border-zinc-900 p-4 text-sm text-zinc-400">
++                        <p className="text-xs uppercase tracking-wide text-zinc-500">
++                          Directory
++                        </p>
++                        <p className="mt-2">
++                          {card.requestsDisabled
++                            ? "Requests disabled"
++                            : `${card.availableSeatCount} request slot available`}
++                        </p>
++                        <Link
++                          className="mt-2 inline-flex text-sky-300 hover:text-sky-200"
++                          href={`/coaches/${coach.slug}`}
++                        >
++                          View public profile
++                        </Link>
++                      </div>
++                    </div>
++
++                    <div className="mt-4 border-t border-zinc-900 pt-4">
++                      <h3 className="text-sm font-semibold text-zinc-100">
++                        Student Requests
++                      </h3>
++                      <div className="mt-3 grid gap-2">
++                        {relationships.length > 0 ? (
++                          relationships.map((relationship) => (
++                            <div
++                              className="flex flex-col justify-between gap-3 border border-zinc-900 p-3 text-sm text-zinc-400 sm:flex-row sm:items-center"
++                              key={relationship.id}
++                            >
++                              <div>
++                                <div className="font-medium text-zinc-200">
++                                  {relationship.userId}
++                                </div>
++                                <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
++                                  {relationship.status} / coach payment{" "}
++                                  {relationship.coachPaymentStatus}
++                                </div>
++                              </div>
++                              {relationship.status !== "active" ? (
++                                <form action={confirmCoachPaymentAction}>
++                                  <input
++                                    name="relationshipId"
++                                    type="hidden"
++                                    value={relationship.id}
++                                  />
++                                  <button
++                                    className="border border-emerald-800 px-3 py-2 text-sm text-emerald-300 hover:border-emerald-400"
++                                    type="submit"
++                                  >
++                                    Activate
++                                  </button>
++                                </form>
++                              ) : (
++                                <Link
++                                  className="text-sky-300 hover:text-sky-200"
++                                  href={`/coach-dashboard?coachId=${encodeURIComponent(
++                                    coach.id,
++                                  )}`}
++                                >
++                                  Open dashboard
++                                </Link>
++                              )}
++                            </div>
++                          ))
++                        ) : (
++                          <p className="border border-zinc-900 p-3 text-sm text-zinc-500">
++                            No student requests yet.
++                          </p>
++                        )}
++                      </div>
++                    </div>
++                  </article>
++                );
++              })
++            ) : (
++              <div className="border border-zinc-800 bg-zinc-950 p-5">
++                <h2 className="text-sm font-semibold text-zinc-100">
++                  No coach profiles yet
++                </h2>
++                <p className="mt-2 text-sm text-zinc-500">
++                  Create the first profile, then approve it to show it in the
++                  public coach directory.
++                </p>
++              </div>
++            )}
++          </section>
++        </section>
++
++        <section className="border border-zinc-800 bg-zinc-950 p-5">
++          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
++            <div>
++              <h2 className="text-sm font-semibold text-zinc-100">
++                Payment Event Audit
++              </h2>
++              <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++                Verified Whop webhook results appear here. Processed events
++                grant Trader Intelligence app access; ignored events do not
++                match the coach app-access payment purpose.
++              </p>
++            </div>
++            <code className="border border-zinc-800 px-3 py-2 text-xs text-zinc-400">
++              /api/real-coach/whop-webhook
++            </code>
++          </div>
++
++          <div className="mt-4 grid gap-2">
++            {paymentEvents.length > 0 ? (
++              paymentEvents.map((event) => (
++                <div
++                  className="grid gap-2 border border-zinc-900 p-3 text-sm text-zinc-400 lg:grid-cols-[160px_minmax(0,1fr)_180px]"
++                  key={event.id}
++                >
++                  <div>
++                    <div
++                      className={
++                        event.status === "processed"
++                          ? "text-emerald-300"
++                          : event.status === "failed"
++                            ? "text-rose-300"
++                            : "text-zinc-500"
++                      }
++                    >
++                      {event.status}
++                    </div>
++                    <div className="mt-1 text-xs text-zinc-600">
++                      {event.eventType}
++                    </div>
++                  </div>
++                  <div className="min-w-0">
++                    <div className="truncate text-zinc-300">{event.message}</div>
++                    <div className="mt-1 truncate text-xs text-zinc-600">
++                      event {event.providerEventId}
++                    </div>
++                  </div>
++                  <div className="text-xs text-zinc-600">
++                    <div>{event.coachId ?? "no coach"}</div>
++                    <div>{event.userId ?? "no user"}</div>
++                  </div>
++                </div>
++              ))
++            ) : (
++              <p className="border border-zinc-900 p-3 text-sm text-zinc-500">
++                No payment webhook events have been received yet.
++              </p>
++            )}
++          </div>
++        </section>
++      </div>
++    </main>
++  );
++}
+diff --git a/app/coach-dashboard/page.tsx b/app/coach-dashboard/page.tsx
+new file mode 100644
+index 00000000..f5f82b65
+--- /dev/null
++++ b/app/coach-dashboard/page.tsx
+@@ -0,0 +1,417 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import {
++  addCoachPrivateNoteAction,
++  confirmCoachPaymentAction,
++  createCoachActionItemAction,
++  publishCoachFeedbackReportAction,
++} from "../real-coach-actions";
++import { getRealCoachActor } from "../real-coach-auth";
++import { buildSavedOrSampleTraderAnalyticsViewModel } from "../../src/lib/trader-analytics/server/saved-trader-analytics-data";
++import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Coach Dashboard | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++export default async function CoachDashboardPage({
++  searchParams,
++}: {
++  searchParams?: Promise<{ coachId?: string | string[] | undefined }>;
++}) {
++  const query = searchParams ? await searchParams : {};
++  const actor = await getRealCoachActor();
++  if (actor?.role !== "coach") {
++    return (
++      <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
++            Back to coaches
++          </Link>
++          <section className="border border-emerald-900/70 bg-emerald-950/10 p-5">
++            <h1 className="text-2xl font-semibold text-zinc-50">
++              Coach view required
++            </h1>
++            <p className="mt-2 text-sm leading-6 text-zinc-400">
++              Coach dashboards are scoped to the authenticated coach. Choose a
++              coach view before reviewing students or publishing feedback.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-emerald-800 px-4 py-2 text-sm text-emerald-300 hover:border-emerald-400"
++              href="/real-coach-session?required=coach&next=/coach-dashboard"
++            >
++              Choose coach view
++            </Link>
++          </section>
++        </div>
++      </main>
++    );
++  }
++
++  const requestedCoachId = Array.isArray(query.coachId)
++    ? query.coachId[0]
++    : query.coachId;
++  const coachRepository = createRealCoachMarketplaceRepository();
++  const coaches = coachRepository
++    .listCoachProfiles()
++    .filter((coach) => coach.status === "approved" && coach.id === actor.coachId);
++  const selectedCoach =
++    coachRepository.getCoachProfile(actor.coachId) ??
++    (requestedCoachId ? coachRepository.getCoachProfile(requestedCoachId) : null);
++  const analyticsData = buildSavedOrSampleTraderAnalyticsViewModel();
++  const allTrades = analyticsData.repository.listTrades(analyticsData.userId);
++  const allReports = analyticsData.repository.listReports(analyticsData.userId);
++  const relationships = selectedCoach
++    ? coachRepository.listRelationshipsForCoach({ coachId: selectedCoach.id })
++    : [];
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
++            Back to workspace
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
++            Coach Workspace
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            Real Coach Dashboard
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Coaches review assigned students in read-only mode and publish
++            private feedback to each student when ready.
++          </p>
++        </header>
++
++        {coaches.length > 1 ? (
++          <nav className="flex flex-wrap gap-2">
++            {coaches.map((coach) => (
++              <Link
++                className={`border px-3 py-2 text-sm ${
++                  selectedCoach?.id === coach.id
++                    ? "border-emerald-800 text-emerald-300"
++                    : "border-zinc-800 text-zinc-400 hover:text-zinc-200"
++                }`}
++                href={`/coach-dashboard?coachId=${encodeURIComponent(coach.id)}`}
++                key={coach.id}
++              >
++                {coach.displayName}
++              </Link>
++            ))}
++          </nav>
++        ) : null}
++
++        {!selectedCoach ? (
++          <section className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              No approved coach profile
++            </h2>
++            <p className="mt-2 text-sm text-zinc-500">
++              Approve at least one coach before the coach dashboard has a
++              workspace.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300"
++              href="/admin/coaches"
++            >
++              Open coach admin
++            </Link>
++          </section>
++        ) : null}
++
++        {selectedCoach ? (
++          <section className="border border-zinc-800 bg-zinc-950 p-5">
++            <div className="flex flex-col justify-between gap-4 border-b border-zinc-900 pb-5 sm:flex-row">
++              <div>
++                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++                  Selected coach
++                </p>
++                <h2 className="mt-2 text-xl font-semibold text-zinc-50">
++                  {selectedCoach.displayName}
++                </h2>
++              </div>
++              <div className="text-sm text-zinc-500">
++                {relationships.length} active or requested student
++                {relationships.length === 1 ? "" : "s"}
++              </div>
++            </div>
++
++            <div className="mt-5 grid gap-6">
++              {relationships.length > 0 ? (
++                relationships.map((relationship) => {
++                  const readModel = coachRepository.getCoachStudentReadModel({
++                    relationshipId: relationship.id,
++                    coachId: selectedCoach.id,
++                    trades: allTrades,
++                    reports: allReports,
++                  });
++                  const privateNotes = coachRepository.listPrivateNotes(
++                    relationship.id,
++                  );
++                  const coachReports = coachRepository.listCoachReports(
++                    relationship.id,
++                  );
++
++                  return (
++                    <article
++                      className="border border-zinc-900 bg-zinc-950 p-4"
++                      key={relationship.id}
++                    >
++                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
++                        <div>
++                          <div className="flex flex-wrap items-center justify-between gap-3">
++                            <div>
++                              <p className="text-xs uppercase tracking-wide text-zinc-500">
++                                {relationship.userId}
++                              </p>
++                              <h3 className="mt-1 text-lg font-semibold text-zinc-50">
++                                Student account
++                              </h3>
++                            </div>
++                            <span
++                              className={`border px-2 py-1 text-xs uppercase tracking-wide ${
++                                relationship.status === "active"
++                                  ? "border-emerald-900 text-emerald-300"
++                                  : "border-amber-900 text-amber-300"
++                              }`}
++                            >
++                              {relationship.status} /{" "}
++                              {relationship.coachPaymentStatus}
++                            </span>
++                          </div>
++
++                          {relationship.status !== "active" ? (
++                            <form
++                              action={confirmCoachPaymentAction}
++                              className="mt-4 border border-amber-900/70 bg-amber-950/10 p-4"
++                            >
++                              <input
++                                name="relationshipId"
++                                type="hidden"
++                                value={relationship.id}
++                              />
++                              <p className="text-sm leading-6 text-zinc-400">
++                                Confirm the coach-owned Whop payment after it is
++                                verified outside the app.
++                              </p>
++                              <button
++                                className="mt-3 border border-amber-700 px-3 py-2 text-sm text-amber-200 hover:border-amber-400"
++                                type="submit"
++                              >
++                                Mark coach payment confirmed
++                              </button>
++                            </form>
++                          ) : null}
++
++                          {readModel ? (
++                            <div className="mt-5 grid gap-4 md:grid-cols-3">
++                              <div className="border border-zinc-900 p-4">
++                                <p className="text-xs uppercase tracking-wide text-zinc-500">
++                                  Saved trades
++                                </p>
++                                <div className="mt-2 text-2xl font-semibold text-zinc-50">
++                                  {readModel.trades.length}
++                                </div>
++                              </div>
++                              <div className="border border-zinc-900 p-4">
++                                <p className="text-xs uppercase tracking-wide text-zinc-500">
++                                  Latest report
++                                </p>
++                                <div className="mt-2 text-sm font-semibold text-zinc-300">
++                                  {readModel.latestReport?.generatedAt.slice(0, 10) ??
++                                    "No report"}
++                                </div>
++                              </div>
++                              <div className="border border-zinc-900 p-4">
++                                <p className="text-xs uppercase tracking-wide text-zinc-500">
++                                  Actions assigned
++                                </p>
++                                <div className="mt-2 text-2xl font-semibold text-zinc-50">
++                                  {readModel.actionItems.length}
++                                </div>
++                              </div>
++                            </div>
++                          ) : (
++                            <p className="mt-4 border border-zinc-900 p-4 text-sm text-zinc-500">
++                              Read-only trade access unlocks after coach payment
++                              is confirmed and the relationship is active.
++                            </p>
++                          )}
++
++                          {readModel ? (
++                            <div className="mt-5">
++                              <h4 className="text-sm font-semibold text-zinc-100">
++                                Read-only saved trades
++                              </h4>
++                              <div className="mt-3 grid gap-2">
++                                {readModel.trades.slice(0, 8).map((trade) => (
++                                  <Link
++                                    className="grid gap-2 border border-zinc-900 p-3 text-sm text-zinc-400 hover:border-zinc-700 sm:grid-cols-[120px_minmax(0,1fr)_120px]"
++                                    href={`/trades/${encodeURIComponent(trade.id)}?from=human-coach`}
++                                    key={trade.id}
++                                  >
++                                    <span>{trade.symbol}</span>
++                                    <span>{trade.sessionDate}</span>
++                                    <span>{trade.reviewStatus}</span>
++                                  </Link>
++                                ))}
++                              </div>
++                            </div>
++                          ) : null}
++                        </div>
++
++                        <aside className="grid gap-4">
++                          <form
++                            action={addCoachPrivateNoteAction}
++                            className="border border-zinc-900 p-4"
++                          >
++                            <input
++                              name="relationshipId"
++                              type="hidden"
++                              value={relationship.id}
++                            />
++                            <input
++                              name="coachId"
++                              type="hidden"
++                              value={selectedCoach.id}
++                            />
++                            <h4 className="text-sm font-semibold text-zinc-100">
++                              Private Coach Note
++                            </h4>
++                            <input
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="title"
++                              placeholder="Working note title"
++                            />
++                            <textarea
++                              className="mt-3 min-h-24 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="body"
++                              placeholder="Private coach-only note"
++                              required
++                            />
++                            <button
++                              className="mt-3 border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-500"
++                              type="submit"
++                            >
++                              Save private note
++                            </button>
++                            <p className="mt-2 text-xs text-zinc-600">
++                              {privateNotes.length} private note
++                              {privateNotes.length === 1 ? "" : "s"} saved
++                            </p>
++                          </form>
++
++                          <form
++                            action={publishCoachFeedbackReportAction}
++                            className="border border-zinc-900 p-4"
++                          >
++                            <input
++                              name="relationshipId"
++                              type="hidden"
++                              value={relationship.id}
++                            />
++                            <input
++                              name="coachId"
++                              type="hidden"
++                              value={selectedCoach.id}
++                            />
++                            <h4 className="text-sm font-semibold text-zinc-100">
++                              Publish Student Feedback
++                            </h4>
++                            <select
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="kind"
++                            >
++                              <option value="weekly">Weekly review</option>
++                              <option value="monthly">Monthly final review</option>
++                            </select>
++                            <input
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="periodLabel"
++                              placeholder="Week of Jun 14"
++                            />
++                            <input
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="title"
++                              placeholder="Review title"
++                              required
++                            />
++                            <textarea
++                              className="mt-3 min-h-28 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="body"
++                              placeholder="Student-visible private feedback"
++                              required
++                            />
++                            <button
++                              className="mt-3 border border-emerald-800 px-3 py-2 text-sm text-emerald-300 hover:border-emerald-400"
++                              type="submit"
++                            >
++                              Publish feedback
++                            </button>
++                            <p className="mt-2 text-xs text-zinc-600">
++                              {coachReports.length} report
++                              {coachReports.length === 1 ? "" : "s"} saved
++                            </p>
++                          </form>
++
++                          <form
++                            action={createCoachActionItemAction}
++                            className="border border-zinc-900 p-4"
++                          >
++                            <input
++                              name="relationshipId"
++                              type="hidden"
++                              value={relationship.id}
++                            />
++                            <input
++                              name="coachId"
++                              type="hidden"
++                              value={selectedCoach.id}
++                            />
++                            <h4 className="text-sm font-semibold text-zinc-100">
++                              Assign Action Item
++                            </h4>
++                            <input
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="title"
++                              placeholder="Assignment"
++                              required
++                            />
++                            <input
++                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="dueLabel"
++                              placeholder="Before next weekly review"
++                            />
++                            <textarea
++                              className="mt-3 min-h-24 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++                              name="body"
++                              placeholder="What the student should do"
++                              required
++                            />
++                            <button
++                              className="mt-3 border border-sky-800 px-3 py-2 text-sm text-sky-300 hover:border-sky-400"
++                              type="submit"
++                            >
++                              Assign action
++                            </button>
++                          </form>
++                        </aside>
++                      </div>
++                    </article>
++                  );
++                })
++              ) : (
++                <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
++                  No students have requested this coach yet.
++                </p>
++              )}
++            </div>
++          </section>
++        ) : null}
++      </div>
++    </main>
++  );
++}
+diff --git a/app/coaches/[coachId]/page.tsx b/app/coaches/[coachId]/page.tsx
+new file mode 100644
+index 00000000..e90c20c8
+--- /dev/null
++++ b/app/coaches/[coachId]/page.tsx
+@@ -0,0 +1,249 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import { notFound } from "next/navigation";
++import { requestCoachAction } from "../../real-coach-actions";
++import { getRealCoachActor } from "../../real-coach-auth";
++import { createRealCoachMarketplaceRepository } from "../../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Coach Profile | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++function messageForRequestError(value: string | string[] | undefined): string | null {
++  const raw = Array.isArray(value) ? value[0] : value;
++  switch (raw) {
++    case "coach_capacity_full":
++      return "This coach is at capacity. Requests are disabled until a student slot opens.";
++    case "app_access_fee_required":
++      return "Pay the Trader Intelligence per-coach access fee before requesting this coach.";
++    case "coach_not_approved":
++      return "This coach is not approved for requests.";
++    case "consent_required":
++      return "Confirm coach read-only access consent before requesting this coach.";
++    case "request_failed":
++      return "The coach request could not be created.";
++    default:
++      return null;
++  }
++}
++
++export default async function CoachProfilePage({
++  params,
++  searchParams,
++}: {
++  params: Promise<{ coachId: string }>;
++  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
++}) {
++  const { coachId } = await params;
++  const query = searchParams ? await searchParams : {};
++  const actor = await getRealCoachActor();
++  const repository = createRealCoachMarketplaceRepository();
++  const coach = repository.getCoachProfile(decodeURIComponent(coachId));
++
++  if (!coach || coach.status !== "approved") {
++    notFound();
++  }
++
++  const card = repository.buildDirectoryCard(coach);
++  const studentActor = actor?.role === "student" ? actor : null;
++  const accessPass = studentActor
++    ? repository.getActiveAccessPass({
++        coachId: coach.id,
++        userId: studentActor.userId,
++      })
++    : null;
++  const relationship = studentActor
++    ? repository.getCurrentRelationship({
++        coachId: coach.id,
++        userId: studentActor.userId,
++      })
++    : null;
++  const requestError = messageForRequestError(query.requestError);
++  const canRequest =
++    Boolean(studentActor) && Boolean(accessPass) && !card.requestsDisabled && !relationship;
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
++            Back to coaches
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
++            Approved Coach
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            {coach.displayName}
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
++            {coach.headline}
++          </p>
++        </header>
++
++        {requestError ? (
++          <section className="border border-rose-900/70 bg-rose-950/10 p-4 text-sm text-rose-200">
++            {requestError}
++          </section>
++        ) : null}
++
++        {query.requested ? (
++          <section className="border border-emerald-900/70 bg-emerald-950/10 p-4 text-sm text-emerald-200">
++            Coach request created. Pay the coach through their Whop link, then
++            an admin or coach can mark the relationship active.
++          </section>
++        ) : null}
++
++        <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
++          <article className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              Coach Profile
++            </h2>
++            <p className="mt-4 whitespace-pre-line text-sm leading-6 text-zinc-400">
++              {coach.bio}
++            </p>
++
++            <div className="mt-5 flex flex-wrap gap-2">
++              {coach.specialties.map((specialty) => (
++                <span
++                  className="border border-zinc-800 px-2 py-1 text-xs text-zinc-400"
++                  key={specialty}
++                >
++                  {specialty}
++                </span>
++              ))}
++            </div>
++
++            {coach.socialLinks.length > 0 ? (
++              <div className="mt-6 grid gap-2 border-t border-zinc-900 pt-4">
++                {coach.socialLinks.map((link) => (
++                  <a
++                    className="text-sm text-sky-300 hover:text-sky-200"
++                    href={link.url}
++                    key={`${link.label}-${link.url}`}
++                    rel="noreferrer"
++                    target="_blank"
++                  >
++                    {link.label}
++                  </a>
++                ))}
++              </div>
++            ) : null}
++          </article>
++
++          <aside className="grid gap-4">
++            <section className="border border-zinc-800 bg-zinc-950 p-4">
++              <h2 className="text-sm font-semibold text-zinc-100">
++                Request Status
++              </h2>
++              <div className="mt-4 grid gap-2 text-sm text-zinc-400">
++                <div>App access: {coach.appAccessFeeText}</div>
++                <div>Coach fee: {coach.coachFeeText}</div>
++                <div>
++                  Capacity: {card.reservedStudentCount} / {coach.studentCap}
++                </div>
++                <div>
++                  App access pass: {accessPass ? "paid for this month" : "not paid"}
++                </div>
++                <div>
++                  Relationship:{" "}
++                  {relationship
++                    ? `${relationship.status} / coach payment ${relationship.coachPaymentStatus}`
++                    : "none"}
++                </div>
++              </div>
++            </section>
++
++            <section className="border border-amber-900/70 bg-amber-950/10 p-4">
++              <h2 className="text-sm font-semibold text-amber-200">
++                Payment Boundary
++              </h2>
++              <p className="mt-2 text-sm leading-6 text-zinc-400">
++                Trader Intelligence collects the per-coach app access fee. The
++                coach collects their coaching fee through Whop and handles coach
++                payment refunds, chargebacks, and disputes.
++              </p>
++            </section>
++
++            {!studentActor ? (
++              <section className="border border-sky-900/70 bg-sky-950/10 p-4">
++                <h2 className="text-sm font-semibold text-sky-200">
++                  Student view required
++                </h2>
++                <p className="mt-2 text-sm leading-6 text-zinc-400">
++                  Browsing is public, but app access payment and coach requests
++                  require the student view.
++                </p>
++                <Link
++                  className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
++                  href={`/real-coach-session?required=student&next=/coaches/${encodeURIComponent(coach.slug)}`}
++                >
++                  Choose student view
++                </Link>
++              </section>
++            ) : null}
++
++            {studentActor && !accessPass ? (
++              <section className="border border-sky-900/70 bg-sky-950/10 p-4">
++                <h2 className="text-sm font-semibold text-sky-200">
++                  App Access Payment Pending
++                </h2>
++                <p className="mt-2 text-sm leading-6 text-zinc-400">
++                  Trader Intelligence app access is granted only after a
++                  verified Whop payment webhook or an admin-only local fallback
++                  records the one-month access fee for this coach.
++                </p>
++              </section>
++            ) : null}
++
++            <form
++              action={requestCoachAction}
++              className="border border-zinc-800 bg-zinc-950 p-4"
++            >
++              <input name="coachId" type="hidden" value={coach.id} />
++              <h2 className="text-sm font-semibold text-zinc-100">
++                Request Coach
++              </h2>
++              <p className="mt-2 text-sm leading-6 text-zinc-500">
++                Requesting this coach gives them read-only access to all saved
++                trades while the relationship is active.
++              </p>
++              <label className="mt-4 flex gap-2 text-sm text-zinc-400">
++                <input required type="checkbox" name="consent" />
++                I consent to this coach reviewing my saved trades and coaching
++                reports.
++              </label>
++              <button
++                className="mt-4 border border-emerald-800 px-4 py-2 text-sm font-medium text-emerald-300 enabled:hover:border-emerald-400 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:text-zinc-600"
++                disabled={!canRequest}
++                type="submit"
++              >
++                {card.requestsDisabled
++                  ? "Coach is full"
++                  : relationship
++                    ? "Request already created"
++                    : accessPass && studentActor
++                      ? "Request coach"
++                      : studentActor
++                        ? "Pay app access first"
++                        : "Choose student view"}
++              </button>
++            </form>
++
++            {relationship ? (
++              <a
++                className="border border-sky-800 px-4 py-3 text-center text-sm text-sky-300 hover:text-sky-200"
++                href={coach.whopUrl}
++                rel="noreferrer"
++                target="_blank"
++              >
++                Open coach Whop payment
++              </a>
++            ) : null}
++          </aside>
++        </section>
++      </div>
++    </main>
++  );
++}
+diff --git a/app/coaches/page.tsx b/app/coaches/page.tsx
+new file mode 100644
+index 00000000..63fd9799
+--- /dev/null
++++ b/app/coaches/page.tsx
+@@ -0,0 +1,139 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import { actorLabel, getRealCoachActor } from "../real-coach-auth";
++import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Real Coaches | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++export default async function CoachesPage() {
++  const actor = await getRealCoachActor();
++  const directory = createRealCoachMarketplaceRepository().listApprovedCoachDirectory();
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
++            Back to workspace
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
++            Real Coach Marketplace
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            Approved Trading Coaches
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Browse approved coaches for free. A one-month Trader Intelligence
++            access fee unlocks a request for one coach, and the coach collects
++            their own coaching payment through Whop.
++          </p>
++        </header>
++
++        <section className="border border-zinc-800 bg-zinc-950 p-4">
++          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
++            <div>
++              <h2 className="text-sm font-semibold text-zinc-100">
++                Access Session
++              </h2>
++              <p className="mt-1 text-sm text-zinc-500">{actorLabel(actor)}</p>
++            </div>
++            <Link
++              className="inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
++              href="/real-coach-session?next=/coaches"
++            >
++              Switch role
++            </Link>
++          </div>
++        </section>
++
++        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
++          <h2 className="text-sm font-semibold text-amber-200">
++            Payment Boundary
++          </h2>
++          <p className="mt-2 text-sm leading-6 text-zinc-400">
++            The Trader Intelligence access fee is separate from the coach-owned
++            Whop payment. Coach refunds, chargebacks, and service disputes stay
++            with the coach&apos;s Whop account.
++          </p>
++        </section>
++
++        {directory.length > 0 ? (
++          <section className="grid gap-5 lg:grid-cols-3">
++            {directory.map((card) => (
++              <article
++                className="border border-zinc-800 bg-zinc-950 p-5"
++                key={card.coach.id}
++              >
++                <div className="flex items-start justify-between gap-4">
++                  <div>
++                    <h2 className="text-lg font-semibold text-zinc-50">
++                      {card.coach.displayName}
++                    </h2>
++                    <p className="mt-1 text-sm leading-6 text-zinc-400">
++                      {card.coach.headline}
++                    </p>
++                  </div>
++                  <span
++                    className={`border px-2 py-1 text-xs uppercase tracking-wide ${
++                      card.requestsDisabled
++                        ? "border-zinc-800 text-zinc-500"
++                        : "border-emerald-900 text-emerald-300"
++                    }`}
++                  >
++                    {card.requestsDisabled ? "Full" : `${card.availableSeatCount} open`}
++                  </span>
++                </div>
++
++                <div className="mt-4 flex flex-wrap gap-2">
++                  {card.coach.specialties.slice(0, 4).map((specialty) => (
++                    <span
++                      className="border border-zinc-800 px-2 py-1 text-xs text-zinc-400"
++                      key={specialty}
++                    >
++                      {specialty}
++                    </span>
++                  ))}
++                </div>
++
++                <div className="mt-5 grid gap-2 border-t border-zinc-900 pt-4 text-sm text-zinc-400">
++                  <div>App access: {card.coach.appAccessFeeText}</div>
++                  <div>Coach fee: {card.coach.coachFeeText}</div>
++                  <div>
++                    Students: {card.reservedStudentCount} / {card.coach.studentCap}
++                  </div>
++                </div>
++
++                <Link
++                  className="mt-5 inline-flex border border-sky-800 px-4 py-2 text-sm font-medium text-sky-300 hover:border-sky-400 hover:text-sky-200"
++                  href={`/coaches/${card.coach.slug}`}
++                >
++                  View coach
++                </Link>
++              </article>
++            ))}
++          </section>
++        ) : (
++          <section className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              No approved coaches yet
++            </h2>
++            <p className="mt-2 text-sm leading-6 text-zinc-500">
++              Add and approve coaches from the admin coach page before users can
++              request real-person coaching.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
++              href="/admin/coaches"
++            >
++              Open coach admin
++            </Link>
++          </section>
++        )}
++      </div>
++    </main>
++  );
++}
+diff --git a/app/coach-human/page.tsx b/app/coach-human/page.tsx
+new file mode 100644
+index 00000000..3ae5714d
+--- /dev/null
++++ b/app/coach-human/page.tsx
+@@ -0,0 +1,217 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import { plainStateLabel } from "../app-ui";
++import { completeCoachActionItemAction } from "../real-coach-actions";
++import { getRealCoachActor } from "../real-coach-auth";
++import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Human Coach | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++export default async function HumanCoachStudentPage() {
++  const actor = await getRealCoachActor();
++
++  if (actor?.role !== "student") {
++    return (
++      <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
++            Back to coaches
++          </Link>
++          <section className="border border-sky-900/70 bg-sky-950/10 p-5">
++            <h1 className="text-2xl font-semibold text-zinc-50">
++              Student view required
++            </h1>
++            <p className="mt-2 text-sm leading-6 text-zinc-400">
++              Published coach feedback and assignments are scoped to the active
++              student account. Choose the student view to open this page.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
++              href="/real-coach-session?required=student&next=/coach-human"
++            >
++              Choose student view
++            </Link>
++          </section>
++        </div>
++      </main>
++    );
++  }
++
++  const views = createRealCoachMarketplaceRepository().listStudentCoachViews({
++    userId: actor.userId,
++  });
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
++            Back to workspace
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
++            Human Coaching
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            My Real Coach
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Published coach feedback and assigned follow-through work appear
++            here. Coach-only drafts stay private to the coach.
++          </p>
++        </header>
++
++        <nav className="flex flex-wrap gap-3 text-sm">
++          <Link className="text-sky-300 hover:text-sky-200" href="/coaches">
++            Browse coaches
++          </Link>
++          <Link className="text-sky-300 hover:text-sky-200" href="/coach">
++            Open AI coach
++          </Link>
++        </nav>
++
++        {views.length > 0 ? (
++          <section className="grid gap-6">
++            {views.map((view) => (
++              <article
++                className="border border-zinc-800 bg-zinc-950 p-5"
++                key={view.relationship.id}
++              >
++                <div className="flex flex-col justify-between gap-4 border-b border-zinc-900 pb-5 sm:flex-row">
++                  <div>
++                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
++                      {view.relationship.status} / coach payment{" "}
++                      {view.relationship.coachPaymentStatus}
++                    </p>
++                    <h2 className="mt-2 text-xl font-semibold text-zinc-50">
++                      {view.coach.displayName}
++                    </h2>
++                    <p className="mt-1 text-sm text-zinc-500">
++                      Active through {view.relationship.expiresAt.slice(0, 10)}
++                    </p>
++                  </div>
++                  <a
++                    className="inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
++                    href={view.coach.whopUrl}
++                    rel="noreferrer"
++                    target="_blank"
++                  >
++                    Coach Whop
++                  </a>
++                </div>
++
++                <div className="mt-5 grid gap-5 xl:grid-cols-2">
++                  <section>
++                    <h3 className="text-sm font-semibold text-zinc-100">
++                      Published Feedback
++                    </h3>
++                    <div className="mt-3 grid gap-3">
++                      {view.reports.length > 0 ? (
++                        view.reports.map((report) => (
++                          <div
++                            className="border border-zinc-900 bg-zinc-950 p-4"
++                            key={report.id}
++                          >
++                            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
++                              <span>{report.kind}</span>
++                              <span>{report.periodLabel}</span>
++                            </div>
++                            <h4 className="mt-2 text-sm font-semibold text-zinc-100">
++                              {report.title}
++                            </h4>
++                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
++                              {report.body}
++                            </p>
++                          </div>
++                        ))
++                      ) : (
++                        <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
++                          No published coach feedback yet.
++                        </p>
++                      )}
++                    </div>
++                  </section>
++
++                  <section>
++                    <h3 className="text-sm font-semibold text-zinc-100">
++                      Coach Assignments
++                    </h3>
++                    <div className="mt-3 grid gap-3">
++                      {view.actionItems.length > 0 ? (
++                        view.actionItems.map((item) => (
++                          <div
++                            className="border border-zinc-900 bg-zinc-950 p-4"
++                            key={item.id}
++                          >
++                            <div className="flex flex-wrap items-center justify-between gap-3">
++                              <h4 className="text-sm font-semibold text-zinc-100">
++                                {item.title}
++                              </h4>
++                              <span
++                                className={`border px-2 py-1 text-xs uppercase tracking-wide ${
++                                  item.status === "completed"
++                                    ? "border-emerald-900 text-emerald-300"
++                                    : "border-amber-900 text-amber-300"
++                                }`}
++                              >
++                                {plainStateLabel(item.status)}
++                              </span>
++                            </div>
++                            <p className="mt-2 text-xs uppercase tracking-wide text-zinc-500">
++                              {item.dueLabel}
++                            </p>
++                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
++                              {item.body}
++                            </p>
++                            {item.status !== "completed" ? (
++                              <form action={completeCoachActionItemAction} className="mt-4">
++                                <input
++                                  name="actionItemId"
++                                  type="hidden"
++                                  value={item.id}
++                                />
++                                <button
++                                  className="border border-emerald-800 px-3 py-2 text-sm text-emerald-300 hover:border-emerald-400"
++                                  type="submit"
++                                >
++                                  Mark complete
++                                </button>
++                              </form>
++                            ) : null}
++                          </div>
++                        ))
++                      ) : (
++                        <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
++                          No coach assignments yet.
++                        </p>
++                      )}
++                    </div>
++                  </section>
++                </div>
++              </article>
++            ))}
++          </section>
++        ) : (
++          <section className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              No real coach connected
++            </h2>
++            <p className="mt-2 text-sm leading-6 text-zinc-500">
++              Choose an approved coach, pay the app access fee for that coach,
++              then request the coach from their profile.
++            </p>
++            <Link
++              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
++              href="/coaches"
++            >
++              Browse coaches
++            </Link>
++          </section>
++        )}
++      </div>
++    </main>
++  );
++}
+diff --git a/app/real-coach-actions.ts b/app/real-coach-actions.ts
+new file mode 100644
+index 00000000..4dd5abc5
+--- /dev/null
++++ b/app/real-coach-actions.ts
+@@ -0,0 +1,269 @@
++"use server";
++
++import { revalidatePath } from "next/cache";
++import { redirect } from "next/navigation";
++import {
++  clearRealCoachActor,
++  getRealCoachActor,
++  prototypeAdminActor,
++  prototypeCoachActor,
++  prototypeStudentActor,
++  setRealCoachActor,
++} from "./real-coach-auth";
++import {
++  createRealCoachMarketplaceRepository,
++  type CoachFeedbackKind,
++  type RealCoachProfileStatus,
++} from "../src/lib/trader-analytics/product/real-coach-marketplace";
++
++function textValue(formData: FormData, key: string): string {
++  const value = formData.get(key);
++  return typeof value === "string" ? value.trim() : "";
++}
++
++function intValue(formData: FormData, key: string, fallback: number): number {
++  const parsed = Number.parseInt(textValue(formData, key), 10);
++  return Number.isFinite(parsed) ? parsed : fallback;
++}
++
++function revalidateCoachRoutes(): void {
++  revalidatePath("/coaches");
++  revalidatePath("/coach-human");
++  revalidatePath("/coach-dashboard");
++  revalidatePath("/admin/coaches");
++  revalidatePath("/real-coach-session");
++}
++
++async function requireAdminActor(): Promise<void> {
++  const actor = await getRealCoachActor();
++  if (actor?.role !== "admin") {
++    redirect("/real-coach-session?required=admin");
++  }
++}
++
++async function requireStudentActor() {
++  const actor = await getRealCoachActor();
++  if (actor?.role !== "student") {
++    redirect("/real-coach-session?required=student");
++  }
++
++  return actor;
++}
++
++async function requireCoachActorFor(coachId: string): Promise<void> {
++  const actor = await getRealCoachActor();
++  if (actor?.role !== "coach" || actor.coachId !== coachId) {
++    redirect("/real-coach-session?required=coach");
++  }
++}
++
++async function requireAdminOrRelationshipCoach(
++  relationshipId: string,
++): Promise<void> {
++  const actor = await getRealCoachActor();
++  if (actor?.role === "admin") {
++    return;
++  }
++
++  if (actor?.role !== "coach") {
++    redirect("/real-coach-session?required=coach");
++  }
++
++  const relationship =
++    createRealCoachMarketplaceRepository().getRelationship(relationshipId);
++  if (!relationship || relationship.coachId !== actor.coachId) {
++    redirect("/real-coach-session?required=coach");
++  }
++}
++
++export async function setPrototypeRealCoachActorAction(formData: FormData) {
++  const role = textValue(formData, "role");
++
++  if (role === "admin") {
++    await setRealCoachActor(prototypeAdminActor());
++  } else if (role === "coach") {
++    const coachId = textValue(formData, "coachId");
++    if (!coachId) {
++      redirect("/real-coach-session?error=missing-coach");
++    }
++    await setRealCoachActor(prototypeCoachActor(coachId));
++  } else {
++    await setRealCoachActor(prototypeStudentActor());
++  }
++
++  revalidateCoachRoutes();
++  redirect(textValue(formData, "next") || "/coaches");
++}
++
++export async function clearPrototypeRealCoachActorAction() {
++  await clearRealCoachActor();
++  revalidateCoachRoutes();
++  redirect("/real-coach-session");
++}
++
++export async function createCoachProfileAction(formData: FormData) {
++  await requireAdminActor();
++  const repository = createRealCoachMarketplaceRepository();
++  const displayName = textValue(formData, "displayName");
++
++  if (!displayName) {
++    redirect("/admin/coaches?error=missing-name");
++  }
++
++  repository.createCoachProfile({
++    displayName,
++    headline:
++      textValue(formData, "headline") ||
++      "Execution review coach for active traders.",
++    bio:
++      textValue(formData, "bio") ||
++      "This approved coach can review saved trades, publish private feedback, and assign focused follow-through work.",
++    specialtiesText: textValue(formData, "specialtiesText"),
++    socialLinksText: textValue(formData, "socialLinksText"),
++    whopUrl: textValue(formData, "whopUrl") || "https://whop.com/",
++    appAccessFeeText:
++      textValue(formData, "appAccessFeeText") || "$49 / coach access month",
++    coachFeeText:
++      textValue(formData, "coachFeeText") || "Coach payment handled on Whop",
++    studentCap: intValue(formData, "studentCap", 10),
++    status: textValue(formData, "status") === "approved" ? "approved" : "draft",
++  });
++
++  revalidateCoachRoutes();
++  redirect("/admin/coaches?created=1");
++}
++
++export async function seedPrototypeCoachAction() {
++  await requireAdminActor();
++  createRealCoachMarketplaceRepository().ensurePrototypeSeedCoach();
++
++  revalidateCoachRoutes();
++  redirect("/admin/coaches?seeded=1");
++}
++
++export async function updateCoachStatusAction(formData: FormData) {
++  await requireAdminActor();
++  const status = textValue(formData, "status") as RealCoachProfileStatus;
++  createRealCoachMarketplaceRepository().updateCoachStatus({
++    coachId: textValue(formData, "coachId"),
++    status:
++      status === "approved" || status === "hidden" || status === "draft"
++        ? status
++        : "draft",
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function updateCoachCapacityAction(formData: FormData) {
++  await requireAdminActor();
++  createRealCoachMarketplaceRepository().updateCoachCapacity({
++    coachId: textValue(formData, "coachId"),
++    studentCap: intValue(formData, "studentCap", 0),
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function adminGrantPrototypeAppAccessAction(formData: FormData) {
++  await requireAdminActor();
++  const coachId = textValue(formData, "coachId");
++  const repository = createRealCoachMarketplaceRepository();
++
++  repository.grantPrototypeAppAccessPass({
++    coachId,
++    paymentReference:
++      textValue(formData, "paymentReference") || "prototype-manual-app-fee",
++  });
++
++  revalidateCoachRoutes();
++  redirect("/admin/coaches?appAccess=granted");
++}
++
++export async function requestCoachAction(formData: FormData) {
++  const actor = await requireStudentActor();
++  const coachId = textValue(formData, "coachId");
++  if (textValue(formData, "consent") !== "on") {
++    redirect(`/coaches/${encodeURIComponent(coachId)}?requestError=consent_required`);
++  }
++
++  const result = createRealCoachMarketplaceRepository().requestCoach({
++    coachId,
++    userId: actor.userId,
++    workspaceId: actor.workspaceId,
++    accountId: actor.accountId,
++  });
++
++  revalidateCoachRoutes();
++
++  if (!result.relationship) {
++    redirect(
++      `/coaches/${encodeURIComponent(coachId)}?requestError=${encodeURIComponent(
++        result.reason ?? "request_failed",
++      )}`,
++    );
++  }
++
++  redirect(`/coaches/${encodeURIComponent(coachId)}?requested=1`);
++}
++
++export async function confirmCoachPaymentAction(formData: FormData) {
++  await requireAdminOrRelationshipCoach(textValue(formData, "relationshipId"));
++  createRealCoachMarketplaceRepository().confirmCoachPayment({
++    relationshipId: textValue(formData, "relationshipId"),
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function addCoachPrivateNoteAction(formData: FormData) {
++  await requireCoachActorFor(textValue(formData, "coachId"));
++  createRealCoachMarketplaceRepository().addPrivateNote({
++    relationshipId: textValue(formData, "relationshipId"),
++    coachId: textValue(formData, "coachId"),
++    title: textValue(formData, "title") || "Coach working note",
++    body: textValue(formData, "body"),
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function publishCoachFeedbackReportAction(formData: FormData) {
++  const kind = textValue(formData, "kind") as CoachFeedbackKind;
++  await requireCoachActorFor(textValue(formData, "coachId"));
++
++  createRealCoachMarketplaceRepository().createFeedbackReport({
++    relationshipId: textValue(formData, "relationshipId"),
++    coachId: textValue(formData, "coachId"),
++    kind: kind === "monthly" ? "monthly" : "weekly",
++    periodLabel: textValue(formData, "periodLabel") || "Current week",
++    title: textValue(formData, "title") || "Coach review",
++    body: textValue(formData, "body"),
++    publish: true,
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function createCoachActionItemAction(formData: FormData) {
++  await requireCoachActorFor(textValue(formData, "coachId"));
++  createRealCoachMarketplaceRepository().createActionItem({
++    relationshipId: textValue(formData, "relationshipId"),
++    coachId: textValue(formData, "coachId"),
++    title: textValue(formData, "title") || "Review assignment",
++    body: textValue(formData, "body"),
++    dueLabel: textValue(formData, "dueLabel") || "Before next coach review",
++  });
++
++  revalidateCoachRoutes();
++}
++
++export async function completeCoachActionItemAction(formData: FormData) {
++  const actor = await requireStudentActor();
++  createRealCoachMarketplaceRepository().completeActionItem({
++    actionItemId: textValue(formData, "actionItemId"),
++    userId: actor.userId,
++  });
++
++  revalidateCoachRoutes();
++}
+diff --git a/app/real-coach-auth.ts b/app/real-coach-auth.ts
+new file mode 100644
+index 00000000..00148615
+--- /dev/null
++++ b/app/real-coach-auth.ts
+@@ -0,0 +1,146 @@
++import { cookies } from "next/headers";
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  DEMO_WORKSPACE_ID,
++} from "../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
++import { PROTOTYPE_ADMIN_USER_ID } from "../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const REAL_COACH_ACTOR_COOKIE = "ti_real_coach_actor";
++
++export type RealCoachActor =
++  | {
++      role: "admin";
++      userId: string;
++    }
++  | {
++      role: "student";
++      userId: string;
++      workspaceId: string;
++      accountId: string;
++    }
++  | {
++      role: "coach";
++      userId: string;
++      coachId: string;
++    };
++
++type RealCoachActorRole = RealCoachActor["role"];
++
++function encodeActor(actor: RealCoachActor): string {
++  return Buffer.from(JSON.stringify(actor), "utf8").toString("base64url");
++}
++
++function decodeActor(value: string | undefined): RealCoachActor | null {
++  if (!value) {
++    return null;
++  }
++
++  try {
++    const parsed = JSON.parse(
++      Buffer.from(value, "base64url").toString("utf8"),
++    ) as Partial<RealCoachActor>;
++
++    if (parsed.role === "admin" && typeof parsed.userId === "string") {
++      return {
++        role: "admin",
++        userId: parsed.userId,
++      };
++    }
++
++    if (parsed.role === "student" && typeof parsed.userId === "string") {
++      return {
++        role: "student",
++        userId: parsed.userId,
++        workspaceId:
++          typeof parsed.workspaceId === "string"
++            ? parsed.workspaceId
++            : DEMO_WORKSPACE_ID,
++        accountId:
++          typeof parsed.accountId === "string"
++            ? parsed.accountId
++            : DEMO_ACCOUNT_ID,
++      };
++    }
++
++    if (
++      parsed.role === "coach" &&
++      typeof parsed.userId === "string" &&
++      typeof parsed.coachId === "string"
++    ) {
++      return {
++        role: "coach",
++        userId: parsed.userId,
++        coachId: parsed.coachId,
++      };
++    }
++  } catch {
++    return null;
++  }
++
++  return null;
++}
++
++export async function getRealCoachActor(): Promise<RealCoachActor | null> {
++  const cookieStore = await cookies();
++  return decodeActor(cookieStore.get(REAL_COACH_ACTOR_COOKIE)?.value);
++}
++
++export async function setRealCoachActor(actor: RealCoachActor): Promise<void> {
++  const cookieStore = await cookies();
++  cookieStore.set(REAL_COACH_ACTOR_COOKIE, encodeActor(actor), {
++    httpOnly: true,
++    maxAge: 60 * 60 * 24 * 30,
++    path: "/",
++    sameSite: "lax",
++    secure: process.env.NODE_ENV === "production",
++  });
++}
++
++export async function clearRealCoachActor(): Promise<void> {
++  const cookieStore = await cookies();
++  cookieStore.delete(REAL_COACH_ACTOR_COOKIE);
++}
++
++export function prototypeAdminActor(): RealCoachActor {
++  return {
++    role: "admin",
++    userId: PROTOTYPE_ADMIN_USER_ID,
++  };
++}
++
++export function prototypeStudentActor(): RealCoachActor {
++  return {
++    role: "student",
++    userId: DEMO_USER_ID,
++    workspaceId: DEMO_WORKSPACE_ID,
++    accountId: DEMO_ACCOUNT_ID,
++  };
++}
++
++export function prototypeCoachActor(coachId: string): RealCoachActor {
++  return {
++    role: "coach",
++    userId: `coach:${coachId}`,
++    coachId,
++  };
++}
++
++export function actorHasRole(
++  actor: RealCoachActor | null,
++  role: RealCoachActorRole,
++): actor is Extract<RealCoachActor, { role: typeof role }> {
++  return actor?.role === role;
++}
++
++export function actorLabel(actor: RealCoachActor | null): string {
++  if (!actor) {
++    return "No coach access role selected";
++  }
++
++  if (actor.role === "coach") {
++    return `Coach view: ${actor.coachId}`;
++  }
++
++  return `${actor.role[0]?.toUpperCase()}${actor.role.slice(1)} view`;
++}
+diff --git a/app/real-coach-session/page.tsx b/app/real-coach-session/page.tsx
+new file mode 100644
+index 00000000..7a3c472c
+--- /dev/null
++++ b/app/real-coach-session/page.tsx
+@@ -0,0 +1,168 @@
++import Link from "next/link";
++import type { Metadata } from "next";
++import {
++  clearPrototypeRealCoachActorAction,
++  setPrototypeRealCoachActorAction,
++} from "../real-coach-actions";
++import { actorLabel, getRealCoachActor } from "../real-coach-auth";
++import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
++
++export const metadata: Metadata = {
++  title: "Coach Access Session | Trader Intelligence",
++};
++
++export const dynamic = "force-dynamic";
++
++export default async function RealCoachSessionPage({
++  searchParams,
++}: {
++  searchParams?: Promise<{
++    next?: string | string[] | undefined;
++    required?: string | string[] | undefined;
++    error?: string | string[] | undefined;
++  }>;
++}) {
++  const query = searchParams ? await searchParams : {};
++  const next = Array.isArray(query.next) ? query.next[0] : query.next;
++  const required = Array.isArray(query.required)
++    ? query.required[0]
++    : query.required;
++  const error = Array.isArray(query.error) ? query.error[0] : query.error;
++  const actor = await getRealCoachActor();
++  const coaches = createRealCoachMarketplaceRepository()
++    .listCoachProfiles()
++    .filter((coach) => coach.status === "approved");
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
++            Back to coaches
++          </Link>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-300">
++            Local Coach Access
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            Real Coach Session
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Choose the role you want to use in this local workspace. Live
++            accounts should use normal student, coach, and admin sign-in.
++          </p>
++        </header>
++
++        {required ? (
++          <section className="border border-amber-900/70 bg-amber-950/10 p-4 text-sm text-amber-200">
++            This route or action requires the {required} role.
++          </section>
++        ) : null}
++
++        {error === "missing-coach" ? (
++          <section className="border border-rose-900/70 bg-rose-950/10 p-4 text-sm text-rose-200">
++            Select an approved coach before switching into coach mode.
++          </section>
++        ) : null}
++
++        <section className="border border-zinc-800 bg-zinc-950 p-5">
++          <h2 className="text-sm font-semibold text-zinc-100">
++            Current Role
++          </h2>
++          <p className="mt-2 text-sm text-zinc-400">{actorLabel(actor)}</p>
++          {actor ? (
++            <form action={clearPrototypeRealCoachActorAction} className="mt-4">
++              <button
++                className="border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
++                type="submit"
++              >
++                Clear role
++              </button>
++            </form>
++          ) : null}
++        </section>
++
++        <section className="grid gap-4 md:grid-cols-3">
++          <form
++            action={setPrototypeRealCoachActorAction}
++            className="border border-zinc-800 bg-zinc-950 p-5"
++          >
++            <input name="role" type="hidden" value="admin" />
++            <input name="next" type="hidden" value={next || "/admin/coaches"} />
++            <h2 className="text-sm font-semibold text-zinc-100">Admin</h2>
++            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-500">
++              Create and approve coaches, set capacity, seed the demo coach, and
++              activate manually confirmed coach payments.
++            </p>
++            <button
++              className="mt-4 border border-amber-800 px-4 py-2 text-sm text-amber-300 hover:border-amber-400"
++              type="submit"
++            >
++              Use admin view
++            </button>
++          </form>
++
++          <form
++            action={setPrototypeRealCoachActorAction}
++            className="border border-zinc-800 bg-zinc-950 p-5"
++          >
++            <input name="role" type="hidden" value="student" />
++            <input name="next" type="hidden" value={next || "/coaches"} />
++            <h2 className="text-sm font-semibold text-zinc-100">Student</h2>
++            <p className="mt-2 min-h-20 text-sm leading-6 text-zinc-500">
++              Browse coaches, mark app access paid locally, request a
++              coach with consent, and complete assigned work.
++            </p>
++            <button
++              className="mt-4 border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
++              type="submit"
++            >
++              Use student view
++            </button>
++          </form>
++
++          <form
++            action={setPrototypeRealCoachActorAction}
++            className="border border-zinc-800 bg-zinc-950 p-5"
++          >
++            <input name="role" type="hidden" value="coach" />
++            <input name="next" type="hidden" value={next || "/coach-dashboard"} />
++            <h2 className="text-sm font-semibold text-zinc-100">Coach</h2>
++            <p className="mt-2 text-sm leading-6 text-zinc-500">
++              Review assigned students, confirm coach-owned payment when
++              appropriate, save private notes, publish feedback, and assign work.
++            </p>
++            <select
++              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
++              name="coachId"
++              required
++            >
++              <option value="">Select approved coach</option>
++              {coaches.map((coach) => (
++                <option key={coach.id} value={coach.id}>
++                  {coach.displayName}
++                </option>
++              ))}
++            </select>
++            <button
++              className="mt-4 border border-emerald-800 px-4 py-2 text-sm text-emerald-300 hover:border-emerald-400"
++              type="submit"
++            >
++              Use coach view
++            </button>
++          </form>
++        </section>
++
++        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
++          <h2 className="text-sm font-semibold text-amber-200">
++            Live Account Boundary
++          </h2>
++          <p className="mt-2 text-sm leading-6 text-zinc-400">
++            This local session switcher is not live account sign-in. It keeps
++            role-specific coaching screens testable while Whop payment webhooks
++            and live login are connected.
++          </p>
++        </section>
++      </div>
++    </main>
++  );
++}
+diff --git a/src/lib/trader-analytics/product/real-coach-marketplace.ts b/src/lib/trader-analytics/product/real-coach-marketplace.ts
+new file mode 100644
+index 00000000..02a84d76
+--- /dev/null
++++ b/src/lib/trader-analytics/product/real-coach-marketplace.ts
+@@ -0,0 +1,1722 @@
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  DEMO_WORKSPACE_ID,
++  getTraderIntelligenceDatabase,
++} from "./import-commit/sqlite-import-commit-repository";
++import type {
++  SavedExecutionTrade,
++  SavedTraderAnalyticsReport,
++  TraderAnalyticsUserId,
++} from "./types";
++
++export const PROTOTYPE_ADMIN_USER_ID = "local-prototype-admin";
++export const PROTOTYPE_SEED_COACH_SLUG = "avery-chen";
++const AVERY_CHEN_SEED_BIO = [
++  "A demo approved coach profile for testing the real-person coach workflow.",
++  "Avery reviews saved trades, compares them against the AI coach focus, publishes weekly feedback, and assigns one or two concrete follow-through tasks.",
++  "This seeded profile is local demo data. Replace it with a real approved coach before live use.",
++].join("\n\n");
++
++export type RealCoachProfileStatus = "draft" | "approved" | "hidden";
++export type CoachAccessPassStatus = "paid" | "refunded" | "expired";
++export type CoachRelationshipStatus = "requested" | "active" | "ended";
++export type CoachPaymentStatus = "pending" | "confirmed" | "cancelled";
++export type CoachFeedbackKind = "weekly" | "monthly";
++export type CoachFeedbackStatus = "draft" | "published";
++export type CoachActionItemStatus = "assigned" | "completed";
++export type CoachPaymentEventStatus = "processed" | "ignored" | "failed";
++
++export const COACH_APP_ACCESS_PAYMENT_PURPOSE =
++  "trader_intelligence_coach_app_access";
++
++export interface RealCoachProfile {
++  id: string;
++  slug: string;
++  displayName: string;
++  headline: string;
++  bio: string;
++  specialties: string[];
++  socialLinks: CoachSocialLink[];
++  whopUrl: string;
++  appAccessFeeText: string;
++  coachFeeText: string;
++  studentCap: number;
++  status: RealCoachProfileStatus;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachSocialLink {
++  label: string;
++  url: string;
++}
++
++export interface CoachAccessPass {
++  id: string;
++  coachId: string;
++  userId: TraderAnalyticsUserId;
++  workspaceId: string;
++  accountId: string;
++  status: CoachAccessPassStatus;
++  appFeeText: string;
++  paidAt: string;
++  expiresAt: string;
++  paymentReference: string;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachStudentRelationship {
++  id: string;
++  coachId: string;
++  userId: TraderAnalyticsUserId;
++  workspaceId: string;
++  accountId: string;
++  accessPassId: string;
++  status: CoachRelationshipStatus;
++  coachPaymentStatus: CoachPaymentStatus;
++  requestedAt: string;
++  consentedAt: string;
++  activatedAt: string | null;
++  expiresAt: string;
++  endedAt: string | null;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachPrivateNote {
++  id: string;
++  relationshipId: string;
++  coachId: string;
++  userId: TraderAnalyticsUserId;
++  title: string;
++  body: string;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachFeedbackReport {
++  id: string;
++  relationshipId: string;
++  coachId: string;
++  userId: TraderAnalyticsUserId;
++  kind: CoachFeedbackKind;
++  status: CoachFeedbackStatus;
++  periodLabel: string;
++  title: string;
++  body: string;
++  publishedAt: string | null;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachActionItem {
++  id: string;
++  relationshipId: string;
++  coachId: string;
++  userId: TraderAnalyticsUserId;
++  reportId: string | null;
++  title: string;
++  body: string;
++  dueLabel: string;
++  status: CoachActionItemStatus;
++  completedAt: string | null;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface CoachPaymentEvent {
++  id: string;
++  provider: "whop";
++  providerEventId: string;
++  providerPaymentId: string | null;
++  eventType: string;
++  coachId: string | null;
++  userId: TraderAnalyticsUserId | null;
++  workspaceId: string | null;
++  accountId: string | null;
++  status: CoachPaymentEventStatus;
++  message: string;
++  accessPassId: string | null;
++  rawJson: string;
++  receivedAt: string;
++  createdAt: string;
++}
++
++export interface ProcessWhopAppAccessPaymentInput {
++  providerEventId: string;
++  providerPaymentId?: string | null;
++  eventType: string;
++  metadata: Record<string, unknown> | null;
++  rawEvent: unknown;
++  paidAt?: string;
++  receivedAt?: string;
++}
++
++export interface ProcessWhopAppAccessPaymentResult {
++  status: CoachPaymentEventStatus | "duplicate";
++  message: string;
++  event: CoachPaymentEvent;
++  accessPass: CoachAccessPass | null;
++}
++
++export interface CoachDirectoryCard {
++  coach: RealCoachProfile;
++  activeStudentCount: number;
++  reservedStudentCount: number;
++  availableSeatCount: number;
++  requestsDisabled: boolean;
++}
++
++export interface StudentCoachView {
++  relationship: CoachStudentRelationship;
++  coach: RealCoachProfile;
++  reports: CoachFeedbackReport[];
++  actionItems: CoachActionItem[];
++}
++
++export interface CoachStudentReadModel {
++  relationship: CoachStudentRelationship;
++  coach: RealCoachProfile;
++  trades: SavedExecutionTrade[];
++  latestReport: SavedTraderAnalyticsReport | null;
++  actionItems: CoachActionItem[];
++}
++
++interface RealCoachMarketplaceDatabase {
++  exec(sql: string): void;
++  prepare(sql: string): {
++    get(...params: unknown[]): unknown;
++    all(...params: unknown[]): unknown[];
++    run(...params: unknown[]): { changes: number };
++  };
++}
++
++type CoachProfileRow = {
++  id: string;
++  slug: string;
++  display_name: string;
++  headline: string;
++  bio: string;
++  specialties_json: string;
++  social_links_json: string;
++  whop_url: string;
++  app_access_fee_text: string;
++  coach_fee_text: string;
++  student_cap: number;
++  status: RealCoachProfileStatus;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachAccessPassRow = {
++  id: string;
++  coach_id: string;
++  user_id: string;
++  workspace_id: string;
++  account_id: string;
++  status: CoachAccessPassStatus;
++  app_fee_text: string;
++  paid_at: string;
++  expires_at: string;
++  payment_reference: string;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachRelationshipRow = {
++  id: string;
++  coach_id: string;
++  user_id: string;
++  workspace_id: string;
++  account_id: string;
++  access_pass_id: string;
++  status: CoachRelationshipStatus;
++  coach_payment_status: CoachPaymentStatus;
++  requested_at: string;
++  consented_at: string;
++  activated_at: string | null;
++  expires_at: string;
++  ended_at: string | null;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachPrivateNoteRow = {
++  id: string;
++  relationship_id: string;
++  coach_id: string;
++  user_id: string;
++  title: string;
++  body: string;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachFeedbackReportRow = {
++  id: string;
++  relationship_id: string;
++  coach_id: string;
++  user_id: string;
++  kind: CoachFeedbackKind;
++  status: CoachFeedbackStatus;
++  period_label: string;
++  title: string;
++  body: string;
++  published_at: string | null;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachActionItemRow = {
++  id: string;
++  relationship_id: string;
++  coach_id: string;
++  user_id: string;
++  report_id: string | null;
++  title: string;
++  body: string;
++  due_label: string;
++  status: CoachActionItemStatus;
++  completed_at: string | null;
++  created_at: string;
++  updated_at: string;
++};
++
++type CoachPaymentEventRow = {
++  id: string;
++  provider: "whop";
++  provider_event_id: string;
++  provider_payment_id: string | null;
++  event_type: string;
++  coach_id: string | null;
++  user_id: string | null;
++  workspace_id: string | null;
++  account_id: string | null;
++  status: CoachPaymentEventStatus;
++  message: string;
++  access_pass_id: string | null;
++  raw_json: string;
++  received_at: string;
++  created_at: string;
++};
++
++function nowIso(now = new Date()): string {
++  return now.toISOString();
++}
++
++function monthFrom(value: string, months: number): string {
++  const date = new Date(value);
++  date.setUTCMonth(date.getUTCMonth() + months);
++  return date.toISOString();
++}
++
++function compactId(prefix: string): string {
++  return `${prefix}_${crypto.randomUUID()}`;
++}
++
++function slugify(value: string): string {
++  const slug = value
++    .trim()
++    .toLowerCase()
++    .replace(/[^a-z0-9]+/g, "-")
++    .replace(/^-+|-+$/g, "");
++
++  return slug || `coach-${crypto.randomUUID().slice(0, 8)}`;
++}
++
++function parseJsonArray<T>(value: string, fallback: T[]): T[] {
++  try {
++    const parsed = JSON.parse(value);
++    return Array.isArray(parsed) ? (parsed as T[]) : fallback;
++  } catch {
++    return fallback;
++  }
++}
++
++function splitList(value: string): string[] {
++  return value
++    .split(/\r?\n|,/)
++    .map((item) => item.trim())
++    .filter(Boolean);
++}
++
++function parseSocialLinks(value: string): CoachSocialLink[] {
++  return value
++    .split(/\r?\n/)
++    .map((line) => line.trim())
++    .filter(Boolean)
++    .map((line) => {
++      const [label, ...urlParts] = line.split("|");
++      const url = urlParts.join("|").trim();
++      return {
++        label: (label ?? "").trim() || "Social",
++        url: url || (label ?? "").trim(),
++      };
++    })
++    .filter((link) => link.url.length > 0);
++}
++
++function toProfile(row: CoachProfileRow): RealCoachProfile {
++  const isAverySeed = row.slug === PROTOTYPE_SEED_COACH_SLUG;
++
++  return {
++    id: row.id,
++    slug: row.slug,
++    displayName: row.display_name,
++    headline: row.headline,
++    bio: isAverySeed ? AVERY_CHEN_SEED_BIO : row.bio,
++    specialties: parseJsonArray<string>(row.specialties_json, []),
++    socialLinks: parseJsonArray<CoachSocialLink>(row.social_links_json, []),
++    whopUrl: row.whop_url,
++    appAccessFeeText: row.app_access_fee_text,
++    coachFeeText: row.coach_fee_text,
++    studentCap: row.student_cap,
++    status: row.status,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toPass(row: CoachAccessPassRow): CoachAccessPass {
++  return {
++    id: row.id,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    workspaceId: row.workspace_id,
++    accountId: row.account_id,
++    status: row.status,
++    appFeeText: row.app_fee_text,
++    paidAt: row.paid_at,
++    expiresAt: row.expires_at,
++    paymentReference: row.payment_reference,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toRelationship(row: CoachRelationshipRow): CoachStudentRelationship {
++  return {
++    id: row.id,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    workspaceId: row.workspace_id,
++    accountId: row.account_id,
++    accessPassId: row.access_pass_id,
++    status: row.status,
++    coachPaymentStatus: row.coach_payment_status,
++    requestedAt: row.requested_at,
++    consentedAt: row.consented_at,
++    activatedAt: row.activated_at,
++    expiresAt: row.expires_at,
++    endedAt: row.ended_at,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toPrivateNote(row: CoachPrivateNoteRow): CoachPrivateNote {
++  return {
++    id: row.id,
++    relationshipId: row.relationship_id,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    title: row.title,
++    body: row.body,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toFeedbackReport(row: CoachFeedbackReportRow): CoachFeedbackReport {
++  return {
++    id: row.id,
++    relationshipId: row.relationship_id,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    kind: row.kind,
++    status: row.status,
++    periodLabel: row.period_label,
++    title: row.title,
++    body: row.body,
++    publishedAt: row.published_at,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toActionItem(row: CoachActionItemRow): CoachActionItem {
++  return {
++    id: row.id,
++    relationshipId: row.relationship_id,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    reportId: row.report_id,
++    title: row.title,
++    body: row.body,
++    dueLabel: row.due_label,
++    status: row.status,
++    completedAt: row.completed_at,
++    createdAt: row.created_at,
++    updatedAt: row.updated_at,
++  };
++}
++
++function toPaymentEvent(row: CoachPaymentEventRow): CoachPaymentEvent {
++  return {
++    id: row.id,
++    provider: row.provider,
++    providerEventId: row.provider_event_id,
++    providerPaymentId: row.provider_payment_id,
++    eventType: row.event_type,
++    coachId: row.coach_id,
++    userId: row.user_id,
++    workspaceId: row.workspace_id,
++    accountId: row.account_id,
++    status: row.status,
++    message: row.message,
++    accessPassId: row.access_pass_id,
++    rawJson: row.raw_json,
++    receivedAt: row.received_at,
++    createdAt: row.created_at,
++  };
++}
++
++function metadataString(
++  metadata: Record<string, unknown> | null,
++  ...keys: string[]
++): string | null {
++  if (!metadata) {
++    return null;
++  }
++
++  for (const key of keys) {
++    const value = metadata[key];
++    if (typeof value === "string" && value.trim()) {
++      return value.trim();
++    }
++  }
++
++  return null;
++}
++
++function stableJson(value: unknown): string {
++  try {
++    return JSON.stringify(value);
++  } catch {
++    return JSON.stringify({ unserializable: true });
++  }
++}
++
++export function runRealCoachMarketplaceMigrations(
++  db: RealCoachMarketplaceDatabase,
++): void {
++  db.exec(`
++    CREATE TABLE IF NOT EXISTS coach_profiles (
++      id TEXT PRIMARY KEY,
++      slug TEXT NOT NULL UNIQUE,
++      display_name TEXT NOT NULL,
++      headline TEXT NOT NULL,
++      bio TEXT NOT NULL,
++      specialties_json TEXT NOT NULL,
++      social_links_json TEXT NOT NULL,
++      whop_url TEXT NOT NULL,
++      app_access_fee_text TEXT NOT NULL,
++      coach_fee_text TEXT NOT NULL,
++      student_cap INTEGER NOT NULL,
++      status TEXT NOT NULL,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_profiles_status_idx
++      ON coach_profiles(status);
++
++    CREATE TABLE IF NOT EXISTS coach_access_passes (
++      id TEXT PRIMARY KEY,
++      coach_id TEXT NOT NULL,
++      user_id TEXT NOT NULL,
++      workspace_id TEXT NOT NULL,
++      account_id TEXT NOT NULL,
++      status TEXT NOT NULL,
++      app_fee_text TEXT NOT NULL,
++      paid_at TEXT NOT NULL,
++      expires_at TEXT NOT NULL,
++      payment_reference TEXT NOT NULL,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_access_passes_user_coach_idx
++      ON coach_access_passes(user_id, coach_id, expires_at);
++
++    CREATE TABLE IF NOT EXISTS coach_student_relationships (
++      id TEXT PRIMARY KEY,
++      coach_id TEXT NOT NULL,
++      user_id TEXT NOT NULL,
++      workspace_id TEXT NOT NULL,
++      account_id TEXT NOT NULL,
++      access_pass_id TEXT NOT NULL,
++      status TEXT NOT NULL,
++      coach_payment_status TEXT NOT NULL,
++      requested_at TEXT NOT NULL,
++      consented_at TEXT NOT NULL,
++      activated_at TEXT,
++      expires_at TEXT NOT NULL,
++      ended_at TEXT,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_student_relationships_coach_status_idx
++      ON coach_student_relationships(coach_id, status, expires_at);
++
++    CREATE INDEX IF NOT EXISTS coach_student_relationships_user_status_idx
++      ON coach_student_relationships(user_id, status, expires_at);
++
++    DROP INDEX IF EXISTS coach_student_relationships_active_unique;
++
++    CREATE TABLE IF NOT EXISTS coach_private_notes (
++      id TEXT PRIMARY KEY,
++      relationship_id TEXT NOT NULL,
++      coach_id TEXT NOT NULL,
++      user_id TEXT NOT NULL,
++      title TEXT NOT NULL,
++      body TEXT NOT NULL,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_private_notes_relationship_idx
++      ON coach_private_notes(relationship_id, created_at);
++
++    CREATE TABLE IF NOT EXISTS coach_feedback_reports (
++      id TEXT PRIMARY KEY,
++      relationship_id TEXT NOT NULL,
++      coach_id TEXT NOT NULL,
++      user_id TEXT NOT NULL,
++      kind TEXT NOT NULL,
++      status TEXT NOT NULL,
++      period_label TEXT NOT NULL,
++      title TEXT NOT NULL,
++      body TEXT NOT NULL,
++      published_at TEXT,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_feedback_reports_relationship_status_idx
++      ON coach_feedback_reports(relationship_id, status, created_at);
++
++    CREATE TABLE IF NOT EXISTS coach_action_items (
++      id TEXT PRIMARY KEY,
++      relationship_id TEXT NOT NULL,
++      coach_id TEXT NOT NULL,
++      user_id TEXT NOT NULL,
++      report_id TEXT,
++      title TEXT NOT NULL,
++      body TEXT NOT NULL,
++      due_label TEXT NOT NULL,
++      status TEXT NOT NULL,
++      completed_at TEXT,
++      created_at TEXT NOT NULL,
++      updated_at TEXT NOT NULL
++    );
++
++    CREATE INDEX IF NOT EXISTS coach_action_items_relationship_status_idx
++      ON coach_action_items(relationship_id, status, created_at);
++
++    CREATE TABLE IF NOT EXISTS coach_payment_events (
++      id TEXT PRIMARY KEY,
++      provider TEXT NOT NULL,
++      provider_event_id TEXT NOT NULL,
++      provider_payment_id TEXT,
++      event_type TEXT NOT NULL,
++      coach_id TEXT,
++      user_id TEXT,
++      workspace_id TEXT,
++      account_id TEXT,
++      status TEXT NOT NULL,
++      message TEXT NOT NULL,
++      access_pass_id TEXT,
++      raw_json TEXT NOT NULL,
++      received_at TEXT NOT NULL,
++      created_at TEXT NOT NULL
++    );
++
++    CREATE UNIQUE INDEX IF NOT EXISTS coach_payment_events_provider_event_idx
++      ON coach_payment_events(provider, provider_event_id);
++
++    CREATE INDEX IF NOT EXISTS coach_payment_events_coach_user_idx
++      ON coach_payment_events(coach_id, user_id, created_at);
++  `);
++}
++
++export class RealCoachMarketplaceRepository {
++  private readonly db: RealCoachMarketplaceDatabase;
++
++  constructor(db: RealCoachMarketplaceDatabase = getTraderIntelligenceDatabase()) {
++    this.db = db;
++    runRealCoachMarketplaceMigrations(this.db);
++  }
++
++  createCoachProfile(input: {
++    displayName: string;
++    headline: string;
++    bio: string;
++    specialtiesText?: string;
++    socialLinksText?: string;
++    whopUrl: string;
++    appAccessFeeText: string;
++    coachFeeText: string;
++    studentCap: number;
++    status?: RealCoachProfileStatus;
++    createdAt?: string;
++  }): RealCoachProfile {
++    const createdAt = input.createdAt ?? nowIso();
++    const profile: RealCoachProfile = {
++      id: compactId("coach"),
++      slug: slugify(input.displayName),
++      displayName: input.displayName.trim(),
++      headline: input.headline.trim(),
++      bio: input.bio.trim(),
++      specialties: splitList(input.specialtiesText ?? ""),
++      socialLinks: parseSocialLinks(input.socialLinksText ?? ""),
++      whopUrl: input.whopUrl.trim(),
++      appAccessFeeText: input.appAccessFeeText.trim() || "$49 / month access",
++      coachFeeText: input.coachFeeText.trim() || "Coach sets fee on Whop",
++      studentCap: Math.max(0, Math.floor(input.studentCap)),
++      status: input.status ?? "draft",
++      createdAt,
++      updatedAt: createdAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_profiles (
++          id, slug, display_name, headline, bio, specialties_json,
++          social_links_json, whop_url, app_access_fee_text, coach_fee_text,
++          student_cap, status, created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        profile.id,
++        profile.slug,
++        profile.displayName,
++        profile.headline,
++        profile.bio,
++        JSON.stringify(profile.specialties),
++        JSON.stringify(profile.socialLinks),
++        profile.whopUrl,
++        profile.appAccessFeeText,
++        profile.coachFeeText,
++        profile.studentCap,
++        profile.status,
++        profile.createdAt,
++        profile.updatedAt,
++      );
++
++    return profile;
++  }
++
++  updateCoachStatus(input: {
++    coachId: string;
++    status: RealCoachProfileStatus;
++    updatedAt?: string;
++  }): RealCoachProfile | null {
++    const updatedAt = input.updatedAt ?? nowIso();
++    this.db
++      .prepare(
++        `UPDATE coach_profiles
++         SET status = ?, updated_at = ?
++         WHERE id = ?`,
++      )
++      .run(input.status, updatedAt, input.coachId);
++
++    return this.getCoachProfile(input.coachId);
++  }
++
++  updateCoachCapacity(input: {
++    coachId: string;
++    studentCap: number;
++    updatedAt?: string;
++  }): RealCoachProfile | null {
++    const updatedAt = input.updatedAt ?? nowIso();
++    this.db
++      .prepare(
++        `UPDATE coach_profiles
++         SET student_cap = ?, updated_at = ?
++         WHERE id = ?`,
++      )
++      .run(Math.max(0, Math.floor(input.studentCap)), updatedAt, input.coachId);
++
++    return this.getCoachProfile(input.coachId);
++  }
++
++  ensurePrototypeSeedCoach(input?: { createdAt?: string }): RealCoachProfile {
++    const existing = this.getCoachProfile(PROTOTYPE_SEED_COACH_SLUG);
++    if (existing) {
++      const needsSeedCopyRefresh =
++        existing.bio.includes("prototype approved") ||
++        existing.bio.includes("system coach") ||
++        existing.bio !== AVERY_CHEN_SEED_BIO;
++
++      if (needsSeedCopyRefresh) {
++        const updatedAt = input?.createdAt ?? nowIso();
++        this.db
++          .prepare(
++            `UPDATE coach_profiles
++             SET bio = ?, updated_at = ?
++             WHERE id = ?`,
++          )
++          .run(AVERY_CHEN_SEED_BIO, updatedAt, existing.id);
++      }
++
++      return existing.status === "approved" && !needsSeedCopyRefresh
++        ? existing
++        : (this.updateCoachStatus({
++            coachId: existing.id,
++            status: "approved",
++            updatedAt: input?.createdAt,
++          }) ?? existing);
++    }
++
++    return this.createCoachProfile({
++      displayName: "Avery Chen",
++      headline: "Weekly execution reviews for momentum and small-cap traders.",
++      bio: AVERY_CHEN_SEED_BIO,
++      specialtiesText: [
++        "entry discipline",
++        "adds and scaling",
++        "profit protection",
++        "weekly trade review",
++      ].join(", "),
++      socialLinksText: [
++        "YouTube | https://example.com/avery-trading",
++        "X | https://example.com/avery-x",
++      ].join("\n"),
++      whopUrl: "https://whop.com/trader-intelligence-coach-demo",
++      appAccessFeeText: "$49 / one-month coach access",
++      coachFeeText: "$300 / month through coach-owned Whop",
++      studentCap: 12,
++      status: "approved",
++      createdAt: input?.createdAt,
++    });
++  }
++
++  listCoachProfiles(): RealCoachProfile[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_profiles
++         ORDER BY status = 'approved' DESC, display_name ASC`,
++      )
++      .all()
++      .map((row) => toProfile(row as CoachProfileRow));
++  }
++
++  listApprovedCoachDirectory(now = nowIso()): CoachDirectoryCard[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_profiles
++         WHERE status = 'approved'
++         ORDER BY display_name ASC`,
++      )
++      .all()
++      .map((row) => this.buildDirectoryCard(toProfile(row as CoachProfileRow), now));
++  }
++
++  getCoachProfile(coachIdOrSlug: string): RealCoachProfile | null {
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_profiles
++         WHERE id = ? OR slug = ?
++         LIMIT 1`,
++      )
++      .get(coachIdOrSlug, coachIdOrSlug) as CoachProfileRow | undefined;
++
++    return row ? toProfile(row) : null;
++  }
++
++  buildDirectoryCard(coach: RealCoachProfile, now = nowIso()): CoachDirectoryCard {
++    const activeStudentCount = this.countRelationships({
++      coachId: coach.id,
++      statuses: ["active"],
++      now,
++    });
++    const reservedStudentCount = this.countRelationships({
++      coachId: coach.id,
++      statuses: ["requested", "active"],
++      now,
++    });
++    const availableSeatCount = Math.max(0, coach.studentCap - reservedStudentCount);
++
++    return {
++      coach,
++      activeStudentCount,
++      reservedStudentCount,
++      availableSeatCount,
++      requestsDisabled:
++        coach.status !== "approved" ||
++        coach.studentCap <= 0 ||
++        availableSeatCount <= 0,
++    };
++  }
++
++  grantPrototypeAppAccessPass(input: {
++    coachId: string;
++    userId?: TraderAnalyticsUserId;
++    workspaceId?: string;
++    accountId?: string;
++    paymentReference?: string;
++    paidAt?: string;
++  }): CoachAccessPass {
++    const coach = this.requireCoach(input.coachId);
++    const paidAt = input.paidAt ?? nowIso();
++    const pass: CoachAccessPass = {
++      id: compactId("coach_access"),
++      coachId: coach.id,
++      userId: input.userId ?? DEMO_USER_ID,
++      workspaceId: input.workspaceId ?? DEMO_WORKSPACE_ID,
++      accountId: input.accountId ?? DEMO_ACCOUNT_ID,
++      status: "paid",
++      appFeeText: coach.appAccessFeeText,
++      paidAt,
++      expiresAt: monthFrom(paidAt, 1),
++      paymentReference:
++        input.paymentReference?.trim() ||
++        `prototype-app-access:${coach.slug}:${paidAt}`,
++      createdAt: paidAt,
++      updatedAt: paidAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_access_passes (
++          id, coach_id, user_id, workspace_id, account_id, status,
++          app_fee_text, paid_at, expires_at, payment_reference,
++          created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        pass.id,
++        pass.coachId,
++        pass.userId,
++        pass.workspaceId,
++        pass.accountId,
++        pass.status,
++        pass.appFeeText,
++        pass.paidAt,
++        pass.expiresAt,
++        pass.paymentReference,
++        pass.createdAt,
++        pass.updatedAt,
++      );
++
++    return pass;
++  }
++
++  processWhopAppAccessPayment(
++    input: ProcessWhopAppAccessPaymentInput,
++  ): ProcessWhopAppAccessPaymentResult {
++    const receivedAt = input.receivedAt ?? nowIso();
++    const providerEventId = input.providerEventId.trim();
++    const rawJson = stableJson(input.rawEvent);
++    const existing = this.getPaymentEvent({
++      provider: "whop",
++      providerEventId,
++    });
++
++    if (existing) {
++      return {
++        status: "duplicate",
++        message: "Webhook event was already recorded.",
++        event: existing,
++        accessPass: existing.accessPassId
++          ? this.getAccessPass(existing.accessPassId)
++          : null,
++      };
++    }
++
++    const providerPaymentId = input.providerPaymentId?.trim() || null;
++    const purpose = metadataString(
++      input.metadata,
++      "purpose",
++      "paymentPurpose",
++      "payment_purpose",
++    );
++    const coachId = metadataString(input.metadata, "coachId", "coach_id");
++    const userId = metadataString(input.metadata, "userId", "user_id");
++    const workspaceId = metadataString(
++      input.metadata,
++      "workspaceId",
++      "workspace_id",
++    );
++    const accountId = metadataString(input.metadata, "accountId", "account_id");
++
++    if (input.eventType !== "payment.succeeded") {
++      return {
++        status: "ignored",
++        message: `Ignored unsupported Whop event type: ${input.eventType}.`,
++        event: this.insertPaymentEvent({
++          providerEventId,
++          providerPaymentId,
++          eventType: input.eventType,
++          coachId,
++          userId,
++          workspaceId,
++          accountId,
++          status: "ignored",
++          message: `Ignored unsupported Whop event type: ${input.eventType}.`,
++          accessPassId: null,
++          rawJson,
++          receivedAt,
++        }),
++        accessPass: null,
++      };
++    }
++
++    if (purpose !== COACH_APP_ACCESS_PAYMENT_PURPOSE) {
++      return {
++        status: "ignored",
++        message: "Ignored Whop payment because it is not a coach app-access payment.",
++        event: this.insertPaymentEvent({
++          providerEventId,
++          providerPaymentId,
++          eventType: input.eventType,
++          coachId,
++          userId,
++          workspaceId,
++          accountId,
++          status: "ignored",
++          message:
++            "Ignored Whop payment because it is not a coach app-access payment.",
++          accessPassId: null,
++          rawJson,
++          receivedAt,
++        }),
++        accessPass: null,
++      };
++    }
++
++    if (!coachId || !userId || !workspaceId || !accountId) {
++      return {
++        status: "failed",
++        message:
++          "Whop coach app-access payment is missing coachId, userId, workspaceId, or accountId metadata.",
++        event: this.insertPaymentEvent({
++          providerEventId,
++          providerPaymentId,
++          eventType: input.eventType,
++          coachId,
++          userId,
++          workspaceId,
++          accountId,
++          status: "failed",
++          message:
++            "Whop coach app-access payment is missing coachId, userId, workspaceId, or accountId metadata.",
++          accessPassId: null,
++          rawJson,
++          receivedAt,
++        }),
++        accessPass: null,
++      };
++    }
++
++    const coach = this.getCoachProfile(coachId);
++    if (!coach || coach.status !== "approved") {
++      return {
++        status: "failed",
++        message: "Whop coach app-access payment references an unapproved coach.",
++        event: this.insertPaymentEvent({
++          providerEventId,
++          providerPaymentId,
++          eventType: input.eventType,
++          coachId,
++          userId,
++          workspaceId,
++          accountId,
++          status: "failed",
++          message: "Whop coach app-access payment references an unapproved coach.",
++          accessPassId: null,
++          rawJson,
++          receivedAt,
++        }),
++        accessPass: null,
++      };
++    }
++
++    const accessPass = this.grantPrototypeAppAccessPass({
++      coachId: coach.id,
++      userId,
++      workspaceId,
++      accountId,
++      paymentReference: providerPaymentId
++        ? `whop:${providerPaymentId}`
++        : `whop-event:${providerEventId}`,
++      paidAt: input.paidAt ?? receivedAt,
++    });
++    const message = "Whop payment succeeded; coach app access pass granted.";
++
++    return {
++      status: "processed",
++      message,
++      event: this.insertPaymentEvent({
++        providerEventId,
++        providerPaymentId,
++        eventType: input.eventType,
++        coachId: coach.id,
++        userId,
++        workspaceId,
++        accountId,
++        status: "processed",
++        message,
++        accessPassId: accessPass.id,
++        rawJson,
++        receivedAt,
++      }),
++      accessPass,
++    };
++  }
++
++  listPaymentEvents(limit = 25): CoachPaymentEvent[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_payment_events
++         ORDER BY created_at DESC
++         LIMIT ?`,
++      )
++      .all(Math.max(1, Math.floor(limit)))
++      .map((row) => toPaymentEvent(row as CoachPaymentEventRow));
++  }
++
++  getActiveAccessPass(input: {
++    coachId: string;
++    userId?: TraderAnalyticsUserId;
++    now?: string;
++  }): CoachAccessPass | null {
++    const now = input.now ?? nowIso();
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_access_passes
++         WHERE coach_id = ?
++           AND user_id = ?
++           AND status = 'paid'
++           AND expires_at > ?
++         ORDER BY expires_at DESC
++         LIMIT 1`,
++      )
++      .get(input.coachId, input.userId ?? DEMO_USER_ID, now) as
++      | CoachAccessPassRow
++      | undefined;
++
++    return row ? toPass(row) : null;
++  }
++
++  private getAccessPass(accessPassId: string): CoachAccessPass | null {
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_access_passes
++         WHERE id = ?
++         LIMIT 1`,
++      )
++      .get(accessPassId) as CoachAccessPassRow | undefined;
++
++    return row ? toPass(row) : null;
++  }
++
++  requestCoach(input: {
++    coachId: string;
++    userId?: TraderAnalyticsUserId;
++    workspaceId?: string;
++    accountId?: string;
++    now?: string;
++  }): { relationship: CoachStudentRelationship | null; reason?: string } {
++    const requestedAt = input.now ?? nowIso();
++    const userId = input.userId ?? DEMO_USER_ID;
++    const coach = this.getCoachProfile(input.coachId);
++
++    if (!coach || coach.status !== "approved") {
++      return { relationship: null, reason: "coach_not_approved" };
++    }
++
++    const card = this.buildDirectoryCard(coach, requestedAt);
++    if (card.requestsDisabled) {
++      return { relationship: null, reason: "coach_capacity_full" };
++    }
++
++    const existing = this.getCurrentRelationship({
++      coachId: coach.id,
++      userId,
++      now: requestedAt,
++    });
++    if (existing) {
++      return { relationship: existing };
++    }
++
++    const accessPass = this.getActiveAccessPass({
++      coachId: coach.id,
++      userId,
++      now: requestedAt,
++    });
++    if (!accessPass) {
++      return { relationship: null, reason: "app_access_fee_required" };
++    }
++
++    const relationship: CoachStudentRelationship = {
++      id: compactId("coach_student"),
++      coachId: coach.id,
++      userId,
++      workspaceId: input.workspaceId ?? accessPass.workspaceId,
++      accountId: input.accountId ?? accessPass.accountId,
++      accessPassId: accessPass.id,
++      status: "requested",
++      coachPaymentStatus: "pending",
++      requestedAt,
++      consentedAt: requestedAt,
++      activatedAt: null,
++      expiresAt: accessPass.expiresAt,
++      endedAt: null,
++      createdAt: requestedAt,
++      updatedAt: requestedAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_student_relationships (
++          id, coach_id, user_id, workspace_id, account_id, access_pass_id,
++          status, coach_payment_status, requested_at, consented_at,
++          activated_at, expires_at, ended_at, created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        relationship.id,
++        relationship.coachId,
++        relationship.userId,
++        relationship.workspaceId,
++        relationship.accountId,
++        relationship.accessPassId,
++        relationship.status,
++        relationship.coachPaymentStatus,
++        relationship.requestedAt,
++        relationship.consentedAt,
++        relationship.activatedAt,
++        relationship.expiresAt,
++        relationship.endedAt,
++        relationship.createdAt,
++        relationship.updatedAt,
++      );
++
++    return { relationship };
++  }
++
++  confirmCoachPayment(input: {
++    relationshipId: string;
++    confirmedAt?: string;
++  }): CoachStudentRelationship | null {
++    const confirmedAt = input.confirmedAt ?? nowIso();
++    this.db
++      .prepare(
++        `UPDATE coach_student_relationships
++         SET status = 'active',
++             coach_payment_status = 'confirmed',
++             activated_at = COALESCE(activated_at, ?),
++             updated_at = ?
++         WHERE id = ?
++           AND status IN ('requested', 'active')`,
++      )
++      .run(confirmedAt, confirmedAt, input.relationshipId);
++
++    return this.getRelationship(input.relationshipId);
++  }
++
++  listRelationshipsForCoach(input: {
++    coachId: string;
++    includeEnded?: boolean;
++  }): CoachStudentRelationship[] {
++    const rows = input.includeEnded
++      ? this.db
++          .prepare(
++            `SELECT *
++             FROM coach_student_relationships
++             WHERE coach_id = ?
++             ORDER BY requested_at DESC`,
++          )
++          .all(input.coachId)
++      : this.db
++          .prepare(
++            `SELECT *
++             FROM coach_student_relationships
++             WHERE coach_id = ?
++               AND status IN ('requested', 'active')
++             ORDER BY requested_at DESC`,
++          )
++          .all(input.coachId);
++
++    return rows.map((row) => toRelationship(row as CoachRelationshipRow));
++  }
++
++  listStudentCoachViews(input: {
++    userId?: TraderAnalyticsUserId;
++  } = {}): StudentCoachView[] {
++    const userId = input.userId ?? DEMO_USER_ID;
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_student_relationships
++         WHERE user_id = ?
++           AND status IN ('requested', 'active')
++         ORDER BY requested_at DESC`,
++      )
++      .all(userId)
++      .map((row) => toRelationship(row as CoachRelationshipRow))
++      .flatMap((relationship) => {
++        const coach = this.getCoachProfile(relationship.coachId);
++        if (!coach) {
++          return [];
++        }
++
++        return [
++          {
++            relationship,
++            coach,
++            reports: this.listPublishedReports(relationship.id),
++            actionItems: this.listActionItems(relationship.id),
++          },
++        ];
++      });
++  }
++
++  getCoachStudentReadModel(input: {
++    relationshipId: string;
++    coachId: string;
++    trades: SavedExecutionTrade[];
++    reports: SavedTraderAnalyticsReport[];
++    now?: string;
++  }): CoachStudentReadModel | null {
++    const now = input.now ?? nowIso();
++    const relationship = this.getRelationship(input.relationshipId);
++
++    if (
++      !relationship ||
++      relationship.coachId !== input.coachId ||
++      relationship.status !== "active" ||
++      relationship.expiresAt <= now
++    ) {
++      return null;
++    }
++
++    const coach = this.getCoachProfile(relationship.coachId);
++    if (!coach) {
++      return null;
++    }
++
++    return {
++      relationship,
++      coach,
++      trades: input.trades.filter((trade) => trade.userId === relationship.userId),
++      latestReport:
++        input.reports
++          .filter((report) => report.userId === relationship.userId)
++          .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt))[0] ?? null,
++      actionItems: this.listActionItems(relationship.id),
++    };
++  }
++
++  addPrivateNote(input: {
++    relationshipId: string;
++    coachId: string;
++    title: string;
++    body: string;
++    createdAt?: string;
++  }): CoachPrivateNote | null {
++    const relationship = this.getRelationship(input.relationshipId);
++    if (!relationship || relationship.coachId !== input.coachId) {
++      return null;
++    }
++
++    const createdAt = input.createdAt ?? nowIso();
++    const note: CoachPrivateNote = {
++      id: compactId("coach_note"),
++      relationshipId: relationship.id,
++      coachId: relationship.coachId,
++      userId: relationship.userId,
++      title: input.title.trim(),
++      body: input.body.trim(),
++      createdAt,
++      updatedAt: createdAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_private_notes (
++          id, relationship_id, coach_id, user_id, title, body,
++          created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        note.id,
++        note.relationshipId,
++        note.coachId,
++        note.userId,
++        note.title,
++        note.body,
++        note.createdAt,
++        note.updatedAt,
++      );
++
++    return note;
++  }
++
++  listPrivateNotes(relationshipId: string): CoachPrivateNote[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_private_notes
++         WHERE relationship_id = ?
++         ORDER BY created_at DESC`,
++      )
++      .all(relationshipId)
++      .map((row) => toPrivateNote(row as CoachPrivateNoteRow));
++  }
++
++  createFeedbackReport(input: {
++    relationshipId: string;
++    coachId: string;
++    kind: CoachFeedbackKind;
++    periodLabel: string;
++    title: string;
++    body: string;
++    publish?: boolean;
++    createdAt?: string;
++  }): CoachFeedbackReport | null {
++    const relationship = this.getRelationship(input.relationshipId);
++    if (!relationship || relationship.coachId !== input.coachId) {
++      return null;
++    }
++
++    const createdAt = input.createdAt ?? nowIso();
++    const status: CoachFeedbackStatus = input.publish ? "published" : "draft";
++    const report: CoachFeedbackReport = {
++      id: compactId("coach_report"),
++      relationshipId: relationship.id,
++      coachId: relationship.coachId,
++      userId: relationship.userId,
++      kind: input.kind,
++      status,
++      periodLabel: input.periodLabel.trim(),
++      title: input.title.trim(),
++      body: input.body.trim(),
++      publishedAt: status === "published" ? createdAt : null,
++      createdAt,
++      updatedAt: createdAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_feedback_reports (
++          id, relationship_id, coach_id, user_id, kind, status, period_label,
++          title, body, published_at, created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        report.id,
++        report.relationshipId,
++        report.coachId,
++        report.userId,
++        report.kind,
++        report.status,
++        report.periodLabel,
++        report.title,
++        report.body,
++        report.publishedAt,
++        report.createdAt,
++        report.updatedAt,
++      );
++
++    return report;
++  }
++
++  listPublishedReports(relationshipId: string): CoachFeedbackReport[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_feedback_reports
++         WHERE relationship_id = ?
++           AND status = 'published'
++         ORDER BY published_at DESC, created_at DESC`,
++      )
++      .all(relationshipId)
++      .map((row) => toFeedbackReport(row as CoachFeedbackReportRow));
++  }
++
++  listCoachReports(relationshipId: string): CoachFeedbackReport[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_feedback_reports
++         WHERE relationship_id = ?
++         ORDER BY created_at DESC`,
++      )
++      .all(relationshipId)
++      .map((row) => toFeedbackReport(row as CoachFeedbackReportRow));
++  }
++
++  createActionItem(input: {
++    relationshipId: string;
++    coachId: string;
++    reportId?: string | null;
++    title: string;
++    body: string;
++    dueLabel: string;
++    createdAt?: string;
++  }): CoachActionItem | null {
++    const relationship = this.getRelationship(input.relationshipId);
++    if (!relationship || relationship.coachId !== input.coachId) {
++      return null;
++    }
++
++    const createdAt = input.createdAt ?? nowIso();
++    const actionItem: CoachActionItem = {
++      id: compactId("coach_action"),
++      relationshipId: relationship.id,
++      coachId: relationship.coachId,
++      userId: relationship.userId,
++      reportId: input.reportId ?? null,
++      title: input.title.trim(),
++      body: input.body.trim(),
++      dueLabel: input.dueLabel.trim(),
++      status: "assigned",
++      completedAt: null,
++      createdAt,
++      updatedAt: createdAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_action_items (
++          id, relationship_id, coach_id, user_id, report_id, title, body,
++          due_label, status, completed_at, created_at, updated_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        actionItem.id,
++        actionItem.relationshipId,
++        actionItem.coachId,
++        actionItem.userId,
++        actionItem.reportId,
++        actionItem.title,
++        actionItem.body,
++        actionItem.dueLabel,
++        actionItem.status,
++        actionItem.completedAt,
++        actionItem.createdAt,
++        actionItem.updatedAt,
++      );
++
++    return actionItem;
++  }
++
++  completeActionItem(input: {
++    actionItemId: string;
++    userId?: TraderAnalyticsUserId;
++    completedAt?: string;
++  }): CoachActionItem | null {
++    const completedAt = input.completedAt ?? nowIso();
++    this.db
++      .prepare(
++        `UPDATE coach_action_items
++         SET status = 'completed',
++             completed_at = ?,
++             updated_at = ?
++         WHERE id = ?
++           AND user_id = ?`,
++      )
++      .run(completedAt, completedAt, input.actionItemId, input.userId ?? DEMO_USER_ID);
++
++    return this.getActionItem(input.actionItemId);
++  }
++
++  listActionItems(relationshipId: string): CoachActionItem[] {
++    return this.db
++      .prepare(
++        `SELECT *
++         FROM coach_action_items
++         WHERE relationship_id = ?
++         ORDER BY status = 'assigned' DESC, created_at DESC`,
++      )
++      .all(relationshipId)
++      .map((row) => toActionItem(row as CoachActionItemRow));
++  }
++
++  getRelationship(relationshipId: string): CoachStudentRelationship | null {
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_student_relationships
++         WHERE id = ?
++         LIMIT 1`,
++      )
++      .get(relationshipId) as CoachRelationshipRow | undefined;
++
++    return row ? toRelationship(row) : null;
++  }
++
++  getCurrentRelationship(input: {
++    coachId: string;
++    userId?: TraderAnalyticsUserId;
++    now?: string;
++  }): CoachStudentRelationship | null {
++    const now = input.now ?? nowIso();
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_student_relationships
++         WHERE coach_id = ?
++           AND user_id = ?
++           AND status IN ('requested', 'active')
++           AND expires_at > ?
++         ORDER BY requested_at DESC
++         LIMIT 1`,
++      )
++      .get(input.coachId, input.userId ?? DEMO_USER_ID, now) as
++      | CoachRelationshipRow
++      | undefined;
++
++    return row ? toRelationship(row) : null;
++  }
++
++  private getActionItem(actionItemId: string): CoachActionItem | null {
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_action_items
++         WHERE id = ?
++         LIMIT 1`,
++      )
++      .get(actionItemId) as CoachActionItemRow | undefined;
++
++    return row ? toActionItem(row) : null;
++  }
++
++  private getPaymentEvent(input: {
++    provider: "whop";
++    providerEventId: string;
++  }): CoachPaymentEvent | null {
++    const row = this.db
++      .prepare(
++        `SELECT *
++         FROM coach_payment_events
++         WHERE provider = ?
++           AND provider_event_id = ?
++         LIMIT 1`,
++      )
++      .get(input.provider, input.providerEventId) as
++      | CoachPaymentEventRow
++      | undefined;
++
++    return row ? toPaymentEvent(row) : null;
++  }
++
++  private insertPaymentEvent(input: {
++    providerEventId: string;
++    providerPaymentId: string | null;
++    eventType: string;
++    coachId: string | null;
++    userId: TraderAnalyticsUserId | null;
++    workspaceId: string | null;
++    accountId: string | null;
++    status: CoachPaymentEventStatus;
++    message: string;
++    accessPassId: string | null;
++    rawJson: string;
++    receivedAt: string;
++  }): CoachPaymentEvent {
++    const createdAt = input.receivedAt;
++    const event: CoachPaymentEvent = {
++      id: compactId("coach_payment_event"),
++      provider: "whop",
++      providerEventId: input.providerEventId,
++      providerPaymentId: input.providerPaymentId,
++      eventType: input.eventType,
++      coachId: input.coachId,
++      userId: input.userId,
++      workspaceId: input.workspaceId,
++      accountId: input.accountId,
++      status: input.status,
++      message: input.message,
++      accessPassId: input.accessPassId,
++      rawJson: input.rawJson,
++      receivedAt: input.receivedAt,
++      createdAt,
++    };
++
++    this.db
++      .prepare(
++        `INSERT INTO coach_payment_events (
++          id, provider, provider_event_id, provider_payment_id, event_type,
++          coach_id, user_id, workspace_id, account_id, status, message,
++          access_pass_id, raw_json, received_at, created_at
++        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++      )
++      .run(
++        event.id,
++        event.provider,
++        event.providerEventId,
++        event.providerPaymentId,
++        event.eventType,
++        event.coachId,
++        event.userId,
++        event.workspaceId,
++        event.accountId,
++        event.status,
++        event.message,
++        event.accessPassId,
++        event.rawJson,
++        event.receivedAt,
++        event.createdAt,
++      );
++
++    return event;
++  }
++
++  private countRelationships(input: {
++    coachId: string;
++    statuses: CoachRelationshipStatus[];
++    now: string;
++  }): number {
++    const placeholders = input.statuses.map(() => "?").join(", ");
++    const row = this.db
++      .prepare(
++        `SELECT COUNT(*) AS count
++         FROM coach_student_relationships
++         WHERE coach_id = ?
++           AND status IN (${placeholders})
++           AND expires_at > ?`,
++      )
++      .get(input.coachId, ...input.statuses, input.now) as
++      | { count: number }
++      | undefined;
++
++    return Number(row?.count ?? 0);
++  }
++
++  private requireCoach(coachId: string): RealCoachProfile {
++    const coach = this.getCoachProfile(coachId);
++    if (!coach) {
++      throw new Error(`Coach profile not found: ${coachId}`);
++    }
++
++    return coach;
++  }
++}
++
++export function createRealCoachMarketplaceRepository(): RealCoachMarketplaceRepository {
++  return new RealCoachMarketplaceRepository();
++}
+diff --git a/src/lib/trader-analytics/product/real-coach-whop-webhook.ts b/src/lib/trader-analytics/product/real-coach-whop-webhook.ts
+new file mode 100644
+index 00000000..97d756db
+--- /dev/null
++++ b/src/lib/trader-analytics/product/real-coach-whop-webhook.ts
+@@ -0,0 +1,80 @@
++import type { ProcessWhopAppAccessPaymentResult } from "./real-coach-marketplace";
++import {
++  createRealCoachMarketplaceRepository,
++  type RealCoachMarketplaceRepository,
++} from "./real-coach-marketplace";
++
++export interface NormalizedWhopPaymentWebhookEvent {
++  providerEventId: string;
++  providerPaymentId: string | null;
++  eventType: string;
++  metadata: Record<string, unknown> | null;
++  paidAt: string | null;
++  rawEvent: unknown;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function stringValue(
++  value: Record<string, unknown>,
++  key: string,
++): string | null {
++  const raw = value[key];
++  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
++}
++
++function recordValue(
++  value: Record<string, unknown>,
++  key: string,
++): Record<string, unknown> | null {
++  const raw = value[key];
++  return isRecord(raw) ? raw : null;
++}
++
++export function normalizeWhopPaymentWebhookEvent(
++  rawEvent: unknown,
++): NormalizedWhopPaymentWebhookEvent {
++  if (!isRecord(rawEvent)) {
++    throw new Error("Whop webhook payload must be an object.");
++  }
++
++  const data = recordValue(rawEvent, "data");
++  const providerEventId = stringValue(rawEvent, "id");
++  const eventType = stringValue(rawEvent, "type");
++
++  if (!providerEventId || !eventType) {
++    throw new Error("Whop webhook payload is missing id or type.");
++  }
++
++  return {
++    providerEventId,
++    providerPaymentId: data
++      ? stringValue(data, "id") ?? stringValue(data, "payment_id")
++      : null,
++    eventType,
++    metadata: data ? recordValue(data, "metadata") : null,
++    paidAt: data
++      ? stringValue(data, "paid_at") ?? stringValue(rawEvent, "timestamp")
++      : stringValue(rawEvent, "timestamp"),
++    rawEvent,
++  };
++}
++
++export function processVerifiedWhopPaymentWebhook(
++  rawEvent: unknown,
++  repository: RealCoachMarketplaceRepository =
++    createRealCoachMarketplaceRepository(),
++): ProcessWhopAppAccessPaymentResult {
++  const event = normalizeWhopPaymentWebhookEvent(rawEvent);
++
++  return repository.processWhopAppAccessPayment({
++    providerEventId: event.providerEventId,
++    providerPaymentId: event.providerPaymentId,
++    eventType: event.eventType,
++    metadata: event.metadata,
++    rawEvent: event.rawEvent,
++    paidAt: event.paidAt ?? undefined,
++  });
++}

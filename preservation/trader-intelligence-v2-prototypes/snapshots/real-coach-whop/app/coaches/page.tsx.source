@@ -1,0 +1,139 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { actorLabel, getRealCoachActor } from "../real-coach-auth";
+import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const metadata: Metadata = {
+  title: "Real Coaches | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function CoachesPage() {
+  const actor = await getRealCoachActor();
+  const directory = createRealCoachMarketplaceRepository().listApprovedCoachDirectory();
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
+            Back to workspace
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Real Coach Marketplace
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            Approved Trading Coaches
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+            Browse approved coaches for free. A one-month Trader Intelligence
+            access fee unlocks a request for one coach, and the coach collects
+            their own coaching payment through Whop.
+          </p>
+        </header>
+
+        <section className="border border-zinc-800 bg-zinc-950 p-4">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Access Session
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">{actorLabel(actor)}</p>
+            </div>
+            <Link
+              className="inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
+              href="/real-coach-session?next=/coaches"
+            >
+              Switch role
+            </Link>
+          </div>
+        </section>
+
+        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
+          <h2 className="text-sm font-semibold text-amber-200">
+            Payment Boundary
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            The Trader Intelligence access fee is separate from the coach-owned
+            Whop payment. Coach refunds, chargebacks, and service disputes stay
+            with the coach&apos;s Whop account.
+          </p>
+        </section>
+
+        {directory.length > 0 ? (
+          <section className="grid gap-5 lg:grid-cols-3">
+            {directory.map((card) => (
+              <article
+                className="border border-zinc-800 bg-zinc-950 p-5"
+                key={card.coach.id}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-zinc-50">
+                      {card.coach.displayName}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      {card.coach.headline}
+                    </p>
+                  </div>
+                  <span
+                    className={`border px-2 py-1 text-xs uppercase tracking-wide ${
+                      card.requestsDisabled
+                        ? "border-zinc-800 text-zinc-500"
+                        : "border-emerald-900 text-emerald-300"
+                    }`}
+                  >
+                    {card.requestsDisabled ? "Full" : `${card.availableSeatCount} open`}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {card.coach.specialties.slice(0, 4).map((specialty) => (
+                    <span
+                      className="border border-zinc-800 px-2 py-1 text-xs text-zinc-400"
+                      key={specialty}
+                    >
+                      {specialty}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-5 grid gap-2 border-t border-zinc-900 pt-4 text-sm text-zinc-400">
+                  <div>App access: {card.coach.appAccessFeeText}</div>
+                  <div>Coach fee: {card.coach.coachFeeText}</div>
+                  <div>
+                    Students: {card.reservedStudentCount} / {card.coach.studentCap}
+                  </div>
+                </div>
+
+                <Link
+                  className="mt-5 inline-flex border border-sky-800 px-4 py-2 text-sm font-medium text-sky-300 hover:border-sky-400 hover:text-sky-200"
+                  href={`/coaches/${card.coach.slug}`}
+                >
+                  View coach
+                </Link>
+              </article>
+            ))}
+          </section>
+        ) : (
+          <section className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              No approved coaches yet
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              Add and approve coaches from the admin coach page before users can
+              request real-person coaching.
+            </p>
+            <Link
+              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
+              href="/admin/coaches"
+            >
+              Open coach admin
+            </Link>
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}

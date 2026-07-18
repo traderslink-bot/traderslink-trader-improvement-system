@@ -1,0 +1,986 @@
+import {
+  parseBrokerExecutionCsv,
+  type BrokerExecutionCsvFormat,
+} from "../../execution-sources/csv";
+import { buildProductWorkflowShellViewModel } from "./product-workflow";
+
+export type TraderIntelligencePlatformRole =
+  | "owner"
+  | "member"
+  | "admin"
+  | "support";
+
+export type TraderIntelligencePlanTier =
+  | "demo"
+  | "starter"
+  | "pro"
+  | "elite"
+  | "internal";
+
+export type TraderIntelligencePlatformEnvironment =
+  | "standalone_demo"
+  | "mounted_platform";
+
+export type TraderIntelligenceFeatureKey =
+  | "analytics_dashboard"
+  | "csv_imports"
+  | "guided_review"
+  | "progress"
+  | "trade_replay"
+  | "import_health"
+  | "broker_mapping_admin"
+  | "account_plan"
+  | "market_context"
+  | "debug_routes";
+
+export interface TraderIntelligenceEntitlements {
+  canViewAnalytics: boolean;
+  canImportCsv: boolean;
+  canUseGuidedReview: boolean;
+  canViewProgress: boolean;
+  canReplayTrades: boolean;
+  canViewImportHealth: boolean;
+  canUseBrokerMappingAdmin: boolean;
+  canViewAccountPlan: boolean;
+  canUseMarketContext: boolean;
+  canUseDebugRoutes: boolean;
+  monthlyImportLimit: number;
+  savedTradeLimit: number;
+  activeRuleLimit: number;
+  marketContextMode: "none" | "observational" | "calibrated_add_on";
+}
+
+export interface TraderIntelligencePlatformContext {
+  contractVersion: "trader_intelligence_platform_context_v1";
+  platformUserId: string;
+  workspaceId: string;
+  accountId: string;
+  role: TraderIntelligencePlatformRole;
+  planTier: TraderIntelligencePlanTier;
+  entitlements: TraderIntelligenceEntitlements;
+  moduleMountPath: string;
+  environment: TraderIntelligencePlatformEnvironment;
+  demoMode: boolean;
+  generatedAt: string;
+}
+
+export type TraderIntelligenceFeatureGateState =
+  | "available"
+  | "locked"
+  | "usage_limited"
+  | "admin_only"
+  | "hidden";
+
+export interface TraderIntelligenceFeatureUsage {
+  current: number;
+  limit: number;
+  label: string;
+}
+
+export interface TraderIntelligenceFeatureGateDecision {
+  featureKey: TraderIntelligenceFeatureKey;
+  allowed: boolean;
+  state: TraderIntelligenceFeatureGateState;
+  reason: string;
+  upgradeHint: string | null;
+  usage: TraderIntelligenceFeatureUsage | null;
+}
+
+export type TraderIntelligenceRouteAudience =
+  | "end_user"
+  | "admin"
+  | "debug";
+
+export type TraderIntelligenceRouteNavGroup =
+  | "core"
+  | "workflow"
+  | "health"
+  | "account"
+  | "admin"
+  | "debug";
+
+export interface TraderIntelligenceRouteDefinition {
+  routeId: string;
+  label: string;
+  standalonePath: string;
+  platformPath: string;
+  navGroup: TraderIntelligenceRouteNavGroup;
+  audience: TraderIntelligenceRouteAudience;
+  featureKey: TraderIntelligenceFeatureKey;
+  implemented: boolean;
+  requiresAdmin: boolean;
+  allowsRawJson: boolean;
+  allowsExport: false;
+}
+
+export interface TraderIntelligenceRouteAccess {
+  route: TraderIntelligenceRouteDefinition;
+  gate: TraderIntelligenceFeatureGateDecision;
+  visibleInNavigation: boolean;
+}
+
+export interface TraderIntelligenceNoExportAudit {
+  passed: boolean;
+  endUserExportViolations: string[];
+  endUserRawJsonViolations: string[];
+  missingImplementedRoutePolicies: string[];
+}
+
+export type TraderIntelligenceChecklistStatus =
+  | "complete"
+  | "partial"
+  | "blocked";
+
+export interface TraderIntelligenceReadinessChecklistItem {
+  id: string;
+  label: string;
+  status: TraderIntelligenceChecklistStatus;
+  detail: string;
+  nextAction: string;
+}
+
+export type TraderIntelligenceVisualQaStatus =
+  | "pending"
+  | "passed"
+  | "needs_review";
+
+export interface TraderIntelligenceVisualQaItem {
+  id: string;
+  route: string;
+  viewport: "desktop" | "mobile";
+  status: TraderIntelligenceVisualQaStatus;
+  checklist: string[];
+}
+
+export interface BrokerCsvRegressionFixtureExpectation {
+  fixtureFile: string;
+  broker: BrokerExecutionCsvFormat;
+  expectedAcceptedExecutions: number;
+  expectedGroupedTrades: number;
+  expectedQualityStatus: "high_confidence" | "needs_review" | "blocked";
+}
+
+export interface BrokerCsvRegressionFixtureResult
+  extends BrokerCsvRegressionFixtureExpectation {
+  parsedAcceptedExecutions: number;
+  parsedGroupedTrades: number;
+  passed: boolean;
+  notes: string[];
+}
+
+export interface BrokerCsvRegressionFixtureHarness {
+  totalCount: number;
+  passedCount: number;
+  failedCount: number;
+  results: BrokerCsvRegressionFixtureResult[];
+}
+
+export interface TraderIntelligenceModuleReadinessViewModel {
+  context: TraderIntelligencePlatformContext;
+  workflow: ReturnType<typeof buildProductWorkflowShellViewModel>;
+  routes: TraderIntelligenceRouteAccess[];
+  noExportAudit: TraderIntelligenceNoExportAudit;
+  readinessChecklist: TraderIntelligenceReadinessChecklistItem[];
+  visualQaChecklist: TraderIntelligenceVisualQaItem[];
+  brokerFixtureHarness: BrokerCsvRegressionFixtureHarness;
+  routeSmokeTargets: string[];
+  summary: string;
+}
+
+const DEMO_GENERATED_AT = "2026-05-03T16:00:00.000Z";
+
+export function buildTraderIntelligenceEntitlements(
+  tier: TraderIntelligencePlanTier,
+): TraderIntelligenceEntitlements {
+  switch (tier) {
+    case "starter":
+      return {
+        canViewAnalytics: true,
+        canImportCsv: true,
+        canUseGuidedReview: true,
+        canViewProgress: true,
+        canReplayTrades: true,
+        canViewImportHealth: false,
+        canUseBrokerMappingAdmin: false,
+        canViewAccountPlan: true,
+        canUseMarketContext: false,
+        canUseDebugRoutes: false,
+        monthlyImportLimit: 5,
+        savedTradeLimit: 250,
+        activeRuleLimit: 3,
+        marketContextMode: "none",
+      };
+    case "pro":
+    case "demo":
+      return {
+        canViewAnalytics: true,
+        canImportCsv: true,
+        canUseGuidedReview: true,
+        canViewProgress: true,
+        canReplayTrades: true,
+        canViewImportHealth: true,
+        canUseBrokerMappingAdmin: false,
+        canViewAccountPlan: true,
+        canUseMarketContext: true,
+        canUseDebugRoutes: false,
+        monthlyImportLimit: 50,
+        savedTradeLimit: 5000,
+        activeRuleLimit: 20,
+        marketContextMode: "observational",
+      };
+    case "elite":
+      return {
+        canViewAnalytics: true,
+        canImportCsv: true,
+        canUseGuidedReview: true,
+        canViewProgress: true,
+        canReplayTrades: true,
+        canViewImportHealth: true,
+        canUseBrokerMappingAdmin: false,
+        canViewAccountPlan: true,
+        canUseMarketContext: true,
+        canUseDebugRoutes: false,
+        monthlyImportLimit: 100,
+        savedTradeLimit: 25000,
+        activeRuleLimit: 50,
+        marketContextMode: "calibrated_add_on",
+      };
+    case "internal":
+      return {
+        canViewAnalytics: true,
+        canImportCsv: true,
+        canUseGuidedReview: true,
+        canViewProgress: true,
+        canReplayTrades: true,
+        canViewImportHealth: true,
+        canUseBrokerMappingAdmin: true,
+        canViewAccountPlan: true,
+        canUseMarketContext: true,
+        canUseDebugRoutes: true,
+        monthlyImportLimit: 9999,
+        savedTradeLimit: 999999,
+        activeRuleLimit: 9999,
+        marketContextMode: "calibrated_add_on",
+      };
+  }
+}
+
+export function buildDemoTraderIntelligencePlatformContext(args?: {
+  role?: TraderIntelligencePlatformRole;
+  planTier?: TraderIntelligencePlanTier;
+  moduleMountPath?: string;
+  environment?: TraderIntelligencePlatformEnvironment;
+}): TraderIntelligencePlatformContext {
+  const role = args?.role ?? "owner";
+  const planTier = args?.planTier ?? "pro";
+
+  return {
+    contractVersion: "trader_intelligence_platform_context_v1",
+    platformUserId: "demo-platform-user",
+    workspaceId: "demo-workspace",
+    accountId: "demo-trading-account",
+    role,
+    planTier,
+    entitlements: buildTraderIntelligenceEntitlements(planTier),
+    moduleMountPath: args?.moduleMountPath ?? "/dashboard/trader-intelligence",
+    environment: args?.environment ?? "standalone_demo",
+    demoMode: true,
+    generatedAt: DEMO_GENERATED_AT,
+  };
+}
+
+function isAdminRole(role: TraderIntelligencePlatformRole): boolean {
+  return role === "admin" || role === "support";
+}
+
+function entitlementAllowed(
+  context: TraderIntelligencePlatformContext,
+  featureKey: TraderIntelligenceFeatureKey,
+): boolean {
+  const entitlements = context.entitlements;
+
+  switch (featureKey) {
+    case "analytics_dashboard":
+      return entitlements.canViewAnalytics;
+    case "csv_imports":
+      return entitlements.canImportCsv;
+    case "guided_review":
+      return entitlements.canUseGuidedReview;
+    case "progress":
+      return entitlements.canViewProgress;
+    case "trade_replay":
+      return entitlements.canReplayTrades;
+    case "import_health":
+      return entitlements.canViewImportHealth;
+    case "broker_mapping_admin":
+      return entitlements.canUseBrokerMappingAdmin && isAdminRole(context.role);
+    case "account_plan":
+      return entitlements.canViewAccountPlan;
+    case "market_context":
+      return entitlements.canUseMarketContext;
+    case "debug_routes":
+      return entitlements.canUseDebugRoutes && isAdminRole(context.role);
+  }
+}
+
+function usageForFeature(args: {
+  context: TraderIntelligencePlatformContext;
+  featureKey: TraderIntelligenceFeatureKey;
+  usage?: Partial<Record<TraderIntelligenceFeatureKey, number>>;
+}): TraderIntelligenceFeatureUsage | null {
+  const current = args.usage?.[args.featureKey];
+  if (typeof current !== "number") {
+    return null;
+  }
+
+  switch (args.featureKey) {
+    case "csv_imports":
+      return {
+        current,
+        limit: args.context.entitlements.monthlyImportLimit,
+        label: "monthly imports",
+      };
+    case "analytics_dashboard":
+    case "trade_replay":
+      return {
+        current,
+        limit: args.context.entitlements.savedTradeLimit,
+        label: "saved trades",
+      };
+    default:
+      return null;
+  }
+}
+
+export function evaluateTraderIntelligenceFeatureGate(args: {
+  context: TraderIntelligencePlatformContext;
+  featureKey: TraderIntelligenceFeatureKey;
+  usage?: Partial<Record<TraderIntelligenceFeatureKey, number>>;
+}): TraderIntelligenceFeatureGateDecision {
+  const usage = usageForFeature(args);
+
+  if (
+    (args.featureKey === "broker_mapping_admin" ||
+      args.featureKey === "debug_routes") &&
+    !isAdminRole(args.context.role)
+  ) {
+    return {
+      featureKey: args.featureKey,
+      allowed: false,
+      state: "admin_only",
+      reason: "This feature is reserved for platform admin/support roles.",
+      upgradeHint: null,
+      usage,
+    };
+  }
+
+  if (!entitlementAllowed(args.context, args.featureKey)) {
+    return {
+      featureKey: args.featureKey,
+      allowed: false,
+      state: "locked",
+      reason: "The current plan does not include this feature.",
+      upgradeHint: "Use the platform plan system to unlock this module feature later.",
+      usage,
+    };
+  }
+
+  if (usage && usage.current >= usage.limit) {
+    return {
+      featureKey: args.featureKey,
+      allowed: false,
+      state: "usage_limited",
+      reason: `${usage.label} limit reached.`,
+      upgradeHint: "Increase the plan limit in the platform billing layer later.",
+      usage,
+    };
+  }
+
+  return {
+    featureKey: args.featureKey,
+    allowed: true,
+    state: "available",
+    reason: "Feature is available in the current demo platform context.",
+    upgradeHint: null,
+    usage,
+  };
+}
+
+const ROUTES: Omit<TraderIntelligenceRouteDefinition, "platformPath">[] = [
+  {
+    routeId: "analytics",
+    label: "Analytics",
+    standalonePath: "/analytics",
+    navGroup: "core",
+    audience: "end_user",
+    featureKey: "analytics_dashboard",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "imports",
+    label: "Import Review",
+    standalonePath: "/imports",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "csv_imports",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "import_dry_run",
+    label: "Import Trades",
+    standalonePath: "/import-dry-run",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "csv_imports",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "manual_entry",
+    label: "Manual Entry",
+    standalonePath: "/manual-entry",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "csv_imports",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "import_trials",
+    label: "Import Trials",
+    standalonePath: "/import-trials",
+    navGroup: "health",
+    audience: "end_user",
+    featureKey: "csv_imports",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "repair_wizard",
+    label: "Repair Wizard",
+    standalonePath: "/repair-wizard",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "csv_imports",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "review_cockpit",
+    label: "Review Cockpit",
+    standalonePath: "/review-cockpit",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "guided_review",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "review",
+    label: "Guided Review",
+    standalonePath: "/review",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "guided_review",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "coach",
+    label: "Coach",
+    standalonePath: "/coach",
+    navGroup: "core",
+    audience: "end_user",
+    featureKey: "guided_review",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "session_recap",
+    label: "Session Recap",
+    standalonePath: "/session-recap",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "guided_review",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "compare_trades",
+    label: "Compare Trades",
+    standalonePath: "/compare-trades",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "guided_review",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "onboarding",
+    label: "Onboarding",
+    standalonePath: "/onboarding",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "analytics_dashboard",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "progress",
+    label: "Progress",
+    standalonePath: "/progress",
+    navGroup: "core",
+    audience: "end_user",
+    featureKey: "progress",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "import_health",
+    label: "Import Health",
+    standalonePath: "/import-health",
+    navGroup: "health",
+    audience: "end_user",
+    featureKey: "import_health",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "broker_mapping_admin",
+    label: "Broker Mapping Admin",
+    standalonePath: "/admin/broker-mappings",
+    navGroup: "admin",
+    audience: "admin",
+    featureKey: "broker_mapping_admin",
+    implemented: true,
+    requiresAdmin: true,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "account",
+    label: "Account",
+    standalonePath: "/account",
+    navGroup: "account",
+    audience: "end_user",
+    featureKey: "account_plan",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "trade_replay",
+    label: "Trade Replay",
+    standalonePath: "/trades/[tradeId]",
+    navGroup: "workflow",
+    audience: "end_user",
+    featureKey: "trade_replay",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "calibration",
+    label: "Calibration",
+    standalonePath: "/calibration",
+    navGroup: "health",
+    audience: "end_user",
+    featureKey: "analytics_dashboard",
+    implemented: true,
+    requiresAdmin: false,
+    allowsRawJson: false,
+    allowsExport: false,
+  },
+  {
+    routeId: "debug_trade_analysis",
+    label: "Trade Analysis Console",
+    standalonePath: "/debug/trade-analysis",
+    navGroup: "debug",
+    audience: "debug",
+    featureKey: "debug_routes",
+    implemented: true,
+    requiresAdmin: true,
+    allowsRawJson: true,
+    allowsExport: false,
+  },
+  {
+    routeId: "debug_execution_feedback",
+    label: "Execution Feedback Console",
+    standalonePath: "/debug/execution-feedback",
+    navGroup: "debug",
+    audience: "debug",
+    featureKey: "debug_routes",
+    implemented: true,
+    requiresAdmin: true,
+    allowsRawJson: true,
+    allowsExport: false,
+  },
+  {
+    routeId: "debug_trader_analytics",
+    label: "Trader Analytics Console",
+    standalonePath: "/debug/trader-analytics",
+    navGroup: "debug",
+    audience: "debug",
+    featureKey: "debug_routes",
+    implemented: true,
+    requiresAdmin: true,
+    allowsRawJson: true,
+    allowsExport: false,
+  },
+];
+
+function platformPathFor(
+  mountPath: string,
+  standalonePath: string,
+): string {
+  const normalizedMount = mountPath.endsWith("/")
+    ? mountPath.slice(0, -1)
+    : mountPath;
+
+  if (standalonePath === "/analytics") {
+    return normalizedMount;
+  }
+
+  return `${normalizedMount}${standalonePath}`;
+}
+
+export function buildTraderIntelligenceRouteRegistry(
+  context = buildDemoTraderIntelligencePlatformContext(),
+): TraderIntelligenceRouteDefinition[] {
+  return ROUTES.map((route) => ({
+    ...route,
+    platformPath: platformPathFor(context.moduleMountPath, route.standalonePath),
+  }));
+}
+
+export function buildTraderIntelligenceRouteAccess(args: {
+  context: TraderIntelligencePlatformContext;
+  usage?: Partial<Record<TraderIntelligenceFeatureKey, number>>;
+}): TraderIntelligenceRouteAccess[] {
+  return buildTraderIntelligenceRouteRegistry(args.context).map((route) => {
+    const gate = evaluateTraderIntelligenceFeatureGate({
+      context: args.context,
+      featureKey: route.featureKey,
+      usage: args.usage,
+    });
+
+    return {
+      route,
+      gate,
+      visibleInNavigation:
+        route.implemented &&
+        gate.allowed &&
+        route.audience !== "debug" &&
+        (!route.requiresAdmin || isAdminRole(args.context.role)),
+    };
+  });
+}
+
+export function auditTraderIntelligenceNoExportPolicy(args: {
+  routes: TraderIntelligenceRouteDefinition[];
+  implementedStandalonePaths?: string[];
+}): TraderIntelligenceNoExportAudit {
+  const implementedStandalonePaths = args.implementedStandalonePaths ?? [
+    "/analytics",
+    "/imports",
+    "/import-dry-run",
+    "/import-trials",
+    "/repair-wizard",
+    "/review-cockpit",
+    "/review",
+    "/progress",
+    "/calibration",
+    "/import-health",
+    "/admin/broker-mappings",
+    "/account",
+    "/trades/[tradeId]",
+  ];
+  const routePaths = new Set(args.routes.map((route) => route.standalonePath));
+
+  return {
+    passed:
+      args.routes.every(
+        (route) =>
+          !route.allowsExport &&
+          (route.audience !== "end_user" || !route.allowsRawJson),
+      ) &&
+      implementedStandalonePaths.every((path) => routePaths.has(path)),
+    endUserExportViolations: args.routes
+      .filter((route) => route.audience === "end_user" && route.allowsExport)
+      .map((route) => route.standalonePath),
+    endUserRawJsonViolations: args.routes
+      .filter((route) => route.audience === "end_user" && route.allowsRawJson)
+      .map((route) => route.standalonePath),
+    missingImplementedRoutePolicies: implementedStandalonePaths.filter(
+      (path) => !routePaths.has(path),
+    ),
+  };
+}
+
+export function buildTraderIntelligenceFeatureReadinessChecklist(): TraderIntelligenceReadinessChecklistItem[] {
+  return [
+    {
+      id: "platform_context",
+      label: "Workspace context",
+      status: "complete",
+      detail: "The workspace knows the active user, account, plan, role, and dashboard path.",
+      nextAction: "Connect those values to the live website account when this moves into production.",
+    },
+    {
+      id: "entitlements",
+      label: "Entitlement gates",
+      status: "complete",
+      detail: "Plan-based feature access is defined for the current workspace.",
+      nextAction: "Map live website plans into these feature levels later.",
+    },
+    {
+      id: "imports",
+      label: "Import workflow",
+      status: "complete",
+      detail: "CSV uploads can be checked, repaired when needed, and saved for review.",
+      nextAction: "Keep the saved-import flow connected to the live workspace data store.",
+    },
+    {
+      id: "analytics_dashboard",
+      label: "Analytics dashboard",
+      status: "complete",
+      detail: "Dashboard, analytics, review focus, and protected navigation are available.",
+      nextAction: "Connect analytics to live saved reports when live account storage is ready.",
+    },
+    {
+      id: "trade_replay",
+      label: "Trade replay",
+      status: "complete",
+      detail: "Trade detail pages show execution replay from execution-only data.",
+      nextAction: "Add candle overlays later only through saved chart context.",
+    },
+    {
+      id: "notes_lessons",
+      label: "Notes and lessons",
+      status: "partial",
+      detail: "Lesson drafts are available; saved editing needs the live account layer.",
+      nextAction: "Save notes and lessons through the live account once production accounts are connected.",
+    },
+    {
+      id: "storage",
+      label: "Saved account storage",
+      status: "partial",
+      detail: "Saved workspace data is available locally; live account storage is not connected yet.",
+      nextAction: "Connect live account storage and login together.",
+    },
+    {
+      id: "market_context",
+      label: "Market-context readiness",
+      status: "partial",
+      detail: "Readiness gates exist and keep market structure out of scoring.",
+      nextAction: "Request saved-trade chart context after real trades exist.",
+    },
+    {
+      id: "no_export",
+      label: "No-export policy",
+      status: "complete",
+      detail: "User routes avoid download controls and behind-the-scenes data views.",
+      nextAction: "Keep testing this whenever routes are added.",
+    },
+    {
+      id: "test_harness",
+      label: "Regression checks",
+      status: "complete",
+      detail: "Readiness checks, route policies, access gates, and broker CSV samples are testable.",
+      nextAction: "Add more anonymized broker CSV samples when they are safe to use.",
+    },
+  ];
+}
+
+export function buildTraderIntelligenceVisualQaChecklist(
+  routes = buildTraderIntelligenceRouteRegistry(),
+): TraderIntelligenceVisualQaItem[] {
+  const routeTargets = routes.filter(
+    (route) => route.audience !== "debug" && route.implemented,
+  );
+
+  return routeTargets.flatMap((route) =>
+    (["desktop", "mobile"] as const).map((viewport) => ({
+      id: `visual:${route.routeId}:${viewport}`,
+      route: route.standalonePath,
+      viewport,
+      status: "pending" as const,
+      checklist: [
+        "No export controls are visible.",
+        "Text fits within cards and controls.",
+        "Primary workflow action is understandable.",
+        "Route works with demo platform context.",
+      ],
+    })),
+  );
+}
+
+const BROKER_FIXTURE_EXPECTATIONS: BrokerCsvRegressionFixtureExpectation[] = [
+  {
+    fixtureFile: "fidelity-account-history-sample.csv",
+    broker: "generic_execution_csv",
+    expectedAcceptedExecutions: 2,
+    expectedGroupedTrades: 1,
+    expectedQualityStatus: "high_confidence",
+  },
+  {
+    fixtureFile: "etrade-transactions-sample.csv",
+    broker: "generic_execution_csv",
+    expectedAcceptedExecutions: 2,
+    expectedGroupedTrades: 1,
+    expectedQualityStatus: "high_confidence",
+  },
+  {
+    fixtureFile: "tastytrade-transactions-sample.csv",
+    broker: "generic_execution_csv",
+    expectedAcceptedExecutions: 2,
+    expectedGroupedTrades: 1,
+    expectedQualityStatus: "high_confidence",
+  },
+  {
+    fixtureFile: "tradestation-trade-history-sample.csv",
+    broker: "generic_execution_csv",
+    expectedAcceptedExecutions: 2,
+    expectedGroupedTrades: 1,
+    expectedQualityStatus: "high_confidence",
+  },
+  {
+    fixtureFile: "thinkorswim-account-statement-sample.csv",
+    broker: "generic_execution_csv",
+    expectedAcceptedExecutions: 2,
+    expectedGroupedTrades: 1,
+    expectedQualityStatus: "high_confidence",
+  },
+];
+
+export function getBrokerCsvRegressionFixtureExpectations(): BrokerCsvRegressionFixtureExpectation[] {
+  return BROKER_FIXTURE_EXPECTATIONS;
+}
+
+export function buildBrokerCsvRegressionFixtureHarness(args: {
+  fixtureContentsByFile: Record<string, string>;
+  expectations?: BrokerCsvRegressionFixtureExpectation[];
+}): BrokerCsvRegressionFixtureHarness {
+  const expectations = args.expectations ?? BROKER_FIXTURE_EXPECTATIONS;
+  const results = expectations.map((expectation) => {
+    const csvText = args.fixtureContentsByFile[expectation.fixtureFile];
+
+    if (!csvText) {
+      return {
+        ...expectation,
+        parsedAcceptedExecutions: 0,
+        parsedGroupedTrades: 0,
+        passed: false,
+        notes: ["Sample content was not provided."],
+      };
+    }
+
+    const result = parseBrokerExecutionCsv({
+      broker: expectation.broker,
+      csvText,
+      timestampTimezone: "America/New_York",
+    });
+    const passed =
+      result.acceptedExecutionCount === expectation.expectedAcceptedExecutions &&
+      result.requestCount === expectation.expectedGroupedTrades;
+
+    return {
+      ...expectation,
+      parsedAcceptedExecutions: result.acceptedExecutionCount,
+      parsedGroupedTrades: result.requestCount,
+      passed,
+      notes: passed
+        ? ["Sample parsed as expected."]
+        : [
+            `Expected ${expectation.expectedAcceptedExecutions} executions and ${expectation.expectedGroupedTrades} grouped trade(s).`,
+          ],
+    };
+  });
+
+  return {
+    totalCount: results.length,
+    passedCount: results.filter((result) => result.passed).length,
+    failedCount: results.filter((result) => !result.passed).length,
+    results,
+  };
+}
+
+export function buildTraderIntelligenceModuleReadinessViewModel(args?: {
+  context?: TraderIntelligencePlatformContext;
+  fixtureContentsByFile?: Record<string, string>;
+}): TraderIntelligenceModuleReadinessViewModel {
+  const context = args?.context ?? buildDemoTraderIntelligencePlatformContext();
+  const workflow = buildProductWorkflowShellViewModel();
+  const usage: Partial<Record<TraderIntelligenceFeatureKey, number>> = {
+    csv_imports: workflow.accountPlan.currentUsage.importsThisMonth,
+    analytics_dashboard: workflow.accountPlan.currentUsage.savedTradeCount,
+    trade_replay: workflow.accountPlan.currentUsage.savedTradeCount,
+  };
+  const routes = buildTraderIntelligenceRouteAccess({ context, usage });
+  const routeDefinitions = routes.map((route) => route.route);
+  const noExportAudit = auditTraderIntelligenceNoExportPolicy({
+    routes: routeDefinitions,
+  });
+  const brokerFixtureHarness = buildBrokerCsvRegressionFixtureHarness({
+    fixtureContentsByFile: args?.fixtureContentsByFile ?? {},
+  });
+  const routeSmokeTargets = [
+    "/",
+    "/platform-readiness",
+    ...routeDefinitions
+      .filter(
+        (route) =>
+          route.implemented &&
+          route.audience !== "debug" &&
+          route.standalonePath !== "/trades/[tradeId]",
+      )
+      .map((route) => route.standalonePath),
+    "/trades/trade-rapid-fire",
+  ];
+
+  return {
+    context,
+    workflow,
+    routes,
+    noExportAudit,
+    readinessChecklist: buildTraderIntelligenceFeatureReadinessChecklist(),
+    visualQaChecklist: buildTraderIntelligenceVisualQaChecklist(routeDefinitions),
+    brokerFixtureHarness,
+    routeSmokeTargets,
+    summary: noExportAudit.passed
+      ? "Trader Intelligence is platform-ready in demo module mode."
+      : "Trader Intelligence has platform-readiness policy issues to fix.",
+  };
+}

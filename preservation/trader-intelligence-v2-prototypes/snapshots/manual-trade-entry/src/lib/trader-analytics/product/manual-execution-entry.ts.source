@@ -1,0 +1,179 @@
+export interface ManualExecutionEntryRow {
+  id: string;
+  date: string;
+  time: string;
+  symbol: string;
+  side: "BUY" | "SELL" | "";
+  quantity: string;
+  price: string;
+  commission?: string;
+  fees?: string;
+  amount?: string;
+  currency?: string;
+}
+
+export interface ManualExecutionEntryIssue {
+  rowId: string;
+  field: keyof ManualExecutionEntryRow;
+  message: string;
+}
+
+export interface ManualExecutionEntryCsvResult {
+  csvText: string;
+  includedRowCount: number;
+  issues: ManualExecutionEntryIssue[];
+}
+
+export const MANUAL_EXECUTION_TIMEZONE = "America/New_York";
+export const MANUAL_EXECUTION_CURRENCY = "USD";
+
+const MANUAL_EXECUTION_HEADERS = [
+  "Date",
+  "Time",
+  "Symbol",
+  "Side",
+  "Quantity",
+  "Price",
+  "Commission",
+  "Fees",
+  "Amount",
+  "Currency",
+] as const;
+
+function clean(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function isBlankRow(row: ManualExecutionEntryRow): boolean {
+  return [
+    row.date,
+    row.time,
+    row.symbol,
+    row.side,
+    row.quantity,
+    row.price,
+    row.commission,
+    row.fees,
+    row.amount,
+    row.currency,
+  ].every((value) => clean(value) === "");
+}
+
+function finitePositive(value: string): boolean {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) && parsed > 0;
+}
+
+function fixedMoney(value: number): string {
+  return value.toFixed(2);
+}
+
+function calculatedAmount(row: ManualExecutionEntryRow): string {
+  const quantity = Number(clean(row.quantity));
+  const price = Number(clean(row.price));
+
+  if (!Number.isFinite(quantity) || !Number.isFinite(price)) {
+    return "";
+  }
+
+  const grossAmount = quantity * price;
+
+  return fixedMoney(row.side === "SELL" ? grossAmount : -grossAmount);
+}
+
+function csvCell(value: string): string {
+  const trimmed = value.trim();
+
+  return /[",\r\n]/.test(trimmed) ? `"${trimmed.replace(/"/g, '""')}"` : trimmed;
+}
+
+function validateRow(row: ManualExecutionEntryRow): ManualExecutionEntryIssue[] {
+  const issues: ManualExecutionEntryIssue[] = [];
+
+  if (clean(row.date) === "") {
+    issues.push({ rowId: row.id, field: "date", message: "Date is required." });
+  }
+
+  if (clean(row.time) === "") {
+    issues.push({
+      rowId: row.id,
+      field: "time",
+      message: "Exact execution time is required.",
+    });
+  }
+
+  if (clean(row.symbol) === "") {
+    issues.push({
+      rowId: row.id,
+      field: "symbol",
+      message: "Symbol is required.",
+    });
+  }
+
+  if (row.side !== "BUY" && row.side !== "SELL") {
+    issues.push({
+      rowId: row.id,
+      field: "side",
+      message: "Choose buy or sell.",
+    });
+  }
+
+  if (!finitePositive(clean(row.quantity))) {
+    issues.push({
+      rowId: row.id,
+      field: "quantity",
+      message: "Quantity must be greater than zero.",
+    });
+  }
+
+  if (!finitePositive(clean(row.price))) {
+    issues.push({
+      rowId: row.id,
+      field: "price",
+      message: "Price must be greater than zero.",
+    });
+  }
+
+  return issues;
+}
+
+export function buildManualExecutionEntryCsv(
+  rows: ManualExecutionEntryRow[],
+): ManualExecutionEntryCsvResult {
+  const includedRows = rows.filter((row) => !isBlankRow(row));
+  const issues = includedRows.flatMap(validateRow);
+  const csvRows = [
+    MANUAL_EXECUTION_HEADERS.join(","),
+    ...includedRows.map((row) =>
+      [
+        row.date,
+        row.time,
+        row.symbol.toUpperCase(),
+        row.side,
+        row.quantity,
+        row.price,
+        clean(row.commission) || "0",
+        clean(row.fees) || "0",
+        clean(row.amount) || calculatedAmount(row),
+        clean(row.currency).toUpperCase() || MANUAL_EXECUTION_CURRENCY,
+      ]
+        .map((value) => csvCell(value ?? ""))
+        .join(","),
+    ),
+  ];
+
+  if (includedRows.length === 0) {
+    issues.push({
+      rowId: "manual-entry",
+      field: "date",
+      message: "Add at least one execution row.",
+    });
+  }
+
+  return {
+    csvText: csvRows.join("\n"),
+    includedRowCount: includedRows.length,
+    issues,
+  };
+}

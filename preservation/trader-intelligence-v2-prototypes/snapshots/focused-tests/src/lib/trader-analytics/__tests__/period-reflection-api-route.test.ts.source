@@ -1,0 +1,714 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { POST as generateTraderReflections } from "../../../../app/api/trader-reflections/generate/route";
+import {
+  buildCsvDryRunImportExperience,
+  buildImportCommitPlan,
+  buildProductTraderAnalyticsViewModel,
+} from "../index";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
+  resetTraderIntelligenceDatabaseForTests,
+  SqliteImportCommitRepository,
+} from "../product/import-commit/sqlite-import-commit-repository";
+
+let tempDir = "";
+let originalDbPath: string | undefined;
+let originalOpenAIKey: string | undefined;
+let originalOpenAIModel: string | undefined;
+let originalTraderIntelligenceTier: string | undefined;
+
+const csvText = [
+  "Date,Time,Symbol,Side,Quantity,Price",
+  "2026-05-04,09:30:00,REFAPI,Buy,100,10.00",
+  "2026-05-04,10:00:00,REFAPI,Sell,100,10.50",
+  "2026-05-05,09:35:00,REFNOTE,Buy,50,20.00",
+  "2026-05-05,10:05:00,REFNOTE,Sell,50,19.20",
+].join("\n");
+
+function jsonRequest(body: unknown): Request {
+  return new Request("http://localhost/api/trader-reflections/generate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function emptyPostRequest(): Request {
+  return new Request("http://localhost/api/trader-reflections/generate", {
+    method: "POST",
+  });
+}
+
+function seedSavedReport(): void {
+  const repository = new SqliteImportCommitRepository();
+  const experience = buildCsvDryRunImportExperience({
+    broker: "generic_execution_csv",
+    csvText,
+  });
+  const plan = buildImportCommitPlan({
+    workspaceId: DEMO_WORKSPACE_ID,
+    userId: DEMO_USER_ID,
+    accountId: DEMO_ACCOUNT_ID,
+    experience,
+    existingFileFingerprints:
+      repository.listCommittedFileFingerprints(DEMO_ACCOUNT_ID),
+    existingTradeFingerprints:
+      repository.listCommittedTradeFingerprints(DEMO_ACCOUNT_ID),
+    acknowledgements: {
+      mappingReview: true,
+      pnlReview: true,
+    },
+  });
+
+  repository.commitImportPlan(plan);
+}
+
+beforeEach(() => {
+  originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
+  originalOpenAIKey = process.env.OPENAI_API_KEY;
+  originalOpenAIModel = process.env.OPENAI_REFLECTION_MODEL;
+  originalTraderIntelligenceTier = process.env.TRADER_INTELLIGENCE_TIER;
+  tempDir = mkdtempSync(join(tmpdir(), "trader-reflection-api-"));
+  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  process.env.TRADER_INTELLIGENCE_TIER = "chart_context";
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_REFLECTION_MODEL;
+  resetTraderIntelligenceDatabaseForTests();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetTraderIntelligenceDatabaseForTests();
+
+  if (originalDbPath === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DB_PATH;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DB_PATH = originalDbPath;
+  }
+
+  if (originalOpenAIKey === undefined) {
+    delete process.env.OPENAI_API_KEY;
+  } else {
+    process.env.OPENAI_API_KEY = originalOpenAIKey;
+  }
+
+  if (originalOpenAIModel === undefined) {
+    delete process.env.OPENAI_REFLECTION_MODEL;
+  } else {
+    process.env.OPENAI_REFLECTION_MODEL = originalOpenAIModel;
+  }
+
+  if (originalTraderIntelligenceTier === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_TIER;
+  } else {
+    process.env.TRADER_INTELLIGENCE_TIER = originalTraderIntelligenceTier;
+  }
+
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+describe("trader reflection generation API route", () => {
+  it("rejects invalid requested period kinds", async () => {
+    const response = await generateTraderReflections(
+      jsonRequest({ kinds: ["hourly"] }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      contractVersion: "trader_period_reflection_generation_error_v1",
+      error: {
+        code: "invalid_request",
+      },
+    });
+  });
+
+  it("rejects AI generation for the free execution tier", async () => {
+    seedSavedReport();
+    process.env.TRADER_INTELLIGENCE_TIER = "free_execution";
+
+    const response = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:30:00.000Z",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body).toMatchObject({
+      contractVersion: "trader_period_reflection_generation_error_v1",
+      error: {
+        code: "tier_required",
+        message:
+          "AI trading reviews are available on the chart-context paid tier.",
+      },
+    });
+  });
+
+  it("saves deterministic fallback period reflections when OpenAI is not configured", async () => {
+    seedSavedReport();
+
+    const response = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily", "weekly", "monthly"],
+        generatedAt: "2026-05-29T22:00:00.000Z",
+      }),
+    );
+    const body = await response.json();
+    const repository = new SqliteImportCommitRepository();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      contractVersion: "trader_period_reflection_generation_run_v1",
+      source: "saved_sqlite",
+      requestedKinds: ["daily", "weekly", "monthly"],
+      statusCounts: {
+        fallback: 3,
+        failed: 0,
+        generated: 0,
+        stale: 0,
+      },
+      providerConfigured: false,
+    });
+    expect(body.records).toHaveLength(3);
+    expect(repository.listPeriodReflections({ userId: DEMO_USER_ID })).toHaveLength(
+      3,
+    );
+  });
+
+  it("allows daily reflection before close but blocks repeat generation until evidence changes", async () => {
+    seedSavedReport();
+
+    const response = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:30:00.000Z",
+      }),
+    );
+    const body = await response.json();
+    const repository = new SqliteImportCommitRepository();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      requestedKinds: ["daily"],
+      statusCounts: {
+        fallback: 1,
+        failed: 0,
+        generated: 0,
+        stale: 0,
+      },
+      availability: {
+        daily: {
+          action: "generate",
+          canGenerate: true,
+          detail:
+            "This will use daily AI generation 1 of 3. After this review, 2 daily AI generations will remain.",
+          label: "Generate day prompt",
+          reason: "ready",
+        },
+      },
+    });
+    expect(
+      repository.listPeriodReflections({
+        userId: DEMO_USER_ID,
+        accountId: DEMO_ACCOUNT_ID,
+        kind: "daily",
+      }),
+    ).toHaveLength(1);
+
+    const repeatResponse = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:45:00.000Z",
+      }),
+    );
+    const repeatBody = await repeatResponse.json();
+
+    expect(repeatResponse.status).toBe(409);
+    expect(repeatBody).toMatchObject({
+      error: {
+        code: "period_not_ready",
+        unavailable: [
+          {
+            kind: "daily",
+            detail:
+              "This day already has a saved review for the current evidence. Add a trade or note to unlock an update. 2 daily AI generations remain.",
+            reason: "already_generated",
+          },
+        ],
+      },
+    });
+
+    const sameDayTrade = repository
+      .listTrades(DEMO_USER_ID)
+      .find((trade) => trade.sessionDate === "2026-05-05");
+
+    expect(sameDayTrade).toBeDefined();
+    repository.addTradeNote({
+      userId: DEMO_USER_ID,
+      tradeId: sameDayTrade?.id ?? "",
+      body: "I finished early but later reviewed the setup and emotions.",
+      createdAt: "2026-05-05T15:50:00.000Z",
+    });
+
+    const updateResponse = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:55:00.000Z",
+      }),
+    );
+    const updateBody = await updateResponse.json();
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateBody).toMatchObject({
+      requestedKinds: ["daily"],
+      statusCounts: {
+        fallback: 1,
+        failed: 0,
+        generated: 0,
+        stale: 0,
+      },
+      availability: {
+        daily: {
+          action: "update",
+          canGenerate: true,
+          detail:
+            "This will use daily AI generation 2 of 3. After this update, 1 daily AI generation will remain.",
+          label: "Update daily prompt",
+          reason: "stale_or_failed",
+        },
+      },
+    });
+  });
+
+  it("caps daily reflection generation at three attempts per trading day", async () => {
+    seedSavedReport();
+
+    const repository = new SqliteImportCommitRepository();
+    const sameDayTrade = repository
+      .listTrades(DEMO_USER_ID)
+      .find((trade) => trade.sessionDate === "2026-05-05");
+
+    expect(sameDayTrade).toBeDefined();
+
+    const first = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:30:00.000Z",
+      }),
+    );
+    expect(first.status).toBe(200);
+
+    repository.addTradeNote({
+      userId: DEMO_USER_ID,
+      tradeId: sameDayTrade?.id ?? "",
+      body: "First new note after the early daily review.",
+      createdAt: "2026-05-05T15:40:00.000Z",
+    });
+
+    const second = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:45:00.000Z",
+      }),
+    );
+    expect(second.status).toBe(200);
+
+    repository.addTradeNote({
+      userId: DEMO_USER_ID,
+      tradeId: sameDayTrade?.id ?? "",
+      body: "Second new note before the third daily review.",
+      createdAt: "2026-05-05T15:50:00.000Z",
+    });
+
+    const third = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T22:05:00.000Z",
+      }),
+    );
+    expect(third.status).toBe(200);
+
+    repository.addTradeNote({
+      userId: DEMO_USER_ID,
+      tradeId: sameDayTrade?.id ?? "",
+      body: "Fourth evidence change should not unlock another daily AI call.",
+      createdAt: "2026-05-05T22:10:00.000Z",
+    });
+
+    const capped = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T22:15:00.000Z",
+      }),
+    );
+    const cappedBody = await capped.json();
+
+    expect(capped.status).toBe(409);
+    expect(cappedBody).toMatchObject({
+      error: {
+        code: "period_not_ready",
+        unavailable: [
+          {
+            kind: "daily",
+            reason: "generation_limit_reached",
+            generationAttemptCount: 3,
+            generationAttemptLimit: 3,
+          },
+        ],
+      },
+    });
+    expect(
+      repository.listPeriodReflections({
+        userId: DEMO_USER_ID,
+        accountId: DEMO_ACCOUNT_ID,
+        kind: "daily",
+      }),
+    ).toMatchObject([
+      {
+        generationAttemptCount: 3,
+        status: "stale",
+      },
+    ]);
+  });
+
+  it("does not require a post-close finalization click after a day-so-far review", async () => {
+    seedSavedReport();
+
+    const early = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T15:30:00.000Z",
+      }),
+    );
+    expect(early.status).toBe(200);
+
+    const postCloseRepeat = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["daily"],
+        generatedAt: "2026-05-05T22:05:00.000Z",
+      }),
+    );
+    const postCloseBody = await postCloseRepeat.json();
+
+    expect(postCloseRepeat.status).toBe(409);
+    expect(postCloseBody).toMatchObject({
+      error: {
+        code: "period_not_ready",
+        unavailable: [
+          {
+            action: null,
+            canGenerate: false,
+            generationAttemptCount: 1,
+            generationAttemptLimit: 3,
+            kind: "daily",
+            label: "Already generated",
+            reason: "already_generated",
+          },
+        ],
+      },
+    });
+
+    const repository = new SqliteImportCommitRepository();
+    expect(
+      repository.listPeriodReflections({
+        userId: DEMO_USER_ID,
+        accountId: DEMO_ACCOUNT_ID,
+        kind: "daily",
+      }),
+    ).toMatchObject([
+      {
+        generationAttemptCount: 1,
+        status: "fallback",
+      },
+    ]);
+  });
+
+  it("rejects a weekly reflection before Friday market close", async () => {
+    seedSavedReport();
+
+    const response = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["weekly"],
+        generatedAt: "2026-05-08T19:30:00.000Z",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({
+      contractVersion: "trader_period_reflection_generation_error_v1",
+      error: {
+        code: "period_not_ready",
+        unavailable: [
+          {
+            kind: "weekly",
+            reason: "too_early",
+            periodEndDate: "2026-05-08",
+          },
+        ],
+      },
+    });
+  });
+
+  it("saves generated OpenAI reflections and exposes them through the product view model", async () => {
+    seedSavedReport();
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_REFLECTION_MODEL = "gpt-5.4-mini";
+
+    const narrative = {
+      headline: "Generated weekly headline from OpenAI.",
+      summary:
+        "The AI summary calls out a profitable week with one repeated execution issue.",
+      whatWentWell: "You protected profit on the cleaner execution.",
+      whatNeedsWork: "Do not add size after the move has already extended.",
+      noteInsight: "Your notes point to frustration after the first loss.",
+      progressInsight:
+        "The prior period memory shows the same late chase behavior repeated.",
+      nextFocus: "Wait for repair before adding size next session.",
+    };
+    const usage = {
+      input_tokens: 4000,
+      input_tokens_details: {
+        cached_tokens: 1000,
+      },
+      output_tokens: 800,
+      output_tokens_details: {
+        reasoning_tokens: 50,
+      },
+      total_tokens: 4800,
+    };
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          output_text: JSON.stringify(narrative),
+          usage,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const response = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["weekly"],
+        generatedAt: "2026-05-08T22:05:00.000Z",
+      }),
+    );
+    const body = await response.json();
+    const repository = new SqliteImportCommitRepository();
+    const generatedViewModel = buildProductTraderAnalyticsViewModel({
+      repository,
+      userId: DEMO_USER_ID,
+      storageMode: "local_sqlite_single_user",
+    });
+    const deterministicViewModel = buildProductTraderAnalyticsViewModel({
+      repository,
+      userId: DEMO_USER_ID,
+      storageMode: "local_sqlite_single_user",
+      includePersistedPeriodReflections: false,
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(body).toMatchObject({
+      requestedKinds: ["weekly"],
+      statusCounts: {
+        fallback: 0,
+        failed: 0,
+        generated: 1,
+        stale: 0,
+      },
+      providerConfigured: true,
+      usageSummary: {
+        recordCount: 1,
+        meteredRecordCount: 1,
+        knownCostRecordCount: 1,
+        unknownCostRecordCount: 0,
+        estimatedCostUsd: 0.005925,
+        inputTokens: 4000,
+        cachedInputTokens: 1000,
+        outputTokens: 800,
+        reasoningOutputTokens: 50,
+        totalTokens: 4800,
+      },
+      records: [
+        {
+          status: "generated",
+          provider: "openai_responses_api",
+          model: "gpt-5.4-mini",
+          reflection: {
+            headline: narrative.headline,
+            narrativeSource: "openai_responses_api",
+          },
+          usage: {
+            tokenUsage: {
+              inputTokens: 4000,
+              cachedInputTokens: 1000,
+              outputTokens: 800,
+              reasoningOutputTokens: 50,
+              totalTokens: 4800,
+            },
+            costEstimate: {
+              estimatedCostUsd: 0.005925,
+              pricingModel: "gpt-5.4-mini",
+              pricingSource: "openai_api_pricing_2026_06_13",
+            },
+          },
+        },
+      ],
+    });
+    expect(generatedViewModel.periodReflections.weekly.headline).toBe(
+      narrative.headline,
+    );
+    expect(deterministicViewModel.periodReflections.weekly.headline).not.toBe(
+      narrative.headline,
+    );
+    expect(
+      repository.listPeriodReflectionGenerationEvents({
+        userId: DEMO_USER_ID,
+        accountId: DEMO_ACCOUNT_ID,
+        kind: "weekly",
+      }),
+    ).toMatchObject([
+      {
+        status: "generated",
+        provider: "openai_responses_api",
+        model: "gpt-5.4-mini",
+        usage: {
+          tokenUsage: {
+            inputTokens: 4000,
+            outputTokens: 800,
+            totalTokens: 4800,
+          },
+          costEstimate: {
+            estimatedCostUsd: 0.005925,
+          },
+        },
+      },
+    ]);
+
+    const secondResponse = await generateTraderReflections(
+      jsonRequest({
+        kinds: ["weekly"],
+        generatedAt: "2026-05-08T22:10:00.000Z",
+      }),
+    );
+    const secondBody = await secondResponse.json();
+
+    expect(secondResponse.status).toBe(409);
+    expect(secondBody).toMatchObject({
+      error: {
+        code: "period_not_ready",
+        unavailable: [
+          {
+            kind: "weekly",
+            reason: "already_generated",
+          },
+        ],
+      },
+    });
+  });
+
+  it("marks generated reflections stale after a related trade note changes", async () => {
+    seedSavedReport();
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_REFLECTION_MODEL = "gpt-route-test";
+
+    const narrative = {
+      headline: "Generated weekly headline that should become stale.",
+      summary:
+        "The generated summary should not remain visible after the trader adds a note.",
+      whatWentWell: "You protected profit on the cleaner execution.",
+      whatNeedsWork: "Do not add size after the move has already extended.",
+      noteInsight: "The earlier notes did not include the new note yet.",
+      progressInsight: "The same late chase behavior repeated.",
+      nextFocus: "Wait for repair before adding size next session.",
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ output_text: JSON.stringify(narrative) }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    expect(
+      (
+        await generateTraderReflections(
+          jsonRequest({
+            kinds: ["weekly"],
+            generatedAt: "2026-05-08T22:15:00.000Z",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+
+    const repository = new SqliteImportCommitRepository();
+    const trade = repository.listTrades(DEMO_USER_ID)[0];
+
+    if (!trade) {
+      throw new Error("Expected a seeded trade for stale reflection coverage.");
+    }
+
+    repository.addTradeNote({
+      userId: DEMO_USER_ID,
+      tradeId: trade.id,
+      body: "New emotional note after the AI summary was generated.",
+      createdAt: "2026-05-08T22:20:00.000Z",
+    });
+
+    expect(
+      repository.listPeriodReflections({
+        userId: DEMO_USER_ID,
+        accountId: DEMO_ACCOUNT_ID,
+        kind: "weekly",
+      }),
+    ).toMatchObject([
+      {
+        status: "stale",
+        staleReason: "trade_note_changed",
+        reflection: {
+          headline: narrative.headline,
+        },
+      },
+    ]);
+
+    const viewModel = buildProductTraderAnalyticsViewModel({
+      repository,
+      userId: DEMO_USER_ID,
+      storageMode: "local_sqlite_single_user",
+    });
+
+    expect(viewModel.periodReflections.weekly.headline).not.toBe(
+      narrative.headline,
+    );
+    expect(viewModel.periodReflections.weekly.noteInsight).toContain(
+      "New emotional note",
+    );
+  });
+
+  it("returns a no-saved-report response before the user imports trades", async () => {
+    const response = await generateTraderReflections(emptyPostRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body).toMatchObject({
+      contractVersion: "trader_period_reflection_generation_error_v1",
+      error: {
+        code: "no_saved_report",
+      },
+    });
+  });
+});

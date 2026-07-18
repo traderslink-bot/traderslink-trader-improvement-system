@@ -1,0 +1,269 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import {
+  clearRealCoachActor,
+  getRealCoachActor,
+  prototypeAdminActor,
+  prototypeCoachActor,
+  prototypeStudentActor,
+  setRealCoachActor,
+} from "./real-coach-auth";
+import {
+  createRealCoachMarketplaceRepository,
+  type CoachFeedbackKind,
+  type RealCoachProfileStatus,
+} from "../src/lib/trader-analytics/product/real-coach-marketplace";
+
+function textValue(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function intValue(formData: FormData, key: string, fallback: number): number {
+  const parsed = Number.parseInt(textValue(formData, key), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function revalidateCoachRoutes(): void {
+  revalidatePath("/coaches");
+  revalidatePath("/coach-human");
+  revalidatePath("/coach-dashboard");
+  revalidatePath("/admin/coaches");
+  revalidatePath("/real-coach-session");
+}
+
+async function requireAdminActor(): Promise<void> {
+  const actor = await getRealCoachActor();
+  if (actor?.role !== "admin") {
+    redirect("/real-coach-session?required=admin");
+  }
+}
+
+async function requireStudentActor() {
+  const actor = await getRealCoachActor();
+  if (actor?.role !== "student") {
+    redirect("/real-coach-session?required=student");
+  }
+
+  return actor;
+}
+
+async function requireCoachActorFor(coachId: string): Promise<void> {
+  const actor = await getRealCoachActor();
+  if (actor?.role !== "coach" || actor.coachId !== coachId) {
+    redirect("/real-coach-session?required=coach");
+  }
+}
+
+async function requireAdminOrRelationshipCoach(
+  relationshipId: string,
+): Promise<void> {
+  const actor = await getRealCoachActor();
+  if (actor?.role === "admin") {
+    return;
+  }
+
+  if (actor?.role !== "coach") {
+    redirect("/real-coach-session?required=coach");
+  }
+
+  const relationship =
+    createRealCoachMarketplaceRepository().getRelationship(relationshipId);
+  if (!relationship || relationship.coachId !== actor.coachId) {
+    redirect("/real-coach-session?required=coach");
+  }
+}
+
+export async function setPrototypeRealCoachActorAction(formData: FormData) {
+  const role = textValue(formData, "role");
+
+  if (role === "admin") {
+    await setRealCoachActor(prototypeAdminActor());
+  } else if (role === "coach") {
+    const coachId = textValue(formData, "coachId");
+    if (!coachId) {
+      redirect("/real-coach-session?error=missing-coach");
+    }
+    await setRealCoachActor(prototypeCoachActor(coachId));
+  } else {
+    await setRealCoachActor(prototypeStudentActor());
+  }
+
+  revalidateCoachRoutes();
+  redirect(textValue(formData, "next") || "/coaches");
+}
+
+export async function clearPrototypeRealCoachActorAction() {
+  await clearRealCoachActor();
+  revalidateCoachRoutes();
+  redirect("/real-coach-session");
+}
+
+export async function createCoachProfileAction(formData: FormData) {
+  await requireAdminActor();
+  const repository = createRealCoachMarketplaceRepository();
+  const displayName = textValue(formData, "displayName");
+
+  if (!displayName) {
+    redirect("/admin/coaches?error=missing-name");
+  }
+
+  repository.createCoachProfile({
+    displayName,
+    headline:
+      textValue(formData, "headline") ||
+      "Execution review coach for active traders.",
+    bio:
+      textValue(formData, "bio") ||
+      "This approved coach can review saved trades, publish private feedback, and assign focused follow-through work.",
+    specialtiesText: textValue(formData, "specialtiesText"),
+    socialLinksText: textValue(formData, "socialLinksText"),
+    whopUrl: textValue(formData, "whopUrl") || "https://whop.com/",
+    appAccessFeeText:
+      textValue(formData, "appAccessFeeText") || "$49 / coach access month",
+    coachFeeText:
+      textValue(formData, "coachFeeText") || "Coach payment handled on Whop",
+    studentCap: intValue(formData, "studentCap", 10),
+    status: textValue(formData, "status") === "approved" ? "approved" : "draft",
+  });
+
+  revalidateCoachRoutes();
+  redirect("/admin/coaches?created=1");
+}
+
+export async function seedPrototypeCoachAction() {
+  await requireAdminActor();
+  createRealCoachMarketplaceRepository().ensurePrototypeSeedCoach();
+
+  revalidateCoachRoutes();
+  redirect("/admin/coaches?seeded=1");
+}
+
+export async function updateCoachStatusAction(formData: FormData) {
+  await requireAdminActor();
+  const status = textValue(formData, "status") as RealCoachProfileStatus;
+  createRealCoachMarketplaceRepository().updateCoachStatus({
+    coachId: textValue(formData, "coachId"),
+    status:
+      status === "approved" || status === "hidden" || status === "draft"
+        ? status
+        : "draft",
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function updateCoachCapacityAction(formData: FormData) {
+  await requireAdminActor();
+  createRealCoachMarketplaceRepository().updateCoachCapacity({
+    coachId: textValue(formData, "coachId"),
+    studentCap: intValue(formData, "studentCap", 0),
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function adminGrantPrototypeAppAccessAction(formData: FormData) {
+  await requireAdminActor();
+  const coachId = textValue(formData, "coachId");
+  const repository = createRealCoachMarketplaceRepository();
+
+  repository.grantPrototypeAppAccessPass({
+    coachId,
+    paymentReference:
+      textValue(formData, "paymentReference") || "prototype-manual-app-fee",
+  });
+
+  revalidateCoachRoutes();
+  redirect("/admin/coaches?appAccess=granted");
+}
+
+export async function requestCoachAction(formData: FormData) {
+  const actor = await requireStudentActor();
+  const coachId = textValue(formData, "coachId");
+  if (textValue(formData, "consent") !== "on") {
+    redirect(`/coaches/${encodeURIComponent(coachId)}?requestError=consent_required`);
+  }
+
+  const result = createRealCoachMarketplaceRepository().requestCoach({
+    coachId,
+    userId: actor.userId,
+    workspaceId: actor.workspaceId,
+    accountId: actor.accountId,
+  });
+
+  revalidateCoachRoutes();
+
+  if (!result.relationship) {
+    redirect(
+      `/coaches/${encodeURIComponent(coachId)}?requestError=${encodeURIComponent(
+        result.reason ?? "request_failed",
+      )}`,
+    );
+  }
+
+  redirect(`/coaches/${encodeURIComponent(coachId)}?requested=1`);
+}
+
+export async function confirmCoachPaymentAction(formData: FormData) {
+  await requireAdminOrRelationshipCoach(textValue(formData, "relationshipId"));
+  createRealCoachMarketplaceRepository().confirmCoachPayment({
+    relationshipId: textValue(formData, "relationshipId"),
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function addCoachPrivateNoteAction(formData: FormData) {
+  await requireCoachActorFor(textValue(formData, "coachId"));
+  createRealCoachMarketplaceRepository().addPrivateNote({
+    relationshipId: textValue(formData, "relationshipId"),
+    coachId: textValue(formData, "coachId"),
+    title: textValue(formData, "title") || "Coach working note",
+    body: textValue(formData, "body"),
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function publishCoachFeedbackReportAction(formData: FormData) {
+  const kind = textValue(formData, "kind") as CoachFeedbackKind;
+  await requireCoachActorFor(textValue(formData, "coachId"));
+
+  createRealCoachMarketplaceRepository().createFeedbackReport({
+    relationshipId: textValue(formData, "relationshipId"),
+    coachId: textValue(formData, "coachId"),
+    kind: kind === "monthly" ? "monthly" : "weekly",
+    periodLabel: textValue(formData, "periodLabel") || "Current week",
+    title: textValue(formData, "title") || "Coach review",
+    body: textValue(formData, "body"),
+    publish: true,
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function createCoachActionItemAction(formData: FormData) {
+  await requireCoachActorFor(textValue(formData, "coachId"));
+  createRealCoachMarketplaceRepository().createActionItem({
+    relationshipId: textValue(formData, "relationshipId"),
+    coachId: textValue(formData, "coachId"),
+    title: textValue(formData, "title") || "Review assignment",
+    body: textValue(formData, "body"),
+    dueLabel: textValue(formData, "dueLabel") || "Before next coach review",
+  });
+
+  revalidateCoachRoutes();
+}
+
+export async function completeCoachActionItemAction(formData: FormData) {
+  const actor = await requireStudentActor();
+  createRealCoachMarketplaceRepository().completeActionItem({
+    actionItemId: textValue(formData, "actionItemId"),
+    userId: actor.userId,
+  });
+
+  revalidateCoachRoutes();
+}

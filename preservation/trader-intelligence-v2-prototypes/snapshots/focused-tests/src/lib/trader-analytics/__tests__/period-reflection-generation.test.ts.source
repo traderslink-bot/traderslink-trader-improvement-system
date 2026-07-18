@@ -1,0 +1,511 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  buildPersistedTraderPeriodReflection,
+  PERIOD_REFLECTION_NARRATIVE_CONTRACT,
+} from "../product/period-reflections";
+import type {
+  PersistedTraderPeriodReflectionGenerationEvent,
+  PersistedTraderPeriodReflection,
+  TraderPeriodReflection,
+} from "../product/types";
+import {
+  buildOpenAIReflectionUsage,
+  buildOpenAITraderPeriodReflectionRequest,
+  DEFAULT_OPENAI_REFLECTION_MODEL,
+  generateAndSaveTraderPeriodReflection,
+  selectPriorPeriodReflectionMemory,
+  type TraderPeriodReflectionRepository,
+} from "../server/period-reflection-generation";
+
+function reflection(
+  overrides: Partial<TraderPeriodReflection> = {},
+): TraderPeriodReflection {
+  const kind = overrides.kind ?? "weekly";
+  const startDate = overrides.startDate ?? "2026-05-04";
+  const endDate = overrides.endDate ?? "2026-05-08";
+  const label = overrides.label ?? "Week of 2026-05-04";
+
+  return {
+    id: `${kind}:report-current`,
+    kind,
+    reportId: overrides.reportId ?? "report-current",
+    label,
+    startDate,
+    endDate,
+    generatedAt: overrides.generatedAt ?? "2026-05-08T21:00:00.000Z",
+    tradeCount: overrides.tradeCount ?? 4,
+    noteCount: overrides.noteCount ?? 2,
+    grossTotalRealizedPnl: overrides.grossTotalRealizedPnl ?? 240,
+    title: overrides.title ?? "Weekly Reflection",
+    headline:
+      overrides.headline ??
+      "The week was positive, but late chase entries still need work.",
+    summary:
+      overrides.summary ??
+      "You finished positive while giving back some open profit after late entries.",
+    whatWentWell:
+      overrides.whatWentWell ??
+      "You protected profit earlier on the best trade.",
+    whatNeedsWork:
+      overrides.whatNeedsWork ??
+      "Stop adding after the move is already extended.",
+    noteInsight:
+      overrides.noteInsight ??
+      "Your notes mention frustration after the first loss.",
+    progressInsight:
+      overrides.progressInsight ??
+      "Compared with last week, the same chase pattern repeated.",
+    nextFocus:
+      overrides.nextFocus ?? "Wait for repair before adding size.",
+    relatedTradeIds: overrides.relatedTradeIds ?? ["trade-1", "trade-2"],
+    evidence:
+      overrides.evidence ??
+      [
+        {
+          id: "risk:late-chase",
+          kind: "risk",
+          label: "Late chase entries",
+          detail: "Two trades were entered after the extension.",
+          relatedTradeIds: ["trade-2"],
+        },
+      ],
+    promptSeed:
+      overrides.promptSeed ??
+      {
+        systemInstruction:
+          `Narrative contract: ${PERIOD_REFLECTION_NARRATIVE_CONTRACT}. Write a short evidence-first trading reflection. Do not invent facts.`,
+        userInstruction:
+          "Rewrite the deterministic draft in direct second-person language.",
+        input: {
+          periodKind: kind,
+          periodLabel: label,
+          tradeCount: 4,
+          grossTotalRealizedPnl: 240,
+          topRisks: ["Late chase entries"],
+          topStrengths: ["Protected profit earlier"],
+          userNoteThemes: ["frustration after the first loss"],
+          comparison: {
+            previousPeriodLabel: "Week of 2026-04-27",
+            improved: ["earlier first trim"],
+            worsened: [],
+            repeated: ["late chase entries"],
+          },
+          requiredNextFocus: "Wait for repair before adding size.",
+          evidenceTradeIds: ["trade-1", "trade-2"],
+        },
+      },
+    narrativeSource:
+      overrides.narrativeSource ?? "deterministic_reflection_v1",
+  };
+}
+
+function fakeRepository(
+  records: PersistedTraderPeriodReflection[] = [],
+): TraderPeriodReflectionRepository & {
+  events: PersistedTraderPeriodReflectionGenerationEvent[];
+  records: PersistedTraderPeriodReflection[];
+} {
+  const state = [...records];
+  const events: PersistedTraderPeriodReflectionGenerationEvent[] = [];
+
+  return {
+    events,
+    records: state,
+    listPeriodReflections(args) {
+      return state.filter(
+        (record) =>
+          record.userId === args.userId &&
+          (!args.accountId || record.accountId === args.accountId) &&
+          (!args.kind || record.kind === args.kind),
+      );
+    },
+    savePeriodReflection(record) {
+      const index = state.findIndex((candidate) => candidate.id === record.id);
+
+      if (index >= 0) {
+        state[index] = record;
+      } else {
+        state.push(record);
+      }
+
+      return record;
+    },
+    savePeriodReflectionGenerationEvent(event) {
+      events.push(event);
+      return event;
+    },
+  };
+}
+
+function persisted(
+  source: TraderPeriodReflection,
+): PersistedTraderPeriodReflection {
+  return buildPersistedTraderPeriodReflection({
+    userId: "user-1",
+    accountId: "account-1",
+    reflection: source,
+    sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+    createdAt: source.generatedAt,
+    updatedAt: source.generatedAt,
+    status: "generated",
+    provider: "openai_responses_api",
+    model: "gpt-reflection-test",
+  });
+}
+
+describe("period reflection OpenAI generation", () => {
+  it("saves deterministic fallback when no OpenAI API key is configured", async () => {
+    const repository = fakeRepository();
+    const fetchImpl = vi.fn();
+    const current = reflection();
+
+    const record = await generateAndSaveTraderPeriodReflection({
+      repository,
+      userId: "user-1",
+      accountId: "account-1",
+      reflection: current,
+      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+      generatedAt: "2026-05-08T21:10:00.000Z",
+      openai: {
+        apiKey: "",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    });
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(record).toMatchObject({
+      status: "fallback",
+      provider: "deterministic_reflection_v1",
+      model: null,
+      errorMessage: null,
+      generationAttemptCount: 1,
+      reflection: {
+        headline: current.headline,
+        narrativeSource: "deterministic_reflection_v1",
+      },
+    });
+    expect(repository.records).toHaveLength(1);
+    expect(repository.events).toMatchObject([
+      {
+        accountId: "account-1",
+        kind: "weekly",
+        provider: "deterministic_reflection_v1",
+        status: "fallback",
+        usage: null,
+      },
+    ]);
+  });
+
+  it("increments generation attempts when updating the same period", async () => {
+    const current = reflection();
+    const existing = buildPersistedTraderPeriodReflection({
+      userId: "user-1",
+      accountId: "account-1",
+      reflection: current,
+      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+      createdAt: "2026-05-08T15:30:00.000Z",
+      updatedAt: "2026-05-08T15:30:00.000Z",
+      status: "stale",
+      provider: "deterministic_reflection_v1",
+      generationAttemptCount: 1,
+    });
+    const repository = fakeRepository([existing]);
+
+    const record = await generateAndSaveTraderPeriodReflection({
+      repository,
+      userId: "user-1",
+      accountId: "account-1",
+      reflection: current,
+      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+      generatedAt: "2026-05-08T21:10:00.000Z",
+      openai: {
+        apiKey: "",
+        fetchImpl: vi.fn() as unknown as typeof fetch,
+      },
+    });
+
+    expect(record).toMatchObject({
+      createdAt: "2026-05-08T15:30:00.000Z",
+      generationAttemptCount: 2,
+      status: "fallback",
+    });
+    expect(repository.records).toHaveLength(1);
+  });
+
+  it("calls the OpenAI Responses API with structured output and saves generated narrative", async () => {
+    const previous = persisted(
+      reflection({
+        id: "weekly:report-previous",
+        reportId: "report-previous",
+        label: "Week of 2026-04-27",
+        startDate: "2026-04-27",
+        endDate: "2026-05-01",
+        headline: "Previous week headline",
+        summary: "Previous week summary with repeated late chase entries.",
+      }),
+    );
+    const repository = fakeRepository([previous]);
+    const narrative = {
+      headline: "You made money, but the repeat issue was chasing late.",
+      summary:
+        "This week was profitable, but the same late-entry pattern from last week still showed up.",
+      whatWentWell: "You protected profit earlier on your best execution.",
+      whatNeedsWork: "Do not add size once the move is already extended.",
+      noteInsight:
+        "Your notes point to frustration after a first loss as the emotional trigger.",
+      progressInsight:
+        "Compared with the prior week, earlier trimming improved while chase entries repeated.",
+      nextFocus: "For the next session, wait for repair before adding size.",
+    };
+    const usage = {
+      input_tokens: 4000,
+      input_tokens_details: {
+        cached_tokens: 1000,
+      },
+      output_tokens: 800,
+      output_tokens_details: {
+        reasoning_tokens: 50,
+      },
+      total_tokens: 4800,
+    };
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          output_text: JSON.stringify(narrative),
+          usage,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    const record = await generateAndSaveTraderPeriodReflection({
+      repository,
+      userId: "user-1",
+      accountId: "account-1",
+      reflection: reflection(),
+      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+      generatedAt: "2026-05-08T21:15:00.000Z",
+      openai: {
+        apiKey: "test-key",
+        model: "gpt-reflection-test",
+        endpoint: "https://api.openai.test/v1/responses",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    });
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const requestBody = JSON.parse(String(init.body));
+
+    expect(url).toBe("https://api.openai.test/v1/responses");
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: {
+        Authorization: "Bearer test-key",
+        "Content-Type": "application/json",
+      },
+    });
+    expect(requestBody).toMatchObject({
+      model: "gpt-reflection-test",
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "trader_period_reflection_v1",
+          strict: true,
+        },
+      },
+    });
+    expect(JSON.stringify(requestBody.input)).toContain("Previous week headline");
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "Do not merely restate",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "do not tell the trader what their journal should capture",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "Speak directly about what their trades show",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "Avoid internal product terms",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "prior period",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "earlier period",
+    );
+    expect(JSON.stringify(requestBody.input)).toContain(
+      "your trades",
+    );
+    expect(JSON.stringify(requestBody.input)).not.toContain(
+      "journal question",
+    );
+    expect(record).toMatchObject({
+      status: "generated",
+      provider: "openai_responses_api",
+      model: "gpt-reflection-test",
+      errorMessage: null,
+      reflection: {
+        headline: narrative.headline,
+        summary: narrative.summary,
+        narrativeSource: "openai_responses_api",
+      },
+      usage: {
+        tokenUsage: {
+          inputTokens: 4000,
+          cachedInputTokens: 1000,
+          outputTokens: 800,
+          reasoningOutputTokens: 50,
+          totalTokens: 4800,
+        },
+        costEstimate: {
+          estimatedCostUsd: null,
+          pricingModel: "gpt-reflection-test",
+          pricingSource: "unknown_model",
+        },
+      },
+    });
+    expect(repository.events).toMatchObject([
+      {
+        accountId: "account-1",
+        generationAttemptCount: 1,
+        kind: "weekly",
+        model: "gpt-reflection-test",
+        provider: "openai_responses_api",
+        status: "generated",
+        usage: {
+          tokenUsage: {
+            inputTokens: 4000,
+            outputTokens: 800,
+            totalTokens: 4800,
+          },
+        },
+      },
+    ]);
+  });
+
+  it("saves failed OpenAI attempts with fallback reflection text", async () => {
+    const repository = fakeRepository();
+    const current = reflection();
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ error: { message: "rate limit exceeded" } }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    const record = await generateAndSaveTraderPeriodReflection({
+      repository,
+      userId: "user-1",
+      accountId: "account-1",
+      reflection: current,
+      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
+      generatedAt: "2026-05-08T21:20:00.000Z",
+      openai: {
+        apiKey: "test-key",
+        model: "gpt-reflection-test",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    });
+
+    expect(record.status).toBe("failed");
+    expect(record.provider).toBe("openai_responses_api");
+    expect(record.model).toBe("gpt-reflection-test");
+    expect(record.errorMessage).toContain("429");
+    expect(record.errorMessage).toContain("rate limit exceeded");
+    expect(record.reflection.headline).toBe(current.headline);
+    expect(record.reflection.narrativeSource).toBe(
+      "deterministic_reflection_v1",
+    );
+  });
+
+  it("includes weekly memory when preparing a monthly reflection", () => {
+    const monthly = reflection({
+      kind: "monthly",
+      id: "monthly:report-current",
+      label: "May 2026",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31",
+    });
+    const weekly = persisted(
+      reflection({
+        id: "weekly:report-week-one",
+        reportId: "report-week-one",
+        label: "Week of 2026-05-04",
+        startDate: "2026-05-04",
+        endDate: "2026-05-08",
+        headline: "Week one generated headline",
+      }),
+    );
+    const repository = fakeRepository([weekly]);
+
+    expect(
+      selectPriorPeriodReflectionMemory({
+        repository,
+        userId: "user-1",
+        accountId: "account-1",
+        reflection: monthly,
+      }).map((record) => record.id),
+    ).toEqual([weekly.id]);
+  });
+
+  it("builds request bodies with the default OpenAI model", () => {
+    expect(DEFAULT_OPENAI_REFLECTION_MODEL).toBe("gpt-5.4-mini");
+    expect(
+      buildOpenAITraderPeriodReflectionRequest({
+        model: DEFAULT_OPENAI_REFLECTION_MODEL,
+        reflection: reflection(),
+        previousReflections: [],
+      }),
+    ).toMatchObject({
+      model: DEFAULT_OPENAI_REFLECTION_MODEL,
+      max_output_tokens: 1200,
+    });
+  });
+
+  it("estimates OpenAI cost for known reflection model usage", () => {
+    expect(
+      buildOpenAIReflectionUsage({
+        model: "gpt-5.4-mini",
+        body: {
+          usage: {
+            input_tokens: 4000,
+            input_tokens_details: {
+              cached_tokens: 1000,
+            },
+            output_tokens: 800,
+            output_tokens_details: {
+              reasoning_tokens: 50,
+            },
+            total_tokens: 4800,
+          },
+        },
+      }),
+    ).toMatchObject({
+      tokenUsage: {
+        inputTokens: 4000,
+        cachedInputTokens: 1000,
+        outputTokens: 800,
+        reasoningOutputTokens: 50,
+        totalTokens: 4800,
+      },
+      costEstimate: {
+        currency: "USD",
+        estimatedCostUsd: 0.005925,
+        inputUsdPerMillion: 0.75,
+        cachedInputUsdPerMillion: 0.075,
+        outputUsdPerMillion: 4.5,
+        pricingModel: "gpt-5.4-mini",
+        pricingSource: "openai_api_pricing_2026_06_13",
+      },
+    });
+  });
+});

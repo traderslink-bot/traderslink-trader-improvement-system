@@ -1,0 +1,1775 @@
+import type {
+  DailyCoachReport,
+  PersistedTraderPeriodReflection,
+  ProductTraderAnalyticsTradeRow,
+  SavedExecutionTrade,
+  SavedExecutionTradeId,
+  SavedReportNote,
+  SavedSessionNote,
+  SavedTraderAnalyticsReport,
+  TraderAnalyticsComparison,
+  TraderFocusQueueItem,
+  TraderPeriodReflection,
+  TraderPeriodReflectionEvidence,
+  TraderPeriodReflectionGenerationAvailability,
+  TraderPeriodReflectionGenerationAvailabilitySet,
+  TraderPeriodReflectionGenerationStatus,
+  TraderPeriodReflectionKind,
+  TraderPeriodReflectionProvider,
+  TraderPeriodReflectionPromptSeed,
+  TraderPeriodReflectionStaleReason,
+  TraderPeriodReflectionSystem,
+  TraderPeriodReflectionUsage,
+  TraderRuleComplianceSummary,
+  TraderWeeklyReviewDashboard,
+} from "./types";
+
+export const DAILY_PERIOD_REFLECTION_GENERATION_LIMIT = 3;
+export const PERIOD_REFLECTION_NARRATIVE_CONTRACT =
+  "coach_interpretation_v7";
+
+interface DailySessionReflectionEvidenceItem {
+  id: string;
+  title: string;
+  detail: string;
+  reviewAction: string;
+  evidenceSource?: string;
+  tone: "danger" | "info" | "success" | "warning";
+}
+
+interface DailySessionReflectionThread {
+  roundTrips: Array<{
+    tradeId: SavedExecutionTradeId;
+  }>;
+}
+
+interface DailySessionReflectionStory {
+  sessionDate: string;
+  storyKind: string;
+  storyLabel: string;
+  storyDetail: string;
+  reviewPrompt: string;
+  fixFirstAction: string;
+  repeatedLossThreadCount: number;
+  profitGivebackThreadCount: number;
+  tradeCount: number;
+  symbolCount: number;
+  totalGrossRealizedPnl: number;
+  peakCumulativePnl: number;
+  givebackFromPeak: number;
+  priorityThread: DailySessionReflectionThread | null;
+  worstThread: DailySessionReflectionThread | null;
+  reviewEvidence: DailySessionReflectionEvidenceItem[];
+}
+
+function formatSigned(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
+}
+
+function unique<T>(values: T[]): T[] {
+  return [...new Set(values)];
+}
+
+function sentenceCase(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return `${trimmed[0]?.toUpperCase() ?? ""}${trimmed.slice(1)}`;
+}
+
+function lowerFirst(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return `${trimmed[0]?.toLowerCase() ?? ""}${trimmed.slice(1)}`;
+}
+
+function periodKindLabel(kind: TraderPeriodReflectionKind): string {
+  switch (kind) {
+    case "daily":
+      return "Daily";
+    case "weekly":
+      return "Weekly";
+    case "monthly":
+      return "Monthly";
+  }
+}
+
+function compact(value: string, maxLength = 180): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}...`;
+}
+
+function dateAtUtcNoon(date: string): Date {
+  return new Date(`${date}T12:00:00.000Z`);
+}
+
+function addDays(date: string, days: number): string {
+  const value = dateAtUtcNoon(date);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function isoWeekday(date: string): number {
+  const day = dateAtUtcNoon(date).getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
+function marketWeekStart(date: string): string {
+  return addDays(date, 1 - isoWeekday(date));
+}
+
+function marketWeekEnd(date: string): string {
+  return addDays(marketWeekStart(date), 4);
+}
+
+function lastWeekdayOfMonth(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month, 0, 12, 0, 0));
+
+  while (date.getUTCDay() === 0 || date.getUTCDay() === 6) {
+    date.setUTCDate(date.getUTCDate() - 1);
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function latestSessionDate(rows: ProductTraderAnalyticsTradeRow[]): string | null {
+  return rows.map((row) => row.sessionDate).sort().at(-1) ?? null;
+}
+
+function reportRowsWithTradeIds(
+  report: SavedTraderAnalyticsReport,
+): ProductTraderAnalyticsTradeRow[] {
+  return report.report.trades.map((row) => ({
+    ...row,
+    tradeId:
+      report.sourceSummaries.find(
+        (summaryRef) => summaryRef.requestIndex === row.requestIndex,
+      )?.tradeId ??
+      report.sourceTradeIds[row.tradeIndex - 1] ??
+      `trade-${row.tradeIndex}`,
+  }));
+}
+
+function notesForTradeIds(args: {
+  trades: SavedExecutionTrade[];
+  tradeIds: SavedExecutionTradeId[];
+}): SavedReportNote[] {
+  const ids = new Set(args.tradeIds);
+
+  return args.trades
+    .filter((trade) => ids.has(trade.id))
+    .flatMap((trade) => trade.notes.map((note) => ({ ...note })))
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+}
+
+function sessionNotesForPeriod(args: {
+  endDate: string;
+  sessionNotes?: SavedSessionNote[];
+  startDate: string;
+}): SavedSessionNote[] {
+  return (args.sessionNotes ?? [])
+    .filter(
+      (note) =>
+        note.sessionDate >= args.startDate && note.sessionDate <= args.endDate,
+    )
+    .sort((left, right) =>
+      left.sessionDate === right.sessionDate
+        ? left.createdAt.localeCompare(right.createdAt)
+        : left.sessionDate.localeCompare(right.sessionDate),
+    );
+}
+
+function topLabel(
+  rows: ProductTraderAnalyticsTradeRow[],
+  selector: (row: ProductTraderAnalyticsTradeRow) => string | null | undefined,
+): string | null {
+  const counts = new Map<string, number>();
+
+  for (const row of rows) {
+    const label = selector(row);
+
+    if (!label) {
+      continue;
+    }
+
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+}
+
+function noteThemes(notes: SavedReportNote[]): string[] {
+  return notes
+    .map((note) => compact(note.body, 96))
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function noteInsight(notes: SavedReportNote[]): string {
+  const themes = noteThemes(notes);
+
+  if (themes.length === 0) {
+    return "No saved trade notes are attached to this period yet.";
+  }
+
+  return `Your saved notes point to ${themes.map((theme) => `"${theme}"`).join("; ")}.`;
+}
+
+function combinedNoteInsight(args: {
+  sessionNotes: SavedSessionNote[];
+  tradeNotes: SavedReportNote[];
+}): string {
+  const totalNotes = args.sessionNotes.length + args.tradeNotes.length;
+
+  if (totalNotes === 0) {
+    return "No saved trade or day notes are attached to this period yet.";
+  }
+
+  const sessionThemes = noteThemes(args.sessionNotes);
+  const tradeThemes = noteThemes(args.tradeNotes);
+  const parts = [
+    ...sessionThemes.map((theme) => `day note: "${theme}"`),
+    ...tradeThemes.map((theme) => `trade note: "${theme}"`),
+  ].slice(0, 4);
+
+  return `The saved rough notes include ${parts.join("; ")}.`;
+}
+
+function comparisonBuckets(comparison: TraderAnalyticsComparison | null): {
+  previousPeriodLabel: string | null;
+  improved: string[];
+  worsened: string[];
+  repeated: string[];
+} {
+  if (!comparison) {
+    return {
+      previousPeriodLabel: null,
+      improved: [],
+      worsened: [],
+      repeated: [],
+    };
+  }
+
+  return {
+    previousPeriodLabel: comparison.leftLabel,
+    improved: comparison.behaviorDeltas
+      .filter((trend) => trend.direction === "improving")
+      .map((trend) => trend.label),
+    worsened: comparison.behaviorDeltas
+      .filter((trend) => trend.direction === "worsening")
+      .map((trend) => trend.label),
+    repeated: comparison.behaviorDeltas
+      .filter((trend) => trend.direction === "flat")
+      .map((trend) => trend.label),
+  };
+}
+
+function progressInsight(
+  comparison: TraderAnalyticsComparison | null,
+  fallback: string,
+): string {
+  if (!comparison) {
+    return fallback;
+  }
+
+  const improving = comparison.behaviorDeltas.find(
+    (trend) => trend.direction === "improving",
+  );
+  const worsening = comparison.behaviorDeltas.find(
+    (trend) => trend.direction === "worsening",
+  );
+  const flat = comparison.behaviorDeltas.find((trend) => trend.direction === "flat");
+
+  if (improving) {
+    return `Compared with ${comparison.leftLabel}, ${lowerFirst(improving.copy)}`;
+  }
+
+  if (worsening) {
+    return `Compared with ${comparison.leftLabel}, ${lowerFirst(worsening.copy)}`;
+  }
+
+  if (flat) {
+    return `Compared with ${comparison.leftLabel}, ${lowerFirst(flat.copy)}`;
+  }
+
+  return `A prior report exists, but more reviewed trades are needed before calling improvement or regression. ${fallback}`;
+}
+
+function behaviorTrendEvidence(
+  comparison: TraderAnalyticsComparison | null,
+): TraderPeriodReflectionEvidence | null {
+  if (!comparison) {
+    return null;
+  }
+
+  const trend =
+    comparison.behaviorDeltas.find(
+      (candidate) => candidate.direction === "worsening",
+    ) ??
+    comparison.behaviorDeltas.find(
+      (candidate) => candidate.direction === "improving",
+    ) ??
+    comparison.behaviorDeltas.find((candidate) => candidate.direction === "flat");
+
+  if (!trend) {
+    return null;
+  }
+
+  return {
+    id: `comparison:${trend.behaviorId}`,
+    kind: "comparison",
+    label: trend.label,
+    detail: `${comparison.rightLabel} vs ${comparison.leftLabel}: ${trend.copy}`,
+    relatedTradeIds: [],
+  };
+}
+
+function promptSeed(args: {
+  kind: TraderPeriodReflectionKind;
+  label: string;
+  tradeCount: number;
+  grossTotalRealizedPnl: number;
+  topRisks: string[];
+  topStrengths: string[];
+  notes: Array<SavedReportNote | SavedSessionNote>;
+  comparison: TraderAnalyticsComparison | null;
+  nextFocus: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+}): TraderPeriodReflectionPromptSeed {
+  const periodRole =
+    args.kind === "daily"
+      ? "Daily output is a replay and journal prompt, not a full coaching verdict. Do not pretend one day proves a habit."
+      : args.kind === "weekly"
+        ? "Weekly output is the main trading review. Synthesize repeated behaviors, saved notes, prior reflection memory, and whether the trader improved, repeated, or worsened. Talk about the trades and decisions themselves, not about what the user's journal should capture."
+        : "Monthly output is a progress lookback. Compare weekly memories, repeated note themes, and recurring behavior so the trader sees what changed and what still repeats.";
+
+  return {
+    systemInstruction:
+      [
+        `Narrative contract: ${PERIOD_REFLECTION_NARRATIVE_CONTRACT}.`,
+        "You are a direct trading coach. Write from the provided evidence only. Do not invent market context, indicators, emotions, intent, or unsupported conclusions.",
+        "Do not recap basic totals the interface already shows unless one short clause is needed for context.",
+        periodRole,
+      ].join(" "),
+    userInstruction:
+      args.kind === "daily"
+        ? "Turn this evidence package into a lightweight replay prompt, not a recap. Explain what the trader should learn from the trades and the one behavior to check next."
+        : "Turn this evidence package into direct trade feedback, not a recap. Explain what the trader did, what repeated, what improved or worsened, and the one trading behavior to work on next.",
+    input: {
+      periodKind: args.kind,
+      periodLabel: args.label,
+      tradeCount: args.tradeCount,
+      grossTotalRealizedPnl: args.grossTotalRealizedPnl,
+      topRisks: args.topRisks,
+      topStrengths: args.topStrengths,
+      userNoteThemes: noteThemes(args.notes),
+      comparison: comparisonBuckets(args.comparison),
+      requiredNextFocus: args.nextFocus,
+      evidenceTradeIds: args.relatedTradeIds,
+    },
+  };
+}
+
+function periodInterpretationSummary(args: {
+  kind: TraderPeriodReflectionKind;
+  primaryIssue: string | null;
+  noteCount: number;
+  nextFocus: string;
+}): string {
+  if (args.kind === "daily") {
+    if (args.primaryIssue) {
+      return `Use the day view as the replay. The review question is whether "${args.primaryIssue}" was a planned decision or a behavior that showed up after the day started moving.`;
+    }
+
+    return "Use the day view as the replay. The review question is what changed from the first trade to the last, and what rule should carry into the next session.";
+  }
+
+  if (args.kind === "weekly") {
+    const noteContext =
+      args.noteCount > 0
+        ? "Use the trader's written notes as evidence for the behavior."
+        : "Because there are no written notes yet, keep the conclusion behavior-based and leave room for the trader's reason.";
+
+    return `Look across the week for the repeated trade-management behavior. ${noteContext} The coaching target is: ${args.nextFocus}`;
+  }
+
+  const noteContext =
+    args.noteCount > 0
+      ? "Use the saved notes and weekly memories to judge whether the trader's self-review changed."
+      : "Without saved notes, focus on repeated behavior and progress signals rather than motive.";
+
+  return `Look across the month for what improved, what repeated, and what needs a rule next month. ${noteContext} The carry-forward target is: ${args.nextFocus}`;
+}
+
+function weeklyTradingRuleFocus(args: {
+  fallback: string;
+  topRisk: string | null;
+}): string {
+  const risk = args.topRisk?.trim();
+  const normalizedRisk = risk?.toLowerCase() ?? "";
+
+  if (normalizedRisk.includes("reduced after price was against")) {
+    return "Next week, before reducing after an adverse move, decide whether the trade is actually invalid; if it is not invalid, wait for repair before changing size.";
+  }
+
+  if (
+    normalizedRisk.includes("add") &&
+    (normalizedRisk.includes("adverse") ||
+      normalizedRisk.includes("against") ||
+      normalizedRisk.includes("weak"))
+  ) {
+    return "Next week, do not add after an adverse move unless price repairs and gives a fresh reason to add.";
+  }
+
+  if (
+    normalizedRisk.includes("fast execution") ||
+    normalizedRisk.includes("same ticker") ||
+    normalizedRisk.includes("attempt")
+  ) {
+    return "Next week, after two weak attempts on the same ticker, stop re-entering unless a fresh setup appears.";
+  }
+
+  if (risk) {
+    return `Next week, make ${lowerFirst(risk)} the rule focus and define the valid trigger before changing size or re-entering.`;
+  }
+
+  const fallback = args.fallback.trim();
+
+  if (
+    fallback &&
+    !/\b(open|inspect|review|journal|write down)\b/i.test(fallback)
+  ) {
+    return fallback;
+  }
+
+  return "Next week, define the valid trigger before adding, reducing, or re-entering a trade.";
+}
+
+function buildReflection(args: {
+  kind: TraderPeriodReflectionKind;
+  report: SavedTraderAnalyticsReport;
+  label: string;
+  startDate: string;
+  endDate: string;
+  tradeCount: number;
+  noteCount: number;
+  grossTotalRealizedPnl: number;
+  title: string;
+  headline: string;
+  summary: string;
+  whatWentWell: string;
+  whatNeedsWork: string;
+  noteInsight: string;
+  progressInsight: string;
+  nextFocus: string;
+  relatedTradeIds: SavedExecutionTradeId[];
+  evidence: TraderPeriodReflectionEvidence[];
+  notes: SavedReportNote[];
+  comparison: TraderAnalyticsComparison | null;
+  topRisks: string[];
+  topStrengths: string[];
+}): TraderPeriodReflection {
+  const relatedTradeIds = unique(args.relatedTradeIds);
+
+  return {
+    id: `reflection:${args.kind}:${args.report.id}:${args.startDate}:${args.endDate}`,
+    kind: args.kind,
+    reportId: args.report.id,
+    label: args.label,
+    startDate: args.startDate,
+    endDate: args.endDate,
+    generatedAt: args.report.generatedAt,
+    tradeCount: args.tradeCount,
+    noteCount: args.noteCount,
+    grossTotalRealizedPnl: args.grossTotalRealizedPnl,
+    title: args.title,
+    headline: args.headline,
+    summary: args.summary,
+    whatWentWell: args.whatWentWell,
+    whatNeedsWork: args.whatNeedsWork,
+    noteInsight: args.noteInsight,
+    progressInsight: args.progressInsight,
+    nextFocus: args.nextFocus,
+    relatedTradeIds,
+    evidence: args.evidence,
+    promptSeed: promptSeed({
+      kind: args.kind,
+      label: args.label,
+      tradeCount: args.tradeCount,
+      grossTotalRealizedPnl: args.grossTotalRealizedPnl,
+      topRisks: args.topRisks,
+      topStrengths: args.topStrengths,
+      notes: args.notes,
+      comparison: args.comparison,
+      nextFocus: args.nextFocus,
+      relatedTradeIds,
+    }),
+    narrativeSource: "ai_ready_prompt_v1",
+  };
+}
+
+function evidencePoint(args: TraderPeriodReflectionEvidence): TraderPeriodReflectionEvidence {
+  return args;
+}
+
+function dailySessionStoryForDate(args: {
+  sessionDate: string;
+  sessionStories?: DailySessionReflectionStory[];
+}): DailySessionReflectionStory | null {
+  return (
+    args.sessionStories?.find(
+      (story) => story.sessionDate === args.sessionDate,
+    ) ?? null
+  );
+}
+
+function dailySessionStoryIsReviewRisk(
+  story: DailySessionReflectionStory | null,
+): story is DailySessionReflectionStory {
+  if (!story) {
+    return false;
+  }
+
+  return (
+    story.storyKind === "green_to_red_session" ||
+    story.storyKind === "same_symbol_many_attempts" ||
+    story.storyKind === "session_high_trade_count" ||
+    story.repeatedLossThreadCount > 0 ||
+    story.profitGivebackThreadCount > 0
+  );
+}
+
+function tradeIdsFromDailySessionStory(
+  story: DailySessionReflectionStory | null,
+  fallbackTradeIds: SavedExecutionTradeId[],
+): SavedExecutionTradeId[] {
+  if (!story) {
+    return fallbackTradeIds;
+  }
+
+  const threadTradeIds = [
+    ...(story.priorityThread?.roundTrips ?? []),
+    ...(story.worstThread?.roundTrips ?? []),
+  ].map((roundTrip) => roundTrip.tradeId);
+
+  return unique(threadTradeIds.length > 0 ? threadTradeIds : fallbackTradeIds);
+}
+
+function dailySessionStoryRiskLabel(
+  story: DailySessionReflectionStory | null,
+): string | null {
+  if (!dailySessionStoryIsReviewRisk(story)) {
+    return null;
+  }
+
+  if (story.storyKind === "green_to_red_session") {
+    return "Green-to-red session";
+  }
+
+  if (story.storyKind === "same_symbol_many_attempts") {
+    return "Many attempts on one ticker";
+  }
+
+  if (story.storyKind === "session_high_trade_count") {
+    return "High trade-count session";
+  }
+
+  if (story.repeatedLossThreadCount > 0) {
+    return "Repeated losing attempts";
+  }
+
+  if (story.profitGivebackThreadCount > 0) {
+    return "Profit giveback after earlier gains";
+  }
+
+  return story.storyLabel;
+}
+
+function dailySessionStoryEvidence(args: {
+  fallbackTradeIds: SavedExecutionTradeId[];
+  story: DailySessionReflectionStory | null;
+}): TraderPeriodReflectionEvidence[] {
+  if (!dailySessionStoryIsReviewRisk(args.story)) {
+    return [];
+  }
+
+  const relatedTradeIds = tradeIdsFromDailySessionStory(
+    args.story,
+    args.fallbackTradeIds,
+  );
+  const priorityEvidence = args.story.reviewEvidence.filter((item) =>
+    [
+      "session-green-to-red",
+      "session-same-symbol-many-attempts",
+      "session-high-trade-count",
+      "session-worst-thread",
+    ].includes(item.id),
+  );
+  const evidenceItems =
+    priorityEvidence.length > 0
+      ? priorityEvidence
+      : args.story.reviewEvidence.slice(0, 2);
+
+  return [
+    evidencePoint({
+      id: "daily:session-story",
+      kind: "risk",
+      label: args.story.storyLabel,
+      detail: args.story.storyDetail,
+      relatedTradeIds,
+    }),
+    ...evidenceItems.slice(0, 3).map((item) =>
+      evidencePoint({
+        id: `daily:${item.id}`,
+        kind: item.tone === "success" ? "strength" : "risk",
+        label: item.title,
+        detail: `${item.detail} ${item.reviewAction}`,
+        relatedTradeIds,
+      }),
+    ),
+  ];
+}
+
+function buildDailyReflection(args: {
+  report: SavedTraderAnalyticsReport;
+  sessionStories?: DailySessionReflectionStory[];
+  sessionNotes?: SavedSessionNote[];
+  trades: SavedExecutionTrade[];
+  dailyCoach: DailyCoachReport;
+}): TraderPeriodReflection {
+  const rows = reportRowsWithTradeIds(args.report);
+  const sessionRows = rows.filter(
+    (row) => row.sessionDate === args.dailyCoach.sessionDate,
+  );
+  const relatedTradeIds =
+    args.dailyCoach.relatedTradeIds.length > 0
+      ? args.dailyCoach.relatedTradeIds
+      : sessionRows.map((row) => row.tradeId);
+  const notes = notesForTradeIds({
+    trades: args.trades,
+    tradeIds: sessionRows.map((row) => row.tradeId),
+  });
+  const dayNotes = sessionNotesForPeriod({
+    sessionNotes: args.sessionNotes,
+    startDate: args.dailyCoach.sessionDate,
+    endDate: args.dailyCoach.sessionDate,
+  });
+  const grossTotalRealizedPnl = sessionRows.reduce(
+    (total, row) => total + row.grossRealizedPnl,
+    0,
+  );
+  const sessionStory = dailySessionStoryForDate({
+    sessionDate: args.dailyCoach.sessionDate,
+    sessionStories: args.sessionStories,
+  });
+  const sessionStoryRiskLabel = dailySessionStoryRiskLabel(sessionStory);
+  const sessionStoryRelatedTradeIds = tradeIdsFromDailySessionStory(
+    sessionStory,
+    sessionRows.map((row) => row.tradeId),
+  );
+  const sessionStoryFocus =
+    sessionStoryRiskLabel && sessionStory
+      ? sessionStory.fixFirstAction || sessionStory.reviewPrompt
+      : null;
+  const topRisk =
+    sessionStoryRiskLabel ??
+    args.dailyCoach.biggestMistake?.label ??
+    topLabel(sessionRows, (row) => row.topRisk?.label);
+  const topStrength =
+    args.dailyCoach.bestRepeatableBehavior ??
+    topLabel(sessionRows, (row) => row.topStrength?.label);
+  const evidence = [
+    evidencePoint({
+      id: "daily:pnl",
+      kind: "pnl",
+      label: "Daily gross P/L",
+      detail: `${formatSigned(grossTotalRealizedPnl)} across ${sessionRows.length} trade${sessionRows.length === 1 ? "" : "s"}.`,
+      relatedTradeIds: sessionRows.map((row) => row.tradeId),
+    }),
+    ...(args.dailyCoach.bestTrade
+      ? [
+          evidencePoint({
+            id: "daily:best-trade",
+            kind: "trade",
+            label: "Best trade",
+            detail: `${args.dailyCoach.bestTrade.symbol} finished at ${formatSigned(args.dailyCoach.bestTrade.grossRealizedPnl)} gross execution P/L.`,
+            relatedTradeIds: [args.dailyCoach.bestTrade.tradeId],
+          }),
+        ]
+      : []),
+    ...(args.dailyCoach.worstTrade
+      ? [
+          evidencePoint({
+            id: "daily:worst-trade",
+            kind: "trade",
+            label: "Hardest trade",
+            detail: `${args.dailyCoach.worstTrade.symbol} finished at ${formatSigned(args.dailyCoach.worstTrade.grossRealizedPnl)} gross execution P/L.`,
+            relatedTradeIds: [args.dailyCoach.worstTrade.tradeId],
+          }),
+        ]
+      : []),
+    ...dailySessionStoryEvidence({
+      fallbackTradeIds: sessionRows.map((row) => row.tradeId),
+      story: sessionStory,
+    }),
+    ...(topRisk
+      ? [
+          evidencePoint({
+            id: "daily:top-risk",
+            kind: "risk",
+            label: topRisk,
+            detail: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
+            relatedTradeIds: sessionStoryFocus
+              ? sessionStoryRelatedTradeIds
+              : relatedTradeIds,
+          }),
+        ]
+      : []),
+    ...(topStrength
+      ? [
+          evidencePoint({
+            id: "daily:top-strength",
+            kind: "strength",
+            label: topStrength,
+            detail: args.dailyCoach.preserveNextSession,
+            relatedTradeIds,
+          }),
+        ]
+      : []),
+    ...(notes.length > 0
+      ? [
+          evidencePoint({
+            id: "daily:notes",
+            kind: "note",
+            label: "Saved trade notes",
+            detail: noteInsight(notes),
+            relatedTradeIds: sessionRows.map((row) => row.tradeId),
+          }),
+        ]
+      : []),
+    ...(dayNotes.length > 0
+      ? [
+          evidencePoint({
+            id: "daily:day-notes",
+            kind: "note",
+            label: "Saved day notes",
+            detail: combinedNoteInsight({
+              sessionNotes: dayNotes,
+              tradeNotes: [],
+            }),
+            relatedTradeIds: sessionRows.map((row) => row.tradeId),
+          }),
+        ]
+      : []),
+  ];
+  const allNotes = [...dayNotes, ...notes];
+
+  return buildReflection({
+    kind: "daily",
+    report: args.report,
+    label: args.dailyCoach.sessionDate,
+    startDate: args.dailyCoach.sessionDate,
+    endDate: args.dailyCoach.sessionDate,
+    tradeCount: sessionRows.length,
+    noteCount: allNotes.length,
+    grossTotalRealizedPnl,
+    title: "Daily Notes",
+    headline: topRisk
+      ? `Journal this today: ${topRisk}.`
+      : "Journal what changed from the first trade to the last.",
+    summary: periodInterpretationSummary({
+      kind: "daily",
+      primaryIssue: topRisk,
+      noteCount: allNotes.length,
+      nextFocus: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
+    }),
+    whatWentWell: args.dailyCoach.preserveNextSession,
+    whatNeedsWork: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
+    noteInsight: combinedNoteInsight({
+      sessionNotes: dayNotes,
+      tradeNotes: notes,
+    }),
+    progressInsight: args.dailyCoach.sessionTimeInsight,
+    nextFocus: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
+    relatedTradeIds,
+    evidence,
+    notes: allNotes,
+    comparison: null,
+    topRisks: topRisk ? [topRisk] : [],
+    topStrengths: topStrength ? [topStrength] : [],
+  });
+}
+
+function buildWeeklyReflection(args: {
+  report: SavedTraderAnalyticsReport;
+  sessionNotes?: SavedSessionNote[];
+  trades: SavedExecutionTrade[];
+  weeklyReview: TraderWeeklyReviewDashboard;
+  ruleCompliance: TraderRuleComplianceSummary;
+  focusQueue: TraderFocusQueueItem[];
+  comparison: TraderAnalyticsComparison | null;
+}): TraderPeriodReflection {
+  const rows = reportRowsWithTradeIds(args.report);
+  const latestDate = latestSessionDate(rows) ?? args.report.reportPeriod.endDate;
+  const weekStartDate = marketWeekStart(latestDate);
+  const weekEndDate = marketWeekEnd(latestDate);
+  const weekRows = rows.filter(
+    (row) => row.sessionDate >= weekStartDate && row.sessionDate <= weekEndDate,
+  );
+  const activeRows = weekRows.length > 0 ? weekRows : rows;
+  const relatedTradeIds =
+    args.focusQueue[0]?.relatedTradeIds.length
+      ? args.focusQueue[0].relatedTradeIds.filter((tradeId) =>
+          activeRows.some((row) => row.tradeId === tradeId),
+        )
+      : activeRows.map((row) => row.tradeId);
+  const activeRelatedTradeIds =
+    relatedTradeIds.length > 0 ? relatedTradeIds : activeRows.map((row) => row.tradeId);
+  const notes = notesForTradeIds({
+    trades: args.trades,
+    tradeIds: activeRows.map((row) => row.tradeId),
+  });
+  const dayNotes = sessionNotesForPeriod({
+    sessionNotes: args.sessionNotes,
+    startDate: weekStartDate,
+    endDate: weekEndDate,
+  });
+  const topRisk =
+    topLabel(activeRows, (row) => row.topRisk?.label) ??
+    args.weeklyReview.topRiskLabel;
+  const topStrength =
+    topLabel(activeRows, (row) => row.topStrength?.label) ??
+    args.weeklyReview.topStrengthLabel;
+  const grossTotalRealizedPnl = activeRows.reduce(
+    (total, row) => total + row.grossRealizedPnl,
+    0,
+  );
+  const comparisonEvidence = behaviorTrendEvidence(args.comparison);
+  const ruleEvidence =
+    args.ruleCompliance.totalViolations > 0
+      ? evidencePoint({
+          id: "weekly:rule-compliance",
+          kind: "rule",
+          label: "Rule compliance",
+          detail: args.ruleCompliance.summary,
+          relatedTradeIds: args.ruleCompliance.worstViolation?.tradeIds ?? [],
+        })
+      : null;
+  const evidence = [
+    evidencePoint({
+      id: "weekly:pnl",
+      kind: "pnl",
+      label: "Weekly gross P/L",
+      detail: `${formatSigned(grossTotalRealizedPnl)} across ${activeRows.length} completed trade${activeRows.length === 1 ? "" : "s"}.`,
+      relatedTradeIds: activeRows.map((row) => row.tradeId),
+    }),
+    ...(topRisk
+      ? [
+          evidencePoint({
+            id: "weekly:top-risk",
+            kind: "risk",
+            label: topRisk,
+            detail:
+              args.focusQueue[0]?.summary ??
+              `${topRisk} is the main current review risk.`,
+            relatedTradeIds: activeRelatedTradeIds,
+          }),
+        ]
+      : []),
+    ...(topStrength
+      ? [
+          evidencePoint({
+            id: "weekly:top-strength",
+            kind: "strength",
+            label: topStrength,
+            detail: `${topStrength} is the clearest current behavior to preserve.`,
+            relatedTradeIds: activeRelatedTradeIds,
+          }),
+        ]
+      : []),
+    ...(ruleEvidence ? [ruleEvidence] : []),
+    ...(comparisonEvidence ? [comparisonEvidence] : []),
+    ...(notes.length > 0
+      ? [
+          evidencePoint({
+            id: "weekly:notes",
+            kind: "note",
+            label: "Saved trade notes",
+            detail: noteInsight(notes),
+            relatedTradeIds: activeRows.map((row) => row.tradeId),
+          }),
+        ]
+      : []),
+    ...(dayNotes.length > 0
+      ? [
+          evidencePoint({
+            id: "weekly:day-notes",
+            kind: "note",
+            label: "Saved day notes",
+            detail: combinedNoteInsight({
+              sessionNotes: dayNotes,
+              tradeNotes: [],
+            }),
+            relatedTradeIds: activeRows.map((row) => row.tradeId),
+          }),
+        ]
+      : []),
+  ];
+  const label = `Week of ${weekStartDate}`;
+  const allNotes = [...dayNotes, ...notes];
+  const nextFocus = weeklyTradingRuleFocus({
+    fallback: args.weeklyReview.nextAction,
+    topRisk,
+  });
+
+  return buildReflection({
+    kind: "weekly",
+    report: args.report,
+    label,
+    startDate: weekStartDate,
+    endDate: weekEndDate,
+    tradeCount: activeRows.length,
+    noteCount: allNotes.length,
+    grossTotalRealizedPnl,
+    title: "Weekly Coaching Review",
+    headline: topRisk
+      ? `This week’s coaching question: did ${lowerFirst(topRisk)} repeat?`
+      : "This week’s coaching review should find the repeated decision.",
+    summary: periodInterpretationSummary({
+      kind: "weekly",
+      primaryIssue: topRisk,
+      noteCount: allNotes.length,
+      nextFocus,
+    }),
+    whatWentWell: topStrength
+      ? `Preserve ${lowerFirst(topStrength)} when the setup appears again.`
+      : "Find the best clean trade and write down what made it repeatable.",
+    whatNeedsWork:
+      args.focusQueue[0]?.summary ??
+      args.weeklyReview.primaryFocusTitle ??
+      args.weeklyReview.nextAction,
+    noteInsight: combinedNoteInsight({
+      sessionNotes: dayNotes,
+      tradeNotes: notes,
+    }),
+    progressInsight: progressInsight(
+      args.comparison,
+      "No prior weekly summary is available yet, so this review starts the baseline.",
+    ),
+    nextFocus,
+    relatedTradeIds: activeRelatedTradeIds,
+    evidence,
+    notes: allNotes,
+    comparison: args.comparison,
+    topRisks: topRisk ? [topRisk] : [],
+    topStrengths: topStrength ? [topStrength] : [],
+  });
+}
+
+function monthLabel(value: string): string {
+  const date = new Date(`${value}-01T12:00:00.000Z`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    timeZone: "UTC",
+    year: "numeric",
+  });
+}
+
+function easternDateTimeParts(now: Date): {
+  date: string;
+  hour: number;
+  minute: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "America/New_York",
+    year: "numeric",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    hour: Number(value("hour")),
+    minute: Number(value("minute")),
+  };
+}
+
+function marketCloseHasPassed(args: {
+  now: Date;
+  periodEndDate: string;
+}): boolean {
+  const parts = easternDateTimeParts(args.now);
+
+  if (parts.date > args.periodEndDate) {
+    return true;
+  }
+
+  if (parts.date < args.periodEndDate) {
+    return false;
+  }
+
+  return parts.hour > 16 || (parts.hour === 16 && parts.minute >= 0);
+}
+
+function easternDateHasReached(args: {
+  now: Date;
+  periodStartDate: string;
+}): boolean {
+  return easternDateTimeParts(args.now).date >= args.periodStartDate;
+}
+
+function currentPeriodRecord(args: {
+  records: PersistedTraderPeriodReflection[];
+  reflection: TraderPeriodReflection;
+  sourceReportGeneratedAt: string;
+}): PersistedTraderPeriodReflection | null {
+  return (
+    args.records.find(
+      (record) =>
+        record.kind === args.reflection.kind &&
+        record.periodStartDate === args.reflection.startDate &&
+        record.periodEndDate === args.reflection.endDate &&
+        record.sourceReportGeneratedAt === args.sourceReportGeneratedAt,
+    ) ?? null
+  );
+}
+
+function periodRecord(args: {
+  records: PersistedTraderPeriodReflection[];
+  reflection: TraderPeriodReflection;
+}): PersistedTraderPeriodReflection | null {
+  return (
+    args.records.find(
+      (record) =>
+        record.kind === args.reflection.kind &&
+        record.periodStartDate === args.reflection.startDate &&
+        record.periodEndDate === args.reflection.endDate,
+    ) ?? null
+  );
+}
+
+function generationAttemptCount(
+  record: PersistedTraderPeriodReflection | null,
+): number {
+  if (!record) {
+    return 0;
+  }
+
+  return Math.max(1, record.generationAttemptCount ?? 1);
+}
+
+function generationAttemptLimit(
+  kind: TraderPeriodReflectionKind,
+): number | null {
+  return kind === "daily" ? DAILY_PERIOD_REFLECTION_GENERATION_LIMIT : null;
+}
+
+function dailyGenerationUseDetail(args: {
+  action: "generate" | "update";
+  attemptCount: number;
+  attemptLimit: number | null;
+}): string {
+  if (args.attemptLimit === null) {
+    return args.action === "generate"
+      ? "Generate this review from the latest saved trades and notes."
+      : "Update this review from the latest saved trades and notes.";
+  }
+
+  const nextAttempt = Math.min(args.attemptCount + 1, args.attemptLimit);
+  const remainingAfter = Math.max(0, args.attemptLimit - nextAttempt);
+  const remainingLabel =
+    remainingAfter === 1
+      ? "1 daily AI generation will remain"
+      : `${remainingAfter} daily AI generations will remain`;
+
+  return args.action === "generate"
+    ? `This will use daily AI generation ${nextAttempt} of ${args.attemptLimit}. After this review, ${remainingLabel}.`
+    : `This will use daily AI generation ${nextAttempt} of ${args.attemptLimit}. After this update, ${remainingLabel}.`;
+}
+
+function dailyAlreadyGeneratedDetail(args: {
+  attemptCount: number;
+  attemptLimit: number | null;
+}): string {
+  if (args.attemptLimit === null) {
+    return "This day already has a saved review for the current evidence. Add a trade or note to unlock an update.";
+  }
+
+  const remaining = Math.max(0, args.attemptLimit - args.attemptCount);
+  const remainingLabel =
+    remaining === 1
+      ? "1 daily AI generation remains"
+      : `${remaining} daily AI generations remain`;
+
+  return `This day already has a saved review for the current evidence. Add a trade or note to unlock an update. ${remainingLabel}.`;
+}
+
+function availabilityBase(args: {
+  existingRecord: PersistedTraderPeriodReflection | null;
+  reflection: TraderPeriodReflection;
+}): Pick<
+  TraderPeriodReflectionGenerationAvailability,
+  | "existingRecordId"
+  | "existingStatus"
+  | "generationAttemptCount"
+  | "generationAttemptLimit"
+  | "periodEndDate"
+  | "periodStartDate"
+> {
+  return {
+    periodStartDate: args.reflection.startDate,
+    periodEndDate: args.reflection.endDate,
+    existingStatus: args.existingRecord?.status ?? null,
+    existingRecordId: args.existingRecord?.id ?? null,
+    generationAttemptCount: generationAttemptCount(args.existingRecord),
+    generationAttemptLimit: generationAttemptLimit(args.reflection.kind),
+  };
+}
+
+function unavailableForSample(
+  reflection: TraderPeriodReflection,
+): TraderPeriodReflectionGenerationAvailability {
+  return {
+    kind: reflection.kind,
+    canGenerate: false,
+    action: null,
+    reason: "not_saved_data",
+    label: "Saved trades required",
+    detail: "Generate reflections after saving real imported trades.",
+    earliestAvailableAt: null,
+    ...availabilityBase({ existingRecord: null, reflection }),
+  };
+}
+
+function recordMatchesCurrentNarrativeContract(
+  record: PersistedTraderPeriodReflection,
+): boolean {
+  return record.reflection.promptSeed.systemInstruction.includes(
+    PERIOD_REFLECTION_NARRATIVE_CONTRACT,
+  );
+}
+
+function availabilityForReflection(args: {
+  now: Date;
+  records: PersistedTraderPeriodReflection[];
+  reflection: TraderPeriodReflection;
+  savedData: boolean;
+  sourceReportGeneratedAt: string;
+}): TraderPeriodReflectionGenerationAvailability {
+  const currentContractRecords = args.records.filter(
+    recordMatchesCurrentNarrativeContract,
+  );
+  const existing = currentPeriodRecord({
+    records: currentContractRecords,
+    reflection: args.reflection,
+    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+  });
+  const existingForPeriod = periodRecord({
+    records: currentContractRecords,
+    reflection: args.reflection,
+  });
+  const existingForAttemptCount = periodRecord({
+    records: args.records,
+    reflection: args.reflection,
+  });
+  const attemptCount = generationAttemptCount(existingForAttemptCount);
+  const attemptLimit = generationAttemptLimit(args.reflection.kind);
+  const closeHasPassed = marketCloseHasPassed({
+    now: args.now,
+    periodEndDate: args.reflection.endDate,
+  });
+  const dailyInProgress = args.reflection.kind === "daily" && !closeHasPassed;
+  const dailyLimitReached =
+    attemptLimit !== null && attemptCount >= attemptLimit;
+  const base = availabilityBase({
+    existingRecord: existingForPeriod,
+    reflection: args.reflection,
+  });
+  const baseWithAttemptCount = {
+    ...base,
+    generationAttemptCount: attemptCount,
+  };
+
+  if (!args.savedData) {
+    return unavailableForSample(args.reflection);
+  }
+
+  if (args.reflection.tradeCount <= 0) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: false,
+      action: null,
+      reason: "no_trades",
+      label: "No trades",
+      detail: "This period needs at least one saved trade before a review can be generated.",
+      earliestAvailableAt: null,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (
+    dailyLimitReached &&
+    (existingForPeriod?.status === "stale" ||
+      existingForPeriod?.status === "failed" ||
+      existingForPeriod?.sourceReportGeneratedAt !== args.sourceReportGeneratedAt)
+  ) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: false,
+      action: null,
+      reason: "generation_limit_reached",
+      label: "Daily limit reached",
+      detail: `This trading day already used ${attemptLimit} AI review generation${attemptLimit === 1 ? "" : "s"}. New notes will still be included in the weekly review.`,
+      earliestAvailableAt: null,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (
+    existingForPeriod &&
+    existingForPeriod.sourceReportGeneratedAt !== args.sourceReportGeneratedAt
+  ) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: true,
+      action: "update",
+      reason: "source_changed",
+      label: args.reflection.kind === "daily" && dailyInProgress
+        ? "Update daily prompt"
+        : args.reflection.kind === "daily"
+          ? "Update daily prompt"
+          : "Update coaching review",
+      detail:
+        args.reflection.kind === "daily"
+          ? dailyGenerationUseDetail({
+              action: "update",
+              attemptCount,
+              attemptLimit,
+            })
+          : "New saved trade evidence changed this period. Update the review when you are ready.",
+      earliestAvailableAt: null,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (
+    existing &&
+    (existing.status === "generated" || existing.status === "fallback")
+  ) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: false,
+      action: null,
+      reason: "already_generated",
+      label: "Already generated",
+      detail:
+        args.reflection.kind === "daily"
+          ? dailyAlreadyGeneratedDetail({
+              attemptCount,
+              attemptLimit,
+            })
+          : "This period already has one saved review. Add trades or notes to unlock an update.",
+      earliestAvailableAt: null,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (
+    args.reflection.kind === "daily" &&
+    !easternDateHasReached({
+      now: args.now,
+      periodStartDate: args.reflection.startDate,
+    })
+  ) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: false,
+      action: null,
+      reason: "too_early",
+      label: "Available on trade date",
+      detail: `Daily reviews become available on ${args.reflection.startDate} after the first saved trade.`,
+      earliestAvailableAt: `${args.reflection.startDate} 00:00 America/New_York`,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (
+    args.reflection.kind !== "daily" &&
+    !closeHasPassed
+  ) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: false,
+      action: null,
+      reason: "too_early",
+      label: "Available after close",
+      detail: `${periodKindLabel(args.reflection.kind)} reviews unlock after 4:00 PM Eastern on ${args.reflection.endDate}.`,
+      earliestAvailableAt: `${args.reflection.endDate} 16:00 America/New_York`,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  if (existing && (existing.status === "stale" || existing.status === "failed")) {
+    return {
+      kind: args.reflection.kind,
+      canGenerate: true,
+      action: "update",
+      reason: "stale_or_failed",
+      label:
+        args.reflection.kind === "daily"
+          ? "Update daily prompt"
+          : "Update coaching review",
+      detail:
+        existing.status === "stale"
+          ? args.reflection.kind === "daily"
+            ? dailyGenerationUseDetail({
+                action: "update",
+                attemptCount,
+                attemptLimit,
+              })
+            : "This review is stale because the underlying evidence changed."
+          : "The last generation attempt failed; retry when ready.",
+      earliestAvailableAt: null,
+      ...baseWithAttemptCount,
+    };
+  }
+
+  return {
+    kind: args.reflection.kind,
+    canGenerate: true,
+    action: "generate",
+    reason: "ready",
+    label: args.reflection.kind === "daily"
+      ? dailyInProgress
+        ? "Generate day prompt"
+        : "Generate daily prompt"
+      : args.reflection.kind === "weekly"
+        ? "Generate weekly coaching"
+        : "Generate monthly lookback",
+    detail: dailyInProgress
+      ? dailyGenerationUseDetail({
+          action: "generate",
+          attemptCount,
+          attemptLimit,
+        })
+      : args.reflection.kind === "daily"
+        ? dailyGenerationUseDetail({
+            action: "generate",
+            attemptCount,
+            attemptLimit,
+          })
+        : "This period is ready for one saved review.",
+    earliestAvailableAt: null,
+    ...baseWithAttemptCount,
+  };
+}
+
+function buildDefaultAvailabilitySet(args: {
+  daily: TraderPeriodReflection;
+  monthly: TraderPeriodReflection;
+  now?: Date;
+  savedData?: boolean;
+  sourceReportGeneratedAt: string;
+  weekly: TraderPeriodReflection;
+}): TraderPeriodReflectionGenerationAvailabilitySet {
+  return buildTraderPeriodReflectionGenerationAvailabilitySet({
+    now: args.now,
+    records: [],
+    savedData: args.savedData ?? false,
+    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+    reflections: {
+      daily: args.daily,
+      weekly: args.weekly,
+      monthly: args.monthly,
+    },
+  });
+}
+
+export function buildTraderPeriodReflectionGenerationAvailabilitySet(args: {
+  now?: Date;
+  records: PersistedTraderPeriodReflection[];
+  savedData: boolean;
+  sourceReportGeneratedAt: string;
+  reflections: {
+    daily: TraderPeriodReflection;
+    weekly: TraderPeriodReflection;
+    monthly: TraderPeriodReflection;
+  };
+}): TraderPeriodReflectionGenerationAvailabilitySet {
+  const now = args.now ?? new Date();
+
+  return {
+    daily: availabilityForReflection({
+      now,
+      records: args.records,
+      reflection: args.reflections.daily,
+      savedData: args.savedData,
+      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+    }),
+    weekly: availabilityForReflection({
+      now,
+      records: args.records,
+      reflection: args.reflections.weekly,
+      savedData: args.savedData,
+      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+    }),
+    monthly: availabilityForReflection({
+      now,
+      records: args.records,
+      reflection: args.reflections.monthly,
+      savedData: args.savedData,
+      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+    }),
+  };
+}
+
+function buildMonthlyReflection(args: {
+  report: SavedTraderAnalyticsReport;
+  reportHistory: SavedTraderAnalyticsReport[];
+  sessionNotes?: SavedSessionNote[];
+  trades: SavedExecutionTrade[];
+  weekly: TraderPeriodReflection;
+  comparison: TraderAnalyticsComparison | null;
+}): TraderPeriodReflection {
+  const rows = reportRowsWithTradeIds(args.report);
+  const latestDate = latestSessionDate(rows) ?? args.report.reportPeriod.endDate;
+  const monthKey = latestDate.slice(0, 7);
+  const monthEndDate = lastWeekdayOfMonth(monthKey);
+  const monthRows = rows.filter((row) => row.sessionDate.startsWith(monthKey));
+  const activeRows = monthRows.length > 0 ? monthRows : rows;
+  const activeTradeIds = activeRows.map((row) => row.tradeId);
+  const notes = notesForTradeIds({
+    trades: args.trades,
+    tradeIds: activeTradeIds,
+  });
+  const dayNotes = sessionNotesForPeriod({
+    sessionNotes: args.sessionNotes,
+    startDate: `${monthKey}-01`,
+    endDate: monthEndDate,
+  });
+  const grossTotalRealizedPnl = activeRows.reduce(
+    (total, row) => total + row.grossRealizedPnl,
+    0,
+  );
+  const topRisk =
+    topLabel(activeRows, (row) => row.topRisk?.label) ??
+    args.report.report.topRisks[0]?.label ??
+    null;
+  const topStrength =
+    topLabel(activeRows, (row) => row.topStrength?.label) ??
+    args.report.report.topStrengths[0]?.label ??
+    null;
+  const sameMonthSnapshots = args.reportHistory.filter((report) =>
+    report.reportPeriod.endDate.startsWith(monthKey),
+  );
+  const comparisonEvidence = behaviorTrendEvidence(args.comparison);
+  const evidence = [
+    evidencePoint({
+      id: "monthly:pnl",
+      kind: "pnl",
+      label: "Monthly gross P/L",
+      detail: `${formatSigned(grossTotalRealizedPnl)} across ${activeRows.length} completed trade${activeRows.length === 1 ? "" : "s"}.`,
+      relatedTradeIds: activeTradeIds,
+    }),
+    evidencePoint({
+      id: "monthly:snapshots",
+      kind: "comparison",
+      label: "Saved review context",
+      detail: `${sameMonthSnapshots.length} saved review point${sameMonthSnapshots.length === 1 ? "" : "s"} are available for this month.`,
+      relatedTradeIds: activeTradeIds,
+    }),
+    ...(topRisk
+      ? [
+          evidencePoint({
+            id: "monthly:top-risk",
+            kind: "risk",
+            label: topRisk,
+            detail: `${topRisk} is the most visible mistake to watch in this month lookback.`,
+            relatedTradeIds: activeTradeIds,
+          }),
+        ]
+      : []),
+    ...(topStrength
+      ? [
+          evidencePoint({
+            id: "monthly:top-strength",
+            kind: "strength",
+            label: topStrength,
+            detail: `${topStrength} is the clearest behavior to carry into next month.`,
+            relatedTradeIds: activeTradeIds,
+          }),
+        ]
+      : []),
+    ...(comparisonEvidence ? [comparisonEvidence] : []),
+    ...(notes.length > 0
+      ? [
+          evidencePoint({
+            id: "monthly:notes",
+            kind: "note",
+            label: "Saved trade notes",
+            detail: noteInsight(notes),
+            relatedTradeIds: activeTradeIds,
+          }),
+        ]
+      : []),
+    ...(dayNotes.length > 0
+      ? [
+          evidencePoint({
+            id: "monthly:day-notes",
+            kind: "note",
+            label: "Saved day notes",
+            detail: combinedNoteInsight({
+              sessionNotes: dayNotes,
+              tradeNotes: [],
+            }),
+            relatedTradeIds: activeTradeIds,
+          }),
+        ]
+      : []),
+  ];
+  const label = monthLabel(monthKey);
+  const allNotes = [...dayNotes, ...notes];
+
+  return buildReflection({
+    kind: "monthly",
+    report: args.report,
+    label,
+    startDate: `${monthKey}-01`,
+    endDate: monthEndDate,
+    tradeCount: activeRows.length,
+    noteCount: allNotes.length,
+    grossTotalRealizedPnl,
+    title: "Monthly Lookback",
+    headline: topRisk
+      ? `${label} should answer whether this pattern improved: ${topRisk}.`
+      : `${label} should separate real improvement from repeated behavior.`,
+    summary: periodInterpretationSummary({
+      kind: "monthly",
+      primaryIssue: topRisk,
+      noteCount: allNotes.length,
+      nextFocus: args.weekly.nextFocus,
+    }),
+    whatWentWell: topStrength
+      ? `Keep building around ${lowerFirst(topStrength)}.`
+      : args.weekly.whatWentWell,
+    whatNeedsWork: topRisk
+      ? `Check whether this pattern repeated across more than one week: ${topRisk}.`
+      : args.weekly.whatNeedsWork,
+    noteInsight: combinedNoteInsight({
+      sessionNotes: dayNotes,
+      tradeNotes: notes,
+    }),
+    progressInsight: progressInsight(
+      args.comparison,
+      "Monthly progress will become clearer after at least one prior weekly or monthly summary exists.",
+    ),
+    nextFocus: `Carry this into next month: ${sentenceCase(args.weekly.nextFocus)}`,
+    relatedTradeIds: activeTradeIds,
+    evidence,
+    notes: allNotes,
+    comparison: args.comparison,
+    topRisks: topRisk ? [topRisk] : [],
+    topStrengths: topStrength ? [topStrength] : [],
+  });
+}
+
+export function buildTraderPeriodReflectionSystem(args: {
+  report: SavedTraderAnalyticsReport;
+  reportHistory: SavedTraderAnalyticsReport[];
+  sessionNotes?: SavedSessionNote[];
+  trades: SavedExecutionTrade[];
+  dailyCoach: DailyCoachReport;
+  weeklyReview: TraderWeeklyReviewDashboard;
+  ruleCompliance: TraderRuleComplianceSummary;
+  focusQueue: TraderFocusQueueItem[];
+  comparison: TraderAnalyticsComparison | null;
+  sessionStories?: DailySessionReflectionStory[];
+}): TraderPeriodReflectionSystem {
+  const daily = buildDailyReflection({
+    report: args.report,
+    trades: args.trades,
+    dailyCoach: args.dailyCoach,
+    sessionStories: args.sessionStories,
+    sessionNotes: args.sessionNotes,
+  });
+  const weekly = buildWeeklyReflection({
+    report: args.report,
+    sessionNotes: args.sessionNotes,
+    trades: args.trades,
+    weeklyReview: args.weeklyReview,
+    ruleCompliance: args.ruleCompliance,
+    focusQueue: args.focusQueue,
+    comparison: args.comparison,
+  });
+  const monthly = buildMonthlyReflection({
+    report: args.report,
+    reportHistory: args.reportHistory,
+    sessionNotes: args.sessionNotes,
+    trades: args.trades,
+    weekly,
+    comparison: args.comparison,
+  });
+
+  return {
+    daily,
+    weekly,
+    monthly,
+    generation: buildDefaultAvailabilitySet({
+      daily,
+      weekly,
+      monthly,
+      sourceReportGeneratedAt: args.report.generatedAt,
+    }),
+    policy: {
+      evidenceFirst: true,
+      provider: "openai_responses_api",
+      aiNarrativeEnabled: false,
+      providerStatus: "not_configured",
+      requiredEnvVars: ["OPENAI_API_KEY"],
+      modelEnvVar: "OPENAI_REFLECTION_MODEL",
+      summary:
+        "Reflection summaries are evidence-first. The product view builds OpenAI Responses API-ready prompt input and deterministic fallback language; the server writer can persist AI-generated narrative when the provider is configured and triggered.",
+      nextAction:
+        "Configure OPENAI_API_KEY and trigger the server-side reflection writer to save generated summaries.",
+    },
+  };
+}
+
+function persistedReflectionId(args: {
+  accountId: string;
+  kind: TraderPeriodReflectionKind;
+  periodStartDate: string;
+  periodEndDate: string;
+  userId: string;
+}): string {
+  return [
+    "period-reflection",
+    args.userId,
+    args.accountId,
+    args.kind,
+    args.periodStartDate,
+    args.periodEndDate,
+  ].join(":");
+}
+
+export function buildPersistedTraderPeriodReflection(args: {
+  accountId: string;
+  createdAt?: string;
+  errorMessage?: string | null;
+  generationAttemptCount?: number;
+  model?: string | null;
+  provider?: TraderPeriodReflectionProvider;
+  reflection: TraderPeriodReflection;
+  sourceReportGeneratedAt: string;
+  staleReason?: TraderPeriodReflectionStaleReason | null;
+  status?: TraderPeriodReflectionGenerationStatus;
+  updatedAt?: string;
+  usage?: TraderPeriodReflectionUsage | null;
+  userId: string;
+}): PersistedTraderPeriodReflection {
+  const now = args.updatedAt ?? args.createdAt ?? new Date().toISOString();
+  const periodStartDate = args.reflection.startDate;
+  const periodEndDate = args.reflection.endDate;
+
+  return {
+    id: persistedReflectionId({
+      accountId: args.accountId,
+      kind: args.reflection.kind,
+      periodStartDate,
+      periodEndDate,
+      userId: args.userId,
+    }),
+    userId: args.userId,
+    accountId: args.accountId,
+    reportId: args.reflection.reportId,
+    kind: args.reflection.kind,
+    periodStartDate,
+    periodEndDate,
+    status: args.status ?? "fallback",
+    provider: args.provider ?? "deterministic_reflection_v1",
+    model: args.model ?? null,
+    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+    createdAt: args.createdAt ?? now,
+    updatedAt: now,
+    reflection: args.reflection,
+    errorMessage: args.errorMessage ?? null,
+    generationAttemptCount: Math.max(1, args.generationAttemptCount ?? 1),
+    staleReason: args.staleReason ?? null,
+    usage: args.usage ?? null,
+  };
+}
+
+function matchingGeneratedReflection(args: {
+  fallback: TraderPeriodReflection;
+  records: PersistedTraderPeriodReflection[];
+  sourceReportGeneratedAt: string;
+}): TraderPeriodReflection | null {
+  const record = args.records.find(
+    (candidate) =>
+      candidate.kind === args.fallback.kind &&
+      candidate.periodStartDate === args.fallback.startDate &&
+      candidate.periodEndDate === args.fallback.endDate &&
+      candidate.sourceReportGeneratedAt === args.sourceReportGeneratedAt &&
+      candidate.status === "generated" &&
+      recordMatchesCurrentNarrativeContract(candidate),
+  );
+
+  return record?.reflection ?? null;
+}
+
+export function mergePersistedTraderPeriodReflections(args: {
+  accountId: string;
+  records: PersistedTraderPeriodReflection[];
+  sourceReportGeneratedAt: string;
+  system: TraderPeriodReflectionSystem;
+  userId: string;
+}): TraderPeriodReflectionSystem {
+  const records = args.records.filter(
+    (record) => record.userId === args.userId && record.accountId === args.accountId,
+  );
+
+  return {
+    ...args.system,
+    daily:
+      matchingGeneratedReflection({
+        fallback: args.system.daily,
+        records,
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+      }) ?? args.system.daily,
+    weekly:
+      matchingGeneratedReflection({
+        fallback: args.system.weekly,
+        records,
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+      }) ?? args.system.weekly,
+    monthly:
+      matchingGeneratedReflection({
+        fallback: args.system.monthly,
+        records,
+        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
+      }) ?? args.system.monthly,
+  };
+}

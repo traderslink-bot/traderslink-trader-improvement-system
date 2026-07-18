@@ -1,0 +1,59 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+
+import { UploadCsvClient } from "./upload-csv-client";
+
+export const metadata: Metadata = {
+  title: "Upload CSV | Trader Intelligence",
+};
+
+export default function UploadCsvPage() {
+  return (
+    <main className="ti-dashboard-bg min-h-screen px-5 py-6 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col">
+        <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            aria-label="Back to workspace"
+            className="inline-flex w-fit items-center rounded-md border border-sky-900/80 bg-sky-950/25 px-3 py-2 text-sm font-medium text-sky-200 transition hover:border-sky-500 hover:text-sky-100"
+            href="/workspace"
+          >
+            Back to workspace
+          </Link>
+          <Image
+            alt="TradersLink"
+            className="h-auto w-52 object-contain sm:w-64"
+            height={72}
+            priority
+            src="/logo-horizontal-main.png"
+            width={420}
+          />
+        </header>
+
+        <div className="flex flex-1 items-center py-10">
+          <section className="mx-auto grid w-full max-w-3xl gap-5">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                Start here
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold text-zinc-50 sm:text-4xl">
+                Upload your broker CSV
+              </h1>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                The app will check the file, save clean trades, and send you to
+                the next review step only if something needs your attention.
+              </p>
+              <Link
+                className="mt-4 inline-flex rounded-md border border-sky-900/80 bg-sky-950/25 px-3 py-2 text-sm font-medium text-sky-200 transition hover:border-sky-500 hover:text-sky-100"
+                href="/manual-entry"
+              >
+                Enter executions manually
+              </Link>
+            </div>
+            <UploadCsvClient />
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}

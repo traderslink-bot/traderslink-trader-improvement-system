@@ -1,0 +1,1985 @@
+diff --git a/src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts b/src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts
+new file mode 100644
+index 00000000..978bf38d
+--- /dev/null
++++ b/src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts
+@@ -0,0 +1,76 @@
++import { describe, expect, it } from "vitest";
++
++import { buildManualExecutionEntryCsv } from "../product/manual-execution-entry";
++import { parseBrokerExecutionCsv } from "../../execution-sources/csv";
++
++describe("manual execution entry", () => {
++  it("builds a generic execution CSV that the importer can save as a closed trade", () => {
++    const built = buildManualExecutionEntryCsv([
++      {
++        id: "row-1",
++        date: "2026-06-12",
++        time: "10:30:15",
++        symbol: "aapl",
++        side: "BUY",
++        quantity: "50",
++        price: "180.50",
++      },
++      {
++        id: "row-2",
++        date: "2026-06-12",
++        time: "10:45:15",
++        symbol: "AAPL",
++        side: "SELL",
++        quantity: "50",
++        price: "181.25",
++      },
++    ]);
++
++    expect(built.issues).toEqual([]);
++    expect(built.csvText.split("\n")[0]).toBe(
++      "Date,Time,Symbol,Side,Quantity,Price,Commission,Fees,Amount,Currency",
++    );
++
++    const parsed = parseBrokerExecutionCsv({
++      broker: "generic_execution_csv",
++      csvText: built.csvText,
++      timestampTimezone: "America/New_York",
++    });
++
++    expect(parsed.acceptedExecutionCount).toBe(2);
++    expect(parsed.requests).toHaveLength(1);
++    expect(parsed.requests[0]).toMatchObject({
++      symbol: "AAPL",
++      tradeDirection: "long",
++    });
++    expect(parsed.executions[0]).toMatchObject({
++      commission: 0,
++      fees: 0,
++      netAmount: -9025,
++    });
++    expect(parsed.executions[1]).toMatchObject({
++      commission: 0,
++      fees: 0,
++      netAmount: 9062.5,
++    });
++  });
++
++  it("blocks incomplete manual rows before they reach the import pipeline", () => {
++    const built = buildManualExecutionEntryCsv([
++      {
++        id: "row-1",
++        date: "2026-06-12",
++        time: "",
++        symbol: "",
++        side: "",
++        quantity: "0",
++        price: "",
++      },
++    ]);
++
++    expect(built.includedRowCount).toBe(1);
++    expect(built.issues.map((issue) => issue.field)).toEqual(
++      expect.arrayContaining(["time", "symbol", "side", "quantity", "price"]),
++    );
++  });
++});
+diff --git a/src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts b/src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts
+new file mode 100644
+index 00000000..66b1b625
+--- /dev/null
++++ b/src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts
+@@ -0,0 +1,714 @@
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { POST as generateTraderReflections } from "../../../../app/api/trader-reflections/generate/route";
++import {
++  buildCsvDryRunImportExperience,
++  buildImportCommitPlan,
++  buildProductTraderAnalyticsViewModel,
++} from "../index";
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  DEMO_WORKSPACE_ID,
++  resetTraderIntelligenceDatabaseForTests,
++  SqliteImportCommitRepository,
++} from "../product/import-commit/sqlite-import-commit-repository";
++
++let tempDir = "";
++let originalDbPath: string | undefined;
++let originalOpenAIKey: string | undefined;
++let originalOpenAIModel: string | undefined;
++let originalTraderIntelligenceTier: string | undefined;
++
++const csvText = [
++  "Date,Time,Symbol,Side,Quantity,Price",
++  "2026-05-04,09:30:00,REFAPI,Buy,100,10.00",
++  "2026-05-04,10:00:00,REFAPI,Sell,100,10.50",
++  "2026-05-05,09:35:00,REFNOTE,Buy,50,20.00",
++  "2026-05-05,10:05:00,REFNOTE,Sell,50,19.20",
++].join("\n");
++
++function jsonRequest(body: unknown): Request {
++  return new Request("http://localhost/api/trader-reflections/generate", {
++    method: "POST",
++    headers: { "content-type": "application/json" },
++    body: JSON.stringify(body),
++  });
++}
++
++function emptyPostRequest(): Request {
++  return new Request("http://localhost/api/trader-reflections/generate", {
++    method: "POST",
++  });
++}
++
++function seedSavedReport(): void {
++  const repository = new SqliteImportCommitRepository();
++  const experience = buildCsvDryRunImportExperience({
++    broker: "generic_execution_csv",
++    csvText,
++  });
++  const plan = buildImportCommitPlan({
++    workspaceId: DEMO_WORKSPACE_ID,
++    userId: DEMO_USER_ID,
++    accountId: DEMO_ACCOUNT_ID,
++    experience,
++    existingFileFingerprints:
++      repository.listCommittedFileFingerprints(DEMO_ACCOUNT_ID),
++    existingTradeFingerprints:
++      repository.listCommittedTradeFingerprints(DEMO_ACCOUNT_ID),
++    acknowledgements: {
++      mappingReview: true,
++      pnlReview: true,
++    },
++  });
++
++  repository.commitImportPlan(plan);
++}
++
++beforeEach(() => {
++  originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
++  originalOpenAIKey = process.env.OPENAI_API_KEY;
++  originalOpenAIModel = process.env.OPENAI_REFLECTION_MODEL;
++  originalTraderIntelligenceTier = process.env.TRADER_INTELLIGENCE_TIER;
++  tempDir = mkdtempSync(join(tmpdir(), "trader-reflection-api-"));
++  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
++  process.env.TRADER_INTELLIGENCE_TIER = "chart_context";
++  delete process.env.OPENAI_API_KEY;
++  delete process.env.OPENAI_REFLECTION_MODEL;
++  resetTraderIntelligenceDatabaseForTests();
++});
++
++afterEach(() => {
++  vi.unstubAllGlobals();
++  resetTraderIntelligenceDatabaseForTests();
++
++  if (originalDbPath === undefined) {
++    delete process.env.TRADER_INTELLIGENCE_DB_PATH;
++  } else {
++    process.env.TRADER_INTELLIGENCE_DB_PATH = originalDbPath;
++  }
++
++  if (originalOpenAIKey === undefined) {
++    delete process.env.OPENAI_API_KEY;
++  } else {
++    process.env.OPENAI_API_KEY = originalOpenAIKey;
++  }
++
++  if (originalOpenAIModel === undefined) {
++    delete process.env.OPENAI_REFLECTION_MODEL;
++  } else {
++    process.env.OPENAI_REFLECTION_MODEL = originalOpenAIModel;
++  }
++
++  if (originalTraderIntelligenceTier === undefined) {
++    delete process.env.TRADER_INTELLIGENCE_TIER;
++  } else {
++    process.env.TRADER_INTELLIGENCE_TIER = originalTraderIntelligenceTier;
++  }
++
++  rmSync(tempDir, { recursive: true, force: true });
++});
++
++describe("trader reflection generation API route", () => {
++  it("rejects invalid requested period kinds", async () => {
++    const response = await generateTraderReflections(
++      jsonRequest({ kinds: ["hourly"] }),
++    );
++    const body = await response.json();
++
++    expect(response.status).toBe(400);
++    expect(body).toMatchObject({
++      contractVersion: "trader_period_reflection_generation_error_v1",
++      error: {
++        code: "invalid_request",
++      },
++    });
++  });
++
++  it("rejects AI generation for the free execution tier", async () => {
++    seedSavedReport();
++    process.env.TRADER_INTELLIGENCE_TIER = "free_execution";
++
++    const response = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:30:00.000Z",
++      }),
++    );
++    const body = await response.json();
++
++    expect(response.status).toBe(403);
++    expect(body).toMatchObject({
++      contractVersion: "trader_period_reflection_generation_error_v1",
++      error: {
++        code: "tier_required",
++        message:
++          "AI trading reviews are available on the chart-context paid tier.",
++      },
++    });
++  });
++
++  it("saves deterministic fallback period reflections when OpenAI is not configured", async () => {
++    seedSavedReport();
++
++    const response = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily", "weekly", "monthly"],
++        generatedAt: "2026-05-29T22:00:00.000Z",
++      }),
++    );
++    const body = await response.json();
++    const repository = new SqliteImportCommitRepository();
++
++    expect(response.status).toBe(200);
++    expect(body).toMatchObject({
++      contractVersion: "trader_period_reflection_generation_run_v1",
++      source: "saved_sqlite",
++      requestedKinds: ["daily", "weekly", "monthly"],
++      statusCounts: {
++        fallback: 3,
++        failed: 0,
++        generated: 0,
++        stale: 0,
++      },
++      providerConfigured: false,
++    });
++    expect(body.records).toHaveLength(3);
++    expect(repository.listPeriodReflections({ userId: DEMO_USER_ID })).toHaveLength(
++      3,
++    );
++  });
++
++  it("allows daily reflection before close but blocks repeat generation until evidence changes", async () => {
++    seedSavedReport();
++
++    const response = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:30:00.000Z",
++      }),
++    );
++    const body = await response.json();
++    const repository = new SqliteImportCommitRepository();
++
++    expect(response.status).toBe(200);
++    expect(body).toMatchObject({
++      requestedKinds: ["daily"],
++      statusCounts: {
++        fallback: 1,
++        failed: 0,
++        generated: 0,
++        stale: 0,
++      },
++      availability: {
++        daily: {
++          action: "generate",
++          canGenerate: true,
++          detail:
++            "This will use daily AI generation 1 of 3. After this review, 2 daily AI generations will remain.",
++          label: "Generate day prompt",
++          reason: "ready",
++        },
++      },
++    });
++    expect(
++      repository.listPeriodReflections({
++        userId: DEMO_USER_ID,
++        accountId: DEMO_ACCOUNT_ID,
++        kind: "daily",
++      }),
++    ).toHaveLength(1);
++
++    const repeatResponse = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:45:00.000Z",
++      }),
++    );
++    const repeatBody = await repeatResponse.json();
++
++    expect(repeatResponse.status).toBe(409);
++    expect(repeatBody).toMatchObject({
++      error: {
++        code: "period_not_ready",
++        unavailable: [
++          {
++            kind: "daily",
++            detail:
++              "This day already has a saved review for the current evidence. Add a trade or note to unlock an update. 2 daily AI generations remain.",
++            reason: "already_generated",
++          },
++        ],
++      },
++    });
++
++    const sameDayTrade = repository
++      .listTrades(DEMO_USER_ID)
++      .find((trade) => trade.sessionDate === "2026-05-05");
++
++    expect(sameDayTrade).toBeDefined();
++    repository.addTradeNote({
++      userId: DEMO_USER_ID,
++      tradeId: sameDayTrade?.id ?? "",
++      body: "I finished early but later reviewed the setup and emotions.",
++      createdAt: "2026-05-05T15:50:00.000Z",
++    });
++
++    const updateResponse = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:55:00.000Z",
++      }),
++    );
++    const updateBody = await updateResponse.json();
++
++    expect(updateResponse.status).toBe(200);
++    expect(updateBody).toMatchObject({
++      requestedKinds: ["daily"],
++      statusCounts: {
++        fallback: 1,
++        failed: 0,
++        generated: 0,
++        stale: 0,
++      },
++      availability: {
++        daily: {
++          action: "update",
++          canGenerate: true,
++          detail:
++            "This will use daily AI generation 2 of 3. After this update, 1 daily AI generation will remain.",
++          label: "Update daily prompt",
++          reason: "stale_or_failed",
++        },
++      },
++    });
++  });
++
++  it("caps daily reflection generation at three attempts per trading day", async () => {
++    seedSavedReport();
++
++    const repository = new SqliteImportCommitRepository();
++    const sameDayTrade = repository
++      .listTrades(DEMO_USER_ID)
++      .find((trade) => trade.sessionDate === "2026-05-05");
++
++    expect(sameDayTrade).toBeDefined();
++
++    const first = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:30:00.000Z",
++      }),
++    );
++    expect(first.status).toBe(200);
++
++    repository.addTradeNote({
++      userId: DEMO_USER_ID,
++      tradeId: sameDayTrade?.id ?? "",
++      body: "First new note after the early daily review.",
++      createdAt: "2026-05-05T15:40:00.000Z",
++    });
++
++    const second = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:45:00.000Z",
++      }),
++    );
++    expect(second.status).toBe(200);
++
++    repository.addTradeNote({
++      userId: DEMO_USER_ID,
++      tradeId: sameDayTrade?.id ?? "",
++      body: "Second new note before the third daily review.",
++      createdAt: "2026-05-05T15:50:00.000Z",
++    });
++
++    const third = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T22:05:00.000Z",
++      }),
++    );
++    expect(third.status).toBe(200);
++
++    repository.addTradeNote({
++      userId: DEMO_USER_ID,
++      tradeId: sameDayTrade?.id ?? "",
++      body: "Fourth evidence change should not unlock another daily AI call.",
++      createdAt: "2026-05-05T22:10:00.000Z",
++    });
++
++    const capped = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T22:15:00.000Z",
++      }),
++    );
++    const cappedBody = await capped.json();
++
++    expect(capped.status).toBe(409);
++    expect(cappedBody).toMatchObject({
++      error: {
++        code: "period_not_ready",
++        unavailable: [
++          {
++            kind: "daily",
++            reason: "generation_limit_reached",
++            generationAttemptCount: 3,
++            generationAttemptLimit: 3,
++          },
++        ],
++      },
++    });
++    expect(
++      repository.listPeriodReflections({
++        userId: DEMO_USER_ID,
++        accountId: DEMO_ACCOUNT_ID,
++        kind: "daily",
++      }),
++    ).toMatchObject([
++      {
++        generationAttemptCount: 3,
++        status: "stale",
++      },
++    ]);
++  });
++
++  it("does not require a post-close finalization click after a day-so-far review", async () => {
++    seedSavedReport();
++
++    const early = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T15:30:00.000Z",
++      }),
++    );
++    expect(early.status).toBe(200);
++
++    const postCloseRepeat = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["daily"],
++        generatedAt: "2026-05-05T22:05:00.000Z",
++      }),
++    );
++    const postCloseBody = await postCloseRepeat.json();
++
++    expect(postCloseRepeat.status).toBe(409);
++    expect(postCloseBody).toMatchObject({
++      error: {
++        code: "period_not_ready",
++        unavailable: [
++          {
++            action: null,
++            canGenerate: false,
++            generationAttemptCount: 1,
++            generationAttemptLimit: 3,
++            kind: "daily",
++            label: "Already generated",
++            reason: "already_generated",
++          },
++        ],
++      },
++    });
++
++    const repository = new SqliteImportCommitRepository();
++    expect(
++      repository.listPeriodReflections({
++        userId: DEMO_USER_ID,
++        accountId: DEMO_ACCOUNT_ID,
++        kind: "daily",
++      }),
++    ).toMatchObject([
++      {
++        generationAttemptCount: 1,
++        status: "fallback",
++      },
++    ]);
++  });
++
++  it("rejects a weekly reflection before Friday market close", async () => {
++    seedSavedReport();
++
++    const response = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["weekly"],
++        generatedAt: "2026-05-08T19:30:00.000Z",
++      }),
++    );
++    const body = await response.json();
++
++    expect(response.status).toBe(409);
++    expect(body).toMatchObject({
++      contractVersion: "trader_period_reflection_generation_error_v1",
++      error: {
++        code: "period_not_ready",
++        unavailable: [
++          {
++            kind: "weekly",
++            reason: "too_early",
++            periodEndDate: "2026-05-08",
++          },
++        ],
++      },
++    });
++  });
++
++  it("saves generated OpenAI reflections and exposes them through the product view model", async () => {
++    seedSavedReport();
++    process.env.OPENAI_API_KEY = "test-key";
++    process.env.OPENAI_REFLECTION_MODEL = "gpt-5.4-mini";
++
++    const narrative = {
++      headline: "Generated weekly headline from OpenAI.",
++      summary:
++        "The AI summary calls out a profitable week with one repeated execution issue.",
++      whatWentWell: "You protected profit on the cleaner execution.",
++      whatNeedsWork: "Do not add size after the move has already extended.",
++      noteInsight: "Your notes point to frustration after the first loss.",
++      progressInsight:
++        "The prior period memory shows the same late chase behavior repeated.",
++      nextFocus: "Wait for repair before adding size next session.",
++    };
++    const usage = {
++      input_tokens: 4000,
++      input_tokens_details: {
++        cached_tokens: 1000,
++      },
++      output_tokens: 800,
++      output_tokens_details: {
++        reasoning_tokens: 50,
++      },
++      total_tokens: 4800,
++    };
++    const fetchImpl = vi.fn(async () =>
++      new Response(
++        JSON.stringify({
++          output_text: JSON.stringify(narrative),
++          usage,
++        }),
++        {
++          status: 200,
++          headers: { "Content-Type": "application/json" },
++        },
++      ),
++    );
++    vi.stubGlobal("fetch", fetchImpl);
++
++    const response = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["weekly"],
++        generatedAt: "2026-05-08T22:05:00.000Z",
++      }),
++    );
++    const body = await response.json();
++    const repository = new SqliteImportCommitRepository();
++    const generatedViewModel = buildProductTraderAnalyticsViewModel({
++      repository,
++      userId: DEMO_USER_ID,
++      storageMode: "local_sqlite_single_user",
++    });
++    const deterministicViewModel = buildProductTraderAnalyticsViewModel({
++      repository,
++      userId: DEMO_USER_ID,
++      storageMode: "local_sqlite_single_user",
++      includePersistedPeriodReflections: false,
++    });
++
++    expect(response.status).toBe(200);
++    expect(fetchImpl).toHaveBeenCalledTimes(1);
++    expect(body).toMatchObject({
++      requestedKinds: ["weekly"],
++      statusCounts: {
++        fallback: 0,
++        failed: 0,
++        generated: 1,
++        stale: 0,
++      },
++      providerConfigured: true,
++      usageSummary: {
++        recordCount: 1,
++        meteredRecordCount: 1,
++        knownCostRecordCount: 1,
++        unknownCostRecordCount: 0,
++        estimatedCostUsd: 0.005925,
++        inputTokens: 4000,
++        cachedInputTokens: 1000,
++        outputTokens: 800,
++        reasoningOutputTokens: 50,
++        totalTokens: 4800,
++      },
++      records: [
++        {
++          status: "generated",
++          provider: "openai_responses_api",
++          model: "gpt-5.4-mini",
++          reflection: {
++            headline: narrative.headline,
++            narrativeSource: "openai_responses_api",
++          },
++          usage: {
++            tokenUsage: {
++              inputTokens: 4000,
++              cachedInputTokens: 1000,
++              outputTokens: 800,
++              reasoningOutputTokens: 50,
++              totalTokens: 4800,
++            },
++            costEstimate: {
++              estimatedCostUsd: 0.005925,
++              pricingModel: "gpt-5.4-mini",
++              pricingSource: "openai_api_pricing_2026_06_13",
++            },
++          },
++        },
++      ],
++    });
++    expect(generatedViewModel.periodReflections.weekly.headline).toBe(
++      narrative.headline,
++    );
++    expect(deterministicViewModel.periodReflections.weekly.headline).not.toBe(
++      narrative.headline,
++    );
++    expect(
++      repository.listPeriodReflectionGenerationEvents({
++        userId: DEMO_USER_ID,
++        accountId: DEMO_ACCOUNT_ID,
++        kind: "weekly",
++      }),
++    ).toMatchObject([
++      {
++        status: "generated",
++        provider: "openai_responses_api",
++        model: "gpt-5.4-mini",
++        usage: {
++          tokenUsage: {
++            inputTokens: 4000,
++            outputTokens: 800,
++            totalTokens: 4800,
++          },
++          costEstimate: {
++            estimatedCostUsd: 0.005925,
++          },
++        },
++      },
++    ]);
++
++    const secondResponse = await generateTraderReflections(
++      jsonRequest({
++        kinds: ["weekly"],
++        generatedAt: "2026-05-08T22:10:00.000Z",
++      }),
++    );
++    const secondBody = await secondResponse.json();
++
++    expect(secondResponse.status).toBe(409);
++    expect(secondBody).toMatchObject({
++      error: {
++        code: "period_not_ready",
++        unavailable: [
++          {
++            kind: "weekly",
++            reason: "already_generated",
++          },
++        ],
++      },
++    });
++  });
++
++  it("marks generated reflections stale after a related trade note changes", async () => {
++    seedSavedReport();
++    process.env.OPENAI_API_KEY = "test-key";
++    process.env.OPENAI_REFLECTION_MODEL = "gpt-route-test";
++
++    const narrative = {
++      headline: "Generated weekly headline that should become stale.",
++      summary:
++        "The generated summary should not remain visible after the trader adds a note.",
++      whatWentWell: "You protected profit on the cleaner execution.",
++      whatNeedsWork: "Do not add size after the move has already extended.",
++      noteInsight: "The earlier notes did not include the new note yet.",
++      progressInsight: "The same late chase behavior repeated.",
++      nextFocus: "Wait for repair before adding size next session.",
++    };
++    vi.stubGlobal(
++      "fetch",
++      vi.fn(async () =>
++        new Response(JSON.stringify({ output_text: JSON.stringify(narrative) }), {
++          status: 200,
++          headers: { "Content-Type": "application/json" },
++        }),
++      ),
++    );
++
++    expect(
++      (
++        await generateTraderReflections(
++          jsonRequest({
++            kinds: ["weekly"],
++            generatedAt: "2026-05-08T22:15:00.000Z",
++          }),
++        )
++      ).status,
++    ).toBe(200);
++
++    const repository = new SqliteImportCommitRepository();
++    const trade = repository.listTrades(DEMO_USER_ID)[0];
++
++    if (!trade) {
++      throw new Error("Expected a seeded trade for stale reflection coverage.");
++    }
++
++    repository.addTradeNote({
++      userId: DEMO_USER_ID,
++      tradeId: trade.id,
++      body: "New emotional note after the AI summary was generated.",
++      createdAt: "2026-05-08T22:20:00.000Z",
++    });
++
++    expect(
++      repository.listPeriodReflections({
++        userId: DEMO_USER_ID,
++        accountId: DEMO_ACCOUNT_ID,
++        kind: "weekly",
++      }),
++    ).toMatchObject([
++      {
++        status: "stale",
++        staleReason: "trade_note_changed",
++        reflection: {
++          headline: narrative.headline,
++        },
++      },
++    ]);
++
++    const viewModel = buildProductTraderAnalyticsViewModel({
++      repository,
++      userId: DEMO_USER_ID,
++      storageMode: "local_sqlite_single_user",
++    });
++
++    expect(viewModel.periodReflections.weekly.headline).not.toBe(
++      narrative.headline,
++    );
++    expect(viewModel.periodReflections.weekly.noteInsight).toContain(
++      "New emotional note",
++    );
++  });
++
++  it("returns a no-saved-report response before the user imports trades", async () => {
++    const response = await generateTraderReflections(emptyPostRequest());
++    const body = await response.json();
++
++    expect(response.status).toBe(409);
++    expect(body).toMatchObject({
++      contractVersion: "trader_period_reflection_generation_error_v1",
++      error: {
++        code: "no_saved_report",
++      },
++    });
++  });
++});
+diff --git a/src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts b/src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts
+new file mode 100644
+index 00000000..8936f733
+--- /dev/null
++++ b/src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts
+@@ -0,0 +1,511 @@
++import { describe, expect, it, vi } from "vitest";
++import {
++  buildPersistedTraderPeriodReflection,
++  PERIOD_REFLECTION_NARRATIVE_CONTRACT,
++} from "../product/period-reflections";
++import type {
++  PersistedTraderPeriodReflectionGenerationEvent,
++  PersistedTraderPeriodReflection,
++  TraderPeriodReflection,
++} from "../product/types";
++import {
++  buildOpenAIReflectionUsage,
++  buildOpenAITraderPeriodReflectionRequest,
++  DEFAULT_OPENAI_REFLECTION_MODEL,
++  generateAndSaveTraderPeriodReflection,
++  selectPriorPeriodReflectionMemory,
++  type TraderPeriodReflectionRepository,
++} from "../server/period-reflection-generation";
++
++function reflection(
++  overrides: Partial<TraderPeriodReflection> = {},
++): TraderPeriodReflection {
++  const kind = overrides.kind ?? "weekly";
++  const startDate = overrides.startDate ?? "2026-05-04";
++  const endDate = overrides.endDate ?? "2026-05-08";
++  const label = overrides.label ?? "Week of 2026-05-04";
++
++  return {
++    id: `${kind}:report-current`,
++    kind,
++    reportId: overrides.reportId ?? "report-current",
++    label,
++    startDate,
++    endDate,
++    generatedAt: overrides.generatedAt ?? "2026-05-08T21:00:00.000Z",
++    tradeCount: overrides.tradeCount ?? 4,
++    noteCount: overrides.noteCount ?? 2,
++    grossTotalRealizedPnl: overrides.grossTotalRealizedPnl ?? 240,
++    title: overrides.title ?? "Weekly Reflection",
++    headline:
++      overrides.headline ??
++      "The week was positive, but late chase entries still need work.",
++    summary:
++      overrides.summary ??
++      "You finished positive while giving back some open profit after late entries.",
++    whatWentWell:
++      overrides.whatWentWell ??
++      "You protected profit earlier on the best trade.",
++    whatNeedsWork:
++      overrides.whatNeedsWork ??
++      "Stop adding after the move is already extended.",
++    noteInsight:
++      overrides.noteInsight ??
++      "Your notes mention frustration after the first loss.",
++    progressInsight:
++      overrides.progressInsight ??
++      "Compared with last week, the same chase pattern repeated.",
++    nextFocus:
++      overrides.nextFocus ?? "Wait for repair before adding size.",
++    relatedTradeIds: overrides.relatedTradeIds ?? ["trade-1", "trade-2"],
++    evidence:
++      overrides.evidence ??
++      [
++        {
++          id: "risk:late-chase",
++          kind: "risk",
++          label: "Late chase entries",
++          detail: "Two trades were entered after the extension.",
++          relatedTradeIds: ["trade-2"],
++        },
++      ],
++    promptSeed:
++      overrides.promptSeed ??
++      {
++        systemInstruction:
++          `Narrative contract: ${PERIOD_REFLECTION_NARRATIVE_CONTRACT}. Write a short evidence-first trading reflection. Do not invent facts.`,
++        userInstruction:
++          "Rewrite the deterministic draft in direct second-person language.",
++        input: {
++          periodKind: kind,
++          periodLabel: label,
++          tradeCount: 4,
++          grossTotalRealizedPnl: 240,
++          topRisks: ["Late chase entries"],
++          topStrengths: ["Protected profit earlier"],
++          userNoteThemes: ["frustration after the first loss"],
++          comparison: {
++            previousPeriodLabel: "Week of 2026-04-27",
++            improved: ["earlier first trim"],
++            worsened: [],
++            repeated: ["late chase entries"],
++          },
++          requiredNextFocus: "Wait for repair before adding size.",
++          evidenceTradeIds: ["trade-1", "trade-2"],
++        },
++      },
++    narrativeSource:
++      overrides.narrativeSource ?? "deterministic_reflection_v1",
++  };
++}
++
++function fakeRepository(
++  records: PersistedTraderPeriodReflection[] = [],
++): TraderPeriodReflectionRepository & {
++  events: PersistedTraderPeriodReflectionGenerationEvent[];
++  records: PersistedTraderPeriodReflection[];
++} {
++  const state = [...records];
++  const events: PersistedTraderPeriodReflectionGenerationEvent[] = [];
++
++  return {
++    events,
++    records: state,
++    listPeriodReflections(args) {
++      return state.filter(
++        (record) =>
++          record.userId === args.userId &&
++          (!args.accountId || record.accountId === args.accountId) &&
++          (!args.kind || record.kind === args.kind),
++      );
++    },
++    savePeriodReflection(record) {
++      const index = state.findIndex((candidate) => candidate.id === record.id);
++
++      if (index >= 0) {
++        state[index] = record;
++      } else {
++        state.push(record);
++      }
++
++      return record;
++    },
++    savePeriodReflectionGenerationEvent(event) {
++      events.push(event);
++      return event;
++    },
++  };
++}
++
++function persisted(
++  source: TraderPeriodReflection,
++): PersistedTraderPeriodReflection {
++  return buildPersistedTraderPeriodReflection({
++    userId: "user-1",
++    accountId: "account-1",
++    reflection: source,
++    sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++    createdAt: source.generatedAt,
++    updatedAt: source.generatedAt,
++    status: "generated",
++    provider: "openai_responses_api",
++    model: "gpt-reflection-test",
++  });
++}
++
++describe("period reflection OpenAI generation", () => {
++  it("saves deterministic fallback when no OpenAI API key is configured", async () => {
++    const repository = fakeRepository();
++    const fetchImpl = vi.fn();
++    const current = reflection();
++
++    const record = await generateAndSaveTraderPeriodReflection({
++      repository,
++      userId: "user-1",
++      accountId: "account-1",
++      reflection: current,
++      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++      generatedAt: "2026-05-08T21:10:00.000Z",
++      openai: {
++        apiKey: "",
++        fetchImpl: fetchImpl as unknown as typeof fetch,
++      },
++    });
++
++    expect(fetchImpl).not.toHaveBeenCalled();
++    expect(record).toMatchObject({
++      status: "fallback",
++      provider: "deterministic_reflection_v1",
++      model: null,
++      errorMessage: null,
++      generationAttemptCount: 1,
++      reflection: {
++        headline: current.headline,
++        narrativeSource: "deterministic_reflection_v1",
++      },
++    });
++    expect(repository.records).toHaveLength(1);
++    expect(repository.events).toMatchObject([
++      {
++        accountId: "account-1",
++        kind: "weekly",
++        provider: "deterministic_reflection_v1",
++        status: "fallback",
++        usage: null,
++      },
++    ]);
++  });
++
++  it("increments generation attempts when updating the same period", async () => {
++    const current = reflection();
++    const existing = buildPersistedTraderPeriodReflection({
++      userId: "user-1",
++      accountId: "account-1",
++      reflection: current,
++      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++      createdAt: "2026-05-08T15:30:00.000Z",
++      updatedAt: "2026-05-08T15:30:00.000Z",
++      status: "stale",
++      provider: "deterministic_reflection_v1",
++      generationAttemptCount: 1,
++    });
++    const repository = fakeRepository([existing]);
++
++    const record = await generateAndSaveTraderPeriodReflection({
++      repository,
++      userId: "user-1",
++      accountId: "account-1",
++      reflection: current,
++      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++      generatedAt: "2026-05-08T21:10:00.000Z",
++      openai: {
++        apiKey: "",
++        fetchImpl: vi.fn() as unknown as typeof fetch,
++      },
++    });
++
++    expect(record).toMatchObject({
++      createdAt: "2026-05-08T15:30:00.000Z",
++      generationAttemptCount: 2,
++      status: "fallback",
++    });
++    expect(repository.records).toHaveLength(1);
++  });
++
++  it("calls the OpenAI Responses API with structured output and saves generated narrative", async () => {
++    const previous = persisted(
++      reflection({
++        id: "weekly:report-previous",
++        reportId: "report-previous",
++        label: "Week of 2026-04-27",
++        startDate: "2026-04-27",
++        endDate: "2026-05-01",
++        headline: "Previous week headline",
++        summary: "Previous week summary with repeated late chase entries.",
++      }),
++    );
++    const repository = fakeRepository([previous]);
++    const narrative = {
++      headline: "You made money, but the repeat issue was chasing late.",
++      summary:
++        "This week was profitable, but the same late-entry pattern from last week still showed up.",
++      whatWentWell: "You protected profit earlier on your best execution.",
++      whatNeedsWork: "Do not add size once the move is already extended.",
++      noteInsight:
++        "Your notes point to frustration after a first loss as the emotional trigger.",
++      progressInsight:
++        "Compared with the prior week, earlier trimming improved while chase entries repeated.",
++      nextFocus: "For the next session, wait for repair before adding size.",
++    };
++    const usage = {
++      input_tokens: 4000,
++      input_tokens_details: {
++        cached_tokens: 1000,
++      },
++      output_tokens: 800,
++      output_tokens_details: {
++        reasoning_tokens: 50,
++      },
++      total_tokens: 4800,
++    };
++    const fetchImpl = vi.fn(async () =>
++      new Response(
++        JSON.stringify({
++          output_text: JSON.stringify(narrative),
++          usage,
++        }),
++        {
++          status: 200,
++          headers: { "Content-Type": "application/json" },
++        },
++      ),
++    );
++
++    const record = await generateAndSaveTraderPeriodReflection({
++      repository,
++      userId: "user-1",
++      accountId: "account-1",
++      reflection: reflection(),
++      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++      generatedAt: "2026-05-08T21:15:00.000Z",
++      openai: {
++        apiKey: "test-key",
++        model: "gpt-reflection-test",
++        endpoint: "https://api.openai.test/v1/responses",
++        fetchImpl: fetchImpl as unknown as typeof fetch,
++      },
++    });
++    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
++      string,
++      RequestInit,
++    ];
++    const requestBody = JSON.parse(String(init.body));
++
++    expect(url).toBe("https://api.openai.test/v1/responses");
++    expect(init).toMatchObject({
++      method: "POST",
++      headers: {
++        Authorization: "Bearer test-key",
++        "Content-Type": "application/json",
++      },
++    });
++    expect(requestBody).toMatchObject({
++      model: "gpt-reflection-test",
++      store: false,
++      text: {
++        format: {
++          type: "json_schema",
++          name: "trader_period_reflection_v1",
++          strict: true,
++        },
++      },
++    });
++    expect(JSON.stringify(requestBody.input)).toContain("Previous week headline");
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "Do not merely restate",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "do not tell the trader what their journal should capture",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "Speak directly about what their trades show",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "Avoid internal product terms",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "prior period",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "earlier period",
++    );
++    expect(JSON.stringify(requestBody.input)).toContain(
++      "your trades",
++    );
++    expect(JSON.stringify(requestBody.input)).not.toContain(
++      "journal question",
++    );
++    expect(record).toMatchObject({
++      status: "generated",
++      provider: "openai_responses_api",
++      model: "gpt-reflection-test",
++      errorMessage: null,
++      reflection: {
++        headline: narrative.headline,
++        summary: narrative.summary,
++        narrativeSource: "openai_responses_api",
++      },
++      usage: {
++        tokenUsage: {
++          inputTokens: 4000,
++          cachedInputTokens: 1000,
++          outputTokens: 800,
++          reasoningOutputTokens: 50,
++          totalTokens: 4800,
++        },
++        costEstimate: {
++          estimatedCostUsd: null,
++          pricingModel: "gpt-reflection-test",
++          pricingSource: "unknown_model",
++        },
++      },
++    });
++    expect(repository.events).toMatchObject([
++      {
++        accountId: "account-1",
++        generationAttemptCount: 1,
++        kind: "weekly",
++        model: "gpt-reflection-test",
++        provider: "openai_responses_api",
++        status: "generated",
++        usage: {
++          tokenUsage: {
++            inputTokens: 4000,
++            outputTokens: 800,
++            totalTokens: 4800,
++          },
++        },
++      },
++    ]);
++  });
++
++  it("saves failed OpenAI attempts with fallback reflection text", async () => {
++    const repository = fakeRepository();
++    const current = reflection();
++    const fetchImpl = vi.fn(async () =>
++      new Response(
++        JSON.stringify({ error: { message: "rate limit exceeded" } }),
++        {
++          status: 429,
++          headers: { "Content-Type": "application/json" },
++        },
++      ),
++    );
++
++    const record = await generateAndSaveTraderPeriodReflection({
++      repository,
++      userId: "user-1",
++      accountId: "account-1",
++      reflection: current,
++      sourceReportGeneratedAt: "2026-05-08T21:00:00.000Z",
++      generatedAt: "2026-05-08T21:20:00.000Z",
++      openai: {
++        apiKey: "test-key",
++        model: "gpt-reflection-test",
++        fetchImpl: fetchImpl as unknown as typeof fetch,
++      },
++    });
++
++    expect(record.status).toBe("failed");
++    expect(record.provider).toBe("openai_responses_api");
++    expect(record.model).toBe("gpt-reflection-test");
++    expect(record.errorMessage).toContain("429");
++    expect(record.errorMessage).toContain("rate limit exceeded");
++    expect(record.reflection.headline).toBe(current.headline);
++    expect(record.reflection.narrativeSource).toBe(
++      "deterministic_reflection_v1",
++    );
++  });
++
++  it("includes weekly memory when preparing a monthly reflection", () => {
++    const monthly = reflection({
++      kind: "monthly",
++      id: "monthly:report-current",
++      label: "May 2026",
++      startDate: "2026-05-01",
++      endDate: "2026-05-31",
++    });
++    const weekly = persisted(
++      reflection({
++        id: "weekly:report-week-one",
++        reportId: "report-week-one",
++        label: "Week of 2026-05-04",
++        startDate: "2026-05-04",
++        endDate: "2026-05-08",
++        headline: "Week one generated headline",
++      }),
++    );
++    const repository = fakeRepository([weekly]);
++
++    expect(
++      selectPriorPeriodReflectionMemory({
++        repository,
++        userId: "user-1",
++        accountId: "account-1",
++        reflection: monthly,
++      }).map((record) => record.id),
++    ).toEqual([weekly.id]);
++  });
++
++  it("builds request bodies with the default OpenAI model", () => {
++    expect(DEFAULT_OPENAI_REFLECTION_MODEL).toBe("gpt-5.4-mini");
++    expect(
++      buildOpenAITraderPeriodReflectionRequest({
++        model: DEFAULT_OPENAI_REFLECTION_MODEL,
++        reflection: reflection(),
++        previousReflections: [],
++      }),
++    ).toMatchObject({
++      model: DEFAULT_OPENAI_REFLECTION_MODEL,
++      max_output_tokens: 1200,
++    });
++  });
++
++  it("estimates OpenAI cost for known reflection model usage", () => {
++    expect(
++      buildOpenAIReflectionUsage({
++        model: "gpt-5.4-mini",
++        body: {
++          usage: {
++            input_tokens: 4000,
++            input_tokens_details: {
++              cached_tokens: 1000,
++            },
++            output_tokens: 800,
++            output_tokens_details: {
++              reasoning_tokens: 50,
++            },
++            total_tokens: 4800,
++          },
++        },
++      }),
++    ).toMatchObject({
++      tokenUsage: {
++        inputTokens: 4000,
++        cachedInputTokens: 1000,
++        outputTokens: 800,
++        reasoningOutputTokens: 50,
++        totalTokens: 4800,
++      },
++      costEstimate: {
++        currency: "USD",
++        estimatedCostUsd: 0.005925,
++        inputUsdPerMillion: 0.75,
++        cachedInputUsdPerMillion: 0.075,
++        outputUsdPerMillion: 4.5,
++        pricingModel: "gpt-5.4-mini",
++        pricingSource: "openai_api_pricing_2026_06_13",
++      },
++    });
++  });
++});
+diff --git a/src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts b/src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts
+new file mode 100644
+index 00000000..771ac7c1
+--- /dev/null
++++ b/src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts
+@@ -0,0 +1,177 @@
++import { describe, expect, it } from "vitest";
++import type { PersistedTraderPeriodReflectionGenerationEvent } from "../product/types";
++import { buildTraderPeriodReflectionUsageReport } from "../server/period-reflection-usage-report";
++
++function event(
++  overrides: Partial<PersistedTraderPeriodReflectionGenerationEvent> = {},
++): PersistedTraderPeriodReflectionGenerationEvent {
++  const createdAt = overrides.createdAt ?? "2026-05-08T22:05:00.000Z";
++
++  return {
++    id: overrides.id ?? `event:${createdAt}`,
++    userId: overrides.userId ?? "user-1",
++    accountId: overrides.accountId ?? "account-1",
++    reflectionRecordId: overrides.reflectionRecordId ?? "reflection-1",
++    reportId: overrides.reportId ?? "report-1",
++    kind: overrides.kind ?? "daily",
++    periodStartDate: overrides.periodStartDate ?? "2026-05-08",
++    periodEndDate: overrides.periodEndDate ?? "2026-05-08",
++    status: overrides.status ?? "generated",
++    provider: overrides.provider ?? "openai_responses_api",
++    model: Object.hasOwn(overrides, "model")
++      ? overrides.model ?? null
++      : "gpt-5.4-mini",
++    sourceReportGeneratedAt:
++      overrides.sourceReportGeneratedAt ?? "2026-05-08T21:00:00.000Z",
++    createdAt,
++    generationAttemptCount: overrides.generationAttemptCount ?? 1,
++    errorMessage: overrides.errorMessage ?? null,
++    usage:
++      overrides.usage === undefined
++        ? {
++            tokenUsage: {
++              inputTokens: 4000,
++              cachedInputTokens: 1000,
++              outputTokens: 800,
++              reasoningOutputTokens: 50,
++              totalTokens: 4800,
++            },
++            costEstimate: {
++              currency: "USD",
++              estimatedCostUsd: 0.005925,
++              inputUsdPerMillion: 0.75,
++              cachedInputUsdPerMillion: 0.075,
++              outputUsdPerMillion: 4.5,
++              pricingModel: "gpt-5.4-mini",
++              pricingSource: "openai_api_pricing_2026_06_13",
++            },
++          }
++        : overrides.usage,
++  };
++}
++
++describe("period reflection usage report", () => {
++  it("aggregates append-only generation events by model and period kind", () => {
++    const report = buildTraderPeriodReflectionUsageReport({
++      userId: "user-1",
++      accountId: "account-1",
++      generatedAt: "2026-05-09T12:00:00.000Z",
++      events: [
++        event({
++          id: "daily:first",
++          generationAttemptCount: 1,
++        }),
++        event({
++          id: "daily:second",
++          generationAttemptCount: 2,
++          createdAt: "2026-05-08T22:15:00.000Z",
++          usage: {
++            tokenUsage: {
++              inputTokens: 2000,
++              cachedInputTokens: 0,
++              outputTokens: 400,
++              reasoningOutputTokens: 20,
++              totalTokens: 2400,
++            },
++            costEstimate: {
++              currency: "USD",
++              estimatedCostUsd: 0.0033,
++              inputUsdPerMillion: 0.75,
++              cachedInputUsdPerMillion: 0.075,
++              outputUsdPerMillion: 4.5,
++              pricingModel: "gpt-5.4-mini",
++              pricingSource: "openai_api_pricing_2026_06_13",
++            },
++          },
++        }),
++        event({
++          id: "weekly:fallback",
++          createdAt: "2026-05-08T22:20:00.000Z",
++          kind: "weekly",
++          status: "fallback",
++          provider: "deterministic_reflection_v1",
++          model: null,
++          usage: null,
++        }),
++      ],
++    });
++
++    expect(report.summary).toMatchObject({
++      eventCount: 3,
++      meteredEventCount: 2,
++      knownCostEventCount: 2,
++      estimatedCostUsd: 0.009225,
++      inputTokens: 6000,
++      outputTokens: 1200,
++      totalTokens: 7200,
++    });
++    expect(report.providerReadiness).toMatchObject({
++      provider: "openai_responses_api",
++      status: "not_configured",
++      openaiApiKeyConfigured: false,
++      configuredModel: "gpt-5.4-mini",
++      defaultModel: "gpt-5.4-mini",
++      modelSource: "default",
++    });
++    expect(report.statusCounts).toMatchObject({
++      fallback: 1,
++      generated: 2,
++    });
++    expect(report.modelRows).toMatchObject([
++      {
++        model: "gpt-5.4-mini",
++        eventCount: 2,
++        estimatedCostUsd: 0.009225,
++      },
++      {
++        model: "deterministic_reflection_v1",
++        eventCount: 1,
++        estimatedCostUsd: 0,
++      },
++    ]);
++    expect(report.kindRows).toMatchObject([
++      {
++        kind: "daily",
++        eventCount: 2,
++      },
++      {
++        kind: "weekly",
++        eventCount: 1,
++      },
++    ]);
++    expect(report.recentEvents.map((item) => item.id)).toEqual([
++      "weekly:fallback",
++      "daily:second",
++      "daily:first",
++    ]);
++  });
++
++  it("surfaces configured provider readiness without exposing the API key", () => {
++    const report = buildTraderPeriodReflectionUsageReport({
++      userId: "user-1",
++      accountId: "account-1",
++      events: [],
++      providerReadiness: {
++        provider: "openai_responses_api",
++        status: "configured",
++        openaiApiKeyConfigured: true,
++        configuredModel: "gpt-5.4-nano",
++        defaultModel: "gpt-5.4-mini",
++        modelSource: "environment",
++        nextAction:
++          "OpenAI reflection generation is configured. Generate one saved-data reflection and confirm usage appears here.",
++      },
++    });
++
++    expect(report.providerReadiness).toMatchObject({
++      status: "configured",
++      openaiApiKeyConfigured: true,
++      configuredModel: "gpt-5.4-nano",
++      modelSource: "environment",
++    });
++    expect(JSON.stringify(report)).not.toContain("sk-");
++    expect(report.nextAction).toBe(
++      "Generate at least one saved-data reflection to start recording usage.",
++    );
++  });
++});
+diff --git a/src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts b/src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts
+new file mode 100644
+index 00000000..5c756670
+--- /dev/null
++++ b/src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts
+@@ -0,0 +1,477 @@
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { afterEach, beforeEach, describe, expect, it } from "vitest";
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  DEMO_WORKSPACE_ID,
++  resetTraderIntelligenceDatabaseForTests,
++} from "../product/import-commit/sqlite-import-commit-repository";
++import {
++  COACH_APP_ACCESS_PAYMENT_PURPOSE,
++  RealCoachMarketplaceRepository,
++  PROTOTYPE_SEED_COACH_SLUG,
++} from "../product/real-coach-marketplace";
++import type {
++  SavedExecutionTrade,
++  SavedTraderAnalyticsReport,
++} from "../product/types";
++
++let tempDir = "";
++let originalDbPath: string | undefined;
++
++beforeEach(() => {
++  originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
++  tempDir = mkdtempSync(join(tmpdir(), "trader-intelligence-coaches-"));
++  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
++  resetTraderIntelligenceDatabaseForTests();
++});
++
++afterEach(() => {
++  resetTraderIntelligenceDatabaseForTests();
++  if (originalDbPath === undefined) {
++    delete process.env.TRADER_INTELLIGENCE_DB_PATH;
++  } else {
++    process.env.TRADER_INTELLIGENCE_DB_PATH = originalDbPath;
++  }
++  rmSync(tempDir, { recursive: true, force: true });
++});
++
++function createCoach(
++  repository: RealCoachMarketplaceRepository,
++  args: { name: string; cap?: number; status?: "draft" | "approved" | "hidden" },
++) {
++  return repository.createCoachProfile({
++    displayName: args.name,
++    headline: `${args.name} headline`,
++    bio: `${args.name} bio`,
++    specialtiesText: "entries, exits",
++    socialLinksText: "YouTube | https://example.com",
++    whopUrl: "https://whop.com/example",
++    appAccessFeeText: "$49 / month",
++    coachFeeText: "$300 / month on Whop",
++    studentCap: args.cap ?? 2,
++    status: args.status ?? "approved",
++    createdAt: "2026-06-01T12:00:00.000Z",
++  });
++}
++
++function paidPass(
++  repository: RealCoachMarketplaceRepository,
++  coachId: string,
++  userId = DEMO_USER_ID,
++  paidAt = "2026-06-01T12:00:00.000Z",
++) {
++  return repository.grantPrototypeAppAccessPass({
++    coachId,
++    userId,
++    workspaceId: DEMO_WORKSPACE_ID,
++    accountId: DEMO_ACCOUNT_ID,
++    paidAt,
++  });
++}
++
++describe("RealCoachMarketplaceRepository", () => {
++  it("seeds one approved prototype coach idempotently", () => {
++    const repository = new RealCoachMarketplaceRepository();
++
++    const first = repository.ensurePrototypeSeedCoach({
++      createdAt: "2026-06-01T12:00:00.000Z",
++    });
++    const second = repository.ensurePrototypeSeedCoach({
++      createdAt: "2026-06-01T12:05:00.000Z",
++    });
++
++    expect(first.slug).toBe(PROTOTYPE_SEED_COACH_SLUG);
++    expect(second.id).toBe(first.id);
++    const directory = repository.listApprovedCoachDirectory(
++      "2026-06-01T12:10:00.000Z",
++    );
++
++    expect(directory).toHaveLength(1);
++    expect(directory[0]).toMatchObject({
++      coach: {
++        displayName: "Avery Chen",
++        status: "approved",
++      },
++      requestsDisabled: false,
++    });
++  });
++
++  it("only lists approved visible coaches in the public directory", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    createCoach(repository, { name: "Approved Coach", status: "approved" });
++    createCoach(repository, { name: "Draft Coach", status: "draft" });
++    createCoach(repository, { name: "Hidden Coach", status: "hidden" });
++
++    expect(
++      repository.listApprovedCoachDirectory("2026-06-02T12:00:00.000Z").map(
++        (item) => item.coach.displayName,
++      ),
++    ).toEqual(["Approved Coach"]);
++  });
++
++  it("reserves capacity for requested students before coach payment is confirmed", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, {
++      name: "Capacity Coach",
++      cap: 1,
++    });
++
++    paidPass(repository, coach.id, "student-one");
++    paidPass(repository, coach.id, "student-two");
++
++    const first = repository.requestCoach({
++      coachId: coach.id,
++      userId: "student-one",
++      now: "2026-06-02T12:00:00.000Z",
++    });
++    const second = repository.requestCoach({
++      coachId: coach.id,
++      userId: "student-two",
++      now: "2026-06-02T12:01:00.000Z",
++    });
++
++    expect(first.relationship?.status).toBe("requested");
++    expect(second).toMatchObject({
++      relationship: null,
++      reason: "coach_capacity_full",
++    });
++    expect(
++      repository.buildDirectoryCard(coach, "2026-06-02T12:02:00.000Z"),
++    ).toMatchObject({
++      availableSeatCount: 0,
++      requestsDisabled: true,
++    });
++  });
++
++  it("requires a current one-month app access pass before requesting a coach", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Access Coach" });
++
++    expect(
++      repository.requestCoach({
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        now: "2026-06-02T12:00:00.000Z",
++      }),
++    ).toMatchObject({
++      relationship: null,
++      reason: "app_access_fee_required",
++    });
++
++    paidPass(
++      repository,
++      coach.id,
++      DEMO_USER_ID,
++      "2026-06-01T12:00:00.000Z",
++    );
++
++    expect(
++      repository.getActiveAccessPass({
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        now: "2026-07-02T12:00:00.000Z",
++      }),
++    ).toBeNull();
++  });
++
++  it("allows a new monthly request after an older request expires", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Renewal Coach" });
++
++    paidPass(
++      repository,
++      coach.id,
++      DEMO_USER_ID,
++      "2026-06-01T12:00:00.000Z",
++    );
++    const first = repository.requestCoach({
++      coachId: coach.id,
++      userId: DEMO_USER_ID,
++      now: "2026-06-02T12:00:00.000Z",
++    });
++
++    paidPass(
++      repository,
++      coach.id,
++      DEMO_USER_ID,
++      "2026-07-05T12:00:00.000Z",
++    );
++    const second = repository.requestCoach({
++      coachId: coach.id,
++      userId: DEMO_USER_ID,
++      now: "2026-07-05T12:01:00.000Z",
++    });
++
++    expect(first.relationship?.id).not.toBe(second.relationship?.id);
++    expect(second.relationship?.status).toBe("requested");
++  });
++
++  it("allows read-only student trade access only after relationship activation", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Review Coach" });
++    paidPass(repository, coach.id);
++    const relationship = repository.requestCoach({
++      coachId: coach.id,
++      userId: DEMO_USER_ID,
++      now: "2026-06-02T12:00:00.000Z",
++    }).relationship;
++
++    expect(relationship).not.toBeNull();
++
++    const trades = [
++      {
++        id: "trade-one",
++        userId: DEMO_USER_ID,
++        symbol: "AAPL",
++        sessionDate: "2026-06-02",
++        reviewStatus: "new",
++      } as SavedExecutionTrade,
++    ];
++    const reports = [
++      {
++        id: "report-one",
++        userId: DEMO_USER_ID,
++        generatedAt: "2026-06-02T13:00:00.000Z",
++      } as SavedTraderAnalyticsReport,
++    ];
++
++    expect(
++      repository.getCoachStudentReadModel({
++        relationshipId: relationship!.id,
++        coachId: coach.id,
++        trades,
++        reports,
++        now: "2026-06-02T12:30:00.000Z",
++      }),
++    ).toBeNull();
++
++    repository.confirmCoachPayment({
++      relationshipId: relationship!.id,
++      confirmedAt: "2026-06-02T12:40:00.000Z",
++    });
++
++    expect(
++      repository.getCoachStudentReadModel({
++        relationshipId: relationship!.id,
++        coachId: coach.id,
++        trades,
++        reports,
++        now: "2026-06-02T12:45:00.000Z",
++      }),
++    ).toMatchObject({
++      trades: [{ id: "trade-one" }],
++      latestReport: { id: "report-one" },
++    });
++  });
++
++  it("keeps private coach notes out of the student view while exposing published feedback", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Feedback Coach" });
++    paidPass(repository, coach.id);
++    const relationship = repository.requestCoach({
++      coachId: coach.id,
++      userId: DEMO_USER_ID,
++      now: "2026-06-02T12:00:00.000Z",
++    }).relationship!;
++    repository.confirmCoachPayment({ relationshipId: relationship.id });
++
++    repository.addPrivateNote({
++      relationshipId: relationship.id,
++      coachId: coach.id,
++      title: "Private",
++      body: "secret coach working note",
++    });
++    repository.createFeedbackReport({
++      relationshipId: relationship.id,
++      coachId: coach.id,
++      kind: "weekly",
++      periodLabel: "Week one",
++      title: "Student weekly review",
++      body: "Replay the top three entries.",
++      publish: true,
++    });
++
++    const studentView = repository.listStudentCoachViews({ userId: DEMO_USER_ID });
++
++    expect(studentView[0]?.reports).toMatchObject([
++      { title: "Student weekly review" },
++    ]);
++    expect(JSON.stringify(studentView)).not.toContain("secret coach working note");
++  });
++
++  it("lets the assigned student complete coach action items", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Action Coach" });
++    paidPass(repository, coach.id);
++    const relationship = repository.requestCoach({
++      coachId: coach.id,
++      userId: DEMO_USER_ID,
++      now: "2026-06-02T12:00:00.000Z",
++    }).relationship!;
++    repository.confirmCoachPayment({ relationshipId: relationship.id });
++
++    const action = repository.createActionItem({
++      relationshipId: relationship.id,
++      coachId: coach.id,
++      title: "Review three trades",
++      body: "Write one sentence about each entry.",
++      dueLabel: "Before Friday",
++    })!;
++
++    repository.completeActionItem({
++      actionItemId: action.id,
++      userId: "other-student",
++      completedAt: "2026-06-03T12:00:00.000Z",
++    });
++    expect(repository.listActionItems(relationship.id)[0]?.status).toBe("assigned");
++
++    repository.completeActionItem({
++      actionItemId: action.id,
++      userId: DEMO_USER_ID,
++      completedAt: "2026-06-03T12:05:00.000Z",
++    });
++    expect(repository.listActionItems(relationship.id)[0]).toMatchObject({
++      status: "completed",
++      completedAt: "2026-06-03T12:05:00.000Z",
++    });
++  });
++
++  it("grants app access from an idempotent Whop payment succeeded event", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Webhook Coach" });
++    const rawEvent = {
++      id: "evt_whop_paid",
++      type: "payment.succeeded",
++      data: { id: "pay_whop_paid" },
++    };
++
++    const result = repository.processWhopAppAccessPayment({
++      providerEventId: "evt_whop_paid",
++      providerPaymentId: "pay_whop_paid",
++      eventType: "payment.succeeded",
++      metadata: {
++        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        workspaceId: DEMO_WORKSPACE_ID,
++        accountId: DEMO_ACCOUNT_ID,
++      },
++      rawEvent,
++      paidAt: "2026-06-04T12:00:00.000Z",
++      receivedAt: "2026-06-04T12:00:05.000Z",
++    });
++    const duplicate = repository.processWhopAppAccessPayment({
++      providerEventId: "evt_whop_paid",
++      providerPaymentId: "pay_whop_paid",
++      eventType: "payment.succeeded",
++      metadata: {
++        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        workspaceId: DEMO_WORKSPACE_ID,
++        accountId: DEMO_ACCOUNT_ID,
++      },
++      rawEvent,
++      receivedAt: "2026-06-04T12:01:00.000Z",
++    });
++
++    expect(result).toMatchObject({
++      status: "processed",
++      accessPass: {
++        coachId: coach.id,
++        paymentReference: "whop:pay_whop_paid",
++      },
++    });
++    expect(
++      repository.getActiveAccessPass({
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        now: "2026-06-04T12:01:00.000Z",
++      }),
++    ).toMatchObject({ id: result.accessPass?.id });
++    expect(duplicate).toMatchObject({
++      status: "duplicate",
++      accessPass: { id: result.accessPass?.id },
++    });
++    expect(repository.listPaymentEvents()).toHaveLength(1);
++  });
++
++  it("ignores unrelated Whop payments instead of granting app access", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const coach = createCoach(repository, { name: "Unrelated Payment Coach" });
++
++    const result = repository.processWhopAppAccessPayment({
++      providerEventId: "evt_unrelated",
++      providerPaymentId: "pay_unrelated",
++      eventType: "payment.succeeded",
++      metadata: {
++        purpose: "coach_owned_monthly_payment",
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        workspaceId: DEMO_WORKSPACE_ID,
++        accountId: DEMO_ACCOUNT_ID,
++      },
++      rawEvent: { id: "evt_unrelated", type: "payment.succeeded" },
++      receivedAt: "2026-06-04T12:00:00.000Z",
++    });
++
++    expect(result).toMatchObject({
++      status: "ignored",
++      accessPass: null,
++    });
++    expect(
++      repository.getActiveAccessPass({
++        coachId: coach.id,
++        userId: DEMO_USER_ID,
++        now: "2026-06-04T12:01:00.000Z",
++      }),
++    ).toBeNull();
++  });
++
++  it("fails closed when app-access Whop metadata is incomplete or coach is not approved", () => {
++    const repository = new RealCoachMarketplaceRepository();
++    const draftCoach = createCoach(repository, {
++      name: "Draft Webhook Coach",
++      status: "draft",
++    });
++
++    const missingMetadata = repository.processWhopAppAccessPayment({
++      providerEventId: "evt_missing_metadata",
++      providerPaymentId: "pay_missing_metadata",
++      eventType: "payment.succeeded",
++      metadata: {
++        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
++        coachId: draftCoach.id,
++      },
++      rawEvent: { id: "evt_missing_metadata", type: "payment.succeeded" },
++      receivedAt: "2026-06-04T12:00:00.000Z",
++    });
++    const unapprovedCoach = repository.processWhopAppAccessPayment({
++      providerEventId: "evt_unapproved",
++      providerPaymentId: "pay_unapproved",
++      eventType: "payment.succeeded",
++      metadata: {
++        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
++        coachId: draftCoach.id,
++        userId: DEMO_USER_ID,
++        workspaceId: DEMO_WORKSPACE_ID,
++        accountId: DEMO_ACCOUNT_ID,
++      },
++      rawEvent: { id: "evt_unapproved", type: "payment.succeeded" },
++      receivedAt: "2026-06-04T12:01:00.000Z",
++    });
++
++    expect(missingMetadata).toMatchObject({
++      status: "failed",
++      accessPass: null,
++    });
++    expect(unapprovedCoach).toMatchObject({
++      status: "failed",
++      accessPass: null,
++    });
++    expect(repository.listPaymentEvents()).toHaveLength(2);
++  });
++});
