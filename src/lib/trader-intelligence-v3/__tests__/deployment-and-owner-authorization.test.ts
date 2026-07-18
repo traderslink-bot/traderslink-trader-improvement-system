@@ -86,6 +86,15 @@ describe("Trader Intelligence v3 deployment contract", () => {
     });
   });
 
+  it("allows an optimized local-only runtime without a hosted deployment signal", () => {
+    const environment = validLocalEnvironment();
+    environment.NODE_ENV = "production";
+    expect(validateTraderIntelligenceDeployment(environment)).toMatchObject({
+      ok: true,
+      config: { hostingMode: "local_only" },
+    });
+  });
+
   it("rejects private-hosted local SQLite storage", () => {
     const environment = validHostedEnvironment();
     environment.TRADER_INTELLIGENCE_STORAGE_MODE = "local_sqlite";

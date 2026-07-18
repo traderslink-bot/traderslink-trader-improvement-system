@@ -136,6 +136,7 @@ An owner-access guard or fail-closed disabling of existing Intelligence routes i
 - Implementation candidate complete on `agent/trader-intelligence-v3-ga0-a1-containment`.
 - Draft review: `https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/102`.
 - Acceptance remains pending focused draft-PR review; GA0-A2 has not started.
+- Current execution mode is local owner testing only; no Vercel preview or production deployment is requested.
 - The machine-readable containment matrix classifies all 51 Intelligence pages and 31 relevant Intelligence APIs.
 - All owner surfaces fail closed; diagnostics and legacy level-provider APIs are local-only outside private-hosted mode.
 - Unsafe methods require exact Origin validation before legacy handler/repository work.

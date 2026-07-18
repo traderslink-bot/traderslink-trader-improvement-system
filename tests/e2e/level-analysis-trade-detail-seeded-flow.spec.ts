@@ -83,6 +83,7 @@ async function seedAcceptedLevelFactsLink(page: Page, savedTradeId: string) {
       payload: deliveryFixture,
       createdAt: "2026-06-06T21:00:00.000Z",
     },
+    headers: { Origin: "http://127.0.0.1:3101" },
   });
   expect(ingestResponse.status()).toBe(200);
   const ingestBody = await ingestResponse.json();
@@ -101,6 +102,7 @@ async function seedAcceptedLevelFactsLink(page: Page, savedTradeId: string) {
       tradeEndedAt: "2026-06-01T16:05:00.000Z",
       createdAt: "2026-06-06T21:05:00.000Z",
     },
+    headers: { Origin: "http://127.0.0.1:3101" },
   });
   expect(linkResponse.status()).toBe(200);
   const linkBody = await linkResponse.json();

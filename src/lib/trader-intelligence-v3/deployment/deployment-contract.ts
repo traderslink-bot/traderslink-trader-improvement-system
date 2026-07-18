@@ -81,7 +81,7 @@ export function hasHostedEnvironmentSignal(
   environment: TraderIntelligenceEnvironment,
 ): boolean {
   return Boolean(
-    environment.NODE_ENV === "production" ||
+    environment.TRADER_INTELLIGENCE_DEPLOYED_ENVIRONMENT === "1" ||
       environment.VERCEL ||
       environment.VERCEL_ENV ||
       environment.AWS_LAMBDA_FUNCTION_NAME ||

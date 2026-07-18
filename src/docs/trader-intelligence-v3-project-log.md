@@ -53,6 +53,8 @@ This log may record progress and accepted strengthening decisions. It may not si
 - Gate: GA0-A1 implementation candidate complete; acceptance and merge remain pending focused draft-PR review.
 - Operating profile: only `private_owner_alpha` is operational.
 - Hosting: explicit `local_only` or `private_hosted`; missing/unsafe configuration fails closed.
+- Active owner testing is `local_only` on the owner's computer. `private_hosted` remains a future containment contract, not an active hosting target.
+- The GitHub branch/draft PR is source review and CI only. No Vercel preview or production deployment is requested or needed for this owner-built/tested stage.
 - No database migration, real-data deployment, production deploy, feature expansion, or later-phase work occurred.
 - GA0-A2 has not started.
 
@@ -92,7 +94,7 @@ This log may record progress and accepted strengthening decisions. It may not si
 - `npm ci` — passed; 603 packages installed, with the existing audit report of 5 vulnerabilities (2 low, 1 moderate, 2 high).
 - `npx tsc --noEmit` — passed.
 - changed-path ESLint — passed with two pre-existing unused-variable warnings in `app/intelligence/coach/page.tsx` and no errors.
-- focused v3 containment suite — passed: 5 files, 49 tests.
+- focused v3 containment suite — passed: 5 files, 50 tests.
 - route compatibility suite — passed: 12 files, 87 tests.
 - `npm test` — passed: 162 files, 1,437 tests.
 - `npm run verify:layer2` — passed with the canonical 13-pattern result.
@@ -100,6 +102,7 @@ This log may record progress and accepted strengthening decisions. It may not si
 - `npm run verify:ti-v3:architecture` — passed, scanning 69 relevant source files.
 - `npm run verify:ti-v3:private-data` — passed, scanning 23,530 worktree records before staging and 23,614 worktree/index records after staging.
 - `npm run build` — passed; all 51 Intelligence pages and relevant APIs are dynamic. Next emitted five existing broad filesystem-tracing warnings around legacy stores/provider code, reinforcing registered hazards without failing the build.
+- seeded level-analysis trade-detail browser flow — passed: 1 Playwright scenario after explicit local-owner and approved-Origin configuration.
 - Normal verification made no live model or market-data calls.
 
 ### Exact resume point
@@ -108,6 +111,20 @@ This log may record progress and accepted strengthening decisions. It may not si
 2. merge or explicitly accept GA0-A1 before beginning GA0-A2;
 3. if accepted, create the GA0-A2 branch from the accepted baseline;
 4. do not implement analytics, chart rendering, AI, support/resistance, or deployment on this branch.
+
+### Local owner test configuration
+
+For a local development session, set:
+
+```text
+TRADER_INTELLIGENCE_DEPLOYMENT_PROFILE=private_owner_alpha
+TRADER_INTELLIGENCE_HOSTING_MODE=local_only
+TRADER_INTELLIGENCE_STORAGE_MODE=local_sqlite
+TRADER_INTELLIGENCE_DATA_MODE=sample_data
+TRADER_INTELLIGENCE_OWNER_ID=local-owner
+```
+
+Then run `npm run dev` and open `/intelligence`. Real owner data remains outside Git; switching to it is a separate explicit local data-mode choice. No Vercel command is part of this workflow.
 
 ---
 
