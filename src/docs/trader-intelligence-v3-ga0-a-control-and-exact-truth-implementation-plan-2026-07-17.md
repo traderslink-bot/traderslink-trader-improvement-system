@@ -4,7 +4,7 @@
 **Status:** Active file-level implementation plan  
 **Architecture authority:** `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`  
 **Operating profile:** `private_owner_alpha`  
-**Hosting mode:** must be explicitly `local_only` or `private_hosted`  
+**Only operational hosting mode:** `local_only`
 **Current slice:** GA0-A1 — containment and architecture boundaries  
 **Runtime model calls:** forbidden  
 **Analytics tools:** forbidden in GA0-A  
@@ -131,21 +131,29 @@ An owner-access guard or fail-closed disabling of existing Intelligence routes i
 
 # 5. GA0-A1 — Containment and Architecture Boundaries
 
-## 5.0 Implementation status on 2026-07-17
+## 5.0 Independent-audit remediation status on 2026-07-17
 
-- Implementation candidate complete on `agent/trader-intelligence-v3-ga0-a1-containment`.
+- Independent audit accepted the containment direction with required fixes; remediation is in progress on `agent/trader-intelligence-v3-ga0-a1-containment`.
 - Draft review: `https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/102`.
-- Acceptance remains pending focused draft-PR review; GA0-A2 has not started.
+- Acceptance remains pending independent re-review; GA0-A2 has not started.
 - Current execution mode is local owner testing only; no Vercel preview or production deployment is requested.
 - The machine-readable containment matrix classifies all 51 Intelligence pages and 31 relevant Intelligence APIs.
-- All owner surfaces fail closed; diagnostics and legacy level-provider APIs are local-only outside private-hosted mode.
-- Unsafe methods require exact Origin validation before legacy handler/repository work.
+- Supported development and optimized scripts use a raw Node listener bound to `127.0.0.1`; it rejects non-loopback peers and client-supplied forwarding/proxy/tunnel evidence before Next.js handling, then stamps a per-process assertion for the exact loopback headers Next.js 16 synthesizes internally.
+- All owner surfaces require a verified exact loopback request before local owner authorization; forwarded, proxied, tunneled, LAN, public, arbitrary DNS, and malformed requests fail first.
+- Only `local_only + local_sqlite` is operational. Hosted profiles/modes and `private_database` fail with stable not-operational reasons.
+- Unsafe methods require an explicit configured loopback Origin allowlist and exact scheme/host/port validation before legacy handler/repository work.
+- Sample mode uses isolated in-memory persistence. Real-owner mode requires an explicit durable path outside Git and the OS temp directory, and upload entry points require explicit real-owner mode.
 - Intelligence pages and APIs are dynamic, private, and no-store.
-- Trader Intelligence remains a separate application from Academy. Its authorization maps a provisional Discord-session subject to an internal Intelligence owner through a replaceable adapter and does not use Academy roles, progress, entitlements, or product behavior.
+- Trader Intelligence remains a separate application from Academy. The provisional Discord-session adapter is retained as isolated future compatibility code, but no accepted runtime profile reaches it; the exact architecture exception exposes no Academy role, progress, lesson, entitlement, or product behavior symbol.
 - Inventory and legacy hazard register are complete.
-- Architecture/private-data guards run locally and in CI.
+- Feature provenance was reconciled with the dirty V2 worktree: committed V2
+  engine behavior was deliberately ported to `main`, while uncommitted manual
+  entry, AI reflection, and real-coach/Whop prototypes remain external legacy
+  sources and are not authorized for implementation in GA0-A1.
+- AST architecture and deny-by-default route guards run locally and in CI.
+- Private-data guards scan the final tree and every added/modified PR-history blob with exact file/hash synthetic-fixture approval.
 - No exact-financial, analytics, chart, AI, support/resistance, migration, or deployment work was added.
-- Required typecheck, focused tests, full tests, Layer 2/3 checks, and production build pass. Exact results are recorded in the v3 project log.
+- Audit fixes remain in progress until the entire required verification set passes and the revised head is independently re-reviewed. Exact interim results are recorded in the v3 project log.
 
 ## 5.1 Current-system inventory
 
@@ -210,15 +218,15 @@ Required contracts:
 Required states:
 
 - `private_owner_alpha` with `local_only`;
-- `private_owner_alpha` with `private_hosted`;
-- future profile declarations without implementation.
+- future hosting/profile/storage declarations that fail as not operational.
 
 Fail closed when:
 
 - hosting mode missing;
 - deployed environment claims local-only;
-- private-hosted owner identity unavailable;
-- private-hosted route lacks owner guard;
+- any hosted mode/profile or private database is requested;
+- request Host/URL is not exact loopback or forwarding/proxy/tunnel evidence exists;
+- configured mutation origins are invalid or an unsafe request lacks an exact approved Origin;
 - storage path is unsafe;
 - sample/real-data mode is ambiguous.
 
@@ -284,7 +292,7 @@ Scan staged/repository content for:
 - secrets/tokens;
 - unredacted identifiers.
 
-Use allowlists only for synthetic fixtures.
+Use exact file-specific content hashes for synthetic fixtures. Scan tracked, staged, non-ignored untracked, and every added/modified PR-history blob, including content later deleted or renamed. Never print a suspected sensitive value.
 
 ## 5.7 Legacy hazard register
 

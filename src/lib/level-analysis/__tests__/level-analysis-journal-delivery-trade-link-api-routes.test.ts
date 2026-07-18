@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GET as getAdminTradeLink } from "../../../../app/api/admin/level-analysis/trade-links/[linkId]/route";
@@ -20,6 +20,10 @@ import {
   LEVEL_ANALYSIS_TRADE_LINK_ADMIN_DEBUG_FEATURE_FLAG,
   LEVEL_ANALYSIS_TRADE_LINK_API_FEATURE_FLAG,
 } from "../level-analysis-journal-delivery-trade-link-storage";
+import {
+  createTraderIntelligenceTestRequest,
+  installTraderIntelligenceLocalTestEnvironment,
+} from "../../../test/trader-intelligence-request";
 
 let tempDir = "";
 let originalDbPath: string | undefined;
@@ -27,17 +31,24 @@ let originalDeliveryApiFlag: string | undefined;
 let originalTradeLinkApiFlag: string | undefined;
 let originalTradeLinkAdminFlag: string | undefined;
 let originalTradeDetailFactsFlag: string | undefined;
+let originalDataMode: string | undefined;
+let restoreEnvironment: () => void;
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function jsonRequest(path: string, body: unknown): Request {
-  return new Request(`http://localhost${path}`, {
+  return createTraderIntelligenceTestRequest(`http://localhost${path}`, {
     method: "POST",
+    origin: "http://localhost",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function localGet(url: string): Request {
+  return createTraderIntelligenceTestRequest(url);
 }
 
 function collectStringValues(value: unknown, out: string[] = []): string[] {
@@ -105,8 +116,12 @@ beforeEach(() => {
     process.env[LEVEL_ANALYSIS_TRADE_LINK_ADMIN_DEBUG_FEATURE_FLAG];
   originalTradeDetailFactsFlag =
     process.env[LEVEL_ANALYSIS_TRADE_DETAIL_LEVEL_FACTS_FEATURE_FLAG];
-  tempDir = mkdtempSync(join(tmpdir(), "level-analysis-trade-link-api-"));
-  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  originalDataMode = process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  tempDir = mkdtempSync(join(homedir(), ".level-analysis-trade-link-api-"));
+  restoreEnvironment = installTraderIntelligenceLocalTestEnvironment({
+    TRADER_INTELLIGENCE_DB_PATH: join(tempDir, "test.sqlite"),
+    TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
+  });
   process.env[LEVEL_ANALYSIS_DELIVERY_API_FEATURE_FLAG] = "1";
   process.env[LEVEL_ANALYSIS_TRADE_LINK_API_FEATURE_FLAG] = "1";
   process.env[LEVEL_ANALYSIS_TRADE_LINK_ADMIN_DEBUG_FEATURE_FLAG] = "1";
@@ -143,6 +158,12 @@ afterEach(() => {
     process.env[LEVEL_ANALYSIS_TRADE_DETAIL_LEVEL_FACTS_FEATURE_FLAG] =
       originalTradeDetailFactsFlag;
   }
+  if (originalDataMode === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DATA_MODE = originalDataMode;
+  }
+  restoreEnvironment();
   rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -211,7 +232,7 @@ describe("level-analysis journal trade-link API routes", () => {
 
     const tradeBody = await (
       await getTradeLevelAnalysis(
-        new Request(
+        localGet(
           `http://localhost/api/trades/${requestBody.savedTradeId}/level-analysis`,
         ),
         { params: Promise.resolve({ tradeId: requestBody.savedTradeId }) },
@@ -239,7 +260,7 @@ describe("level-analysis journal trade-link API routes", () => {
 
     const factsBody = await (
       await getTradeDetailLevelFacts(
-        new Request(
+        localGet(
           `http://localhost/api/trades/${requestBody.savedTradeId}/level-analysis/facts`,
         ),
         { params: Promise.resolve({ tradeId: requestBody.savedTradeId }) },
@@ -293,7 +314,7 @@ describe("level-analysis journal trade-link API routes", () => {
 
     const adminBody = await (
       await getAdminTradeLink(
-        new Request(
+        localGet(
           `http://localhost/api/admin/level-analysis/trade-links/${persistBody.linkId}`,
         ),
         { params: Promise.resolve({ linkId: persistBody.linkId }) },
@@ -383,7 +404,7 @@ describe("level-analysis journal trade-link API routes", () => {
 
     const factsBody = await (
       await getTradeDetailLevelFacts(
-        new Request(
+        localGet(
           "http://localhost/api/trades/trade_SNAP_2026_05_01_001/level-analysis/facts",
         ),
         { params: Promise.resolve({ tradeId: "trade_SNAP_2026_05_01_001" }) },
@@ -415,7 +436,7 @@ describe("level-analysis journal trade-link API routes", () => {
 
   it("returns a not-checked facts read model when a trade has no persisted link", async () => {
     const response = await getTradeDetailLevelFacts(
-      new Request(
+      localGet(
         "http://localhost/api/trades/trade_MISSING_2026_06_01_001/level-analysis/facts",
       ),
       { params: Promise.resolve({ tradeId: "trade_MISSING_2026_06_01_001" }) },
@@ -463,7 +484,7 @@ describe("level-analysis journal trade-link API routes", () => {
     delete process.env[LEVEL_ANALYSIS_TRADE_DETAIL_LEVEL_FACTS_FEATURE_FLAG];
 
     const response = await getTradeDetailLevelFacts(
-      new Request(
+      localGet(
         "http://localhost/api/trades/trade_DEVS_2026_06_01_001/level-analysis/facts",
       ),
       { params: Promise.resolve({ tradeId: "trade_DEVS_2026_06_01_001" }) },

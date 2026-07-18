@@ -1,12 +1,22 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   GET,
   POST,
 } from "../../../../app/api/import-dry-run/decision-review/route";
+import {
+  createTraderIntelligenceTestRequest,
+  installTraderIntelligenceLocalTestEnvironment,
+} from "../../../test/trader-intelligence-request";
+
+let restoreEnvironment: () => void;
 
 function jsonPost(body: unknown): Request {
-  return new Request("http://localhost/api/import-dry-run/decision-review", {
+  return createTraderIntelligenceTestRequest("http://localhost/api/import-dry-run/decision-review", {
     method: "POST",
+    origin: "http://localhost",
     headers: {
       "content-type": "application/json",
     },
@@ -16,6 +26,16 @@ function jsonPost(body: unknown): Request {
 
 describe("/api/import-dry-run/decision-review", () => {
   const previousProvider = process.env.LEVELS_SYSTEM_PROVIDER;
+  beforeEach(() => {
+    restoreEnvironment = installTraderIntelligenceLocalTestEnvironment({
+      TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
+      TRADER_INTELLIGENCE_DB_PATH: join(
+        homedir(),
+        ".trader-intelligence-tests",
+        "dry-run.sqlite",
+      ),
+    });
+  });
 
   afterEach(() => {
     if (previousProvider === undefined) {
@@ -23,10 +43,13 @@ describe("/api/import-dry-run/decision-review", () => {
     } else {
       process.env.LEVELS_SYSTEM_PROVIDER = previousProvider;
     }
+    restoreEnvironment();
   });
 
   it("describes the decision-review route contract", async () => {
-    const response = await GET();
+    const response = await GET(
+      createTraderIntelligenceTestRequest("http://localhost/api/import-dry-run/decision-review"),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -40,8 +63,9 @@ describe("/api/import-dry-run/decision-review", () => {
 
   it("returns a 400 contract error for invalid JSON", async () => {
     const response = await POST(
-      new Request("http://localhost/api/import-dry-run/decision-review", {
+      createTraderIntelligenceTestRequest("http://localhost/api/import-dry-run/decision-review", {
         method: "POST",
+        origin: "http://localhost",
         body: "{",
       }),
     );

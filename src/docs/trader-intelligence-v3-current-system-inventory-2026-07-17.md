@@ -6,9 +6,9 @@ Branch: `agent/trader-intelligence-v3-ga0-a1-containment`
 
 ## Scope and conclusion
 
-The current Trader Intelligence implementation is a useful single-user prototype, not a production-ready v3 system. GA0-A1 preserves working code behind a fail-closed owner boundary and records what must later be adapted, replaced, or retired. It does not promote legacy calculations, demo identity, SQLite persistence, provider coupling, chart values, or coaching output to v3 authority.
+The current Trader Intelligence implementation is a useful local single-owner prototype, not a hosted or production-ready v3 system. GA0-A1 preserves working code behind a fail-closed exact-loopback owner boundary and records what must later be adapted, replaced, or retired. It does not promote legacy calculations, demo identity, SQLite persistence, provider coupling, chart values, or coaching output to v3 authority.
 
-Trader Intelligence and Academy are separate applications. GA0-A1 does not modify Academy code or use Academy progress, roles, products, or entitlements. Private-hosted mode temporarily resolves a Discord subject through a narrow, replaceable adapter that reads the existing Discord session record. That one-way session compatibility bridge is not an architectural dependency of the future Intelligence identity system and must be replaced by an Intelligence-owned login/session adapter when that contract is selected.
+Trader Intelligence and Academy are separate applications. GA0-A1 does not modify Academy code or use Academy progress, roles, products, or entitlements. The provisional Discord session adapter remains isolated future code, but `private_hosted` is non-operational and no accepted runtime profile can reach it.
 
 ## Machine-readable route inventory
 
@@ -34,7 +34,7 @@ The matrix contains exactly 82 modules:
 | Diagnostic `/api` handlers | 6 | `internal_diagnostics` | Permit only in explicit `local_only`. |
 | Legacy level-delivery provider APIs | 6 | `local_only_or_disabled` | Keep local provider compatibility; disable in private-hosted mode. |
 
-`route-containment.test.ts` compares that matrix with the actual App Router filesystem, so a new or removed Intelligence route cannot silently escape classification.
+`route-containment.test.ts` and the architecture script scan every App Router API with TypeScript AST inspection, discover Trader Intelligence and legacy journal dependencies plus static `/api` references from Intelligence client code, and compare the result with the matrix. Exported methods, wrapper calls, and wrapper module paths must match exactly, so a new journal prefix cannot silently escape classification.
 
 ## Current-system component inventory
 
@@ -63,6 +63,29 @@ The matrix contains exactly 82 modules:
 | `.github/workflows/ci.yml` and package verification scripts | Runs tests and Layer 2/3 guards. | Repository CI with no prior v3 boundary/private-data enforcement. | GA0-A1 adds both guards. | `adapt` | Later add migration, reconciliation, determinism, and deployment-profile suites as their gates arrive. | Build success alone does not prove private-alpha readiness. |
 | `src/lib/trader-intelligence-v3/**` | New deployment contract, route matrix, owner boundary, provisional Discord-session adapter, cache/mutation policy, and architecture/private-data guards. | Server configuration plus exact configured owner; no v3 financial or analytical authority. | GA0-A1 containment candidate pending full verification and review. | `preserve` | Replace the provisional Discord adapter with Intelligence-owned auth when selected; replace legacy handlers incrementally behind stable ports. | Misconfiguration fails closed. This layer deliberately does not calculate trades, analytics, charts, levels, or AI output. Focused tests and CI guards are included. |
 
+## External V2 feature-preservation inventory
+
+The separate `C:\Users\jerac\Documents\TraderLink\trader-intelligence-v2`
+worktree is not a newer clean foundation. Its branch is 297 commits behind
+current `origin/main`, has 26 unique committed candle/review commits, and has a
+large dirty/untracked tree. PR #59 and later follow-ups deliberately ported the
+accepted deterministic behavior into `main` while retaining the newer
+`/intelligence` namespace, journal-level-analysis contracts, and
+`levels-system-v2` boundary.
+
+| External source | Current evidence | V3 disposition |
+|---|---|---|
+| Manual stock entry: `app/manual-entry/**` and `src/lib/trader-analytics/product/manual-execution-entry.ts` | Uncommitted V2 prototype; focused tests pass. Current `main` retains manual execution mapping primitives but not this save UI/workflow. | `preserve_external`; evaluate behind canonical execution/import contracts after GA0-A2 is accepted. Do not copy into A1. |
+| AI period reflections: `app/api/trader-reflections/**`, `app/period-reflection-*.tsx`, `src/lib/trader-analytics/product/period-reflections.ts`, and `src/lib/trader-analytics/server/period-reflection-*.ts` | Uncommitted V2 prototype with deterministic daily/weekly/monthly reflection data, OpenAI narrative generation/fallback, usage reporting, and a paid-tier API/UI gate. Focused tests pass. | `preserve_external`; later adapt only after exact facts, claims/evidence, AI policy, and GA2 evaluation gates. No model call or route is authorized in A1. |
+| Real-coach/Whop: `app/api/real-coach/**`, `app/coach-human/**`, and `src/lib/trader-analytics/product/real-coach-*.ts` | Uncommitted local prototype. Focused repository/webhook tests pass, but the prototype uses demo/local role assumptions and Whop/auth/account production foundations were never accepted. | `preserve_external`; require a separate identity/account/payment foundation decision. Not a production or hosted capability. |
+| Academy Discord login: `app/api/auth/**`, `app/api/me/**`, and `src/lib/academy/**` session/auth files | Committed on `main` with focused route/cookie/OAuth tests. | `legacy_provider`; local-only v3 does not reach the provisional adapter. Future hosted Intelligence requires an Intelligence-owned identity and account-linking contract. |
+| V2 stash | Contains a private SQLite backup among a broad mixed source/artifact snapshot. | `prohibited_source`; never apply or commit wholesale. Any later preservation must select explicit non-private source/test files and pass the private-data guard. |
+
+The focused reconciliation run passed 32 tests across the uncommitted manual
+entry, period-reflection, and real-coach prototype suites, and 11 tests across
+the committed Discord cookie/route/OAuth suites. Passing prototype tests prove
+recoverable behavior, not v3 readiness.
+
 ## Direct repository construction and demo identity inventory
 
 Direct `SqliteImportCommitRepository` construction currently occurs in:
@@ -83,19 +106,20 @@ Demo identity use currently occurs in:
 
 GA0-A1 does not rewrite those paths. It ensures external page/API access is authorized before they run, disables unsafe local providers in private-hosted mode, and records demo scope as mandatory migration work. GA0-A2/A3 must remove demo defaults from authoritative execution.
 
-## Deployment and security state after GA0-A1
+## Deployment and security state during GA0-A1 audit remediation
 
 - Only `private_owner_alpha` is operational.
-- `local_only` rejects common hosted-environment signals.
-- `private_hosted` requires an exact configured Discord subject, rejects local bypass, and requires `private_database` configuration.
+- `local_only` is the only operational hosting mode and rejects common hosted-environment signals.
+- Supported local scripts bind explicitly to `127.0.0.1`; owner authorization requires exact loopback Host/URL and rejects forwarded, proxy, and tunnel evidence.
+- `private_hosted` and `private_database` return stable not-operational reasons.
 - Every classified owner page/API fails closed when deployment or owner resolution fails.
-- Private-hosted mode disables diagnostics and legacy provider routes.
-- Unsafe methods require an exact approved Origin before handler invocation.
+- Unsafe methods require an exact explicitly configured loopback Origin before handler invocation; the request URL is not an approval source.
+- Sample mode is in-memory and cannot select the owner database. Real-owner mode requires an explicit durable database outside Git and OS temp paths.
 - Intelligence pages and API responses are private, dynamic, and no-store at browser and CDN layers.
 - Errors do not reveal requested private resource identifiers.
 - No route accepts caller-provided owner scope as authorization.
 - No client receives owner secrets or configured Discord subject.
-- Real broker exports, private screenshots, and private fixture paths are ignored and scanned before commit/CI.
+- Real broker exports, private screenshots, and private fixture paths are ignored and scanned before commit/CI. Exact fixture hashes and full PR-history blob scanning prevent directory-prefix and delete-later bypasses.
 
 ## Explicitly not delivered by this inventory slice
 

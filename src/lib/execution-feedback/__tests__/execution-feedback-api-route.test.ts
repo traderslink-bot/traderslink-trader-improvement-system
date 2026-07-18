@@ -1,8 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   GET,
   POST,
 } from "../../../../app/api/execution-feedback/debug/route";
+import {
+  createTraderIntelligenceTestRequest,
+  installTraderIntelligenceLocalTestEnvironment,
+} from "../../../test/trader-intelligence-request";
+
+let restoreEnvironment: () => void;
+
+beforeEach(() => {
+  restoreEnvironment = installTraderIntelligenceLocalTestEnvironment();
+});
+
+afterEach(() => restoreEnvironment());
 
 const validRequest = {
   symbol: "ABCD",
@@ -30,8 +42,9 @@ const validRequest = {
 };
 
 function jsonPost(body: unknown): Request {
-  return new Request("http://localhost/api/execution-feedback/debug", {
+  return createTraderIntelligenceTestRequest("http://localhost/api/execution-feedback/debug", {
     method: "POST",
+    origin: "http://localhost",
     headers: {
       "content-type": "application/json",
     },
@@ -41,7 +54,9 @@ function jsonPost(body: unknown): Request {
 
 describe("/api/execution-feedback/debug", () => {
   it("describes the debug route contract", async () => {
-    const response = await GET();
+    const response = await GET(
+      createTraderIntelligenceTestRequest("http://localhost/api/execution-feedback/debug"),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -129,8 +144,9 @@ describe("/api/execution-feedback/debug", () => {
 
   it("returns a 400 contract error for invalid JSON", async () => {
     const response = await POST(
-      new Request("http://localhost/api/execution-feedback/debug", {
+      createTraderIntelligenceTestRequest("http://localhost/api/execution-feedback/debug", {
         method: "POST",
+        origin: "http://localhost",
         body: "{",
       }),
     );

@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -24,6 +24,7 @@ import type { ImportCommitPlannerAcknowledgements } from "../product/import-comm
 
 let tempDir = "";
 let originalDbPath: string | undefined;
+let originalDataMode: string | undefined;
 
 function planFor(
   csvText: string,
@@ -58,8 +59,10 @@ function planFor(
 
 beforeEach(() => {
   originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
-  tempDir = mkdtempSync(join(tmpdir(), "trader-intelligence-sqlite-"));
+  originalDataMode = process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  tempDir = mkdtempSync(join(homedir(), ".trader-intelligence-sqlite-"));
   process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  process.env.TRADER_INTELLIGENCE_DATA_MODE = "real_owner_data";
   resetTraderIntelligenceDatabaseForTests();
 });
 
@@ -69,6 +72,11 @@ afterEach(() => {
     delete process.env.TRADER_INTELLIGENCE_DB_PATH;
   } else {
     process.env.TRADER_INTELLIGENCE_DB_PATH = originalDbPath;
+  }
+  if (originalDataMode === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DATA_MODE = originalDataMode;
   }
   rmSync(tempDir, { recursive: true, force: true });
 });

@@ -16,6 +16,7 @@ export interface TraderIntelligenceRouteContainmentEntry {
   modulePath: string;
   routePath: string;
   methods: readonly string[];
+  realOwnerDataMethods: readonly string[];
   classification: TraderIntelligenceRouteClassification;
   authenticationRequirement: string;
   authorizationRequirement: string;
@@ -149,6 +150,7 @@ function pageEntry(
     modulePath,
     routePath: routePathFromModule(modulePath),
     methods: ["GET"],
+    realOwnerDataMethods: [],
     classification,
     authenticationRequirement: "v3 owner guard in the Intelligence layout",
     authorizationRequirement: "exact configured owner; local adapter only in explicit local_only mode",
@@ -192,6 +194,11 @@ function apiEntry(
     modulePath,
     routePath: routePathFromModule(modulePath),
     methods,
+    realOwnerDataMethods:
+      modulePath === "app/api/import-batches/preview/route.ts" ||
+      modulePath === "app/api/import-dry-run/decision-review/route.ts"
+        ? ["POST"]
+        : [],
     classification,
     authenticationRequirement: "v3 server-side owner guard",
     authorizationRequirement: "exact configured owner before handler and repository access",

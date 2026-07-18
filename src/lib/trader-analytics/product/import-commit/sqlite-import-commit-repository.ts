@@ -1,7 +1,6 @@
 import { mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
 import Database from "better-sqlite3";
+import { resolveTraderIntelligenceLocalPersistence } from "../../../trader-intelligence-v3/deployment";
 import { buildTraderAnalyticsReport } from "../../build-trader-analytics-report";
 import type { ExecutionFeedbackSummary } from "../../../execution-feedback/summary/build-execution-feedback-summary";
 import type {
@@ -121,32 +120,37 @@ export interface UnresolvedImportRepairInboxItem {
   href: string;
 }
 
-function databasePath(): string {
-  const configured = process.env.TRADER_INTELLIGENCE_DB_PATH;
-
-  if (configured) {
-    return isAbsolute(configured)
-      ? configured
-      : join(/* turbopackIgnore: true */ process.cwd(), configured);
-  }
-
-  if (process.env.VERCEL === "1" || process.env.NODE_ENV === "production") {
-    return join(tmpdir(), "trader-intelligence.sqlite");
-  }
-
-  return join(process.cwd(), "data", "trader-intelligence.sqlite");
-}
-
 let sharedDatabase: SqliteDatabase | null = null;
+let sharedDatabaseTarget: string | null = null;
 
 export function getTraderIntelligenceDatabase(): SqliteDatabase {
-  if (sharedDatabase) {
+  const dataMode = process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  if (dataMode !== "sample_data" && dataMode !== "real_owner_data") {
+    throw new Error("ti_v3_data_mode_invalid");
+  }
+  const persistence = resolveTraderIntelligenceLocalPersistence({
+    environment: process.env,
+    dataMode,
+  });
+  if (!persistence.ok) {
+    throw new Error(persistence.code);
+  }
+  if (
+    sharedDatabase &&
+    sharedDatabaseTarget === persistence.databaseTarget
+  ) {
     return sharedDatabase;
   }
-
-  const filePath = databasePath();
-  mkdirSync(dirname(filePath), { recursive: true });
-  sharedDatabase = new Database(filePath);
+  if (sharedDatabase) {
+    sharedDatabase.close();
+    sharedDatabase = null;
+    sharedDatabaseTarget = null;
+  }
+  if (persistence.kind === "file") {
+    mkdirSync(persistence.parentPath, { recursive: true });
+  }
+  sharedDatabase = new Database(persistence.databaseTarget);
+  sharedDatabaseTarget = persistence.databaseTarget;
   runTraderIntelligenceMigrations(sharedDatabase);
   return sharedDatabase;
 }
@@ -154,6 +158,7 @@ export function getTraderIntelligenceDatabase(): SqliteDatabase {
 export function resetTraderIntelligenceDatabaseForTests(): void {
   sharedDatabase?.close();
   sharedDatabase = null;
+  sharedDatabaseTarget = null;
 }
 
 export function runTraderIntelligenceMigrations(db: SqliteDatabase): void {

@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GET as getRawDeliveryPayload } from "../../../../app/api/admin/level-analysis/deliveries/[deliveryId]/raw/route";
@@ -14,22 +14,33 @@ import {
   LEVEL_ANALYSIS_DELIVERY_API_FEATURE_FLAG,
   LEVEL_ANALYSIS_DELIVERY_RAW_DEBUG_FEATURE_FLAG,
 } from "../level-analysis-journal-delivery-persistence-storage";
+import {
+  createTraderIntelligenceTestRequest,
+  installTraderIntelligenceLocalTestEnvironment,
+} from "../../../test/trader-intelligence-request";
 
 let tempDir = "";
 let originalDbPath: string | undefined;
 let originalApiFlag: string | undefined;
 let originalRawDebugFlag: string | undefined;
+let originalDataMode: string | undefined;
+let restoreEnvironment: () => void;
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function jsonRequest(path: string, body: unknown): Request {
-  return new Request(`http://localhost${path}`, {
+  return createTraderIntelligenceTestRequest(`http://localhost${path}`, {
     method: "POST",
+    origin: "http://localhost",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function localGet(url: string): Request {
+  return createTraderIntelligenceTestRequest(url);
 }
 
 function collectStringValues(value: unknown, out: string[] = []): string[] {
@@ -75,8 +86,12 @@ beforeEach(() => {
   originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
   originalApiFlag = process.env[LEVEL_ANALYSIS_DELIVERY_API_FEATURE_FLAG];
   originalRawDebugFlag = process.env[LEVEL_ANALYSIS_DELIVERY_RAW_DEBUG_FEATURE_FLAG];
-  tempDir = mkdtempSync(join(tmpdir(), "level-analysis-delivery-api-"));
-  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  originalDataMode = process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  tempDir = mkdtempSync(join(homedir(), ".level-analysis-delivery-api-"));
+  restoreEnvironment = installTraderIntelligenceLocalTestEnvironment({
+    TRADER_INTELLIGENCE_DB_PATH: join(tempDir, "test.sqlite"),
+    TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
+  });
   process.env[LEVEL_ANALYSIS_DELIVERY_API_FEATURE_FLAG] = "1";
   process.env[LEVEL_ANALYSIS_DELIVERY_RAW_DEBUG_FEATURE_FLAG] = "1";
   resetTraderIntelligenceDatabaseForTests();
@@ -99,6 +114,12 @@ afterEach(() => {
   } else {
     process.env[LEVEL_ANALYSIS_DELIVERY_RAW_DEBUG_FEATURE_FLAG] = originalRawDebugFlag;
   }
+  if (originalDataMode === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DATA_MODE = originalDataMode;
+  }
+  restoreEnvironment();
   rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -174,7 +195,7 @@ describe("level-analysis journal delivery API routes", () => {
 
     const latestBody = await (
       await getLatestDelivery(
-        new Request("http://localhost/api/level-analysis/deliveries/latest?provider=ibkr"),
+        localGet("http://localhost/api/level-analysis/deliveries/latest?provider=ibkr"),
       )
     ).json();
     expect(latestBody).toMatchObject({
@@ -186,7 +207,7 @@ describe("level-analysis journal delivery API routes", () => {
 
     const symbolBody = await (
       await getLatestSymbolSummary(
-        new Request(
+        localGet(
           "http://localhost/api/level-analysis/deliveries/latest/symbols/qubt?provider=ibkr",
         ),
         { params: Promise.resolve({ symbol: "qubt" }) },
@@ -210,7 +231,7 @@ describe("level-analysis journal delivery API routes", () => {
 
     const rawBody = await (
       await getRawDeliveryPayload(
-        new Request(
+        localGet(
           `http://localhost/api/admin/level-analysis/deliveries/${ingestBody.deliveryId}/raw`,
         ),
         { params: Promise.resolve({ deliveryId: ingestBody.deliveryId }) },
@@ -252,7 +273,7 @@ describe("level-analysis journal delivery API routes", () => {
 
     const rawBody = await (
       await getRawDeliveryPayload(
-        new Request(
+        localGet(
           `http://localhost/api/admin/level-analysis/deliveries/${body.deliveryId}/raw`,
         ),
         { params: Promise.resolve({ deliveryId: body.deliveryId }) },

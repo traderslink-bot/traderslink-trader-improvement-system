@@ -1,6 +1,9 @@
 import type { TraderIntelligenceOwnerContext } from "../domain";
 import {
+  validateTraderIntelligenceLocalRequest,
   validateTraderIntelligenceDeployment,
+  type TraderIntelligenceLocalRequestEvidence,
+  type TraderIntelligenceLocalRequestReasonCode,
   type TraderIntelligenceDeploymentConfig,
   type TraderIntelligenceDeploymentReasonCode,
   type TraderIntelligenceEnvironment,
@@ -17,6 +20,7 @@ export interface TraderIntelligenceOwnerSessionResolver {
 
 export type TraderIntelligenceAuthorizationReasonCode =
   | TraderIntelligenceDeploymentReasonCode
+  | TraderIntelligenceLocalRequestReasonCode
   | "ti_v3_route_unclassified"
   | "ti_v3_route_disabled_for_hosting_mode"
   | "ti_v3_owner_session_resolver_missing"
@@ -36,6 +40,7 @@ export async function authorizeTraderIntelligenceOwner(args: {
   environment: TraderIntelligenceEnvironment;
   modulePath?: string;
   sessionResolver?: TraderIntelligenceOwnerSessionResolver;
+  localRequest?: TraderIntelligenceLocalRequestEvidence;
 }): Promise<TraderIntelligenceOwnerAuthorization> {
   const deployment = validateTraderIntelligenceDeployment(args.environment);
   if (!deployment.ok) {
@@ -61,6 +66,12 @@ export async function authorizeTraderIntelligenceOwner(args: {
   }
 
   if (deployment.config.hostingMode === "local_only") {
+    const localRequest = validateTraderIntelligenceLocalRequest(
+      args.localRequest,
+    );
+    if (!localRequest.ok) {
+      return localRequest;
+    }
     return {
       ok: true,
       config: deployment.config,

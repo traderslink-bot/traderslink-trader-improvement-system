@@ -107,6 +107,44 @@ Important project rule:
 
 ## Current Resume Point
 
+### 2026-07-17 Trader Intelligence v3 GA0-A1 Independent-Audit Remediation
+
+The active branch is
+`agent/trader-intelligence-v3-ga0-a1-containment`, the head branch for draft
+PR #102. Independent-audit remediation is in progress and remains limited to
+GA0-A1 containment. Do not begin GA0-A2 and do not deploy or merge this branch.
+
+The owner decision is binding: Trader Intelligence v3 is a local-only
+application on the owner's computer. The only operational runtime combination
+is `private_owner_alpha` + `local_only` + `local_sqlite`. Requests must pass an
+exact loopback boundary, unsafe mutations must match an explicitly configured
+loopback origin, and optimized local operation must use an explicit durable
+real-owner database path outside the repository and OS temporary directory.
+Sample mode remains isolated from real-owner persistence. Hosted profiles and
+`private_database` are declared future contracts but fail closed today.
+
+The remediation implements AST-backed route and architecture checks,
+deny-by-default classification of Trader Intelligence APIs, exact synthetic
+fixture hashes, final-tree plus PR-history private-data scanning, private
+no-store responses, and explicit request-origin evidence in tests. The current
+implementation and detailed resume point are recorded in:
+
+- `plan.md`
+- `src/docs/trader-intelligence-v3-project-log.md`
+- `src/docs/trader-intelligence-v3-ga0-a1-independent-audit-handoff-2026-07-17.md`
+
+The clean-install verification matrix passed: TypeScript; changed-path lint;
+7 focused files / 133 tests; 10 legacy route/UI files / 101 tests; the complete
+164-file / 1,523-test suite; both architecture/private-data guards; Layer 2;
+Layer 3; the 127-route optimized build; a separate-process durable-SQLite test;
+and the optimized Playwright scenario with private/no-store plus merged `Vary`
+assertions. No live model, market-data, Vercel, or deployment call was made.
+
+Next resume action: review and stage the complete `origin/main...HEAD` GA0-A1
+diff, rerun the staged private-data guard, commit and push the same branch, add
+the audit-finding map to draft PR #102, and stop for independent re-audit. Keep
+the PR draft and unmerged; GA0-A2 remains prohibited.
+
 ### 2026-07-12 Trader Intelligence EODHD Candle/Basis Safety Production Port
 
 Ported the Trader Intelligence EODHD historical candle fix into the canonical

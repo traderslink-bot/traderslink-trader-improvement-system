@@ -4,7 +4,7 @@
 **Status:** Active controlling specification  
 **Architecture:** Trader Intelligence v3  
 **Operating profile:** `private_owner_alpha`  
-**Hosting mode:** must be declared as `local_only` or `private_hosted`  
+**Only operational hosting mode:** `local_only`
 **Primary domain:** U.S. listed small-cap and micro-cap active trading  
 **Product boundary:** retrospective educational trade review and self-improvement
 
@@ -40,7 +40,7 @@ A project-log entry may record progress or an accepted strengthening decision. I
 - The current user and tester is the product owner.
 - The system is not currently a public multi-user product.
 - The current deployment profile is `private_owner_alpha`.
-- Hosting must declare `local_only` or `private_hosted`.
+- Hosting must declare `local_only`. `private_hosted` remains a future declared mode and is not operational.
 - The product primarily serves small-cap and micro-cap active traders.
 - It analyzes completed broker executions and historical context.
 - It is designed for education, review, and self-improvement.
@@ -135,7 +135,7 @@ export type TraderIntelligenceDeploymentProfile =
   | "public_production";
 ```
 
-## Hosting modes for `private_owner_alpha`
+## Hosting mode declarations for `private_owner_alpha`
 
 ```ts
 export type TraderIntelligenceHostingMode =
@@ -148,7 +148,7 @@ export type TraderIntelligenceHostingMode =
 May use:
 
 - explicit owner identity adapter;
-- durable local SQLite or isolated private database;
+- durable local SQLite for real-owner data or isolated in-memory sample persistence;
 - direct private file selection;
 - local job adapter for bounded workloads;
 - private real-data calibration outside Git.
@@ -164,7 +164,24 @@ Still requires:
 - fail-closed profile checks;
 - no accidental network exposure.
 
+Operational requirements for the current phase:
+
+- supported development and optimized local server scripts bind to `127.0.0.1`;
+- the raw listener rejects non-loopback socket peers and client-supplied forwarding/proxy/tunnel evidence before Next.js receives the request;
+- because Next.js 16 synthesizes loopback forwarding headers internally, the App Router/API boundary accepts that exact internal tuple only with an unforgeable per-process listener assertion that the raw listener strips and replaces;
+- every page and API owner decision receives a verified exact loopback request boundary first;
+- accepted hosts are only `localhost`, `127.0.0.1`, and `[::1]`, with valid explicit ports;
+- malformed, LAN, public, arbitrary DNS, localhost-suffix, credentialed, forwarded, proxied, and tunneled requests fail closed;
+- unsafe methods require an explicitly configured normalized loopback Origin whose scheme, host, and port match exactly;
+- the request URL or Host is never an implicit approved mutation Origin;
+- only `local_sqlite` is operational;
+- `sample_data` uses isolated in-memory/sample persistence and cannot select the real-owner database;
+- `real_owner_data` requires an explicit durable path outside the Git repository and operating-system temporary directory;
+- ambiguous relative paths are rejected unless resolved under an explicit absolute private-data root.
+
 ### `private_hosted`
+
+`private_hosted` is declared for future architecture but is explicitly non-operational in GA0-A1. No accepted runtime profile may reach the provisional Discord session adapter. The following requirements remain future prerequisites and do not authorize hosted use in this branch.
 
 Requires:
 
@@ -1415,7 +1432,9 @@ Repeated slicing cannot be hidden.
 - Restore is tested in isolation.
 - Restore verifies integrity, schema, execution digest, dataset manifest, and reference calculations.
 - Private data can be deleted.
-- Repository guards scan for private paths and likely account data.
+- Repository guards scan tracked, staged, and non-ignored untracked final-tree content plus every added or modified blob in the PR history, including blobs later deleted or renamed.
+- Synthetic financial fixtures require exact file-specific content hashes; a fixture-directory prefix is not proof of synthetic content.
+- A real private blob already pushed requires history removal and appropriate credential/account incident response; a later deletion commit is insufficient.
 
 Degraded behavior:
 
@@ -1641,15 +1660,7 @@ Compare deterministic-only, deterministic-plus-visual, legacy v2, v3 AI, and abs
 
 # 34. Current Next Action
 
-After the documentation architecture PR is accepted:
-
-1. create `agent/trader-intelligence-v3-ga0-a1-containment` from current `main`;
-2. implement GA0-A1 only;
-3. run architecture, owner-containment, private-data, typecheck, test, and build verification;
-4. open a focused draft PR;
-5. review GA0-A1 before GA0-A2;
-6. keep runtime work internal and model-free;
-7. do not implement analytics, chart rendering, AI, support/resistance, or deployment.
+Complete the independent-audit remediation on the existing GA0-A1 branch, run the full verification set, keep PR #102 draft and unmerged, and return the exact revised head for independent re-audit. Keep runtime work loopback-only, internal, model-free, and undeployed. Do not begin GA0-A2.
 
 ---
 

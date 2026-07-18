@@ -3,10 +3,10 @@
 **Last updated:** 2026-07-17 America/Toronto  
 **Active architecture:** Trader Intelligence v3  
 **Operating profile:** `private_owner_alpha`  
-**Required hosting mode:** `local_only` or `private_hosted`  
+**Only operational hosting mode:** `local_only`
 **Primary domain:** U.S. listed small-cap and micro-cap active trading  
 **Product boundary:** retrospective educational trade review and self-improvement  
-**Current gate:** GA0-A1 — implementation complete, review pending
+**Current gate:** GA0-A1 — independent-audit remediation in progress
 **Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-a-control-and-exact-truth-implementation-plan-2026-07-17.md`
 
 Start here when resuming Trader Intelligence product, import, analytics, query, visualization, coaching, market context, external sources, persistence, AI, or QA work.
@@ -85,8 +85,13 @@ AI must not become the parser, calculator, database, unrestricted SQL author, ru
 - The current user/tester is the owner.
 - The system is not public or multi-user.
 - Current profile: `private_owner_alpha`.
-- Hosting must declare `local_only` or `private_hosted`.
-- Private-hosted mode requires owner authentication on every Intelligence page/API.
+- Hosting must declare `local_only`; `private_hosted` remains declared for future work but is not operational.
+- The supported development and optimized local servers bind explicitly to `127.0.0.1`.
+- Owner authority requires an exact loopback Host with no forwarding, proxy, or tunnel evidence.
+- Unsafe methods require an explicitly configured, normalized, exact loopback Origin.
+- Only `local_sqlite` is operational. `private_database` is declared but not operational.
+- `sample_data` uses isolated in-memory persistence and cannot select an owner database.
+- `real_owner_data` requires an explicit durable database path outside the repository and operating-system temporary directory.
 - The product primarily studies completed small/micro-cap trades.
 - It is educational and retrospective.
 - It does not provide current buy/sell/hold instructions, live targets, automated orders, guaranteed improvement, tax advice, or portfolio allocation.
@@ -124,6 +129,28 @@ GA0-A1 must not include:
 - unrestricted SQL;
 - vector storage;
 - production deployment.
+
+Independent audit remediation is active on draft PR #102. The audit fixes must remain marked in progress until every required command passes and the revised head receives independent re-review. GA0-A2 must not begin from this unaccepted branch.
+
+Feature provenance was reconciled against the separate dirty
+`trader-intelligence-v2` worktree. The deterministic import, saved-trade,
+analytics, coach, tier/chart-evidence, candle, basis-safety, and level-review
+work was deliberately ported into `main` through PR #59 and later follow-ups.
+Manual entry, AI period reflections, and the real-coach/Whop prototype remain
+uncommitted external legacy sources. They must be preserved and evaluated in a
+separate later gate; they must not be merged wholesale into GA0-A1. The V2
+stash also contains a private SQLite artifact and must never be applied or
+committed as a feature-port mechanism.
+
+Post-audit feature preservation sequence, without widening GA0-A1:
+
+1. create a clean file-and-test inventory for each prototype without applying the mixed V2 stash;
+2. adapt manual entry to the accepted canonical execution and owner-persistence contracts after GA0-A2, then test it through the current `/intelligence` app;
+3. adapt period reflections behind the accepted evidence/AI gate, first with synthetic model output for logged-in/local UI and persistence testing, then authorize live model use only in its later gate;
+4. adapt Real Coach screens and entitlement behavior with a synthetic local-owner entitlement for app testing, while deferring real Whop, payment, and hosted identity calls to the hosted-support foundation;
+5. keep the committed Academy Discord login separate from future Trader Intelligence identity until an explicit product/auth decision connects or replaces it.
+
+These are preservation and sequencing commitments, not implementation authority on PR #102.
 
 Recommended implementation branch:
 
@@ -377,11 +404,11 @@ Maintain an exploration ledger so repeated slicing cannot be hidden.
 
 # 12. Current Next Action
 
-1. review the focused GA0-A1 draft PR and its containment decisions;
-2. merge or explicitly accept GA0-A1 before starting GA0-A2;
-3. keep runtime work internal and model-free;
-4. do not implement analytics, chart rendering, AI, support/resistance, or deployment;
-5. if GA0-A1 is accepted, create the GA0-A2 exact-truth branch from the accepted baseline rather than extending this branch with later-phase work.
+1. complete every independent-audit remediation on the existing GA0-A1 branch;
+2. run the full required verification, including optimized local E2E verification and final-tree plus PR-history private-data scans;
+3. push the same branch, keep PR #102 draft, and request independent re-audit;
+4. do not merge or begin GA0-A2 until the owner accepts the re-audited result;
+5. keep runtime work internal, loopback-only, model-free, and undeployed.
 
 ---
 

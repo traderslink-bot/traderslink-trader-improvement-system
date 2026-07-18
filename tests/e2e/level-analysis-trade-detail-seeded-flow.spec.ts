@@ -151,7 +151,15 @@ test.describe("level-analysis trade detail seeded flow", () => {
     const savedTrade = await saveSeedTrade(page);
     await seedAcceptedLevelFactsLink(page, savedTrade.id);
 
-    await page.goto(`/intelligence/trades/${encodeURIComponent(savedTrade.id)}`);
+    const pageResponse = await page.goto(
+      `/intelligence/trades/${encodeURIComponent(savedTrade.id)}`,
+    );
+    expect(pageResponse?.headers()["cache-control"]).toContain("no-store");
+    const varyTokens = (pageResponse?.headers().vary ?? "")
+      .split(",")
+      .map((token) => token.trim().toLowerCase());
+    expect(varyTokens).toContain("cookie");
+    expect(varyTokens).toContain("rsc");
     await expect(page.getByTestId("trade-review-page")).toBeVisible();
     await expect(
       page.getByTestId("trade-detail-level-facts-availability"),

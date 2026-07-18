@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx src/scripts/run-trader-intelligence-local-server.ts --dev --hostname 127.0.0.1",
     "build": "npm run validate:academy-registry && next build",
     "build:webpack": "npm run validate:academy-registry && next build --webpack",
     "deploy:prod": "node scripts/guard-production-deploy.cjs",
     "deploy:prod:check": "node scripts/guard-production-deploy.cjs --preflight-only",
-    "start": "next start",
+    "start": "tsx src/scripts/run-trader-intelligence-local-server.ts --hostname 127.0.0.1",
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
@@ -38,6 +38,8 @@
     "verify:layer3": "tsx src/scripts/verify-layer3-pattern-normalization.ts",
     "verify:ti-v3:architecture": "tsx src/scripts/verify-trader-intelligence-v3-architecture.ts",
     "verify:ti-v3:private-data": "tsx src/scripts/verify-trader-intelligence-v3-private-data.ts",
+    "verify:ti-v3:private-data:local": "tsx src/scripts/verify-trader-intelligence-v3-private-data.ts --local-only",
+    "verify:ti-v3:private-data:history": "tsx src/scripts/verify-trader-intelligence-v3-private-data.ts --history-only",
     "verify:ti-v3:ga0-a1": "npm run verify:ti-v3:architecture && npm run verify:ti-v3:private-data",
     "verify:all": "npm test && npm run verify:levels-system && npm run verify:layer2 && npm run verify:layer3",
     "check": "tsc --noEmit && npm run build"

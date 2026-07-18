@@ -4,8 +4,29 @@ export const TRADER_INTELLIGENCE_PRIVATE_CACHE_HEADERS = {
   "Vercel-CDN-Cache-Control": "no-store",
   Pragma: "no-cache",
   Expires: "0",
-  Vary: "Cookie",
 } as const;
+
+export function mergeTraderIntelligenceVaryCookie(
+  value: string | null,
+): string {
+  const tokens = (value ?? "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const deduplicated = tokens.filter((token) => {
+    const normalized = token.toLowerCase();
+    if (seen.has(normalized)) {
+      return false;
+    }
+    seen.add(normalized);
+    return true;
+  });
+  if (!seen.has("cookie")) {
+    deduplicated.push("Cookie");
+  }
+  return deduplicated.join(", ");
+}
 
 export function applyTraderIntelligencePrivateCachePolicy(
   response: Response,
@@ -15,6 +36,10 @@ export function applyTraderIntelligencePrivateCachePolicy(
   )) {
     response.headers.set(name, value);
   }
+  response.headers.set(
+    "Vary",
+    mergeTraderIntelligenceVaryCookie(response.headers.get("Vary")),
+  );
   return response;
 }
 

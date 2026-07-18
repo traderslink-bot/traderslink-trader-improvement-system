@@ -44,6 +44,81 @@ This log may record progress and accepted strengthening decisions. It may not si
 
 # Current Resume Point
 
+## 2026-07-17 — GA0-A1 Independent-Audit Remediation In Progress
+
+### Binding owner decision
+
+- Trader Intelligence is a local-only application on the owner's computer.
+- It must not be reachable through a LAN address, public address, arbitrary DNS name, tunnel, proxy, forwarded host, container-published interface, Vercel, or another host.
+- `local_only` is the only operational hosting mode; `private_hosted` is declared but returns a stable not-operational reason.
+- `local_sqlite` is the only operational storage mode; `private_database` is declared but returns a stable not-operational reason.
+- PR #102 remains draft and unmerged. GA0-A2 has not started.
+
+### V2 feature-provenance reconciliation
+
+- Current `origin/main` is the correct GA0-A1 foundation for the committed
+  product engine. PR #59 and later follow-ups deliberately ported the V2
+  import, saved-trade, analytics, deterministic coach, tier/chart-evidence,
+  candle, basis-safety, and level-review behavior while preserving the newer
+  `/intelligence` namespace and journal-level-analysis contracts.
+- The separate `trader-intelligence-v2` branch is 297 commits behind current
+  `origin/main` and has 26 unique committed candle/review commits whose intended
+  behavior has equivalent or later ports on `main`. It is not a safe merge
+  base.
+- Manual stock entry, paid-tier AI daily/weekly/monthly reflections, and the
+  real-coach/Whop marketplace exist only as uncommitted prototype code in the
+  dirty V2 worktree. Five focused prototype test files currently pass 32 tests,
+  but the code is not part of PR #102 and is not promoted to v3 authority.
+- Academy Discord login is committed on `main`; its three focused suites pass
+  11 tests. It remains Academy-owned compatibility code, not accepted future
+  Trader Intelligence hosted identity.
+- The V2 stash contains a private SQLite artifact. Do not apply, merge, or
+  commit that stash. Any later feature preservation must select explicit source
+  and test files into a clean, private-data-scanned change after this audit.
+
+### Remediation implemented on the working tree
+
+- A central request boundary accepts only `localhost`, `127.0.0.1`, and `[::1]`, with valid explicit ports, and rejects malformed, non-loopback, forwarded, proxy, and tunnel evidence before local owner authority.
+- App Router pages read the actual request headers through async `headers()`; API routes validate both `Request.url` and request headers.
+- `npm run dev` and `npm run start` bind explicitly to `127.0.0.1`.
+- Mutation Origin validation uses only an explicitly configured normalized loopback allowlist. Missing configuration, missing/null/malformed/credentialed/non-loopback origins, alternate ports, schemes, and attacker-controlled request hosts fail closed.
+- Sample mode uses isolated in-memory SQLite and rejects an owner database path. Real-owner mode requires an explicit durable path outside the repository and OS temp directory; relative paths require an explicit absolute private-data root.
+- Real CSV upload entry points require explicit `real_owner_data` mode.
+- Route discovery scans every `app/api/**/route.ts`, relevant imports, and static API references from `app/intelligence`; TypeScript AST checks enforce exact matrix methods, wrapper use, and wrapper module paths. The audited 82 routes remain classified.
+- Architecture enforcement now parses static imports, export-from, `require`, and literal dynamic imports. The provisional Academy exception is limited to the exact adapter, module, and two required session symbols.
+- The private-data guard uses exact file/hash fixture approval, continues broker-row inspection, scans bounded binary/oversized inputs safely, and scans every added/modified blob in `origin/main...HEAD`, including blobs later deleted or renamed.
+- Private response handling preserves existing `Vary` tokens, adds `Cookie` case-insensitively, and returns generic private/no-store failures with safe diagnostics.
+- The global `Request` replacement was removed. A test helper now requires unsafe requests to state Origin behavior explicitly.
+- Mutation console events are named as non-durable local diagnostics and do not satisfy future hosted audit-log requirements.
+
+### Verification completed
+
+- `npm ci`: passed; 603 packages installed. npm reported 5 existing audit vulnerabilities (2 low, 1 moderate, 2 high).
+- `npx tsc --noEmit --pretty false`: passed.
+- changed-path ESLint: passed with 0 errors and 2 pre-existing unused-variable warnings in `app/intelligence/coach/page.tsx`.
+- focused GA0-A1 suite: 7 files, 133 tests passed.
+- affected legacy route/UI compatibility suite: 10 files, 101 tests passed.
+- full Vitest suite: 164 files, 1,523 tests passed.
+- AST architecture verification: passed across 75 architecture files, 42 API routes, and all 82 classified routes.
+- staged private-data verification: passed across 23,684 records: 23,590 worktree/index records and 94 added/modified pre-remediation PR-history blobs.
+- Layer 2 verification: passed with the canonical 13-pattern result.
+- Layer 3 verification: passed with canonical regression `PASS`.
+- optimized build: passed; 127 routes were generated and all Intelligence routes remained dynamic. The build retained 19 known Academy registry notices and 5 existing broad filesystem-tracing warnings.
+- process-restart persistence: passed by writing and reading the same explicit external owner database from two separate `NODE_ENV=production` Node processes.
+- optimized local browser flow: 1 Playwright scenario passed against the external owner database and verified private/no-store plus merged `Vary` response headers.
+- normal verification made no live model, external market-data, Vercel, or deployment calls.
+
+Implementation and local verification are complete. Status remains **independent-audit remediation in progress** until the new draft-PR head passes independent re-review.
+
+### Exact next resume point
+
+1. inspect the complete `origin/main...HEAD` diff and stage only GA0-A1 remediation;
+2. rerun the private-data guard against the staged tree, commit, and push the same branch;
+3. update draft PR #102 with the finding-to-fix/file/test/command map;
+4. keep the PR draft and unmerged, do not begin GA0-A2, and stop for independent re-audit.
+
+---
+
 ## 2026-07-17 — GA0-A1 Implementation Complete; Focused Review Pending
 
 ### Status

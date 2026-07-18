@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { findTraderIntelligenceRouteContainment } from "../contracts";
@@ -42,6 +42,11 @@ function isConfigurationReason(
     code.includes("storage_mode") ||
     code.includes("data_mode") ||
     code.includes("local_bypass") ||
+    code.includes("local_request") ||
+    code.includes("approved_origin") ||
+    code.includes("db_path") ||
+    code.includes("private_data_root") ||
+    code.includes("sample_data_db_path") ||
     code === "ti_v3_route_unclassified"
   );
 }
@@ -73,13 +78,18 @@ function authorizationFailureResponse(
 export async function requireTraderIntelligenceOwnerPageAccess(
   modulePath?: string,
 ): Promise<TraderIntelligenceOwnerContext> {
-  const token = (await cookies()).get(
+  const [cookieStore, requestHeaders] = await Promise.all([
+    cookies(),
+    headers(),
+  ]);
+  const token = cookieStore.get(
     TRADER_INTELLIGENCE_PROVISIONAL_DISCORD_COOKIE,
   )?.value;
   const authorization = await authorizeTraderIntelligenceOwner({
     environment: process.env,
     modulePath,
     sessionResolver: provisionalDiscordSessionResolver(token),
+    localRequest: { headers: requestHeaders },
   });
   if (!authorization.ok) {
     console.error("Trader Intelligence page access denied.", {
@@ -100,11 +110,9 @@ export function withTraderIntelligenceOwnerRoute<
     request: TRequest,
     ...args: TArgs
   ) => Response | Promise<Response>,
-): (request?: TRequest, ...args: TArgs) => Promise<Response> {
-  const handlerMethod = handler.name.replace(/Handler$/, "").toUpperCase();
-
+): (request: TRequest, ...args: TArgs) => Promise<Response> {
   return async (request, ...args) => {
-    if (!request && process.env.NODE_ENV !== "test") {
+    if (!request) {
       return traderIntelligencePrivateJson(
         {
           contractVersion: "trader_intelligence_v3_boundary_error_v1",
@@ -116,19 +124,14 @@ export function withTraderIntelligenceOwnerRoute<
         { status: 400 },
       );
     }
-    const effectiveRequest =
-      request ??
-      (new Request("http://localhost", {
-        method: handlerMethod,
-        headers: { Origin: "http://localhost" },
-      }) as TRequest);
     const containment = findTraderIntelligenceRouteContainment(modulePath);
     const authorization = await authorizeTraderIntelligenceOwner({
       environment: process.env,
       modulePath,
       sessionResolver: provisionalDiscordSessionResolver(
-        tokenFromCookieHeader(effectiveRequest.headers.get("cookie")),
+        tokenFromCookieHeader(request.headers.get("cookie")),
       ),
+      localRequest: { headers: request.headers, requestUrl: request.url },
     });
     if (!authorization.ok) {
       return authorizationFailureResponse(authorization.code);
@@ -138,7 +141,7 @@ export function withTraderIntelligenceOwnerRoute<
     }
 
     const originValidation = validateTraderIntelligenceMutationOrigin({
-      request: effectiveRequest,
+      request,
       config: authorization.config,
       routeMethods: containment.methods,
     });
@@ -159,15 +162,50 @@ export function withTraderIntelligenceOwnerRoute<
       );
     }
 
-    if (!new Set(["GET", "HEAD", "OPTIONS"]).has(effectiveRequest.method)) {
-      console.info("Trader Intelligence owner mutation authorized.", {
-        eventCode: "ti_v3_owner_mutation_authorized",
-        method: effectiveRequest.method,
+    if (
+      containment.realOwnerDataMethods.includes(request.method.toUpperCase()) &&
+      authorization.config.dataMode !== "real_owner_data"
+    ) {
+      return traderIntelligencePrivateJson(
+        {
+          contractVersion: "trader_intelligence_v3_boundary_error_v1",
+          error: {
+            code: "ti_v3_real_owner_data_mode_required",
+            message: "Request rejected.",
+          },
+        },
+        { status: 403 },
+      );
+    }
+
+    if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method)) {
+      console.info("Trader Intelligence non-durable local mutation diagnostic.", {
+        eventCode: "ti_v3_local_mutation_diagnostic",
+        method: request.method,
         routePath: containment.routePath,
       });
     }
-    return applyTraderIntelligencePrivateCachePolicy(
-      await handler(effectiveRequest, ...args),
-    );
+    try {
+      return applyTraderIntelligencePrivateCachePolicy(
+        await handler(request, ...args),
+      );
+    } catch (error) {
+      console.error("Trader Intelligence handler failed.", {
+        eventCode: "ti_v3_handler_failure",
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        method: request.method,
+        modulePath,
+      });
+      return traderIntelligencePrivateJson(
+        {
+          contractVersion: "trader_intelligence_v3_boundary_error_v1",
+          error: {
+            code: "ti_v3_handler_failure",
+            message: "Request failed.",
+          },
+        },
+        { status: 500 },
+      );
+    }
   };
 }

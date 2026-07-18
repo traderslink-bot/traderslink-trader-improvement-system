@@ -2,6 +2,30 @@
 
 Date: 2026-07-17
 
+## Remediation re-audit update
+
+The independent audit of head `28d992a0c280e4282fad3692a60a8d767a989393` returned required fixes. Those fixes and the complete local verification set are implemented on the same branch and draft PR. The exact pushed head is recorded in the PR update because a Git commit cannot contain its own SHA. Status remains **audit remediation in progress** until independent re-review accepts the new head.
+
+Binding decisions reflected by the remediation:
+
+- only `private_owner_alpha + local_only + local_sqlite` is operational;
+- `private_hosted`, `private_database`, invited, beta, and production profiles are declared but not operational;
+- local owner authorization requires a verified exact loopback request first;
+- mutations require an explicit normalized loopback Origin allowlist;
+- real-owner SQLite requires an explicit durable path outside Git and OS temp, while sample mode is isolated in memory;
+- route and architecture enforcement use TypeScript AST inspection;
+- private-data enforcement covers exact fixture hashes, final-tree state, and all added/modified PR-history blobs;
+- the global test Request replacement is removed;
+- mutation logging is only a non-durable local diagnostic;
+- the committed V2 product engine was reconciled against `main`; uncommitted
+  manual-entry, AI-reflection, and real-coach/Whop prototypes are documented as
+  external legacy sources and are not merged into A1;
+- the mixed V2 stash is prohibited as a port source because it includes a
+  private SQLite artifact;
+- no deployment, merge, or GA0-A2 work is authorized.
+
+The final revised head, file list, remaining deferred risks, and audit-finding map are reported on PR #102. Exact local command results are recorded below. The auditor should treat all implementation claims as navigation evidence, not as proof of the remediation.
+
 ## Why this file exists
 
 This file gives an independent AI auditor a precise map of the GA0-A1 work, the claims made by the implementation engineer, the evidence already collected, and the areas most likely to hide a defect.
@@ -89,21 +113,21 @@ The branch is intended to contain the existing single-user prototype behind a fa
 
 The key claims to audit are:
 
-1. only `private_owner_alpha` is operational;
-2. the mode must explicitly be `local_only` or `private_hosted`;
-3. real hosted-environment signals cannot claim `local_only`;
-4. an optimized local `next start` can still run in `local_only` when no hosted signal exists;
-5. private-hosted mode requires an exact configured Discord subject and internal owner ID;
-6. private-hosted mode rejects local bypass and local SQLite configuration;
-7. owner authorization occurs before reachable legacy repository access;
-8. all relevant Intelligence pages and APIs are classified exactly once;
-9. diagnostic and legacy level-provider routes are unavailable in private-hosted mode;
-10. unsafe HTTP methods require an approved Origin before handler execution;
-11. private pages and API responses are dynamic and private/no-store;
-12. unauthorized responses do not reveal requested private resource identifiers;
-13. no GA0-A2/later authority was added;
-14. no Academy files were changed;
-15. no Vercel deployment was performed.
+1. only `private_owner_alpha + local_only + local_sqlite` is operational;
+2. hosted, invited, beta, public, and private-database configurations fail with stable not-operational reasons;
+3. the raw local listener binds only to `127.0.0.1` and rejects non-loopback peers and client-supplied forwarded/proxy/tunnel evidence;
+4. App Router pages and APIs verify exact loopback Host/URL evidence before local owner authority;
+5. owner authorization occurs before reachable legacy repository or handler execution;
+6. every unsafe method requires an exact Origin from an explicitly configured normalized loopback allowlist;
+7. real-owner mode requires an explicit durable SQLite path outside the repository and OS temporary directory;
+8. sample mode cannot select or read the owner's real database;
+9. all relevant current and future Intelligence APIs are discovered and classified exactly once;
+10. route and architecture checks cannot be bypassed by simple import, re-export, require, dynamic-import, or const-handler syntax changes;
+11. final-tree and PR-history private-data checks cannot be bypassed through fixture placement or later deletion/rename;
+12. all success and error responses remain private/no-store without leaking private identifiers;
+13. tests declare unsafe-request Origin evidence explicitly;
+14. no GA0-A2/later authority, hosted support, deployment, or live provider call was added;
+15. PR #102 remains draft and unmerged.
 
 ## Work performed
 
@@ -136,17 +160,16 @@ Implemented primarily in:
 - `src/lib/trader-intelligence-v3/auth/provisional-discord-session-adapter.ts`
 - `src/lib/trader-intelligence-v3/domain/owner-identity.ts`
 
-`local_only` maps explicit configuration to one internal owner without a login session. `private_hosted` resolves a Discord subject, compares it exactly with configuration, and maps it to the internal Intelligence owner.
+`local_only` maps explicit configuration to one internal owner without a login session, but only after the central loopback boundary succeeds. `private_hosted` is declared and non-operational. The provisional Discord adapter remains isolated future compatibility code; no accepted runtime profile can reach it.
 
 The only permitted v3 import from an Academy path is the named provisional Discord-session adapter. The architecture guard rejects other v3/Academy coupling.
 
 Audit questions:
 
-- Can any request bypass this adapter or supply its own owner identity?
-- Does any role, progress, entitlement, or other Academy state influence authorization?
-- Are token/session failures generic and fail closed?
-- Is the existing session-store lookup safe enough as a temporary compatibility boundary?
-- Can the adapter be replaced by an Intelligence-owned Discord/normal-login implementation without changing domain contracts?
+- Can any request reach local owner mapping before raw-listener and App Router/API loopback checks succeed?
+- Can any accepted runtime profile reach the provisional Discord adapter?
+- Does the exact Academy exception expose any role, progress, lesson, entitlement, or product behavior symbol?
+- Can the adapter later be replaced by Intelligence-owned identity without changing domain contracts?
 
 ### Route containment
 
@@ -166,12 +189,11 @@ All 31 relevant API modules use `withTraderIntelligenceOwnerRoute` before their 
 
 Audit questions:
 
-- Does the filesystem completeness test really include every private Intelligence page/API consumer?
-- Are any private endpoints outside the selected API prefixes used by Intelligence?
+- Does AST discovery scan every `app/api/**/route.ts` and every static API path used from `app/intelligence`, without relying on a route-prefix allowlist?
+- Does it identify v3 and relevant legacy journal/data/service imports regardless of API prefix?
 - Can module initialization or metadata access reach private storage before authorization?
-- Does every mutation's declared method match the exported handler?
-- Does the handler-name method inference introduce a fragile or bypassable assumption?
-- Does the test-only optional Request compatibility path remain impossible in production?
+- Does every exported HTTP method exist in the matrix, use the wrapper, and pass the exact real module path?
+- Are unused wrapper imports and unwrapped function/const exports rejected?
 
 ### Mutation and cache protection
 
@@ -181,14 +203,14 @@ Implemented in:
 - `src/lib/trader-intelligence-v3/auth/private-response.ts`
 - `next.config.ts`
 
-Unsafe methods require a normalized Origin matching the request origin or an explicitly configured approved origin. The seeded local optimized-server test declares `http://127.0.0.1:3101` because Next's internal canonical request origin can differ from the browser address.
+Unsafe methods require a normalized Origin matching an explicitly configured approved loopback origin. `Request.url` and Host never become implicit approved origins. Missing, `null`, malformed, credentialed, non-loopback, alternate-scheme, and unapproved-port origins fail closed before handler work.
 
 API responses receive browser/CDN/Vercel no-store headers. `/intelligence/:path*` pages receive private/no-store headers and forced dynamic rendering.
 
 Audit questions:
 
-- Is request URL origin safe behind the intended proxy/host stack?
-- Should private-hosted mode require an explicit origin allowlist rather than permitting request-origin fallback?
+- Can an attacker-controlled request URL or Host make an Origin valid?
+- Does every configured approved origin validate as loopback before any request is accepted?
 - Are malformed origins, credentials in URLs, `null`, missing headers, and alternate ports rejected correctly?
 - Does setting `Vary: Cookie` preserve rather than damage any framework-required `Vary` values?
 - Do all success and error responses retain private/no-store behavior?
@@ -196,11 +218,11 @@ Audit questions:
 
 ### Local-only optimized testing
 
-The final change removed `NODE_ENV=production` as proof of hosted deployment. A local optimized `next start` uses production mode but is not necessarily deployed. Actual hosting signals such as Vercel, AWS Lambda, Cloud Run, Fly, Railway, Render, Heroku, or the explicit deployed-environment flag still reject `local_only`.
+Supported development and optimized scripts use `src/scripts/run-trader-intelligence-local-server.ts`. The raw Node listener binds explicitly to `127.0.0.1`, rejects non-loopback socket peers and any client-supplied forwarded/proxy/tunnel evidence, strips client assertions, and stamps a random per-process listener assertion before handing the request to Next. The framework boundary accepts Next's synthesized loopback forwarding tuple only when that assertion is valid; this accommodates Next 16's internal header synthesis without trusting external forwarding evidence.
 
-The seeded Playwright configuration explicitly sets the local owner contract and approved origin. Its synthetic API POSTs also supply Origin.
+The seeded Playwright configuration uses an explicit external durable test database, starts the optimized server twice, and verifies the second process reads the same persisted record. Synthetic API POSTs supply an exact approved Origin.
 
-Audit question: are the hosted signals broad and stable enough to prevent an accidental exposed `local_only` deployment without blocking legitimate local builds?
+Audit questions: can a client forge the listener assertion, preserve forwarded evidence through the raw listener, exploit a loopback alias with a different port, or make a supported script listen beyond `127.0.0.1`?
 
 ### Architecture guard
 
@@ -227,17 +249,17 @@ Implemented in:
 - `src/scripts/verify-trader-intelligence-v3-private-data.ts`
 - `.gitignore`
 
-It scans worktree and staged content for private paths, broker export names, likely broker CSV rows, account/personal identifiers, screenshots, and common secret/token shapes. Findings contain code/path/line but not the suspected secret value. Synthetic fixture allowlists are narrow.
+Local mode scans tracked, staged, and non-ignored untracked final-tree content. PR/CI mode scans every added or modified blob in every commit in `origin/main...HEAD`, including content later deleted or renamed. Findings contain stable path/commit/finding codes without printing the suspected value, row, identifier, or secret. Synthetic fixture approval is file-specific and SHA-256-specific, and approved files still undergo broker-shaped content inspection. Binary and oversized files are read through bounded probes rather than unbounded memory loads.
 
-Audit for false negatives, unsafe binary handling, oversized files, alternate credential formats, renamed broker exports, Unicode/encoded identifiers, allowlist abuse, and whether ignored untracked private files are still adequately protected by the intended workflow.
+Audit for false negatives, unsafe binary handling, oversized-file gaps, alternate credential formats, renamed broker exports, Unicode/encoded identifiers, hash-manifest abuse, merge-base/fetch-depth mistakes, and whether ignored untracked private files remain outside the intentionally defined pre-commit threat boundary.
 
 ### CI and legacy compatibility
 
-The standard CI workflow now runs both v3 guards. Legacy handler tests continue to call wrapped routes through a test-only synthetic request. `src/test/setup.ts` installs explicit synthetic local-owner configuration and supplies same-origin Origin for unsafe legacy test requests.
+The standard CI workflow fetches full history and runs both v3 guards. Legacy handler tests call wrapped routes through explicit request helpers. `src/test/setup.ts` no longer replaces global `Request` and no longer inserts Origin evidence.
 
 The seeded level-analysis browser workflow was updated to use explicit local-owner configuration and explicit Origin evidence. This is test compatibility, not a production bypass.
 
-Audit that the test setup cannot mask a missing production requirement and that negative tests explicitly remove or change Origin/session/configuration when testing denial.
+Audit that every unsafe test explicitly selects valid, missing, malformed, invalid, or approved-alternate Origin evidence and that global setup cannot mask a production requirement.
 
 ### Inventory, hazards, and synthetic cleanup
 
@@ -255,40 +277,46 @@ The branch intentionally does not fix the registered legacy hazards, including d
 Prioritize:
 
 1. `src/lib/trader-intelligence-v3/deployment/deployment-contract.ts`
-2. `src/lib/trader-intelligence-v3/auth/owner-authorization.ts`
-3. `src/lib/trader-intelligence-v3/auth/next-owner-boundary.ts`
-4. `src/lib/trader-intelligence-v3/auth/provisional-discord-session-adapter.ts`
-5. `src/lib/trader-intelligence-v3/auth/mutation-origin.ts`
-6. `src/lib/trader-intelligence-v3/auth/private-response.ts`
-7. `src/lib/trader-intelligence-v3/contracts/route-containment.ts`
-8. `src/lib/trader-intelligence-v3/testing/architecture-boundary-guard.ts`
-9. `src/lib/trader-intelligence-v3/testing/private-data-guard.ts`
-10. `app/intelligence/layout.tsx` and repository-backed pages
-11. all wrapped `app/api/**/route.ts` modules in the matrix
-12. `next.config.ts`
-13. `src/test/setup.ts`
-14. `playwright.level-analysis.config.ts`
-15. `tests/e2e/level-analysis-trade-detail-seeded-flow.spec.ts`
-16. `.github/workflows/ci.yml`
+2. `src/lib/trader-intelligence-v3/deployment/local-network-boundary.ts`
+3. `src/scripts/run-trader-intelligence-local-server.ts`
+4. `src/lib/trader-intelligence-v3/deployment/local-persistence-path.ts`
+5. `src/lib/trader-intelligence-v3/auth/owner-authorization.ts`
+6. `src/lib/trader-intelligence-v3/auth/next-owner-boundary.ts`
+7. `src/lib/trader-intelligence-v3/auth/provisional-discord-session-adapter.ts`
+8. `src/lib/trader-intelligence-v3/auth/mutation-origin.ts`
+9. `src/lib/trader-intelligence-v3/auth/private-response.ts`
+10. `src/lib/trader-intelligence-v3/contracts/route-containment.ts`
+11. `src/lib/trader-intelligence-v3/testing/route-containment-ast.ts`
+12. `src/lib/trader-intelligence-v3/testing/architecture-boundary-guard.ts`
+13. `src/lib/trader-intelligence-v3/testing/typescript-source-analysis.ts`
+14. `src/lib/trader-intelligence-v3/testing/private-data-guard.ts`
+15. `src/lib/trader-intelligence-v3/testing/private-data-git-scanner.ts`
+16. `src/lib/trader-intelligence-v3/testing/synthetic-fixture-manifest.ts`
+17. `app/intelligence/layout.tsx` and repository-backed pages
+18. all wrapped `app/api/**/route.ts` modules in the matrix
+19. `src/test/setup.ts` and `src/test/trader-intelligence-request.ts`
+20. `playwright.level-analysis.config.ts`
+21. `tests/e2e/level-analysis-trade-detail-seeded-flow.spec.ts`
+22. `.github/workflows/ci.yml`
 
 ## Verification already reported
 
 These are implementer-reported results. Re-run them; do not accept them as independent evidence.
 
 - `npm ci`: passed; 603 packages; audit reported 5 existing vulnerabilities (2 low, 1 moderate, 2 high).
-- TypeScript: passed.
+- `npx tsc --noEmit --pretty false`: passed.
 - Changed-path ESLint: zero errors; two pre-existing unused-variable warnings in `app/intelligence/coach/page.tsx`.
-- Focused v3 tests: 5 files, 50 tests passed.
-- Route compatibility tests: 12 files, 87 tests passed.
-- Full Vitest suite: 162 files, 1,437 tests passed.
+- Focused v3 tests: 7 files, 133 tests passed.
+- Affected legacy route/UI compatibility tests: 10 files, 101 tests passed.
+- Full Vitest suite: 164 files, 1,523 tests passed.
 - Layer 2 verification: passed with 13 canonical patterns.
 - Layer 3 verification: canonical regression passed.
-- Architecture guard: passed, scanning 69 relevant source files.
-- Private-data guard: passed; the fully staged implementation scan covered 23,614 worktree/index records.
-- Production build: passed with five existing broad filesystem-tracing warnings around legacy stores/provider code.
-- Seeded Playwright trade-detail flow: one scenario passed locally and on GitHub.
-- Current-head GitHub CI and seeded browser workflow: passed.
-- PR state when reported: draft, open, mergeable, clean.
+- Architecture guard: passed across 75 architecture files, 42 API routes, and 82 classified routes.
+- Staged private-data guard: passed across 23,684 records: 23,590 worktree/index records and 94 added/modified pre-remediation PR-history blobs. Re-run after checkout so the remediation commit itself is counted in PR history.
+- Optimized build: passed with 127 generated routes, 19 known Academy registry notices, and five existing broad filesystem-tracing warnings around legacy stores/provider code.
+- Process-restart persistence test: passed after separate optimized Node processes wrote and reopened the same explicit external owner database.
+- Optimized persistent-SQLite Playwright flow: one scenario passed against the external database and asserted private/no-store plus merged `Vary` headers on the rendered page.
+- PR state and current-head GitHub checks must be re-read after the remediation push.
 - No live model or external market-data call was made.
 - No Vercel command or deployment was run.
 

@@ -1,8 +1,15 @@
+import { createHash } from "node:crypto";
+
+import { TRADER_INTELLIGENCE_SYNTHETIC_FIXTURE_SHA256 } from "./synthetic-fixture-manifest";
+
 export type TraderIntelligencePrivateDataFindingCode =
   | "ti_v3_private_path"
   | "ti_v3_broker_export_filename"
   | "ti_v3_private_screenshot"
   | "ti_v3_real_broker_csv_rows"
+  | "ti_v3_synthetic_fixture_unapproved"
+  | "ti_v3_synthetic_fixture_hash_mismatch"
+  | "ti_v3_private_scan_oversized"
   | "ti_v3_account_identifier"
   | "ti_v3_personal_financial_identifier"
   | "ti_v3_api_key"
@@ -12,7 +19,9 @@ export type TraderIntelligencePrivateDataFindingCode =
 export interface TraderIntelligencePrivateDataRecord {
   path: string;
   content: string;
-  sourceKind: "worktree" | "staged" | "synthetic_test";
+  sourceKind: "worktree" | "staged" | "pr_history" | "synthetic_test";
+  commit?: string | null;
+  scanStatus?: "text" | "binary" | "oversized";
 }
 
 export interface TraderIntelligencePrivateDataFinding {
@@ -20,24 +29,45 @@ export interface TraderIntelligencePrivateDataFinding {
   path: string;
   line: number | null;
   sourceKind: TraderIntelligencePrivateDataRecord["sourceKind"];
+  commit: string | null;
 }
 
-const SYNTHETIC_FIXTURE_ALLOWLIST = [
-  "src/docs/trade-execution-import-fixtures/",
-  "src/lib/execution-sources/csv/__fixtures__/",
-  "src/lib/trader-analytics/__fixtures__/",
-] as const;
+const FIXTURE_DIRECTORY_PATTERN =
+  /^(?:src\/docs\/trade-execution-import-fixtures|src\/lib\/execution-sources\/csv\/__fixtures__|src\/lib\/trader-analytics\/__fixtures__)\//;
 
 function normalizedPath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function isSyntheticFixtureAllowed(path: string): boolean {
-  return SYNTHETIC_FIXTURE_ALLOWLIST.some((prefix) => path.startsWith(prefix));
+function fixtureApproval(path: string, content: string) {
+  const expected =
+    TRADER_INTELLIGENCE_SYNTHETIC_FIXTURE_SHA256[
+      path as keyof typeof TRADER_INTELLIGENCE_SYNTHETIC_FIXTURE_SHA256
+    ];
+  if (!expected) {
+    return { listed: false, hashMatches: false };
+  }
+  const actual = createHash("sha256").update(content, "utf8").digest("hex");
+  return { listed: true, hashMatches: actual === expected };
 }
 
 function lineNumberAt(content: string, index: number): number {
   return content.slice(0, index).split(/\r?\n/).length;
+}
+
+function addFinding(
+  findings: TraderIntelligencePrivateDataFinding[],
+  record: TraderIntelligencePrivateDataRecord,
+  code: TraderIntelligencePrivateDataFindingCode,
+  line: number | null,
+): void {
+  findings.push({
+    code,
+    path: normalizedPath(record.path),
+    line,
+    sourceKind: record.sourceKind,
+    commit: record.commit ?? null,
+  });
 }
 
 function addContentFindings(
@@ -47,12 +77,7 @@ function addContentFindings(
   pattern: RegExp,
 ): void {
   for (const match of record.content.matchAll(pattern)) {
-    findings.push({
-      code,
-      path: normalizedPath(record.path),
-      line: lineNumberAt(record.content, match.index ?? 0),
-      sourceKind: record.sourceKind,
-    });
+    addFinding(findings, record, code, lineNumberAt(record.content, match.index ?? 0));
   }
 }
 
@@ -63,11 +88,16 @@ function hasLikelyBrokerRows(content: string): boolean {
   }
   const header = lines[0].toLowerCase();
   const hasExecutionHeader =
-    header.includes("symbol") &&
-    (header.includes("quantity") || header.includes("qty")) &&
-    header.includes("price") &&
+    (header.includes("symbol") || header.includes("ticker")) &&
+    (header.includes("quantity") ||
+      header.includes("qty") ||
+      header.includes("shares")) &&
+    (header.includes("price") || header.includes("amount")) &&
     (header.includes("time") || header.includes("date"));
-  return hasExecutionHeader && lines.slice(1).some((line) => line.split(",").length >= 4);
+  return (
+    hasExecutionHeader &&
+    lines.slice(1).some((line) => line.split(",").length >= 4)
+  );
 }
 
 export function scanTraderIntelligencePrivateData(
@@ -77,52 +107,43 @@ export function scanTraderIntelligencePrivateData(
 
   for (const record of records) {
     const path = normalizedPath(record.path);
-    const allowedSyntheticFixture = isSyntheticFixtureAllowed(path);
-
-    if (/(^|\/)(?:private|private-data|private-fixtures|broker-exports)(\/|$)/i.test(path)) {
-      findings.push({
-        code: "ti_v3_private_path",
-        path,
-        line: null,
-        sourceKind: record.sourceKind,
-      });
-    }
-    if (
-      !allowedSyntheticFixture &&
+    const fixture = fixtureApproval(path, record.content);
+    const brokerFilename =
       /(?:trade|order|execution|account)[-_ ]?(?:history|statement|export).*\.csv$/i.test(
         path,
-      )
-    ) {
-      findings.push({
-        code: "ti_v3_broker_export_filename",
-        path,
-        line: null,
-        sourceKind: record.sourceKind,
-      });
+      );
+    const brokerRows = path.toLowerCase().endsWith(".csv")
+      ? hasLikelyBrokerRows(record.content)
+      : false;
+
+    if (/(^|\/)(?:private|private-data|private-fixtures|broker-exports)(\/|$)/i.test(path)) {
+      addFinding(findings, record, "ti_v3_private_path", null);
     }
-    if (
-      /(?:private|broker|account|portfolio).*(?:png|jpe?g|webp)$/i.test(path)
-    ) {
-      findings.push({
-        code: "ti_v3_private_screenshot",
-        path,
-        line: null,
-        sourceKind: record.sourceKind,
-      });
+    if (/(?:private|broker|account|portfolio).*(?:png|jpe?g|webp)$/i.test(path)) {
+      addFinding(findings, record, "ti_v3_private_screenshot", null);
     }
-    if (
-      path.toLowerCase().endsWith(".csv") &&
-      !allowedSyntheticFixture &&
-      hasLikelyBrokerRows(record.content)
-    ) {
-      findings.push({
-        code: "ti_v3_real_broker_csv_rows",
-        path,
-        line: 1,
-        sourceKind: record.sourceKind,
-      });
+    if (record.scanStatus === "oversized" && /\.(?:csv|txt|jsonl?|env|log|sql|sqlite|db|ya?ml|tsx?|jsx?|md)$/i.test(path)) {
+      addFinding(findings, record, "ti_v3_private_scan_oversized", null);
     }
 
+    if (FIXTURE_DIRECTORY_PATTERN.test(path) && (brokerFilename || brokerRows)) {
+      if (!fixture.listed) {
+        addFinding(findings, record, "ti_v3_synthetic_fixture_unapproved", null);
+      } else if (!fixture.hashMatches) {
+        addFinding(findings, record, "ti_v3_synthetic_fixture_hash_mismatch", null);
+      }
+    }
+    const approvedSyntheticFixture = fixture.listed && fixture.hashMatches;
+    if (brokerFilename && !approvedSyntheticFixture) {
+      addFinding(findings, record, "ti_v3_broker_export_filename", null);
+    }
+    if (brokerRows && !approvedSyntheticFixture) {
+      addFinding(findings, record, "ti_v3_real_broker_csv_rows", 1);
+    }
+
+    if (record.scanStatus === "binary" || record.scanStatus === "oversized") {
+      continue;
+    }
     addContentFindings(
       findings,
       record,
@@ -158,13 +179,13 @@ export function scanTraderIntelligencePrivateData(
   const deduplicated = new Map<string, TraderIntelligencePrivateDataFinding>();
   for (const finding of findings) {
     deduplicated.set(
-      `${finding.code}:${finding.path}:${finding.line ?? "path"}:${finding.sourceKind}`,
+      `${finding.code}:${finding.path}:${finding.line ?? "path"}:${finding.sourceKind}:${finding.commit ?? "worktree"}`,
       finding,
     );
   }
   return [...deduplicated.values()].sort((left, right) =>
-    `${left.path}:${left.line ?? 0}:${left.code}`.localeCompare(
-      `${right.path}:${right.line ?? 0}:${right.code}`,
+    `${left.path}:${left.commit ?? ""}:${left.line ?? 0}:${left.code}`.localeCompare(
+      `${right.path}:${right.commit ?? ""}:${right.line ?? 0}:${right.code}`,
     ),
   );
 }

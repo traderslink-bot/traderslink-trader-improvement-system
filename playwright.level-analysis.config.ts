@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { homedir } from "node:os";
 import { defineConfig } from "@playwright/test";
 
 const githubRunId = [process.env.GITHUB_RUN_ID, process.env.GITHUB_RUN_ATTEMPT]
@@ -8,7 +9,12 @@ const runId =
   process.env.LEVEL_ANALYSIS_E2E_RUN_ID ??
   (githubRunId.length > 0 ? githubRunId : `${Date.now()}-${process.pid}`);
 const safeRunId = runId.replace(/[^A-Za-z0-9_.-]/g, "-") || "local";
-const databaseDir = join(process.cwd(), "artifacts", "level-analysis-e2e", safeRunId);
+const databaseDir = join(
+  homedir(),
+  ".trader-intelligence-e2e",
+  "level-analysis",
+  safeRunId,
+);
 const databasePath =
   process.env.LEVEL_ANALYSIS_E2E_DB_PATH ??
   join(databaseDir, "trade-detail-level-facts.sqlite");
@@ -44,7 +50,7 @@ export default defineConfig({
   ],
   workers: 1,
   webServer: {
-    command: "npm run start -- --hostname 127.0.0.1 --port 3101",
+    command: "npm run start -- --port 3101",
     env: {
       ...process.env,
       LEVEL_ANALYSIS_JOURNAL_DELIVERY_API_ENABLED: "1",
@@ -52,7 +58,7 @@ export default defineConfig({
       LEVEL_ANALYSIS_JOURNAL_TRADE_DETAIL_LEVEL_FACTS_ENABLED: "1",
       LEVEL_ANALYSIS_JOURNAL_TRADE_DETAIL_LEVEL_FACTS_UI_ENABLED: "1",
       TRADER_INTELLIGENCE_APPROVED_ORIGINS: "http://127.0.0.1:3101",
-      TRADER_INTELLIGENCE_DATA_MODE: "sample_data",
+      TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
       TRADER_INTELLIGENCE_DB_PATH: databasePath,
       TRADER_INTELLIGENCE_DEPLOYMENT_PROFILE: "private_owner_alpha",
       TRADER_INTELLIGENCE_HOSTING_MODE: "local_only",

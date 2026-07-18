@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+import { describe, expect, it, vi } from "vitest";
 
 import { authorizeTraderIntelligenceOwner } from "../auth/owner-authorization";
 import { validateTraderIntelligenceDeployment } from "../deployment";
@@ -14,21 +17,24 @@ function validLocalEnvironment(): Record<string, string | undefined> {
   };
 }
 
-function validHostedEnvironment(): Record<string, string | undefined> {
+function realOwnerEnvironment(): Record<string, string | undefined> {
   return {
-    NODE_ENV: "production",
-    VERCEL: "1",
-    TRADER_INTELLIGENCE_DEPLOYMENT_PROFILE: "private_owner_alpha",
-    TRADER_INTELLIGENCE_HOSTING_MODE: "private_hosted",
-    TRADER_INTELLIGENCE_STORAGE_MODE: "private_database",
+    ...validLocalEnvironment(),
     TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
-    TRADER_INTELLIGENCE_OWNER_ID: "synthetic-owner",
-    TRADER_INTELLIGENCE_OWNER_DISCORD_SUBJECT: "discord-owner-subject",
+    TRADER_INTELLIGENCE_DB_PATH: join(
+      homedir(),
+      ".trader-intelligence-tests",
+      "owner.sqlite",
+    ),
   };
 }
 
+function localRequest(host = "localhost") {
+  return { headers: new Headers({ host }) };
+}
+
 describe("Trader Intelligence v3 deployment contract", () => {
-  it("accepts valid private-owner local-only configuration", () => {
+  it("accepts only the implemented private-owner local SQLite sample profile", () => {
     expect(validateTraderIntelligenceDeployment(validLocalEnvironment())).toMatchObject({
       ok: true,
       config: {
@@ -36,8 +42,28 @@ describe("Trader Intelligence v3 deployment contract", () => {
         hostingMode: "local_only",
         storageMode: "local_sqlite",
         dataMode: "sample_data",
+        persistence: { kind: "in_memory", databaseTarget: ":memory:" },
       },
     });
+  });
+
+  it("accepts explicit durable real-owner storage in development and optimized local modes", () => {
+    for (const nodeEnvironment of ["development", "production"]) {
+      const environment = realOwnerEnvironment();
+      environment.NODE_ENV = nodeEnvironment;
+      expect(validateTraderIntelligenceDeployment(environment)).toMatchObject({
+        ok: true,
+        config: {
+          hostingMode: "local_only",
+          storageMode: "local_sqlite",
+          dataMode: "real_owner_data",
+          persistence: {
+            kind: "file",
+            databaseTarget: environment.TRADER_INTELLIGENCE_DB_PATH,
+          },
+        },
+      });
+    }
   });
 
   it.each([
@@ -68,16 +94,50 @@ describe("Trader Intelligence v3 deployment contract", () => {
     });
   });
 
-  it("rejects future profiles that are declared but not operational", () => {
+  it.each(["private_invited_alpha", "public_beta", "public_production"])(
+    "rejects declared profile %s as not operational",
+    (profile) => {
+      const environment = validLocalEnvironment();
+      environment.TRADER_INTELLIGENCE_DEPLOYMENT_PROFILE = profile;
+      expect(validateTraderIntelligenceDeployment(environment)).toEqual({
+        ok: false,
+        code: "ti_v3_deployment_profile_not_operational",
+      });
+    },
+  );
+
+  it("rejects private-hosted before any provisional session adapter can run", async () => {
     const environment = validLocalEnvironment();
-    environment.TRADER_INTELLIGENCE_DEPLOYMENT_PROFILE = "private_invited_alpha";
+    environment.TRADER_INTELLIGENCE_HOSTING_MODE = "private_hosted";
+    const resolver = vi.fn(async () => ({ subject: "synthetic-owner" }));
     expect(validateTraderIntelligenceDeployment(environment)).toEqual({
       ok: false,
-      code: "ti_v3_deployment_profile_not_operational",
+      code: "ti_v3_hosting_mode_not_operational",
+    });
+    await expect(
+      authorizeTraderIntelligenceOwner({
+        environment,
+        modulePath: "app/intelligence/page.tsx",
+        sessionResolver: { resolveOwnerSubject: resolver },
+        localRequest: localRequest(),
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "ti_v3_hosting_mode_not_operational",
+    });
+    expect(resolver).not.toHaveBeenCalled();
+  });
+
+  it("rejects private_database as declared but not operational", () => {
+    const environment = validLocalEnvironment();
+    environment.TRADER_INTELLIGENCE_STORAGE_MODE = "private_database";
+    expect(validateTraderIntelligenceDeployment(environment)).toEqual({
+      ok: false,
+      code: "ti_v3_storage_mode_not_operational",
     });
   });
 
-  it("rejects local-only mode in production-like hosted environments", () => {
+  it("rejects local-only mode when a hosted-environment signal exists", () => {
     const environment = validLocalEnvironment();
     environment.VERCEL = "1";
     expect(validateTraderIntelligenceDeployment(environment)).toEqual({
@@ -86,49 +146,58 @@ describe("Trader Intelligence v3 deployment contract", () => {
     });
   });
 
-  it("allows an optimized local-only runtime without a hosted deployment signal", () => {
+  it("normalizes only explicit loopback origins", () => {
     const environment = validLocalEnvironment();
-    environment.NODE_ENV = "production";
+    environment.TRADER_INTELLIGENCE_APPROVED_ORIGINS =
+      "http://localhost:3000/,http://127.0.0.1:3001,https://[::1]:3002";
     expect(validateTraderIntelligenceDeployment(environment)).toMatchObject({
       ok: true,
-      config: { hostingMode: "local_only" },
+      config: {
+        approvedOrigins: [
+          "http://localhost:3000",
+          "http://127.0.0.1:3001",
+          "https://[::1]:3002",
+        ],
+      },
     });
   });
 
-  it("rejects private-hosted local SQLite storage", () => {
-    const environment = validHostedEnvironment();
-    environment.TRADER_INTELLIGENCE_STORAGE_MODE = "local_sqlite";
+  it.each([
+    "https://attacker.example",
+    "http://localhost.attacker.example",
+    "http://user@localhost:3000",
+    "null",
+    "http://localhost:3000/path",
+    "http://0.0.0.0:3000",
+  ])("rejects invalid configured origin %s", (origin) => {
+    const environment = validLocalEnvironment();
+    environment.TRADER_INTELLIGENCE_APPROVED_ORIGINS = origin;
     expect(validateTraderIntelligenceDeployment(environment)).toEqual({
       ok: false,
-      code: "ti_v3_storage_mode_unsafe",
-    });
-  });
-
-  it("rejects private-hosted mode without configured internal owner identity", () => {
-    const environment = validHostedEnvironment();
-    delete environment.TRADER_INTELLIGENCE_OWNER_ID;
-    expect(validateTraderIntelligenceDeployment(environment)).toEqual({
-      ok: false,
-      code: "ti_v3_owner_id_missing",
-    });
-  });
-
-  it("rejects private-hosted mode without configured Discord owner subject", () => {
-    const environment = validHostedEnvironment();
-    delete environment.TRADER_INTELLIGENCE_OWNER_DISCORD_SUBJECT;
-    expect(validateTraderIntelligenceDeployment(environment)).toEqual({
-      ok: false,
-      code: "ti_v3_owner_subject_missing",
+      code: "ti_v3_approved_origin_invalid",
     });
   });
 });
 
 describe("Trader Intelligence v3 owner authorization", () => {
-  it("uses the isolated local owner adapter only for explicit local-only mode", async () => {
+  it("requires verified local request evidence before granting local owner authority", async () => {
     await expect(
       authorizeTraderIntelligenceOwner({
         environment: validLocalEnvironment(),
         modulePath: "app/intelligence/page.tsx",
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      code: "ti_v3_local_request_context_missing",
+    });
+  });
+
+  it("uses the isolated local owner adapter after loopback validation", async () => {
+    await expect(
+      authorizeTraderIntelligenceOwner({
+        environment: validLocalEnvironment(),
+        modulePath: "app/intelligence/page.tsx",
+        localRequest: localRequest("127.0.0.1:3000"),
       }),
     ).resolves.toMatchObject({
       ok: true,
@@ -139,126 +208,16 @@ describe("Trader Intelligence v3 owner authorization", () => {
     });
   });
 
-  it("fails private-hosted authorization without a session resolver", async () => {
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment: validHostedEnvironment(),
-        modulePath: "app/intelligence/page.tsx",
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      code: "ti_v3_owner_session_resolver_missing",
-    });
-  });
-
-  it("fails private-hosted authorization without a resolved session", async () => {
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment: validHostedEnvironment(),
-        modulePath: "app/intelligence/page.tsx",
-        sessionResolver: { async resolveOwnerSubject() { return null; } },
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      code: "ti_v3_owner_session_missing",
-    });
-  });
-
-  it("rejects an authenticated non-owner even when premium role settings exist", async () => {
-    const environment = {
-      ...validHostedEnvironment(),
-      TRADERSLINK_PREMIUM_DISCORD_ROLE_ID: "premium-role",
-    };
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment,
-        modulePath: "app/intelligence/page.tsx",
-        sessionResolver: {
-          async resolveOwnerSubject() {
-            return { subject: "authenticated-non-owner" };
-          },
-        },
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      code: "ti_v3_authenticated_subject_not_owner",
-    });
-  });
-
-  it("maps the configured Discord subject to a stable internal owner identity", async () => {
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment: validHostedEnvironment(),
-        modulePath: "app/intelligence/page.tsx",
-        sessionResolver: {
-          async resolveOwnerSubject() {
-            return { subject: "discord-owner-subject" };
-          },
-        },
-      }),
-    ).resolves.toMatchObject({
-      ok: true,
-      owner: {
-        identity: { ownerId: "synthetic-owner" },
-        authorizationMode: "provisional_discord_session_adapter",
-      },
-    });
-  });
-
-  it("does not reuse the live-watchlist local bypass in private-hosted mode", async () => {
-    const environment = {
-      ...validHostedEnvironment(),
-      LIVE_WATCHLIST_REQUIRE_LOCAL_AUTH: "0",
-    };
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment,
-        modulePath: "app/intelligence/page.tsx",
-        sessionResolver: { async resolveOwnerSubject() { return null; } },
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      code: "ti_v3_owner_session_missing",
-    });
-  });
-
-  it("rejects a private-hosted local owner bypass flag", () => {
-    const environment = {
-      ...validHostedEnvironment(),
-      TRADER_INTELLIGENCE_LOCAL_OWNER_BYPASS: "1",
-    };
-    expect(validateTraderIntelligenceDeployment(environment)).toEqual({
-      ok: false,
-      code: "ti_v3_private_hosted_local_bypass_forbidden",
-    });
-  });
-
   it("fails closed for an unclassified private route", async () => {
     await expect(
       authorizeTraderIntelligenceOwner({
         environment: validLocalEnvironment(),
         modulePath: "app/intelligence/new-unclassified/page.tsx",
+        localRequest: localRequest(),
       }),
     ).resolves.toEqual({
       ok: false,
       code: "ti_v3_route_unclassified",
-    });
-  });
-
-  it("disables internal diagnostics outside local-only mode", async () => {
-    await expect(
-      authorizeTraderIntelligenceOwner({
-        environment: validHostedEnvironment(),
-        modulePath: "app/intelligence/debug/trade-analysis/page.tsx",
-        sessionResolver: {
-          async resolveOwnerSubject() {
-            return { subject: "discord-owner-subject" };
-          },
-        },
-      }),
-    ).resolves.toEqual({
-      ok: false,
-      code: "ti_v3_route_disabled_for_hosting_mode",
     });
   });
 });

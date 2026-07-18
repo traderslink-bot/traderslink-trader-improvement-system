@@ -1,3 +1,10 @@
+import ts from "typescript";
+
+import {
+  extractTraderIntelligenceModuleDependencies,
+  parseTraderIntelligenceTypeScript,
+} from "./typescript-source-analysis";
+
 export type TraderIntelligenceArchitectureFindingCode =
   | "ti_v3_arch_domain_app_import"
   | "ti_v3_arch_domain_next_import"
@@ -6,6 +13,7 @@ export type TraderIntelligenceArchitectureFindingCode =
   | "ti_v3_arch_levels_system_import"
   | "ti_v3_arch_market_provider_import"
   | "ti_v3_arch_academy_coupling"
+  | "ti_v3_arch_academy_adapter_import_invalid"
   | "ti_v3_arch_legacy_coaching_internal_import"
   | "ti_v3_arch_route_domain_authority";
 
@@ -20,15 +28,8 @@ export interface TraderIntelligenceArchitectureFinding {
   dependency: string | null;
 }
 
-const IMPORT_PATTERN =
-  /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s*)["']([^"']+)["']/g;
-
 function normalizedPath(path: string): string {
   return path.replaceAll("\\", "/");
-}
-
-function importedDependencies(source: string): readonly string[] {
-  return [...source.matchAll(IMPORT_PATTERN)].map((match) => match[1]);
 }
 
 function pushFinding(
@@ -49,6 +50,31 @@ function pushFinding(
   }
 }
 
+function hasRouteDomainAuthority(path: string, source: string): boolean {
+  if (!path.endsWith("/route.ts")) {
+    return false;
+  }
+  const sourceFile = parseTraderIntelligenceTypeScript(path, source);
+  let found = false;
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isFunctionDeclaration(node) ||
+        ts.isVariableDeclaration(node) ||
+        ts.isMethodDeclaration(node)) &&
+      node.name &&
+      ts.isIdentifier(node.name) &&
+      /^(?:calculate|compute|aggregate|reconstruct|derive)[A-Z_]/.test(
+        node.name.text,
+      )
+    ) {
+      found = true;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
 export function scanTraderIntelligenceArchitectureBoundaries(
   records: readonly TraderIntelligenceSourceRecord[],
 ): readonly TraderIntelligenceArchitectureFinding[] {
@@ -56,94 +82,78 @@ export function scanTraderIntelligenceArchitectureBoundaries(
 
   for (const record of records) {
     const path = normalizedPath(record.path);
-    const dependencies = importedDependencies(record.source);
+    const dependencies = extractTraderIntelligenceModuleDependencies(
+      path,
+      record.source,
+    );
     const isV3Core = path.startsWith("src/lib/trader-intelligence-v3/");
     const isDomainOrContracts =
       path.startsWith("src/lib/trader-intelligence-v3/domain/") ||
       path.startsWith("src/lib/trader-intelligence-v3/contracts/");
+    const isProvisionalAcademyAdapter =
+      path ===
+      "src/lib/trader-intelligence-v3/auth/provisional-discord-session-adapter.ts";
 
     for (const dependency of dependencies) {
-      const normalizedDependency = dependency.toLowerCase();
+      const normalizedDependency = dependency.specifier.toLowerCase();
       if (
         isDomainOrContracts &&
-        (dependency.startsWith("app/") ||
-          dependency.startsWith("@/app/") ||
-          dependency.includes("/app/"))
+        (dependency.specifier.startsWith("app/") ||
+          dependency.specifier.startsWith("@/app/") ||
+          dependency.specifier.includes("/app/"))
       ) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_domain_app_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_domain_app_import", path, dependency.specifier);
       }
       if (isDomainOrContracts && normalizedDependency.startsWith("next")) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_domain_next_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_domain_next_import", path, dependency.specifier);
       }
       if (
         isV3Core &&
-        /(better-sqlite3|sqlite3|@neondatabase|pg$|postgres|drizzle-orm)/.test(
+        /(better-sqlite3|(?:^|\/)sqlite3(?:\/|$)|node:sqlite|@libsql|@neondatabase|(?:^|\/)pg(?:\/|$)|postgres|mysql2?|mariadb|mongodb|mongoose|@prisma\/client|drizzle-orm|typeorm|sequelize|redis|sqlite-import-commit-repository|persistence-storage)/.test(
           normalizedDependency,
         )
       ) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_database_driver_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_database_driver_import", path, dependency.specifier);
       }
       if (
         isV3Core &&
-        /(^|\/)(openai|ai|@ai-sdk|langchain|anthropic)(\/|$)/.test(
+        /(^|\/)(openai|ai|@ai-sdk|langchain|anthropic|cohere-ai|groq-sdk|mistralai|ollama|replicate)(\/|$)|@google\/(?:generative-ai|genai)|@aws-sdk\/client-bedrock-runtime|@azure\/openai/.test(
           normalizedDependency,
         )
       ) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_ai_sdk_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_ai_sdk_import", path, dependency.specifier);
       }
       if (isV3Core && normalizedDependency.includes("levels-system")) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_levels_system_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_levels_system_import", path, dependency.specifier);
+      }
+      if (isV3Core && normalizedDependency.includes("/academy/")) {
+        const exactSymbols = ["ACADEMY_SESSION_COOKIE", "AcademyProgressStore"];
+        const exactAdapterImport =
+          isProvisionalAcademyAdapter &&
+          dependency.kind === "import" &&
+          dependency.specifier ===
+            "@/src/lib/academy/academy-progress-store" &&
+          dependency.importedNames !== null &&
+          [...dependency.importedNames].sort().join(",") ===
+            [...exactSymbols].sort().join(",");
+        if (!isProvisionalAcademyAdapter) {
+          pushFinding(findings, "ti_v3_arch_academy_coupling", path, dependency.specifier);
+        } else if (!exactAdapterImport) {
+          pushFinding(
+            findings,
+            "ti_v3_arch_academy_adapter_import_invalid",
+            path,
+            dependency.specifier,
+          );
+        }
       }
       if (
         isV3Core &&
-        normalizedDependency.includes("/academy/") &&
-        path !==
-          "src/lib/trader-intelligence-v3/auth/provisional-discord-session-adapter.ts"
-      ) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_academy_coupling",
-          path,
-          dependency,
-        );
-      }
-      if (
-        isV3Core &&
-        /(?:market-data|market_data|providers?\/(?:yahoo|eodhd|finnhub|ibkr))/.test(
+        /(?:market-data|market_data|market-provider|providers?\/(?:yahoo|eodhd|finnhub|ibkr|polygon|alpaca|iex|tiingo|tradier)|yahoo-finance2|@polygon\.io|alpaca-trade-api)/.test(
           normalizedDependency,
         )
       ) {
-        pushFinding(
-          findings,
-          "ti_v3_arch_market_provider_import",
-          path,
-          dependency,
-        );
+        pushFinding(findings, "ti_v3_arch_market_provider_import", path, dependency.specifier);
       }
       if (
         !isV3Core &&
@@ -155,23 +165,13 @@ export function scanTraderIntelligenceArchitectureBoundaries(
           findings,
           "ti_v3_arch_legacy_coaching_internal_import",
           path,
-          dependency,
+          dependency.specifier,
         );
       }
     }
 
-    if (
-      path.endsWith("/route.ts") &&
-      /(?:function|const)\s+(?:calculate|compute|aggregate|reconstruct|derive)[A-Z_]/.test(
-        record.source,
-      )
-    ) {
-      pushFinding(
-        findings,
-        "ti_v3_arch_route_domain_authority",
-        path,
-        null,
-      );
+    if (hasRouteDomainAuthority(path, record.source)) {
+      pushFinding(findings, "ti_v3_arch_route_domain_authority", path, null);
     }
   }
 

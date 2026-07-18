@@ -4,32 +4,57 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { TRADER_INTELLIGENCE_ROUTE_CONTAINMENT_MATRIX } from "../contracts";
+import {
+  discoverTraderIntelligenceApiRoutes,
+  scanTraderIntelligenceRouteContainment,
+  type TraderIntelligenceRouteSourceRecord,
+} from "../testing";
 
-function findFiles(directory: string, fileName: string): readonly string[] {
+function findFiles(
+  directory: string,
+  predicate: (fileName: string) => boolean,
+): readonly string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
-      return findFiles(path, fileName);
+      return findFiles(path, predicate);
     }
-    return entry.name === fileName
+    return predicate(entry.name)
       ? [relative(process.cwd(), path).replaceAll("\\", "/")]
       : [];
   });
 }
 
-function relevantApiRoutes(): readonly string[] {
-  const relevantPrefix =
-    /^app\/api\/(?:admin\/level-analysis|analytics|coach|execution-feedback|import-batches|import-dry-run|level-analysis|review|trade-analysis|trader-analytics|trades)\//;
-  return findFiles(join(process.cwd(), "app", "api"), "route.ts").filter((path) =>
-    relevantPrefix.test(path),
+function records(paths: readonly string[]): readonly TraderIntelligenceRouteSourceRecord[] {
+  return paths.map((path) => ({ path, source: readFileSync(path, "utf8") }));
+}
+
+function allApiRouteRecords() {
+  return records(
+    findFiles(join(process.cwd(), "app", "api"), (name) => name === "route.ts"),
+  );
+}
+
+function intelligenceClientRecords() {
+  return records(
+    findFiles(
+      join(process.cwd(), "app", "intelligence"),
+      (name) => /\.(?:ts|tsx)$/.test(name),
+    ),
   );
 }
 
 describe("Trader Intelligence route containment matrix", () => {
-  it("classifies every Intelligence page and relevant API exactly once", () => {
+  it("classifies every Intelligence page and discovered API exactly once", () => {
     const actualRoutes = [
-      ...findFiles(join(process.cwd(), "app", "intelligence"), "page.tsx"),
-      ...relevantApiRoutes(),
+      ...findFiles(
+        join(process.cwd(), "app", "intelligence"),
+        (name) => name === "page.tsx",
+      ),
+      ...discoverTraderIntelligenceApiRoutes({
+        routeRecords: allApiRouteRecords(),
+        intelligenceClientRecords: intelligenceClientRecords(),
+      }),
     ].sort();
     const classifiedRoutes = TRADER_INTELLIGENCE_ROUTE_CONTAINMENT_MATRIX.map(
       (entry) => entry.modulePath,
@@ -37,6 +62,17 @@ describe("Trader Intelligence route containment matrix", () => {
 
     expect(new Set(classifiedRoutes).size).toBe(classifiedRoutes.length);
     expect(classifiedRoutes).toEqual(actualRoutes);
+    expect(classifiedRoutes).toHaveLength(82);
+  });
+
+  it("uses AST inspection to require exact wrapper paths and complete method coverage", () => {
+    expect(
+      scanTraderIntelligenceRouteContainment({
+        routeRecords: allApiRouteRecords(),
+        intelligenceClientRecords: intelligenceClientRecords(),
+        matrix: TRADER_INTELLIGENCE_ROUTE_CONTAINMENT_MATRIX,
+      }),
+    ).toEqual([]);
   });
 
   it("prohibits state-changing GET classifications", () => {
@@ -47,12 +83,56 @@ describe("Trader Intelligence route containment matrix", () => {
     }
   });
 
-  it("wraps every relevant API handler with the v3 owner boundary", () => {
-    for (const path of relevantApiRoutes()) {
-      const source = readFileSync(path, "utf8");
-      expect(source).toContain("withTraderIntelligenceOwnerRoute");
-      expect(source).not.toMatch(/export async function (GET|POST|PUT|PATCH|DELETE)/);
-    }
+  it("rejects an unclassified journal API regardless of prefix", () => {
+    const routeRecords = [
+      ...allApiRouteRecords(),
+      {
+        path: "app/api/new-journal-surface/route.ts",
+        source:
+          'import { SqliteImportCommitRepository } from "@/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository"; export const GET = async () => Response.json(new SqliteImportCommitRepository());',
+      },
+    ];
+    expect(
+      scanTraderIntelligenceRouteContainment({
+        routeRecords,
+        intelligenceClientRecords: intelligenceClientRecords(),
+        matrix: TRADER_INTELLIGENCE_ROUTE_CONTAINMENT_MATRIX,
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        code: "ti_v3_route_unclassified",
+        path: "app/api/new-journal-surface/route.ts",
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "unused wrapper import",
+      'import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth"; export const GET = async () => Response.json({ ok: true });',
+      "ti_v3_route_method_unwrapped",
+    ],
+    [
+      "unwrapped const POST",
+      'import "@/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository"; export const POST = async () => Response.json({ ok: true });',
+      "ti_v3_route_method_unwrapped",
+    ],
+    [
+      "wrong wrapper module path",
+      'import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth"; const GETHandler = async () => Response.json({ ok: true }); export const GET = withTraderIntelligenceOwnerRoute("app/api/wrong/route.ts", GETHandler);',
+      "ti_v3_route_wrapper_module_path_mismatch",
+    ],
+  ])("detects route bypass: %s", (_label, source, code) => {
+    const path = "app/api/trades/route.ts";
+    expect(
+      scanTraderIntelligenceRouteContainment({
+        routeRecords: [{ path, source }],
+        intelligenceClientRecords: [],
+        matrix: TRADER_INTELLIGENCE_ROUTE_CONTAINMENT_MATRIX.filter(
+          (entry) => entry.modulePath === path,
+        ),
+      }),
+    ).toContainEqual(expect.objectContaining({ code, path }));
   });
 
   it("guards repository-backed pages before legacy read-model access", () => {
@@ -74,19 +154,14 @@ describe("Trader Intelligence route containment matrix", () => {
     }
   });
 
-  it("guards private metadata before loading repository-backed ticker data", () => {
+  it("guards pages using the supported request-time headers API", () => {
     const source = readFileSync(
-      "app/intelligence/trades/ticker-story/[threadId]/page.tsx",
+      "src/lib/trader-intelligence-v3/auth/next-owner-boundary.ts",
       "utf8",
     );
-    const metadataStart = source.indexOf("export async function generateMetadata");
-    const metadataEnd = source.indexOf("export default async function", metadataStart);
-    const metadataSource = source.slice(metadataStart, metadataEnd);
-
-    expect(metadataSource.indexOf("requireTraderIntelligenceOwnerPageAccess")).toBeGreaterThan(-1);
-    expect(metadataSource.indexOf("requireTraderIntelligenceOwnerPageAccess")).toBeLessThan(
-      metadataSource.indexOf("buildTickerStoryModel"),
-    );
+    expect(source).toContain('import { cookies, headers } from "next/headers"');
+    expect(source).toContain("headers()");
+    expect(source).toContain("localRequest: { headers: requestHeaders }");
   });
 
   it("forces the Intelligence route tree to dynamic private rendering", () => {

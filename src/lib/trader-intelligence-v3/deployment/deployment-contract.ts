@@ -1,3 +1,6 @@
+import { normalizeTraderIntelligenceLoopbackOrigin } from "./local-network-boundary";
+import { resolveTraderIntelligenceLocalPersistence } from "./local-persistence-path";
+
 export const TRADER_INTELLIGENCE_DEPLOYMENT_PROFILES = [
   "private_owner_alpha",
   "private_invited_alpha",
@@ -35,15 +38,19 @@ export type TraderIntelligenceDeploymentReasonCode =
   | "ti_v3_deployment_profile_not_operational"
   | "ti_v3_hosting_mode_missing"
   | "ti_v3_hosting_mode_invalid"
+  | "ti_v3_hosting_mode_not_operational"
   | "ti_v3_local_only_hosted_environment_forbidden"
   | "ti_v3_owner_id_missing"
   | "ti_v3_owner_subject_missing"
   | "ti_v3_storage_mode_missing"
   | "ti_v3_storage_mode_invalid"
+  | "ti_v3_storage_mode_not_operational"
   | "ti_v3_storage_mode_unsafe"
   | "ti_v3_data_mode_missing"
   | "ti_v3_data_mode_invalid"
-  | "ti_v3_private_hosted_local_bypass_forbidden";
+  | "ti_v3_private_hosted_local_bypass_forbidden"
+  | "ti_v3_approved_origin_invalid"
+  | import("./local-persistence-path").TraderIntelligencePersistenceReasonCode;
 
 export interface TraderIntelligenceDeploymentConfig {
   profile: TraderIntelligenceDeploymentProfile;
@@ -53,6 +60,9 @@ export interface TraderIntelligenceDeploymentConfig {
   ownerId: string;
   ownerSubject: string | null;
   approvedOrigins: readonly string[];
+  persistence: import("./local-persistence-path").TraderIntelligenceLocalPersistenceResolution & {
+    ok: true;
+  };
 }
 
 export type TraderIntelligenceDeploymentValidation =
@@ -93,15 +103,28 @@ export function hasHostedEnvironmentSignal(
   );
 }
 
-function parseApprovedOrigins(value: string | null): readonly string[] {
+function parseApprovedOrigins(
+  value: string | null,
+): { ok: true; origins: readonly string[] } | { ok: false } {
   if (!value) {
-    return [];
+    return { ok: true, origins: [] };
   }
-
-  return value
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const origins = value.split(",").map((origin) => origin.trim());
+  if (origins.some((origin) => !origin)) {
+    return { ok: false };
+  }
+  const normalized = origins.map(normalizeTraderIntelligenceLoopbackOrigin);
+  if (normalized.some((origin) => !origin.ok)) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    origins: [
+      ...new Set(
+        normalized.map((origin) => (origin.ok ? origin.origin : "")),
+      ),
+    ],
+  };
 }
 
 export function validateTraderIntelligenceDeployment(
@@ -133,6 +156,9 @@ export function validateTraderIntelligenceDeployment(
   if (!includesValue(TRADER_INTELLIGENCE_HOSTING_MODES, hostingModeValue)) {
     return { ok: false, code: "ti_v3_hosting_mode_invalid" };
   }
+  if (hostingModeValue === "private_hosted") {
+    return { ok: false, code: "ti_v3_hosting_mode_not_operational" };
+  }
   if (
     hostingModeValue === "local_only" &&
     hasHostedEnvironmentSignal(environment)
@@ -152,18 +178,6 @@ export function validateTraderIntelligenceDeployment(
     environment,
     "TRADER_INTELLIGENCE_OWNER_DISCORD_SUBJECT",
   );
-  if (hostingModeValue === "private_hosted" && !ownerSubject) {
-    return { ok: false, code: "ti_v3_owner_subject_missing" };
-  }
-  if (
-    hostingModeValue === "private_hosted" &&
-    readValue(environment, "TRADER_INTELLIGENCE_LOCAL_OWNER_BYPASS") === "1"
-  ) {
-    return {
-      ok: false,
-      code: "ti_v3_private_hosted_local_bypass_forbidden",
-    };
-  }
 
   const storageModeValue = readValue(
     environment,
@@ -175,11 +189,8 @@ export function validateTraderIntelligenceDeployment(
   if (!includesValue(TRADER_INTELLIGENCE_STORAGE_MODES, storageModeValue)) {
     return { ok: false, code: "ti_v3_storage_mode_invalid" };
   }
-  if (
-    hostingModeValue === "private_hosted" &&
-    storageModeValue !== "private_database"
-  ) {
-    return { ok: false, code: "ti_v3_storage_mode_unsafe" };
+  if (storageModeValue === "private_database") {
+    return { ok: false, code: "ti_v3_storage_mode_not_operational" };
   }
 
   const dataModeValue = readValue(
@@ -193,6 +204,21 @@ export function validateTraderIntelligenceDeployment(
     return { ok: false, code: "ti_v3_data_mode_invalid" };
   }
 
+  const persistence = resolveTraderIntelligenceLocalPersistence({
+    environment,
+    dataMode: dataModeValue,
+  });
+  if (!persistence.ok) {
+    return persistence;
+  }
+
+  const approvedOrigins = parseApprovedOrigins(
+    readValue(environment, "TRADER_INTELLIGENCE_APPROVED_ORIGINS"),
+  );
+  if (!approvedOrigins.ok) {
+    return { ok: false, code: "ti_v3_approved_origin_invalid" };
+  }
+
   return {
     ok: true,
     config: {
@@ -202,9 +228,8 @@ export function validateTraderIntelligenceDeployment(
       dataMode: dataModeValue,
       ownerId,
       ownerSubject,
-      approvedOrigins: parseApprovedOrigins(
-        readValue(environment, "TRADER_INTELLIGENCE_APPROVED_ORIGINS"),
-      ),
+      approvedOrigins: approvedOrigins.origins,
+      persistence,
     },
   };
 }

@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { POST as previewImportBatch } from "../../../../app/api/import-batches/preview/route";
@@ -26,10 +26,16 @@ import { runPersistedDecisionReviewJobs } from "../server/saved-decision-review-
 import {
   buildSampleLevelsSystemSupportResistanceOptions,
 } from "../../support-resistance/__fixtures__/sample-levels-system-fetch-service";
+import {
+  createTraderIntelligenceTestRequest,
+  installTraderIntelligenceLocalTestEnvironment,
+} from "../../../test/trader-intelligence-request";
 
 let tempDir = "";
 let originalDbPath: string | undefined;
 let originalTier: string | undefined;
+let originalDataMode: string | undefined;
+let restoreEnvironment: () => void;
 
 const csvText = [
   "Date,Time,Symbol,Side,Quantity,Price",
@@ -73,18 +79,27 @@ const defensiveShortCsv = [
 ].join("\n");
 
 function jsonRequest(body: unknown): Request {
-  return new Request("http://localhost/api/import-batches/preview", {
+  return createTraderIntelligenceTestRequest("http://localhost/api/import-batches/preview", {
     method: "POST",
+    origin: "http://localhost",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
+function localGet(url: string): Request {
+  return createTraderIntelligenceTestRequest(url);
+}
+
 beforeEach(() => {
   originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
   originalTier = process.env.TRADER_INTELLIGENCE_TIER;
-  tempDir = mkdtempSync(join(tmpdir(), "trader-intelligence-api-"));
-  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  originalDataMode = process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  tempDir = mkdtempSync(join(homedir(), ".trader-intelligence-api-"));
+  restoreEnvironment = installTraderIntelligenceLocalTestEnvironment({
+    TRADER_INTELLIGENCE_DB_PATH: join(tempDir, "test.sqlite"),
+    TRADER_INTELLIGENCE_DATA_MODE: "real_owner_data",
+  });
   resetTraderIntelligenceDatabaseForTests();
 });
 
@@ -100,6 +115,12 @@ afterEach(() => {
   } else {
     process.env.TRADER_INTELLIGENCE_TIER = originalTier;
   }
+  if (originalDataMode === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DATA_MODE;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DATA_MODE = originalDataMode;
+  }
+  restoreEnvironment();
   rmSync(tempDir, { recursive: true, force: true });
 });
 
@@ -136,7 +157,7 @@ describe("saved import API routes", () => {
 
     const decisionReviewStatus = await (
       await getDecisionReviewStatus(
-        new Request(
+        localGet(
           `http://localhost/api/import-batches/${encodeURIComponent(
             batchId,
           )}/decision-review/status`,
@@ -180,7 +201,7 @@ describe("saved import API routes", () => {
 
     const statusAfterBackgroundResume = await (
       await getDecisionReviewStatus(
-        new Request(
+        localGet(
           `http://localhost/api/import-batches/${encodeURIComponent(
             batchId,
           )}/decision-review/status`,
@@ -194,7 +215,7 @@ describe("saved import API routes", () => {
       canResume: true,
     });
 
-    const trades = await (await listTrades()).json();
+    const trades = await (await listTrades(localGet("http://localhost/api/trades"))).json();
     expect(trades.source).toBe("saved_sqlite");
     expect(trades.trades).toMatchObject([{ symbol: "APIX", sampleData: false }]);
     const tradeId = trades.trades[0].id;
@@ -213,7 +234,7 @@ describe("saved import API routes", () => {
     expect(reviewItem.status).toBe(200);
 
     const tradeDetail = await (
-      await getTrade(new Request(`http://localhost/api/trades/${tradeId}`), {
+      await getTrade(localGet(`http://localhost/api/trades/${tradeId}`), {
         params: Promise.resolve({ tradeId }),
       })
     ).json();
@@ -226,15 +247,15 @@ describe("saved import API routes", () => {
     expect(tradeDetail.decisionReviewSnapshot).toBeNull();
     expect(tradeDetail.decisionReviewDiagnostics).toEqual([]);
 
-    const analytics = await (await latestAnalytics()).json();
+    const analytics = await (await latestAnalytics(localGet("http://localhost/api/analytics/latest"))).json();
     expect(analytics.source).toBe("saved_sqlite");
     expect(analytics.latestReport.sampleData).toBe(false);
 
-    const coach = await (await latestCoach()).json();
+    const coach = await (await latestCoach(localGet("http://localhost/api/coach/latest"))).json();
     expect(coach.source).toBe("saved_sqlite");
     expect(coach.emptyState.kind).not.toBe("sample_data");
 
-    const review = await (await latestReview()).json();
+    const review = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(review.source).toBe("saved_sqlite");
     expect(review.savedDecisionReview).toMatchObject({
       totalJobCount: 1,
@@ -262,7 +283,7 @@ describe("saved import API routes", () => {
     });
     expect(status.status).toBe(200);
 
-    const resolvedReview = await (await latestReview()).json();
+    const resolvedReview = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(resolvedReview.savedReviewQueue.allItems).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ symbol: "APIX", reviewStatus: "resolved" }),
@@ -273,7 +294,7 @@ describe("saved import API routes", () => {
     );
 
     const batch = await (
-      await getImportBatch(new Request(`http://localhost/api/import-batches/${batchId}`), {
+      await getImportBatch(localGet(`http://localhost/api/import-batches/${batchId}`), {
         params: Promise.resolve({ batchId }),
       })
     ).json();
@@ -290,7 +311,7 @@ describe("saved import API routes", () => {
 
     const duplicateBatch = await (
       await getImportBatch(
-        new Request(
+        localGet(
           `http://localhost/api/import-batches/${duplicateBody.plan.batch.id}`,
         ),
         { params: Promise.resolve({ batchId: duplicateBody.plan.batch.id }) },
@@ -308,7 +329,7 @@ describe("saved import API routes", () => {
       }),
     });
 
-    const history = await (await listImportBatches()).json();
+    const history = await (await listImportBatches(localGet("http://localhost/api/import-batches"))).json();
     expect(history.history).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -359,7 +380,7 @@ describe("saved import API routes", () => {
     expect(reviewRun.completedSnapshotCount).toBe(1);
 
     process.env.TRADER_INTELLIGENCE_TIER = "chart_context";
-    const chartTierReview = await (await latestReview()).json();
+    const chartTierReview = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(chartTierReview.source).toBe("saved_sqlite");
     expect(chartTierReview.review).toMatchObject({
       title: "Guided Review Session",
@@ -379,7 +400,7 @@ describe("saved import API routes", () => {
     );
 
     process.env.TRADER_INTELLIGENCE_TIER = "free_execution";
-    const freeTierReview = await (await latestReview()).json();
+    const freeTierReview = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(freeTierReview.source).toBe("saved_sqlite");
     expect(freeTierReview.review).toMatchObject({
       title: "Guided Review Session",
@@ -410,7 +431,7 @@ describe("saved import API routes", () => {
     const batchId = previewBody.plan.batch.id;
     const batchBeforeCommit = await (
       await getImportBatch(
-        new Request(`http://localhost/api/import-batches/${batchId}`),
+        localGet(`http://localhost/api/import-batches/${batchId}`),
         { params: Promise.resolve({ batchId }) },
       )
     ).json();
@@ -426,14 +447,14 @@ describe("saved import API routes", () => {
     });
     expect(commit.status).toBe(200);
 
-    const trades = await (await listTrades()).json();
+    const trades = await (await listTrades(localGet("http://localhost/api/trades"))).json();
     expect(trades.trades).toEqual(
       expect.arrayContaining([expect.objectContaining({ symbol: "RDSV" })]),
     );
 
     const batchAfterCommit = await (
       await getImportBatch(
-        new Request(`http://localhost/api/import-batches/${batchId}`),
+        localGet(`http://localhost/api/import-batches/${batchId}`),
         { params: Promise.resolve({ batchId }) },
       )
     ).json();
@@ -461,8 +482,8 @@ describe("saved import API routes", () => {
     });
     resetTraderIntelligenceDatabaseForTests();
 
-    const trades = await (await listTrades()).json();
-    const review = await (await latestReview()).json();
+    const trades = await (await listTrades(localGet("http://localhost/api/trades"))).json();
+    const review = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
 
     expect(trades.source).toBe("saved_sqlite");
     expect(trades.trades).toEqual(
@@ -505,7 +526,7 @@ describe("saved import API routes", () => {
 
     const batch = await (
       await getImportBatch(
-        new Request(
+        localGet(
           `http://localhost/api/import-batches/${previewBody.plan.batch.id}`,
         ),
         { params: Promise.resolve({ batchId: previewBody.plan.batch.id }) },
@@ -556,7 +577,7 @@ describe("saved import API routes", () => {
     expect(commit.status).toBe(200);
     expect(commitBody.result.status).toBe("committed");
 
-    const trades = await (await listTrades()).json();
+    const trades = await (await listTrades(localGet("http://localhost/api/trades"))).json();
     expect(trades.trades).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -571,7 +592,7 @@ describe("saved import API routes", () => {
     )?.id;
     expect(tradeId).toBeTruthy();
 
-    const analytics = await (await latestAnalytics()).json();
+    const analytics = await (await latestAnalytics(localGet("http://localhost/api/analytics/latest"))).json();
     expect(analytics.source).toBe("saved_sqlite");
     expect(analytics.latestReport.sampleData).toBe(false);
     expect(JSON.stringify(analytics.latestReport)).toContain("RAPI");
@@ -583,7 +604,7 @@ describe("saved import API routes", () => {
         "This saved import came from repaired CSV rows. Review repaired row values before trusting coaching evidence.",
     });
 
-    const coach = await (await latestCoach()).json();
+    const coach = await (await latestCoach(localGet("http://localhost/api/coach/latest"))).json();
     expect(coach.source).toBe("saved_sqlite");
     expect(coach.emptyState.kind).not.toBe("sample_data");
     expect(coach.savedImportSourceCaution).toMatchObject({
@@ -591,7 +612,7 @@ describe("saved import API routes", () => {
       relatedTradeIds: expect.arrayContaining([tradeId]),
     });
 
-    const review = await (await latestReview()).json();
+    const review = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(review.source).toBe("saved_sqlite");
     expect(review.savedImportSourceCaution).toMatchObject({
       repairedImport: true,
@@ -613,7 +634,7 @@ describe("saved import API routes", () => {
     );
 
     const tradeDetail = await (
-      await getTrade(new Request(`http://localhost/api/trades/${tradeId}`), {
+      await getTrade(localGet(`http://localhost/api/trades/${tradeId}`), {
         params: Promise.resolve({ tradeId }),
       })
     ).json();
@@ -668,7 +689,7 @@ describe("saved import API routes", () => {
       savedTradeCount: 1,
     });
 
-    const trades = await (await listTrades()).json();
+    const trades = await (await listTrades(localGet("http://localhost/api/trades"))).json();
     expect(trades.source).toBe("saved_sqlite");
     expect(trades.trades).toEqual(
       expect.arrayContaining([
@@ -680,16 +701,16 @@ describe("saved import API routes", () => {
       ]),
     );
 
-    const analytics = await (await latestAnalytics()).json();
+    const analytics = await (await latestAnalytics(localGet("http://localhost/api/analytics/latest"))).json();
     expect(analytics.source).toBe("saved_sqlite");
     expect(analytics.latestReport.sampleData).toBe(false);
     expect(JSON.stringify(analytics.latestReport)).toContain("GLNG");
 
-    const coach = await (await latestCoach()).json();
+    const coach = await (await latestCoach(localGet("http://localhost/api/coach/latest"))).json();
     expect(coach.source).toBe("saved_sqlite");
     expect(coach.emptyState.kind).not.toBe("sample_data");
 
-    const review = await (await latestReview()).json();
+    const review = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(review.source).toBe("saved_sqlite");
     expect(review.savedReviewQueue.allItems).toEqual(
       expect.arrayContaining([
@@ -826,7 +847,7 @@ describe("saved import API routes", () => {
     });
     expect(commit.status).toBe(200);
 
-    const review = await (await latestReview()).json();
+    const review = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(review.savedReviewQueue.allItems).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -848,9 +869,9 @@ describe("saved import API routes", () => {
     expect(openTradeId).toBeTruthy();
 
     const markClosed = await markTradeClosed(
-      new Request(
+      createTraderIntelligenceTestRequest(
         `http://localhost/api/trades/${encodeURIComponent(openTradeId)}/mark-closed`,
-        { method: "POST" },
+        { method: "POST", origin: "http://localhost" },
       ),
       { params: Promise.resolve({ tradeId: openTradeId }) },
     );
@@ -865,7 +886,7 @@ describe("saved import API routes", () => {
       },
     });
 
-    const reviewAfterClose = await (await latestReview()).json();
+    const reviewAfterClose = await (await latestReview(localGet("http://localhost/api/review/latest"))).json();
     expect(reviewAfterClose.savedReviewQueue.allItems).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -915,10 +936,10 @@ describe("saved import API routes", () => {
 
     const combinedSavedReadModels = JSON.stringify({
       preview: previewBody,
-      trades: await (await listTrades()).json(),
-      analytics: await (await latestAnalytics()).json(),
-      coach: await (await latestCoach()).json(),
-      review: await (await latestReview()).json(),
+      trades: await (await listTrades(localGet("http://localhost/api/trades"))).json(),
+      analytics: await (await latestAnalytics(localGet("http://localhost/api/analytics/latest"))).json(),
+      coach: await (await latestCoach(localGet("http://localhost/api/coach/latest"))).json(),
+      review: await (await latestReview(localGet("http://localhost/api/review/latest"))).json(),
     }).toLowerCase();
 
     for (const forbidden of [
@@ -950,7 +971,7 @@ describe("saved import API routes", () => {
       }),
     );
     const previewBody = await preview.json();
-    const history = await (await listImportBatches()).json();
+    const history = await (await listImportBatches(localGet("http://localhost/api/import-batches"))).json();
 
     expect(history.unresolvedRepairs).toEqual(
       expect.arrayContaining([
