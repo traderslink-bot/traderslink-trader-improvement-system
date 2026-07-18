@@ -101,6 +101,7 @@ This log may record progress and accepted strengthening decisions. It may not si
 - full Vitest suite: 164 files, 1,523 tests passed.
 - AST architecture verification: passed across 75 architecture files, 42 API routes, and all 82 classified routes.
 - staged private-data verification: passed across 23,684 records: 23,590 worktree/index records and 94 added/modified pre-remediation PR-history blobs.
+- the first remediation-head Linux CI run exposed CRLF-specific synthetic-fixture hashes from the Windows checkout; fixture hashing now canonicalizes Git text to LF, all 14 manifest hashes use that canonical representation, and the test accepts both CRLF and LF checkouts while still rejecting content changes.
 - Layer 2 verification: passed with the canonical 13-pattern result.
 - Layer 3 verification: passed with canonical regression `PASS`.
 - optimized build: passed; 127 routes were generated and all Intelligence routes remained dynamic. The build retained 19 known Academy registry notices and 5 existing broad filesystem-tracing warnings.

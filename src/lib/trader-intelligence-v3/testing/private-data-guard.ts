@@ -47,7 +47,10 @@ function fixtureApproval(path: string, content: string) {
   if (!expected) {
     return { listed: false, hashMatches: false };
   }
-  const actual = createHash("sha256").update(content, "utf8").digest("hex");
+  const canonicalContent = content.replace(/\r\n?/g, "\n");
+  const actual = createHash("sha256")
+    .update(canonicalContent, "utf8")
+    .digest("hex");
   return { listed: true, hashMatches: actual === expected };
 }
 

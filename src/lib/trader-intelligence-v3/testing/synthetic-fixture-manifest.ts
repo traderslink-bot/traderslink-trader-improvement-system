@@ -1,30 +1,30 @@
 export const TRADER_INTELLIGENCE_SYNTHETIC_FIXTURE_SHA256 = {
   "src/docs/trade-execution-import-fixtures/etrade-transactions-sample.csv":
-    "d7fb6e6b247fd8b710e26098145e73c472259b1f556cfeca9e27d6aea1bd3d09",
+    "1cda2d7bb27fcc70ffc1245a102949be1e60228d5e0afdedb99756b004571588",
   "src/docs/trade-execution-import-fixtures/fidelity-account-history-sample.csv":
-    "f46ff369797f364ed76ae0b5aaaf05b9ae3edaf0dd6d3aa98c168cc6d7fb688a",
+    "71d4a4b7f209b77476cf25c47c365c86a701aff0a552d057cf94a57426330741",
   "src/docs/trade-execution-import-fixtures/generic-execution-sample.csv":
-    "d6475c1108fdeb2c2a112b8adf136625a627df0b7cc444eecf696b100cec623f",
+    "7c0eaa6872fe43b6873997e20773eb3d6dd3ce55eccd16731cb228359db09fd5",
   "src/docs/trade-execution-import-fixtures/ibkr-activity-statement-sample.csv":
-    "d0a52c17e25b8a3c184a52217e7d9ca985cbef22cc37be1a4c25fff530fbfc33",
+    "74fd8c1a7cd6a616c674d1a882a636c025fd0f3336cbf58b23d77ce77863f238",
   "src/docs/trade-execution-import-fixtures/moomoo-partial-fills-synthetic.csv":
-    "87505edc403466a166a7bfe8b05aa9a55f5ede60e9982afde00aeb742459212d",
+    "4a8f48f8784fdfa841f7d362182d4ca11c265ecac72b2697aa2629183702ed20",
   "src/docs/trade-execution-import-fixtures/moomoo-trade-history-sample.csv":
-    "398ce35647cd04a974140f8237b858d3f9bed0534c92cc2ba9b9a999a5c75027",
+    "648d8dcd098f82b4af84107b439e2a659d4e0bbda353d880d21364bd05489b6b",
   "src/docs/trade-execution-import-fixtures/robinhood-transaction-history-sample.csv":
-    "fd8649294ee57cbf44e4a50056e492eae5858732ad5b139246d709397257b865",
+    "9f01d001e89efe2cae9fa3dfeb10283bfc992c9d343c5d8d2b535818a26f22da",
   "src/docs/trade-execution-import-fixtures/schwab-mixed-activity-synthetic.csv":
-    "ea89bbd4b00457211fb581180bfacfa480feed07c646971d37d62f5226074298",
+    "742554e4764b785e24e7bdc385891b5533f0f2d250c5a2fa535be114374cb899",
   "src/docs/trade-execution-import-fixtures/schwab-transactions-sample.csv":
-    "a26e07dca32a830f526b41d5babf23b4eb31f1f997ee72f9289d6b5570aacd87",
+    "e4d441381bb1dc326856e15f6b9d52179e9b3d4fa909bb10d0f80b041fff29ad",
   "src/docs/trade-execution-import-fixtures/tastytrade-transactions-sample.csv":
-    "d662fa81ad3537c734bfebb8b59277b4aeb086ab0d324b1c738a06dd1a0942ef",
+    "6427b277e2aae439cbdb9cf0ccc9758079299e750f422f0ce57aceae2cae2b9b",
   "src/docs/trade-execution-import-fixtures/thinkorswim-account-statement-sample.csv":
-    "048f25713543bbd9232a172b5b92d1af68573c0fdd1272608ed1ba73d004cd3b",
+    "c1ccd887f2b77401d990bc96bc0b82fdb392d73ca5ee6b888dacd4509a5278b5",
   "src/docs/trade-execution-import-fixtures/tradestation-trade-history-sample.csv":
-    "13d219207129395b9c6514aae5bd61e8a3703a31c7677f31550f953db0d63a02",
+    "92f7b7fc322dad6b4f9ceb308c9623855a46ea9fa16ef4658f4ded00b5bce2aa",
   "src/docs/trade-execution-import-fixtures/webull-order-history-sample.csv":
-    "7340e4f5d0c52033de58ff04ee44863d40fbd6e2dcc07c07d88f6a9ce1578a96",
+    "9d82dada2f18eb67e2d8a986af9b1d185492378b965b6620487137ffe929bd07",
   "src/docs/trade-execution-import-fixtures/webull-partial-cancel-synthetic.csv":
-    "183aa464ef254c810ae6962aa95b5f7d1a0d93cddfd6f46b320ca46ef5048ed2",
+    "26e116eba0a59c4f15d096581243ee2f6f03df1a971c3251d164ff9ab5321677",
 } as const satisfies Readonly<Record<string, string>>;

@@ -91,6 +91,15 @@ describe("Trader Intelligence v3 private-data repository guard", () => {
         { path, content, sourceKind: "synthetic_test" },
       ]),
     ).toEqual([]);
+    expect(
+      scanTraderIntelligencePrivateData([
+        {
+          path,
+          content: content.replace(/\r\n?/g, "\n"),
+          sourceKind: "synthetic_test",
+        },
+      ]),
+    ).toEqual([]);
 
     const changed = scanTraderIntelligencePrivateData([
       {

@@ -313,6 +313,7 @@ These are implementer-reported results. Re-run them; do not accept them as indep
 - Layer 3 verification: canonical regression passed.
 - Architecture guard: passed across 75 architecture files, 42 API routes, and 82 classified routes.
 - Staged private-data guard: passed across 23,684 records: 23,590 worktree/index records and 94 added/modified pre-remediation PR-history blobs. Re-run after checkout so the remediation commit itself is counted in PR history.
+- Cross-platform fixture hashing: the first Linux CI run identified CRLF-derived Windows manifest hashes; the implementation now hashes canonical LF text and the focused test exercises both CRLF and LF representations without weakening content-change rejection.
 - Optimized build: passed with 127 generated routes, 19 known Academy registry notices, and five existing broad filesystem-tracing warnings around legacy stores/provider code.
 - Process-restart persistence test: passed after separate optimized Node processes wrote and reopened the same explicit external owner database.
 - Optimized persistent-SQLite Playwright flow: one scenario passed against the external database and asserted private/no-store plus merged `Vary` headers on the rendered page.
