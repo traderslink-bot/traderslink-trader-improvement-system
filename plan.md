@@ -16,21 +16,23 @@ query, visual evidence, AI, coaching, market context, persistence, or QA work.
 
 # 1. Controlling read order
 
-1. `src/docs/trader-intelligence-v3-project-log.md`
-2. `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`
-3. `src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md`
-4. accepted GA0-A ADRs
-5. detailed v3 QA reviews and master plan when rationale is needed
-6. legacy v1/v2 files only for preserved code, fixtures, routes, education, or migration evidence
+1. `src/docs/trader-intelligence-v3-project-log-addendum-ga0-b-2026-07-19.md`
+2. `src/docs/trader-intelligence-v3-project-log.md` for preserved detailed history
+3. `src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md`
+4. `src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md`
+5. accepted GA0-A ADRs
+6. detailed v3 QA reviews and master plan when rationale is needed
+7. legacy v1/v2 files only for preserved code, fixtures, routes, education, or migration evidence
 
 Precedence:
 
-1. latest explicit accepted project-log decision;
+1. latest explicit accepted project-log addendum or project-log decision;
 2. controlling architecture specification;
 3. active implementation plan;
 4. detailed reviews/master plan as rationale;
 5. legacy documents.
 
+The addendum extends rather than replaces the detailed historical project log.
 Historical audit handoffs are evidence, not active implementation authority.
 
 ---
@@ -186,7 +188,7 @@ Deliver:
 - `simulate_daily_stop_rule:v1`;
 - actual versus simulated day and aggregate tables;
 - days helped/harmed;
-- exact evidence, claims, and series;
+- exact claims/evidence/series;
 - independent reference simulation.
 
 Handoff:
