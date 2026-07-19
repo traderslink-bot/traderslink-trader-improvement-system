@@ -15,10 +15,13 @@ The controlling detailed implementation plan is:
 
 `src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md`
 
-The active entry point and continuity log were reconciled to that plan:
+Current status is recorded without deleting historical detail:
 
-- `plan.md`
-- `src/docs/trader-intelligence-v3-project-log.md`
+- active entry point: `plan.md`;
+- latest accepted transition addendum:
+  `src/docs/trader-intelligence-v3-project-log-addendum-ga0-b-2026-07-19.md`;
+- preserved detailed historical log:
+  `src/docs/trader-intelligence-v3-project-log.md`.
 
 ## 2. Product focus
 
@@ -115,10 +118,11 @@ Read these files completely in order:
 
 1. AGENTS.md
 2. plan.md
-3. src/docs/trader-intelligence-v3-project-log.md
-4. src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md
-5. src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md
-6. src/docs/trader-intelligence-v3-ga0-b-planning-and-next-session-handoff-2026-07-19.md
+3. src/docs/trader-intelligence-v3-project-log-addendum-ga0-b-2026-07-19.md
+4. src/docs/trader-intelligence-v3-project-log.md for preserved detailed history
+5. src/docs/trader-intelligence-v3-controlling-architecture-specification-2026-07-17.md
+6. src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md
+7. src/docs/trader-intelligence-v3-ga0-b-planning-and-next-session-handoff-2026-07-19.md
 
 Confirm that GA0-A1, GA0-A2, and GA0-A3 are accepted and merged and that current main contains the GA0-B plan.
 
