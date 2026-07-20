@@ -265,18 +265,22 @@ export type TradersLinkAiPullbackPlan = {
 export function deriveTradersLinkAiPullbackPlan(
   read: TradersLinkAiReadPayload,
 ): TradersLinkAiPullbackPlan | null {
-  const zoneHigh = read.needsToHold.price;
-  const zoneLow = read.cautionBelow.price;
-  const invalidationPrice = read.momentumFailure.price;
+  const needsToHold = read.needsToHold.price;
+  const cautionBelow = read.cautionBelow.price;
+  const zoneHigh = read.momentumFailure.price;
+  const zoneLow = (read.downsideCheckpoints ?? [])
+    .map((checkpoint) => checkpoint.price)
+    .find((price): price is number => price !== null && zoneHigh !== null && price < zoneHigh) ?? null;
 
   if (
     read.confidence === "low" ||
     (read.bias !== "bullish" && read.bias !== "mixed") ||
+    needsToHold === null ||
+    cautionBelow === null ||
     zoneHigh === null ||
     zoneLow === null ||
-    invalidationPrice === null ||
-    !(zoneHigh > zoneLow && zoneLow > invalidationPrice) ||
-    read.currentPrice < invalidationPrice
+    !(needsToHold > cautionBelow && cautionBelow > zoneHigh && zoneHigh > zoneLow) ||
+    read.currentPrice < zoneLow
   ) {
     return null;
   }
@@ -286,17 +290,14 @@ export function deriveTradersLinkAiPullbackPlan(
     : read.currentPrice >= zoneLow
       ? "testing"
       : "reclaim_required";
-  const firstBounceTarget =
-    read.mustClear.price !== null && read.mustClear.price > zoneHigh
-      ? read.mustClear.price
-      : null;
+  const firstBounceTarget = cautionBelow > zoneHigh ? cautionBelow : needsToHold;
 
   return {
     state,
     zoneLow,
     zoneHigh,
     reclaimPrice: zoneHigh,
-    invalidationPrice,
+    invalidationPrice: zoneLow,
     firstBounceTarget,
   };
 }

@@ -131,12 +131,49 @@ describe("TradersLink AI Read parser", () => {
     expect(read).not.toBeNull();
     expect(deriveTradersLinkAiPullbackPlan(read!)).toEqual({
       state: "watch",
-      zoneLow: 1.25,
-      zoneHigh: 1.3,
-      reclaimPrice: 1.3,
-      invalidationPrice: 1.2,
-      firstBounceTarget: 1.5,
+      zoneLow: 1.05,
+      zoneHigh: 1.2,
+      reclaimPrice: 1.2,
+      invalidationPrice: 1.05,
+      firstBounceTarget: 1.25,
     });
+  });
+
+  it("uses VMAR's Friday regular-session base as the deep pullback recovery zone", () => {
+    const value = JSON.parse(validBody());
+    value.symbol = "VMAR";
+    value.currentPrice = 1.06;
+    value.needsToHold = { label: "Premarket reclaim shelf", price: 1, rationale: "Premarket shelf held." };
+    value.cautionBelow = { label: "Prior after-hours base", price: 0.95, rationale: "After-hours base held." };
+    value.momentumFailure = { label: "Regular-session floor", price: 0.86, rationale: "Regular session floor." };
+    value.mustClear = { label: "Supply pivot", price: 1.1, rationale: "After-hours rejection." };
+    value.downsideCheckpoints = [
+      { label: "Friday regular-session low", price: 0.81, condition: "The Friday low is the lower edge of the prior-session base." },
+    ];
+    const read = parseTradersLinkAiRead(JSON.stringify(value));
+
+    expect(read).not.toBeNull();
+    expect(deriveTradersLinkAiPullbackPlan(read!)).toEqual({
+      state: "watch",
+      zoneLow: 0.81,
+      zoneHigh: 0.86,
+      reclaimPrice: 0.86,
+      invalidationPrice: 0.81,
+      firstBounceTarget: 0.95,
+    });
+  });
+
+  it("omits the recovery plan without a lower structural checkpoint", () => {
+    const value = JSON.parse(validBody());
+    value.currentPrice = 1.06;
+    value.needsToHold = { label: "Hold", price: 1, rationale: "Premarket shelf held." };
+    value.cautionBelow = { label: "Caution", price: 0.95, rationale: "After-hours base held." };
+    value.momentumFailure = { label: "Failure", price: 0.86, rationale: "Regular session floor." };
+    value.downsideCheckpoints = [];
+    const read = parseTradersLinkAiRead(JSON.stringify(value));
+
+    expect(read).not.toBeNull();
+    expect(deriveTradersLinkAiPullbackPlan(read!)).toBeNull();
   });
 
   it("does not label overlapping caution and hold levels as a dip-buy plan", () => {
@@ -146,7 +183,7 @@ describe("TradersLink AI Read parser", () => {
     expect(deriveTradersLinkAiPullbackPlan(read!)).toBeNull();
   });
 
-  it("retires the pullback plan after its momentum-failure boundary breaks", () => {
+  it("keeps the recovery watch active below momentum failure while its base still holds", () => {
     const value = JSON.parse(validBody());
     value.currentPrice = 1.19;
     value.needsToHold = { label: "Hold", price: 1.3, rationale: "Held shelf." };
@@ -155,7 +192,12 @@ describe("TradersLink AI Read parser", () => {
     const read = parseTradersLinkAiRead(JSON.stringify(value));
 
     expect(read).not.toBeNull();
-    expect(deriveTradersLinkAiPullbackPlan(read!)).toBeNull();
+    expect(deriveTradersLinkAiPullbackPlan(read!)).toMatchObject({
+      state: "testing",
+      zoneLow: 1.05,
+      zoneHigh: 1.2,
+      reclaimPrice: 1.2,
+    });
   });
 
   it("rejects malformed payloads and unsafe source URLs", () => {

@@ -406,11 +406,11 @@ function DilutionTimingRow({
 function pullbackPlanStateCopy(plan: TradersLinkAiPullbackPlan): string {
   switch (plan.state) {
     case "watch":
-      return "Price is still above the zone. Wait for a controlled pullback; this is not a chase entry.";
+      return "Price is still above the deeper recovery zone. The nearby support shelves are not being presented as a meaningful pullback.";
     case "testing":
-      return `Price is testing the zone. A potential entry requires a lower-price rejection and reclaim of $${formatPrice(plan.reclaimPrice)}; the first touch alone is not confirmation.`;
+      return `Price is testing the prior-session base. A new recovery setup requires a rejection and reclaim of $${formatPrice(plan.reclaimPrice)}; the first touch alone is not confirmation.`;
     case "reclaim_required":
-      return `Price is below the pullback zone. Do not treat the lower price as an entry until it reclaims $${formatPrice(plan.reclaimPrice)} and holds.`;
+      return `Price is below the prior-session base. Do not treat the lower price as an entry until it builds a new base, reclaims $${formatPrice(plan.reclaimPrice)}, and holds.`;
   }
 }
 
@@ -470,7 +470,7 @@ function TradersLinkAiReadCard({
       <div className="watchlist-ai-read-level-grid">
         <TradersLinkAiReadLevelBlock heading="Needs to hold" level={read.needsToHold} />
         <TradersLinkAiReadLevelBlock
-          heading="Pullback needs confirmation below"
+          heading="Caution below"
           level={read.cautionBelow}
         />
         <TradersLinkAiReadLevelBlock heading="Momentum failure" level={read.momentumFailure} />
@@ -483,18 +483,23 @@ function TradersLinkAiReadCard({
 
       {pullbackPlan ? (
         <section className="watchlist-ai-read-section">
-          <h3>Potential dip-buy plan</h3>
+          <h3>Deep pullback / recovery watch</h3>
           <p>
-            Pullback zone: {" "}
+            Prior-session base: {" "}
             <strong>
               ${formatPrice(pullbackPlan.zoneLow)}-${formatPrice(pullbackPlan.zoneHigh)}
             </strong>.
           </p>
           <p>{pullbackPlanStateCopy(pullbackPlan)}</p>
           <p>
-            Risk boundary: acceptance below ${formatPrice(pullbackPlan.invalidationPrice)} invalidates
-            the original long setup; wait for a new base and reclaim rather than averaging into the
-            failure.
+            This is a separate recovery setup. Losing ${formatPrice(pullbackPlan.reclaimPrice)}
+            retires the original long setup; the lower price matters only if buyers build a base
+            and reclaim it.
+          </p>
+          <p>
+            Recovery risk boundary: acceptance below ${formatPrice(pullbackPlan.invalidationPrice)}
+            invalidates this prior-session base; wait for new structure rather than averaging into
+            the failure.
           </p>
           {pullbackPlan.firstBounceTarget !== null ? (
             <p>
@@ -644,7 +649,8 @@ function TradersLinkAiReadCard({
 
       <p className="watchlist-ai-read-meta">
         Market data as of {formatDateTime(read.dataAsOf)}. Generated {formatDateTime(read.generatedAt)}.
-        AI-assisted preparation only; live price action and risk controls remain decisive.
+        AI-assisted preparation only; live price action and risk controls remain decisive. AI can make
+        mistakes.
       </p>
     </article>
   );
