@@ -1336,4 +1336,55 @@ describe("LiveWatchlistStore", () => {
     expect(reactivated?.cards.fullLadder).toBeDefined();
     expect(reactivated?.cards.liveTraderRead?.body).toContain("holding a range");
   });
+
+  it("restores same-day archived cards when an older reactivation already cleared the live row", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("ZYBT", 1000));
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 1500,
+      cards: {
+        tradersLinkAiRead: {
+          title: "TradersLink AI Read",
+          body: "ZYBT preserved setup read.",
+          updatedAt: 1500,
+          priceWhenPosted: 1.18,
+          source: "openai",
+        },
+      },
+    });
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 3000,
+      cards: {},
+    });
+    expect((await store.getSymbol("ZYBT"))?.cards.companyInfo).toBeUndefined();
+
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 4000,
+      firstPostedAt: 1000,
+      preserveExistingOnReactivation: true,
+      cards: {},
+    });
+
+    const restored = await store.getSymbol("ZYBT");
+    expect(restored?.firstPostedAt).toBe(1000);
+    expect(restored?.cards.companyInfo?.title).toBe("Example Corp");
+    expect(restored?.cards.tradersLinkAiRead?.body).toContain("preserved setup read");
+    expect(restored?.cards.fullLadder).toBeDefined();
+    expect(restored?.cards.liveTraderRead?.body).toContain("holding a range");
+  });
 });

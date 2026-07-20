@@ -159,6 +159,21 @@ function normalizeSymbol(symbol: string): string {
   return symbol.trim().toUpperCase();
 }
 
+function newYorkDateKey(timestamp: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function sameNewYorkDate(left: number, right: number): boolean {
+  return newYorkDateKey(left) === newYorkDateKey(right);
+}
+
 function isCard(value: unknown): value is LiveWatchlistCardContent {
   return (
     typeof value === "object" &&
@@ -528,6 +543,39 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   };
 }
 
+function mergeArchivedReactivationContext(
+  existing: LiveWatchlistSymbolState | null,
+  archived: LiveWatchlistSymbolState,
+): LiveWatchlistSymbolState {
+  if (!existing) {
+    return archived;
+  }
+  return deriveStateFields({
+    ...archived,
+    ...existing,
+    firstPostedAt: existing.firstPostedAt ?? archived.firstPostedAt,
+    potentialGain: existing.potentialGain ?? archived.potentialGain,
+    companyName: existing.companyName ?? archived.companyName,
+    latestPrice: existing.latestPrice ?? archived.latestPrice,
+    latestPriceSource: existing.latestPriceSource ?? archived.latestPriceSource,
+    latestPriceObservedAt: existing.latestPriceObservedAt ?? archived.latestPriceObservedAt,
+    marketDataRevision: existing.marketDataRevision ?? archived.marketDataRevision,
+    nearestSupport: existing.nearestSupport ?? archived.nearestSupport,
+    nearestResistance: existing.nearestResistance ?? archived.nearestResistance,
+    nearestSupportLabel: existing.nearestSupportLabel ?? archived.nearestSupportLabel,
+    nearestResistanceLabel: existing.nearestResistanceLabel ?? archived.nearestResistanceLabel,
+    levelMap: existing.levelMap ?? archived.levelMap,
+    volume: existing.volume ?? archived.volume,
+    extendedQuote: existing.extendedQuote ?? archived.extendedQuote,
+    latestTraderReadHeadline:
+      existing.latestTraderReadHeadline ?? archived.latestTraderReadHeadline,
+    cards: {
+      ...archived.cards,
+      ...existing.cards,
+    },
+  });
+}
+
 export function applyPatch(
   existing: LiveWatchlistSymbolState | null,
   patch: LiveWatchlistCardPatch,
@@ -849,10 +897,21 @@ export class LiveWatchlistStore {
 
   async upsertPatch(patch: LiveWatchlistCardPatch): Promise<LiveWatchlistSymbolState> {
     const symbol = normalizeSymbol(patch.symbol);
+    const latestArchive = patch.preserveExistingOnReactivation === true
+      ? await this.getLatestArchiveForSymbol(symbol)
+      : null;
+    const preservedArchiveState = latestArchive && sameNewYorkDate(latestArchive.archivedAt, patch.updatedAt)
+      ? latestArchive.state
+      : null;
 
     if (!shouldUseSqliteFallback()) {
       const next = await mutateNeonSymbolState(symbol, (existing) =>
-        applyPatch(existing, { ...patch, symbol }),
+        applyPatch(
+          preservedArchiveState
+            ? mergeArchivedReactivationContext(existing, preservedArchiveState)
+            : existing,
+          { ...patch, symbol },
+        ),
       );
       if (next.status === "deactivated") {
         await this.createArchiveIfEligible(next);
@@ -860,7 +919,10 @@ export class LiveWatchlistStore {
       return next;
     }
 
-    const existing = await this.getSymbol(symbol);
+    const current = await this.getSymbol(symbol);
+    const existing = preservedArchiveState
+      ? mergeArchivedReactivationContext(current, preservedArchiveState)
+      : current;
     const next = applyPatch(existing, { ...patch, symbol });
     const db = await getSqliteDatabase();
     db.prepare(
