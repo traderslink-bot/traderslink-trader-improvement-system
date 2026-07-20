@@ -954,6 +954,56 @@ describe("LiveWatchlistStore", () => {
     expect(preserved.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
   });
 
+  it("keeps lifecycle labels off by default and preserves operator visibility across ticker updates", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const initial = await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1000,
+      cards: {},
+    });
+    expect(initial.watchlistLifecycleLabelsVisible).toBe(false);
+
+    const labeled = await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1100,
+      watchlistLifecycleLabelsVisible: true,
+      watchlistLifecycle: {
+        status: "pullback_watch",
+        label: "Pullback Watch",
+        reason: "Holding VWAP and mapped support.",
+        updatedAt: 1100,
+      },
+      cards: {},
+    });
+    expect(labeled.watchlistLifecycleLabelsVisible).toBe(true);
+    expect(labeled.watchlistLifecycle?.status).toBe("pullback_watch");
+
+    const preserved = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "NXXT",
+      updatedAt: 1200,
+      latestPrice: 0.33,
+      nearestSupport: 0.32,
+      nearestResistance: 0.35,
+    });
+    expect(preserved.watchlistLifecycleLabelsVisible).toBe(true);
+    expect(preserved.watchlistLifecycle?.label).toBe("Pullback Watch");
+
+    const hidden = await store.upsertPatch({
+      symbol: "NXXT",
+      updatedAt: 1300,
+      watchlistLifecycleLabelsVisible: false,
+      cards: {},
+    });
+    expect(hidden.watchlistLifecycleLabelsVisible).toBe(false);
+    expect(hidden.watchlistLifecycle?.status).toBe("pullback_watch");
+  });
+
   it("allows a new activation patch to reset a stale first posted time", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
@@ -1247,5 +1297,94 @@ describe("LiveWatchlistStore", () => {
     expect(archives).toHaveLength(1);
     expect(archives[0]).toEqual(firstArchive);
     expect(archives[0]?.state.cards.liveTraderRead?.body).toContain("holding a range");
+  });
+
+  it("keeps same-day cards and Added time when a removed ticker is reactivated from preserved context", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("NXXT", 1000));
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1500,
+      watchlistSlotState: "followup",
+      cards: {},
+    });
+    expect((await store.getSymbol("NXXT"))?.watchlistSlotState).toBe("followup");
+
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 3000,
+      firstPostedAt: 1000,
+      watchlistSlotState: "active",
+      preserveExistingOnReactivation: true,
+      cards: {},
+    });
+
+    const reactivated = await store.getSymbol("NXXT");
+    expect(reactivated?.firstPostedAt).toBe(1000);
+    expect(reactivated?.watchlistSlotState).toBe("active");
+    expect(reactivated?.cards.fullLadder).toBeDefined();
+    expect(reactivated?.cards.liveTraderRead?.body).toContain("holding a range");
+  });
+
+  it("restores same-day archived cards when an older reactivation already cleared the live row", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("ZYBT", 1000));
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 1500,
+      cards: {
+        tradersLinkAiRead: {
+          title: "TradersLink AI Read",
+          body: "ZYBT preserved setup read.",
+          updatedAt: 1500,
+          priceWhenPosted: 1.18,
+          source: "openai",
+        },
+      },
+    });
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 3000,
+      cards: {},
+    });
+    expect((await store.getSymbol("ZYBT"))?.cards.companyInfo).toBeUndefined();
+
+    await store.upsertPatch({
+      symbol: "ZYBT",
+      status: "live",
+      updatedAt: 4000,
+      firstPostedAt: 1000,
+      preserveExistingOnReactivation: true,
+      cards: {},
+    });
+
+    const restored = await store.getSymbol("ZYBT");
+    expect(restored?.firstPostedAt).toBe(1000);
+    expect(restored?.cards.companyInfo?.title).toBe("Example Corp");
+    expect(restored?.cards.tradersLinkAiRead?.body).toContain("preserved setup read");
+    expect(restored?.cards.fullLadder).toBeDefined();
+    expect(restored?.cards.liveTraderRead?.body).toContain("holding a range");
   });
 });

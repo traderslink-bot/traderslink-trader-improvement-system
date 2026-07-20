@@ -17,6 +17,7 @@ import type {
   TradersLinkAiReadSource,
   TradersLinkAiReadTarget,
   TradersLinkAiReadUsage,
+  LiveWatchlistLevelMapLevel,
 } from "./live-watchlist-types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -264,11 +265,30 @@ export type TradersLinkAiPullbackPlan = {
  */
 export function deriveTradersLinkAiPullbackPlan(
   read: TradersLinkAiReadPayload,
+  supportLevels: LiveWatchlistLevelMapLevel[] = [],
 ): TradersLinkAiPullbackPlan | null {
   const needsToHold = read.needsToHold.price;
   const cautionBelow = read.cautionBelow.price;
-  const zoneHigh = read.momentumFailure.price;
-  const zoneLow = (read.downsideCheckpoints ?? [])
+  const momentumFailure = read.momentumFailure.price;
+  const structuralSupports = supportLevels
+    .filter((level) =>
+      level.side === "support" &&
+      level.price > 0 &&
+      momentumFailure !== null &&
+      level.price < momentumFailure &&
+      level.freshness !== "stale" &&
+      level.evidenceStatus !== "synthetic_planning" &&
+      level.strengthLabel !== "weak"
+    )
+    .sort((left, right) => right.price - left.price)
+    .filter((level, index, levels) =>
+      index === 0 || Math.abs(level.price - levels[index - 1]!.price) > Math.max(level.price * 0.005, 0.0001)
+    );
+  const structuralPair = structuralSupports.length >= 2
+    ? { zoneHigh: structuralSupports[0]!.price, zoneLow: structuralSupports[1]!.price }
+    : null;
+  const zoneHigh = structuralPair?.zoneHigh ?? momentumFailure;
+  const zoneLow = structuralPair?.zoneLow ?? (read.downsideCheckpoints ?? [])
     .map((checkpoint) => checkpoint.price)
     .find((price): price is number => price !== null && zoneHigh !== null && price < zoneHigh) ?? null;
 
@@ -290,7 +310,11 @@ export function deriveTradersLinkAiPullbackPlan(
     : read.currentPrice >= zoneLow
       ? "testing"
       : "reclaim_required";
-  const firstBounceTarget = cautionBelow > zoneHigh ? cautionBelow : needsToHold;
+  const firstBounceTarget = momentumFailure !== null && momentumFailure > zoneHigh
+    ? momentumFailure
+    : cautionBelow > zoneHigh
+      ? cautionBelow
+      : needsToHold;
 
   return {
     state,

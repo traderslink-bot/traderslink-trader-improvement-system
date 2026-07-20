@@ -159,6 +159,21 @@ function normalizeSymbol(symbol: string): string {
   return symbol.trim().toUpperCase();
 }
 
+function newYorkDateKey(timestamp: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function sameNewYorkDate(left: number, right: number): boolean {
+  return newYorkDateKey(left) === newYorkDateKey(right);
+}
+
 function isCard(value: unknown): value is LiveWatchlistCardContent {
   return (
     typeof value === "object" &&
@@ -168,6 +183,20 @@ function isCard(value: unknown): value is LiveWatchlistCardContent {
     typeof (value as LiveWatchlistCardContent).updatedAt === "number" &&
     typeof (value as LiveWatchlistCardContent).source === "string"
   );
+}
+
+function normalizeWatchlistLifecycle(
+  value: LiveWatchlistSymbolState["watchlistLifecycle"] | undefined,
+): LiveWatchlistSymbolState["watchlistLifecycle"] {
+  if (!value) return null;
+  const statuses = new Set(["monitoring", "active", "pullback_watch", "recovery_watch", "setup_fading", "standby"]);
+  return statuses.has(value.status) &&
+    typeof value.label === "string" &&
+    typeof value.reason === "string" &&
+    typeof value.updatedAt === "number" &&
+    Number.isFinite(value.updatedAt)
+    ? value
+    : null;
 }
 
 function parseState(raw: string): LiveWatchlistSymbolState | null {
@@ -473,7 +502,10 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   const inferredLatestPriceSource = state.latestPriceSource ?? "card";
   return {
     ...state,
+    watchlistSlotState: state.watchlistSlotState === "followup" ? "followup" : "active",
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible: state.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle: normalizeWatchlistLifecycle(state.watchlistLifecycle),
     tradersLinkAiReadCardVisible: state.tradersLinkAiReadCardVisible !== false,
     tradersLinkAiReadDipBuyPlanVisible: state.tradersLinkAiReadDipBuyPlanVisible !== false,
     potentialGain: normalizePotentialGain(state.potentialGain),
@@ -511,6 +543,39 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   };
 }
 
+function mergeArchivedReactivationContext(
+  existing: LiveWatchlistSymbolState | null,
+  archived: LiveWatchlistSymbolState,
+): LiveWatchlistSymbolState {
+  if (!existing) {
+    return archived;
+  }
+  return deriveStateFields({
+    ...archived,
+    ...existing,
+    firstPostedAt: existing.firstPostedAt ?? archived.firstPostedAt,
+    potentialGain: existing.potentialGain ?? archived.potentialGain,
+    companyName: existing.companyName ?? archived.companyName,
+    latestPrice: existing.latestPrice ?? archived.latestPrice,
+    latestPriceSource: existing.latestPriceSource ?? archived.latestPriceSource,
+    latestPriceObservedAt: existing.latestPriceObservedAt ?? archived.latestPriceObservedAt,
+    marketDataRevision: existing.marketDataRevision ?? archived.marketDataRevision,
+    nearestSupport: existing.nearestSupport ?? archived.nearestSupport,
+    nearestResistance: existing.nearestResistance ?? archived.nearestResistance,
+    nearestSupportLabel: existing.nearestSupportLabel ?? archived.nearestSupportLabel,
+    nearestResistanceLabel: existing.nearestResistanceLabel ?? archived.nearestResistanceLabel,
+    levelMap: existing.levelMap ?? archived.levelMap,
+    volume: existing.volume ?? archived.volume,
+    extendedQuote: existing.extendedQuote ?? archived.extendedQuote,
+    latestTraderReadHeadline:
+      existing.latestTraderReadHeadline ?? archived.latestTraderReadHeadline,
+    cards: {
+      ...archived.cards,
+      ...existing.cards,
+    },
+  });
+}
+
 export function applyPatch(
   existing: LiveWatchlistSymbolState | null,
   patch: LiveWatchlistCardPatch,
@@ -518,7 +583,9 @@ export function applyPatch(
   const symbol = normalizeSymbol(patch.symbol);
   const nextStatus = patch.status ?? existing?.status ?? "live";
   const isReactivation = existing?.status === "deactivated" && nextStatus !== "deactivated";
-  const baseExisting = isReactivation ? null : existing;
+  const baseExisting = isReactivation && patch.preserveExistingOnReactivation !== true
+    ? null
+    : existing;
   const nextCards = { ...(baseExisting?.cards ?? {}) };
   const patchesNearestCard = Object.prototype.hasOwnProperty.call(
     patch.cards,
@@ -532,6 +599,7 @@ export function applyPatch(
   );
   const patchesLevelMap = Object.prototype.hasOwnProperty.call(patch, "levelMap");
   const patchesFirstPostedAt = Object.prototype.hasOwnProperty.call(patch, "firstPostedAt");
+  const patchesLifecycle = Object.prototype.hasOwnProperty.call(patch, "watchlistLifecycle");
   const preservesTickerPrice = baseExisting?.latestPriceSource === "ticker";
   const recomputesCardPrice = !preservesTickerPrice && patchesPriceCard;
   for (const [kind, card] of Object.entries(patch.cards)) {
@@ -566,10 +634,23 @@ export function applyPatch(
     status: nextStatus,
     updatedAt: Math.max(patch.updatedAt, baseExisting?.updatedAt ?? 0),
     firstPostedAt: nextFirstPostedAt,
+    watchlistSlotState:
+      patch.watchlistSlotState === "followup"
+        ? "followup"
+        : patch.watchlistSlotState === "active"
+          ? "active"
+          : baseExisting?.watchlistSlotState ?? "active",
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
         : baseExisting?.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible:
+      typeof patch.watchlistLifecycleLabelsVisible === "boolean"
+        ? patch.watchlistLifecycleLabelsVisible
+        : baseExisting?.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle: patchesLifecycle
+      ? normalizeWatchlistLifecycle(patch.watchlistLifecycle ?? null)
+      : baseExisting?.watchlistLifecycle ?? null,
     tradersLinkAiReadCardVisible:
       typeof patch.tradersLinkAiReadCardVisible === "boolean"
         ? patch.tradersLinkAiReadCardVisible
@@ -622,10 +703,24 @@ function applyTickerDataPatch(
     status: patch.status ?? existing?.status ?? "live",
     updatedAt: Math.max(existing?.updatedAt ?? 0, patch.updatedAt),
     firstPostedAt: existing?.firstPostedAt ?? null,
+    watchlistSlotState:
+      patch.watchlistSlotState === "followup"
+        ? "followup"
+        : patch.watchlistSlotState === "active"
+          ? "active"
+          : existing?.watchlistSlotState ?? "active",
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
         : existing?.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible:
+      typeof patch.watchlistLifecycleLabelsVisible === "boolean"
+        ? patch.watchlistLifecycleLabelsVisible
+        : existing?.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle:
+      patch.watchlistLifecycle !== undefined
+        ? normalizeWatchlistLifecycle(patch.watchlistLifecycle)
+        : existing?.watchlistLifecycle ?? null,
     tradersLinkAiReadCardVisible:
       typeof patch.tradersLinkAiReadCardVisible === "boolean"
         ? patch.tradersLinkAiReadCardVisible
@@ -802,10 +897,21 @@ export class LiveWatchlistStore {
 
   async upsertPatch(patch: LiveWatchlistCardPatch): Promise<LiveWatchlistSymbolState> {
     const symbol = normalizeSymbol(patch.symbol);
+    const latestArchive = patch.preserveExistingOnReactivation === true
+      ? await this.getLatestArchiveForSymbol(symbol)
+      : null;
+    const preservedArchiveState = latestArchive && sameNewYorkDate(latestArchive.archivedAt, patch.updatedAt)
+      ? latestArchive.state
+      : null;
 
     if (!shouldUseSqliteFallback()) {
       const next = await mutateNeonSymbolState(symbol, (existing) =>
-        applyPatch(existing, { ...patch, symbol }),
+        applyPatch(
+          preservedArchiveState
+            ? mergeArchivedReactivationContext(existing, preservedArchiveState)
+            : existing,
+          { ...patch, symbol },
+        ),
       );
       if (next.status === "deactivated") {
         await this.createArchiveIfEligible(next);
@@ -813,7 +919,10 @@ export class LiveWatchlistStore {
       return next;
     }
 
-    const existing = await this.getSymbol(symbol);
+    const current = await this.getSymbol(symbol);
+    const existing = preservedArchiveState
+      ? mergeArchivedReactivationContext(current, preservedArchiveState)
+      : current;
     const next = applyPatch(existing, { ...patch, symbol });
     const db = await getSqliteDatabase();
     db.prepare(

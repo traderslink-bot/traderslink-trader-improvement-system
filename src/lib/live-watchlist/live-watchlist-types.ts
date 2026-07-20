@@ -11,7 +11,22 @@ export type LiveWatchlistCardKind =
   | "extendedQuote";
 
 export type LiveWatchlistStatus = "live" | "stale" | "deactivated";
+export type LiveWatchlistSlotState = "active" | "followup";
 export type LiveWatchlistMarketDataStatus = "live" | "stale" | "offline" | "starting";
+export type LiveWatchlistLifecycleStatus =
+  | "monitoring"
+  | "active"
+  | "pullback_watch"
+  | "recovery_watch"
+  | "setup_fading"
+  | "standby";
+
+export type LiveWatchlistLifecycleRead = {
+  status: LiveWatchlistLifecycleStatus;
+  label: "Monitoring" | "Active" | "Pullback Watch" | "Recovery Watch" | "Setup Fading" | "Standby";
+  reason: string;
+  updatedAt: number;
+};
 
 export type LiveWatchlistCardContent = {
   title: string;
@@ -27,7 +42,11 @@ export type LiveWatchlistCardPatch = {
   status?: LiveWatchlistStatus;
   updatedAt: number;
   firstPostedAt?: number | null;
+  watchlistSlotState?: LiveWatchlistSlotState;
+  preserveExistingOnReactivation?: boolean;
   potentialGainCardVisible?: boolean;
+  watchlistLifecycleLabelsVisible?: boolean;
+  watchlistLifecycle?: LiveWatchlistLifecycleRead | null;
   tradersLinkAiReadCardVisible?: boolean;
   tradersLinkAiReadDipBuyPlanVisible?: boolean;
   levelMap?: LiveWatchlistLevelMap | null;
@@ -47,7 +66,10 @@ export type LiveWatchlistTickerDataPatch = {
   updatedAt: number;
   marketDataObservedAt?: number;
   marketDataRevision?: number;
+  watchlistSlotState?: LiveWatchlistSlotState;
   potentialGainCardVisible?: boolean;
+  watchlistLifecycleLabelsVisible?: boolean;
+  watchlistLifecycle?: LiveWatchlistLifecycleRead | null;
   tradersLinkAiReadCardVisible?: boolean;
   tradersLinkAiReadDipBuyPlanVisible?: boolean;
   latestPrice: number;
@@ -336,7 +358,10 @@ export type LiveWatchlistSymbolState = {
   status: LiveWatchlistStatus;
   updatedAt: number;
   firstPostedAt: number | null;
+  watchlistSlotState?: LiveWatchlistSlotState;
   potentialGainCardVisible?: boolean;
+  watchlistLifecycleLabelsVisible?: boolean;
+  watchlistLifecycle?: LiveWatchlistLifecycleRead | null;
   tradersLinkAiReadCardVisible?: boolean;
   tradersLinkAiReadDipBuyPlanVisible?: boolean;
   potentialGain?: LiveWatchlistPotentialGain | null;

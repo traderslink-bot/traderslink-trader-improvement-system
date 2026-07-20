@@ -7,6 +7,7 @@ import type {
   LiveWatchlistArchiveSnapshot,
   LiveWatchlistCardContent,
   LiveWatchlistLevelMap,
+  LiveWatchlistLevelMapLevel,
   LiveWatchlistMarketDataStatus,
   LiveWatchlistStatePayload,
   LiveWatchlistSymbolState,
@@ -417,9 +418,11 @@ function pullbackPlanStateCopy(plan: TradersLinkAiPullbackPlan): string {
 function TradersLinkAiReadCard({
   card,
   dipBuyPlanVisible = true,
+  supportLevels = [],
 }: {
   card: LiveWatchlistCardContent;
   dipBuyPlanVisible?: boolean;
+  supportLevels?: LiveWatchlistLevelMapLevel[];
 }) {
   const read = parseTradersLinkAiRead(card.body);
   if (!read) {
@@ -440,7 +443,9 @@ function TradersLinkAiReadCard({
     );
   }
   const downsideCheckpoints = read.downsideCheckpoints ?? [];
-  const pullbackPlan = dipBuyPlanVisible ? deriveTradersLinkAiPullbackPlan(read) : null;
+  const pullbackPlan = dipBuyPlanVisible
+    ? deriveTradersLinkAiPullbackPlan(read, supportLevels)
+    : null;
 
   return (
     <article
@@ -461,7 +466,6 @@ function TradersLinkAiReadCard({
           <span className="watchlist-ai-read-badge" data-bias={read.bias}>
             {read.bias} bias
           </span>
-          <span className="watchlist-ai-read-badge">{read.confidence} confidence</span>
         </div>
       </div>
 
@@ -1012,6 +1016,22 @@ function isPostmarketAddition(symbol: LiveWatchlistSymbolState): boolean {
   return getLiveWatchlistEntryGroup(symbol) === "postmarket";
 }
 
+function WatchlistLifecycleBadge({ symbol }: { symbol: LiveWatchlistSymbolState }) {
+  const lifecycle = symbol.watchlistLifecycle;
+  if (symbol.watchlistLifecycleLabelsVisible !== true || !lifecycle) {
+    return null;
+  }
+  return (
+    <span
+      className="watchlist-lifecycle-badge"
+      data-lifecycle-status={lifecycle.status}
+      title={lifecycle.reason}
+    >
+      {lifecycle.label}
+    </span>
+  );
+}
+
 function WatchlistTickerTable({
   ariaLabel,
   symbols,
@@ -1034,7 +1054,10 @@ function WatchlistTickerTable({
           href={`/watchlist/${symbol.symbol}`}
           className="watchlist-row"
         >
-          <span className="watchlist-symbol-cell"><strong>{symbol.symbol}</strong></span>
+          <span className="watchlist-symbol-cell">
+            <strong>{symbol.symbol}</strong>
+            <WatchlistLifecycleBadge symbol={symbol} />
+          </span>
           <span className="watchlist-mobile-field" data-mobile-label="Price">
             {formatPrice(symbol.latestPrice)}
           </span>
@@ -1201,6 +1224,7 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
         <TradersLinkAiReadCard
           card={tradersLinkAiReadCard}
           dipBuyPlanVisible={symbol.tradersLinkAiReadDipBuyPlanVisible !== false}
+          supportLevels={symbol.levelMap?.supportLevels ?? []}
         />
       ) : null}
       {recentNewsFilingsCard ? (
@@ -1243,8 +1267,10 @@ export function LiveWatchlistIndexClient({
   const [marketDataUpdatedAt, setMarketDataUpdatedAt] = useState<number | null>(
     initialState.marketDataUpdatedAt,
   );
-  const mainSessionSymbols = symbols.filter((symbol) => !isPostmarketAddition(symbol));
-  const postmarketSymbols = symbols.filter(isPostmarketAddition);
+  const activeSymbols = symbols.filter((symbol) => symbol.watchlistSlotState !== "followup");
+  const followupSymbols = symbols.filter((symbol) => symbol.watchlistSlotState === "followup");
+  const mainSessionSymbols = activeSymbols.filter((symbol) => !isPostmarketAddition(symbol));
+  const postmarketSymbols = activeSymbols.filter(isPostmarketAddition);
 
   useEffect(() => {
     let cancelled = false;
@@ -1321,7 +1347,7 @@ export function LiveWatchlistIndexClient({
           </Link>
         </div>
         <div className="watchlist-summary-panel" aria-label="Watchlist status">
-          <span>{symbols.length} {symbols.length === 1 ? "ticker" : "tickers"}</span>
+          <span>{activeSymbols.length} active / {followupSymbols.length} follow-up</span>
           <span>{mainSessionSymbols.length} main / {postmarketSymbols.length} post-market</span>
           <span
             data-market-data-status={marketDataStatus}
@@ -1362,6 +1388,21 @@ export function LiveWatchlistIndexClient({
               <WatchlistTickerTable ariaLabel="Post-market watchlist tickers" symbols={postmarketSymbols} />
             ) : <p className="watchlist-session-empty">No post-market tickers are active.</p>}
           </section>
+          {followupSymbols.length > 0 ? (
+            <section className="watchlist-session-list" aria-labelledby="watchlist-followup-heading">
+              <div className="watchlist-session-heading">
+                <div>
+                  <p className="academy-eyebrow">Does not consume an active slot</p>
+                  <h2 id="watchlist-followup-heading">Follow-up Watch</h2>
+                </div>
+                <span>{followupSymbols.length}</span>
+              </div>
+              <p className="watchlist-session-empty">
+                These tickers remain visible for a valid pullback or recovery, while new runners can still enter the active watchlist.
+              </p>
+              <WatchlistTickerTable ariaLabel="Follow-up watchlist tickers" symbols={followupSymbols} />
+            </section>
+          ) : null}
         </div>
       )}
       <section className="academy-card watchlist-notice-card" aria-label="Watchlist notice">
@@ -1483,7 +1524,10 @@ export function LiveWatchlistDetailClient({
         <div className="watchlist-detail-heading">
           <div>
             <p className="academy-eyebrow">Ticker Details</p>
-            <h1 className="academy-title">{symbol.symbol}</h1>
+            <div className="watchlist-detail-title-row">
+              <h1 className="academy-title">{symbol.symbol}</h1>
+              <WatchlistLifecycleBadge symbol={symbol} />
+            </div>
           </div>
           <Link href="/watchlist" className="academy-card-action watchlist-back-action">
             Back to watchlist
@@ -1491,6 +1535,7 @@ export function LiveWatchlistDetailClient({
         </div>
         <div className="watchlist-summary-panel">
           <span>Price {formatPrice(symbol.latestPrice)}</span>
+          {symbol.watchlistSlotState === "followup" ? <span>Follow-up Watch</span> : null}
           <span>Posted {formatDateTime(symbol.firstPostedAt)}</span>
           <span>Updated {formatTime(symbol.updatedAt)}</span>
           <span data-market-data-status={marketDataStatus}>
