@@ -7,6 +7,7 @@ import type {
   LiveWatchlistArchiveSnapshot,
   LiveWatchlistCardContent,
   LiveWatchlistLevelMap,
+  LiveWatchlistLevelMapLevel,
   LiveWatchlistMarketDataStatus,
   LiveWatchlistStatePayload,
   LiveWatchlistSymbolState,
@@ -417,9 +418,11 @@ function pullbackPlanStateCopy(plan: TradersLinkAiPullbackPlan): string {
 function TradersLinkAiReadCard({
   card,
   dipBuyPlanVisible = true,
+  supportLevels = [],
 }: {
   card: LiveWatchlistCardContent;
   dipBuyPlanVisible?: boolean;
+  supportLevels?: LiveWatchlistLevelMapLevel[];
 }) {
   const read = parseTradersLinkAiRead(card.body);
   if (!read) {
@@ -440,7 +443,9 @@ function TradersLinkAiReadCard({
     );
   }
   const downsideCheckpoints = read.downsideCheckpoints ?? [];
-  const pullbackPlan = dipBuyPlanVisible ? deriveTradersLinkAiPullbackPlan(read) : null;
+  const pullbackPlan = dipBuyPlanVisible
+    ? deriveTradersLinkAiPullbackPlan(read, supportLevels)
+    : null;
 
   return (
     <article
@@ -1219,6 +1224,7 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
         <TradersLinkAiReadCard
           card={tradersLinkAiReadCard}
           dipBuyPlanVisible={symbol.tradersLinkAiReadDipBuyPlanVisible !== false}
+          supportLevels={symbol.levelMap?.supportLevels ?? []}
         />
       ) : null}
       {recentNewsFilingsCard ? (

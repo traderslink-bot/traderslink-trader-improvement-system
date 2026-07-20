@@ -163,6 +163,35 @@ describe("TradersLink AI Read parser", () => {
     });
   });
 
+  it("prefers VMAR's deeper structural support pair over its immediate momentum shelf", () => {
+    const value = JSON.parse(validBody());
+    value.symbol = "VMAR";
+    value.currentPrice = 1.07;
+    value.needsToHold = { label: "Premarket shelf", price: 1.05, rationale: "Later premarket bars held." };
+    value.cautionBelow = { label: "After-hours shelf", price: 1.02, rationale: "Prior acceptance area." };
+    value.momentumFailure = { label: "Whole-dollar floor", price: 1, rationale: "Current setup fails here." };
+    value.downsideCheckpoints = [
+      { label: "Prior high", price: 0.945, condition: "First lower checkpoint." },
+      { label: "Prior low", price: 0.906, condition: "Second lower checkpoint." },
+      { label: "Opening low", price: 0.809, condition: "Outer lower checkpoint." },
+    ];
+    const read = parseTradersLinkAiRead(JSON.stringify(value));
+
+    expect(read).not.toBeNull();
+    expect(deriveTradersLinkAiPullbackPlan(read!, [
+      { side: "support", price: 1, distancePct: -6.5, strengthLabel: "strong", freshness: "stale", label: "$1.00" },
+      { side: "support", price: 0.93, distancePct: -13.1, strengthLabel: "moderate", freshness: "aging", label: "$0.93" },
+      { side: "support", price: 0.86, distancePct: -19.6, strengthLabel: "moderate", freshness: "aging", label: "$0.86" },
+    ])).toEqual({
+      state: "watch",
+      zoneLow: 0.86,
+      zoneHigh: 0.93,
+      reclaimPrice: 0.93,
+      invalidationPrice: 0.86,
+      firstBounceTarget: 1,
+    });
+  });
+
   it("omits the recovery plan without a lower structural checkpoint", () => {
     const value = JSON.parse(validBody());
     value.currentPrice = 1.06;
