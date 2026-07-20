@@ -481,9 +481,25 @@ function TradersLinkAiReadCard({
         />
       </div>
 
+      {read.targets.length > 0 ? (
+        <section className="watchlist-ai-read-section">
+          <h3>Where the trade could go</h3>
+          <ol className="watchlist-ai-read-targets">
+            {read.targets.map((target, index) => (
+              <li key={`${target.label}-${target.price ?? index}`}>
+                <strong>
+                  {target.price === null ? target.label : `$${formatPrice(target.price)}`}
+                </strong>
+                <span>{target.condition}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
       {pullbackPlan ? (
         <section className="watchlist-ai-read-section">
-          <h3>Deep pullback / recovery watch</h3>
+          <h3>Potential dip</h3>
           <p>
             Prior-session base: {" "}
             <strong>
@@ -507,22 +523,6 @@ function TradersLinkAiReadCard({
               ${formatPrice(pullbackPlan.firstBounceTarget)}.
             </p>
           ) : null}
-        </section>
-      ) : null}
-
-      {read.targets.length > 0 ? (
-        <section className="watchlist-ai-read-section">
-          <h3>Where the trade could go</h3>
-          <ol className="watchlist-ai-read-targets">
-            {read.targets.map((target, index) => (
-              <li key={`${target.label}-${target.price ?? index}`}>
-                <strong>
-                  {target.price === null ? target.label : `$${formatPrice(target.price)}`}
-                </strong>
-                <span>{target.condition}</span>
-              </li>
-            ))}
-          </ol>
         </section>
       ) : null}
 
