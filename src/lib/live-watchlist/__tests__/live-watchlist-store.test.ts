@@ -1298,4 +1298,42 @@ describe("LiveWatchlistStore", () => {
     expect(archives[0]).toEqual(firstArchive);
     expect(archives[0]?.state.cards.liveTraderRead?.body).toContain("holding a range");
   });
+
+  it("keeps same-day cards and Added time when a removed ticker is reactivated from preserved context", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch(buildCorePatch("NXXT", 1000));
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1500,
+      watchlistSlotState: "followup",
+      cards: {},
+    });
+    expect((await store.getSymbol("NXXT"))?.watchlistSlotState).toBe("followup");
+
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+    await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 3000,
+      firstPostedAt: 1000,
+      watchlistSlotState: "active",
+      preserveExistingOnReactivation: true,
+      cards: {},
+    });
+
+    const reactivated = await store.getSymbol("NXXT");
+    expect(reactivated?.firstPostedAt).toBe(1000);
+    expect(reactivated?.watchlistSlotState).toBe("active");
+    expect(reactivated?.cards.fullLadder).toBeDefined();
+    expect(reactivated?.cards.liveTraderRead?.body).toContain("holding a range");
+  });
 });

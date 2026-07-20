@@ -1267,8 +1267,10 @@ export function LiveWatchlistIndexClient({
   const [marketDataUpdatedAt, setMarketDataUpdatedAt] = useState<number | null>(
     initialState.marketDataUpdatedAt,
   );
-  const mainSessionSymbols = symbols.filter((symbol) => !isPostmarketAddition(symbol));
-  const postmarketSymbols = symbols.filter(isPostmarketAddition);
+  const activeSymbols = symbols.filter((symbol) => symbol.watchlistSlotState !== "followup");
+  const followupSymbols = symbols.filter((symbol) => symbol.watchlistSlotState === "followup");
+  const mainSessionSymbols = activeSymbols.filter((symbol) => !isPostmarketAddition(symbol));
+  const postmarketSymbols = activeSymbols.filter(isPostmarketAddition);
 
   useEffect(() => {
     let cancelled = false;
@@ -1345,7 +1347,7 @@ export function LiveWatchlistIndexClient({
           </Link>
         </div>
         <div className="watchlist-summary-panel" aria-label="Watchlist status">
-          <span>{symbols.length} {symbols.length === 1 ? "ticker" : "tickers"}</span>
+          <span>{activeSymbols.length} active / {followupSymbols.length} follow-up</span>
           <span>{mainSessionSymbols.length} main / {postmarketSymbols.length} post-market</span>
           <span
             data-market-data-status={marketDataStatus}
@@ -1386,6 +1388,21 @@ export function LiveWatchlistIndexClient({
               <WatchlistTickerTable ariaLabel="Post-market watchlist tickers" symbols={postmarketSymbols} />
             ) : <p className="watchlist-session-empty">No post-market tickers are active.</p>}
           </section>
+          {followupSymbols.length > 0 ? (
+            <section className="watchlist-session-list" aria-labelledby="watchlist-followup-heading">
+              <div className="watchlist-session-heading">
+                <div>
+                  <p className="academy-eyebrow">Does not consume an active slot</p>
+                  <h2 id="watchlist-followup-heading">Follow-up Watch</h2>
+                </div>
+                <span>{followupSymbols.length}</span>
+              </div>
+              <p className="watchlist-session-empty">
+                These tickers remain visible for a valid pullback or recovery, while new runners can still enter the active watchlist.
+              </p>
+              <WatchlistTickerTable ariaLabel="Follow-up watchlist tickers" symbols={followupSymbols} />
+            </section>
+          ) : null}
         </div>
       )}
       <section className="academy-card watchlist-notice-card" aria-label="Watchlist notice">
@@ -1518,6 +1535,7 @@ export function LiveWatchlistDetailClient({
         </div>
         <div className="watchlist-summary-panel">
           <span>Price {formatPrice(symbol.latestPrice)}</span>
+          {symbol.watchlistSlotState === "followup" ? <span>Follow-up Watch</span> : null}
           <span>Posted {formatDateTime(symbol.firstPostedAt)}</span>
           <span>Updated {formatTime(symbol.updatedAt)}</span>
           <span data-market-data-status={marketDataStatus}>

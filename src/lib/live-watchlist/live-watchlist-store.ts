@@ -487,6 +487,7 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   const inferredLatestPriceSource = state.latestPriceSource ?? "card";
   return {
     ...state,
+    watchlistSlotState: state.watchlistSlotState === "followup" ? "followup" : "active",
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
     watchlistLifecycleLabelsVisible: state.watchlistLifecycleLabelsVisible === true,
     watchlistLifecycle: normalizeWatchlistLifecycle(state.watchlistLifecycle),
@@ -534,7 +535,9 @@ export function applyPatch(
   const symbol = normalizeSymbol(patch.symbol);
   const nextStatus = patch.status ?? existing?.status ?? "live";
   const isReactivation = existing?.status === "deactivated" && nextStatus !== "deactivated";
-  const baseExisting = isReactivation ? null : existing;
+  const baseExisting = isReactivation && patch.preserveExistingOnReactivation !== true
+    ? null
+    : existing;
   const nextCards = { ...(baseExisting?.cards ?? {}) };
   const patchesNearestCard = Object.prototype.hasOwnProperty.call(
     patch.cards,
@@ -583,6 +586,12 @@ export function applyPatch(
     status: nextStatus,
     updatedAt: Math.max(patch.updatedAt, baseExisting?.updatedAt ?? 0),
     firstPostedAt: nextFirstPostedAt,
+    watchlistSlotState:
+      patch.watchlistSlotState === "followup"
+        ? "followup"
+        : patch.watchlistSlotState === "active"
+          ? "active"
+          : baseExisting?.watchlistSlotState ?? "active",
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
@@ -646,6 +655,12 @@ function applyTickerDataPatch(
     status: patch.status ?? existing?.status ?? "live",
     updatedAt: Math.max(existing?.updatedAt ?? 0, patch.updatedAt),
     firstPostedAt: existing?.firstPostedAt ?? null,
+    watchlistSlotState:
+      patch.watchlistSlotState === "followup"
+        ? "followup"
+        : patch.watchlistSlotState === "active"
+          ? "active"
+          : existing?.watchlistSlotState ?? "active",
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
