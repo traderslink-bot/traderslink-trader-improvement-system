@@ -3023,6 +3023,53 @@ main.bg-zinc-950 .text-zinc-500 {
   min-width: 0;
 }
 
+.watchlist-lifecycle-badge {
+  align-items: center;
+  background: rgba(100, 116, 139, 0.14);
+  border: 1px solid rgba(100, 116, 139, 0.35);
+  border-radius: 999px;
+  color: #475569;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  padding: 0.3rem 0.48rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.watchlist-lifecycle-badge[data-lifecycle-status="active"] {
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.35);
+  color: #15803d;
+}
+
+.watchlist-lifecycle-badge[data-lifecycle-status="pullback_watch"] {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: #b45309;
+}
+
+.watchlist-lifecycle-badge[data-lifecycle-status="recovery_watch"] {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.35);
+  color: #1d4ed8;
+}
+
+.watchlist-lifecycle-badge[data-lifecycle-status="setup_fading"] {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #b91c1c;
+}
+
+.watchlist-detail-title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 .watchlist-symbol-cell strong {
   color: var(--academy-heading);
   font-size: 1.05rem;

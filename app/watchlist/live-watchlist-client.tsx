@@ -461,7 +461,6 @@ function TradersLinkAiReadCard({
           <span className="watchlist-ai-read-badge" data-bias={read.bias}>
             {read.bias} bias
           </span>
-          <span className="watchlist-ai-read-badge">{read.confidence} confidence</span>
         </div>
       </div>
 
@@ -1012,6 +1011,22 @@ function isPostmarketAddition(symbol: LiveWatchlistSymbolState): boolean {
   return getLiveWatchlistEntryGroup(symbol) === "postmarket";
 }
 
+function WatchlistLifecycleBadge({ symbol }: { symbol: LiveWatchlistSymbolState }) {
+  const lifecycle = symbol.watchlistLifecycle;
+  if (symbol.watchlistLifecycleLabelsVisible !== true || !lifecycle) {
+    return null;
+  }
+  return (
+    <span
+      className="watchlist-lifecycle-badge"
+      data-lifecycle-status={lifecycle.status}
+      title={lifecycle.reason}
+    >
+      {lifecycle.label}
+    </span>
+  );
+}
+
 function WatchlistTickerTable({
   ariaLabel,
   symbols,
@@ -1034,7 +1049,10 @@ function WatchlistTickerTable({
           href={`/watchlist/${symbol.symbol}`}
           className="watchlist-row"
         >
-          <span className="watchlist-symbol-cell"><strong>{symbol.symbol}</strong></span>
+          <span className="watchlist-symbol-cell">
+            <strong>{symbol.symbol}</strong>
+            <WatchlistLifecycleBadge symbol={symbol} />
+          </span>
           <span className="watchlist-mobile-field" data-mobile-label="Price">
             {formatPrice(symbol.latestPrice)}
           </span>
@@ -1483,7 +1501,10 @@ export function LiveWatchlistDetailClient({
         <div className="watchlist-detail-heading">
           <div>
             <p className="academy-eyebrow">Ticker Details</p>
-            <h1 className="academy-title">{symbol.symbol}</h1>
+            <div className="watchlist-detail-title-row">
+              <h1 className="academy-title">{symbol.symbol}</h1>
+              <WatchlistLifecycleBadge symbol={symbol} />
+            </div>
           </div>
           <Link href="/watchlist" className="academy-card-action watchlist-back-action">
             Back to watchlist

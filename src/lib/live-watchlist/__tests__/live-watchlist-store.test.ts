@@ -954,6 +954,56 @@ describe("LiveWatchlistStore", () => {
     expect(preserved.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
   });
 
+  it("keeps lifecycle labels off by default and preserves operator visibility across ticker updates", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const initial = await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1000,
+      cards: {},
+    });
+    expect(initial.watchlistLifecycleLabelsVisible).toBe(false);
+
+    const labeled = await store.upsertPatch({
+      symbol: "NXXT",
+      status: "live",
+      updatedAt: 1100,
+      watchlistLifecycleLabelsVisible: true,
+      watchlistLifecycle: {
+        status: "pullback_watch",
+        label: "Pullback Watch",
+        reason: "Holding VWAP and mapped support.",
+        updatedAt: 1100,
+      },
+      cards: {},
+    });
+    expect(labeled.watchlistLifecycleLabelsVisible).toBe(true);
+    expect(labeled.watchlistLifecycle?.status).toBe("pullback_watch");
+
+    const preserved = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "NXXT",
+      updatedAt: 1200,
+      latestPrice: 0.33,
+      nearestSupport: 0.32,
+      nearestResistance: 0.35,
+    });
+    expect(preserved.watchlistLifecycleLabelsVisible).toBe(true);
+    expect(preserved.watchlistLifecycle?.label).toBe("Pullback Watch");
+
+    const hidden = await store.upsertPatch({
+      symbol: "NXXT",
+      updatedAt: 1300,
+      watchlistLifecycleLabelsVisible: false,
+      cards: {},
+    });
+    expect(hidden.watchlistLifecycleLabelsVisible).toBe(false);
+    expect(hidden.watchlistLifecycle?.status).toBe("pullback_watch");
+  });
+
   it("allows a new activation patch to reset a stale first posted time", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";

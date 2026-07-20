@@ -170,6 +170,20 @@ function isCard(value: unknown): value is LiveWatchlistCardContent {
   );
 }
 
+function normalizeWatchlistLifecycle(
+  value: LiveWatchlistSymbolState["watchlistLifecycle"] | undefined,
+): LiveWatchlistSymbolState["watchlistLifecycle"] {
+  if (!value) return null;
+  const statuses = new Set(["monitoring", "active", "pullback_watch", "recovery_watch", "setup_fading", "standby"]);
+  return statuses.has(value.status) &&
+    typeof value.label === "string" &&
+    typeof value.reason === "string" &&
+    typeof value.updatedAt === "number" &&
+    Number.isFinite(value.updatedAt)
+    ? value
+    : null;
+}
+
 function parseState(raw: string): LiveWatchlistSymbolState | null {
   try {
     const parsed = JSON.parse(raw) as LiveWatchlistSymbolState;
@@ -474,6 +488,8 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   return {
     ...state,
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible: state.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle: normalizeWatchlistLifecycle(state.watchlistLifecycle),
     tradersLinkAiReadCardVisible: state.tradersLinkAiReadCardVisible !== false,
     tradersLinkAiReadDipBuyPlanVisible: state.tradersLinkAiReadDipBuyPlanVisible !== false,
     potentialGain: normalizePotentialGain(state.potentialGain),
@@ -532,6 +548,7 @@ export function applyPatch(
   );
   const patchesLevelMap = Object.prototype.hasOwnProperty.call(patch, "levelMap");
   const patchesFirstPostedAt = Object.prototype.hasOwnProperty.call(patch, "firstPostedAt");
+  const patchesLifecycle = Object.prototype.hasOwnProperty.call(patch, "watchlistLifecycle");
   const preservesTickerPrice = baseExisting?.latestPriceSource === "ticker";
   const recomputesCardPrice = !preservesTickerPrice && patchesPriceCard;
   for (const [kind, card] of Object.entries(patch.cards)) {
@@ -570,6 +587,13 @@ export function applyPatch(
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
         : baseExisting?.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible:
+      typeof patch.watchlistLifecycleLabelsVisible === "boolean"
+        ? patch.watchlistLifecycleLabelsVisible
+        : baseExisting?.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle: patchesLifecycle
+      ? normalizeWatchlistLifecycle(patch.watchlistLifecycle ?? null)
+      : baseExisting?.watchlistLifecycle ?? null,
     tradersLinkAiReadCardVisible:
       typeof patch.tradersLinkAiReadCardVisible === "boolean"
         ? patch.tradersLinkAiReadCardVisible
@@ -626,6 +650,14 @@ function applyTickerDataPatch(
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
         : existing?.potentialGainCardVisible !== false,
+    watchlistLifecycleLabelsVisible:
+      typeof patch.watchlistLifecycleLabelsVisible === "boolean"
+        ? patch.watchlistLifecycleLabelsVisible
+        : existing?.watchlistLifecycleLabelsVisible === true,
+    watchlistLifecycle:
+      patch.watchlistLifecycle !== undefined
+        ? normalizeWatchlistLifecycle(patch.watchlistLifecycle)
+        : existing?.watchlistLifecycle ?? null,
     tradersLinkAiReadCardVisible:
       typeof patch.tradersLinkAiReadCardVisible === "boolean"
         ? patch.tradersLinkAiReadCardVisible
