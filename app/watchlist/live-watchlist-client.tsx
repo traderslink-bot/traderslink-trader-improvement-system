@@ -48,15 +48,6 @@ const watchlistTimeFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Toronto",
 });
 
-const watchlistReadTextStyle: CSSProperties = {
-  display: "-webkit-box",
-  overflow: "hidden",
-  WebkitBoxOrient: "vertical",
-  WebkitLineClamp: 2,
-  fontSize: "0.84rem",
-  lineHeight: 1.35,
-};
-
 const watchlistTimeCellStyle: CSSProperties = {
   fontSize: "0.78rem",
   lineHeight: 1.35,
@@ -1664,7 +1655,7 @@ export function LiveWatchlistArchiveIndex({
               <span>Ticker</span>
               <span>Archived</span>
               <span>Last active update</span>
-              <span>Latest read</span>
+              <span>Ticker Details</span>
             </div>
             {archives.map((archive) => (
               <Link
@@ -1681,10 +1672,11 @@ export function LiveWatchlistArchiveIndex({
                 <span className="watchlist-mobile-field" data-mobile-label="Last active update">
                   {formatDateTime(archive.lastActiveUpdatedAt)}
                 </span>
-                <span className="watchlist-read-cell">
-                  <span className="watchlist-read-text" style={watchlistReadTextStyle}>
-                    {archive.state.latestTraderReadHeadline ?? "No trader read saved"}
-                  </span>
+                <span
+                  className="watchlist-mobile-field watchlist-details-cell"
+                  data-mobile-label="Ticker Details"
+                >
+                  Ticker Details
                 </span>
               </Link>
             ))}
