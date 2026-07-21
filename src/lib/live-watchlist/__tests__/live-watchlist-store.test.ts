@@ -536,6 +536,13 @@ describe("LiveWatchlistStore", () => {
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
     const store = new LiveWatchlistStore();
 
+    await store.upsertPatch({
+      symbol: "ABCD",
+      status: "live",
+      updatedAt: 2000,
+      firstPostedAt: 2000,
+      cards: {},
+    });
     await store.upsertTickerData({
       type: "tickerData",
       symbol: "ABCD",
@@ -731,6 +738,8 @@ describe("LiveWatchlistStore", () => {
       nearestResistance: 1.25,
     });
     expect(dataOnly.firstPostedAt).toBeNull();
+    expect(dataOnly.status).toBe("deactivated");
+    expect((await store.listSymbols()).symbols).toHaveLength(0);
 
     const withContent = await store.upsertPatch({
       symbol: "ABCD",

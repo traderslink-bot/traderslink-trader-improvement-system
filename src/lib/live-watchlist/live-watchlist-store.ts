@@ -701,9 +701,9 @@ function applyTickerDataPatch(
   return deriveStateFields({
     symbol: normalizeSymbol(patch.symbol),
     // Ticker-data patches are price/level updates, never lifecycle transitions.
-    // Preserve an existing deactivation even when an older publisher still sends
-    // the legacy `status: "live"` field. Reactivation must use an explicit card/status patch.
-    status: existing?.status ?? patch.status ?? "live",
+    // They cannot admit an unknown symbol or revive a deactivated one, even when
+    // an older publisher still sends the legacy `status: "live"` field.
+    status: existing?.status ?? "deactivated",
     updatedAt: Math.max(existing?.updatedAt ?? 0, patch.updatedAt),
     firstPostedAt: existing?.firstPostedAt ?? null,
     watchlistSlotState:
