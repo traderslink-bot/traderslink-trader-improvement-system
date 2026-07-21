@@ -7,6 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 - Continue with the highest-value next implementation step unless blocked by meaningful ambiguity, architectural risk, or a destructive operation.
 - After completing meaningful work, run the relevant tests and verification commands before closing out the task.
+- For narrowly scoped display-only changes, such as copy, labels, styling, or simple rendering conditions, run focused tests, targeted lint, and TypeScript checks locally. Do not run a redundant local production build when required remote CI and the Vercel deployment will perform full builds. Run a local full build when changing routes, dependencies, build configuration, server behavior, authentication, or data contracts, or when remote CI will not provide equivalent verification.
 - Keep `src/docs/codex-project-log.md` updated when the current resume point, roadmap branch, or best next step changes materially.
 - Prefer continuing the current roadmap branch before starting a new pattern family or broader refactor.
 - Use `src/docs/behavior-coverage-audit.md` and `src/docs/layer2-pattern-detection/layer2-implemented-pattern-catalog.md` as the main calibration docs for deciding what to build next.
