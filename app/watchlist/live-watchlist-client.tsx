@@ -23,7 +23,10 @@ import {
   formatWatchlistV2LevelPrice,
   type WatchlistV2LevelRow,
 } from "@/src/lib/live-watchlist/watchlist-v2-levels";
-import { getLiveWatchlistEntryGroup } from "@/src/lib/live-watchlist/live-watchlist-session-group";
+import {
+  getLiveWatchlistEntryGroup,
+  shouldShowReversalWatchlist,
+} from "@/src/lib/live-watchlist/live-watchlist-session-group";
 import {
   isNewerLiveWatchlistSymbolState,
   reconcileLiveWatchlistSnapshot,
@@ -1353,6 +1356,10 @@ export function LiveWatchlistIndexClient({
   const reversalWatchlistVisible = !symbols.some(
     (symbol) => symbol.reversalWatchlistVisible === false,
   );
+  const showReversalWatchlist = shouldShowReversalWatchlist(
+    reversalWatchlistVisible,
+    reversalWatchSymbols.length,
+  );
   const mainSessionSymbols = activeSymbols.filter((symbol) => !isPostmarketAddition(symbol));
   const postmarketSymbols = activeSymbols.filter(isPostmarketAddition);
 
@@ -1433,7 +1440,7 @@ export function LiveWatchlistIndexClient({
         <div className="watchlist-summary-panel" aria-label="Watchlist status">
           <span>
             {activeSymbols.length} active
-            {reversalWatchlistVisible ? ` / ${reversalWatchSymbols.length} reversal watch` : ""}
+            {showReversalWatchlist ? ` / ${reversalWatchSymbols.length} reversal watch` : ""}
           </span>
           <span>{mainSessionSymbols.length} main / {postmarketSymbols.length} post-market</span>
           <span
@@ -1462,7 +1469,7 @@ export function LiveWatchlistIndexClient({
             {mainSessionSymbols.length > 0 ? (
               <WatchlistTickerTable ariaLabel="Main-session watchlist tickers" symbols={mainSessionSymbols} />
             ) : <p className="watchlist-session-empty">No main-session tickers are active.</p>}
-            {reversalWatchlistVisible ? (
+            {showReversalWatchlist ? (
               <div className="watchlist-reversal-list" aria-labelledby="watchlist-reversal-heading">
                 <div className="watchlist-session-heading">
                   <div>
@@ -1475,16 +1482,10 @@ export function LiveWatchlistIndexClient({
                   Strong runners that have pulled back and are still being watched for a possible
                   reversal. A spot on this list does not mean a reversal has started.
                 </p>
-                {reversalWatchSymbols.length > 0 ? (
-                  <WatchlistTickerTable
-                    ariaLabel="Potential reversal watchlist tickers"
-                    symbols={reversalWatchSymbols}
-                  />
-                ) : (
-                  <p className="watchlist-session-empty">
-                    No stocks are currently being watched for a potential reversal.
-                  </p>
-                )}
+                <WatchlistTickerTable
+                  ariaLabel="Potential reversal watchlist tickers"
+                  symbols={reversalWatchSymbols}
+                />
               </div>
             ) : null}
           </section>

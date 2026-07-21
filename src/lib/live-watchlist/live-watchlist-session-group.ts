@@ -2,6 +2,10 @@ import type { LiveWatchlistSymbolState } from "./live-watchlist-types";
 
 export type LiveWatchlistEntryGroup = "main" | "postmarket";
 
+export function shouldShowReversalWatchlist(visible: boolean, symbolCount: number): boolean {
+  return visible && symbolCount > 0;
+}
+
 const entryTimeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   hourCycle: "h23",
