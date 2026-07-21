@@ -1118,6 +1118,40 @@ describe("LiveWatchlistStore", () => {
     expect(deactivated.cards.liveTraderRead?.body).toBe("Price is testing support.");
   });
 
+  it("does not reactivate a deactivated ticker when delayed ticker data arrives", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    await store.upsertPatch({
+      symbol: "STALE",
+      status: "live",
+      updatedAt: 1000,
+      cards: {},
+    });
+    await store.upsertPatch({
+      symbol: "STALE",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    const delayedPrice = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "STALE",
+      status: "live",
+      updatedAt: 3000,
+      marketDataObservedAt: 3000,
+      latestPrice: 2.15,
+      nearestSupport: 2,
+      nearestResistance: 2.25,
+    });
+
+    expect(delayedPrice.status).toBe("deactivated");
+    expect(delayedPrice.latestPrice).toBe(2.15);
+    expect((await store.listSymbols()).symbols).toHaveLength(0);
+  });
+
   it("keeps deactivated symbols out of the user-facing watchlist list", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
