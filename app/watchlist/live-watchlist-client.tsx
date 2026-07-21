@@ -1253,7 +1253,7 @@ function PotentialGainCard({ symbol }: { symbol: LiveWatchlistSymbolState }) {
           </div>
           <div className="watchlist-potential-gain-stats">
             <div className="watchlist-potential-gain-stat">
-              <span>Starting price</span>
+              <span>Added to watchlist</span>
               <strong>${formatPrice(gain.startingPrice)}</strong>
             </div>
             <div className="watchlist-potential-gain-stat">
