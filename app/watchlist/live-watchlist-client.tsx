@@ -1356,7 +1356,12 @@ export function LiveWatchlistIndexClient({
     initialState.marketDataUpdatedAt,
   );
   const activeSymbols = symbols.filter((symbol) => symbol.watchlistSlotState !== "followup");
-  const followupSymbols = symbols.filter((symbol) => symbol.watchlistSlotState === "followup");
+  const reversalWatchSymbols = symbols.filter(
+    (symbol) => symbol.watchlistSlotState === "followup" && symbol.reversalWatchEligible === true,
+  );
+  const reversalWatchlistVisible = !symbols.some(
+    (symbol) => symbol.reversalWatchlistVisible === false,
+  );
   const mainSessionSymbols = activeSymbols.filter((symbol) => !isPostmarketAddition(symbol));
   const postmarketSymbols = activeSymbols.filter(isPostmarketAddition);
 
@@ -1435,7 +1440,10 @@ export function LiveWatchlistIndexClient({
           </Link>
         </div>
         <div className="watchlist-summary-panel" aria-label="Watchlist status">
-          <span>{activeSymbols.length} active / {followupSymbols.length} follow-up</span>
+          <span>
+            {activeSymbols.length} active
+            {reversalWatchlistVisible ? ` / ${reversalWatchSymbols.length} reversal watch` : ""}
+          </span>
           <span>{mainSessionSymbols.length} main / {postmarketSymbols.length} post-market</span>
           <span
             data-market-data-status={marketDataStatus}
@@ -1463,6 +1471,31 @@ export function LiveWatchlistIndexClient({
             {mainSessionSymbols.length > 0 ? (
               <WatchlistTickerTable ariaLabel="Main-session watchlist tickers" symbols={mainSessionSymbols} />
             ) : <p className="watchlist-session-empty">No main-session tickers are active.</p>}
+            {reversalWatchlistVisible ? (
+              <div className="watchlist-reversal-list" aria-labelledby="watchlist-reversal-heading">
+                <div className="watchlist-session-heading">
+                  <div>
+                    <p className="academy-eyebrow">Still on Watch</p>
+                    <h2 id="watchlist-reversal-heading">Potential Reversal Watchlist</h2>
+                  </div>
+                  <span>{reversalWatchSymbols.length}</span>
+                </div>
+                <p className="watchlist-reversal-description">
+                  Strong runners that have pulled back and are still being watched for a possible
+                  reversal. A spot on this list does not mean a reversal has started.
+                </p>
+                {reversalWatchSymbols.length > 0 ? (
+                  <WatchlistTickerTable
+                    ariaLabel="Potential reversal watchlist tickers"
+                    symbols={reversalWatchSymbols}
+                  />
+                ) : (
+                  <p className="watchlist-session-empty">
+                    No stocks are currently being watched for a potential reversal.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </section>
           <section className="watchlist-session-list" aria-labelledby="watchlist-postmarket-heading">
             <div className="watchlist-session-heading">

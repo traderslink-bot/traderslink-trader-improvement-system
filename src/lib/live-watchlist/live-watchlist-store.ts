@@ -503,6 +503,8 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   return {
     ...state,
     watchlistSlotState: state.watchlistSlotState === "followup" ? "followup" : "active",
+    reversalWatchEligible: state.reversalWatchEligible === true,
+    reversalWatchlistVisible: state.reversalWatchlistVisible !== false,
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
     watchlistLifecycleLabelsVisible: state.watchlistLifecycleLabelsVisible === true,
     watchlistLifecycle: normalizeWatchlistLifecycle(state.watchlistLifecycle),
@@ -640,6 +642,14 @@ export function applyPatch(
         : patch.watchlistSlotState === "active"
           ? "active"
           : baseExisting?.watchlistSlotState ?? "active",
+    reversalWatchEligible:
+      typeof patch.reversalWatchEligible === "boolean"
+        ? patch.reversalWatchEligible
+        : baseExisting?.reversalWatchEligible === true,
+    reversalWatchlistVisible:
+      typeof patch.reversalWatchlistVisible === "boolean"
+        ? patch.reversalWatchlistVisible
+        : baseExisting?.reversalWatchlistVisible !== false,
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible
@@ -712,6 +722,14 @@ function applyTickerDataPatch(
         : patch.watchlistSlotState === "active"
           ? "active"
           : existing?.watchlistSlotState ?? "active",
+    reversalWatchEligible:
+      typeof patch.reversalWatchEligible === "boolean"
+        ? patch.reversalWatchEligible
+        : existing?.reversalWatchEligible === true,
+    reversalWatchlistVisible:
+      typeof patch.reversalWatchlistVisible === "boolean"
+        ? patch.reversalWatchlistVisible
+        : existing?.reversalWatchlistVisible !== false,
     potentialGainCardVisible:
       typeof patch.potentialGainCardVisible === "boolean"
         ? patch.potentialGainCardVisible

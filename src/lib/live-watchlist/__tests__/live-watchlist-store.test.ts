@@ -858,6 +858,47 @@ describe("LiveWatchlistStore", () => {
     expect(visible.potentialGainCardVisible).toBe(true);
   });
 
+  it("preserves reversal-watch eligibility and list visibility across ticker updates", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+
+    const reversalWatch = await store.upsertPatch({
+      symbol: "TURN",
+      status: "live",
+      updatedAt: 1000,
+      watchlistSlotState: "followup",
+      reversalWatchEligible: true,
+      reversalWatchlistVisible: false,
+      cards: {},
+    });
+    expect(reversalWatch.reversalWatchEligible).toBe(true);
+    expect(reversalWatch.reversalWatchlistVisible).toBe(false);
+
+    const preserved = await store.upsertTickerData({
+      type: "tickerData",
+      symbol: "TURN",
+      updatedAt: 2000,
+      latestPrice: 1.2,
+      nearestSupport: null,
+      nearestResistance: null,
+    });
+    expect(preserved.reversalWatchEligible).toBe(true);
+    expect(preserved.reversalWatchlistVisible).toBe(false);
+
+    const promoted = await store.upsertPatch({
+      symbol: "TURN",
+      status: "live",
+      updatedAt: 3000,
+      watchlistSlotState: "active",
+      reversalWatchEligible: false,
+      reversalWatchlistVisible: true,
+      cards: {},
+    });
+    expect(promoted.reversalWatchEligible).toBe(false);
+    expect(promoted.reversalWatchlistVisible).toBe(true);
+  });
+
   it("rejects older and equal-revision ticker data while accepting a higher revision at the same observation time", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";

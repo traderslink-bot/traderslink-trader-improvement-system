@@ -2919,6 +2919,22 @@ main.bg-zinc-950 .text-zinc-500 {
   color: var(--academy-muted);
 }
 
+.watchlist-reversal-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--academy-border);
+}
+
+.watchlist-reversal-description {
+  max-width: 52rem;
+  margin: 0;
+  color: var(--academy-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
 .watchlist-notice-card {
   display: grid;
   gap: 0.65rem;
