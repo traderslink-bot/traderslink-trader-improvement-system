@@ -3535,6 +3535,30 @@ main.bg-zinc-950 .text-zinc-500 {
   padding: 1.15rem;
 }
 
+.watchlist-high-risk-warning {
+  grid-column: 1 / -1;
+  border: 1px solid color-mix(in srgb, #f97316 56%, var(--academy-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, #f97316 10%, var(--academy-surface));
+  padding: 1rem 1.15rem;
+}
+
+.watchlist-high-risk-warning h2 {
+  margin: 0;
+  color: #f97316;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.watchlist-high-risk-warning p {
+  margin: 0.65rem 0 0;
+  color: var(--academy-text);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
 .watchlist-content-card[data-card-label="Potential Path Levels"] {
   grid-column: 1 / -1;
 }

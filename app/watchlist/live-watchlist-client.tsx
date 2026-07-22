@@ -32,6 +32,7 @@ import {
   shouldShowReversalWatchlist,
 } from "@/src/lib/live-watchlist/live-watchlist-session-group";
 import { getWatchlistCountryFlag } from "@/src/lib/live-watchlist/watchlist-country-flag";
+import { buildWatchlistHighRiskWarning } from "@/src/lib/live-watchlist/watchlist-high-risk-warning";
 import {
   isNewerLiveWatchlistSymbolState,
   reconcileLiveWatchlistSnapshot,
@@ -1483,9 +1484,20 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
   const tradersLinkAiReadCard = symbol.cards.tradersLinkAiRead;
   const recentNewsFilingsCard = symbol.cards.recentNewsFilings;
   const companyInfoCard = symbol.cards.companyInfo;
+  const highRiskWarning = buildWatchlistHighRiskWarning({
+    country: companyInfoCard?.metadata?.country,
+    aiReadCard: tradersLinkAiReadCard,
+    referenceTime: symbol.updatedAt,
+  });
 
   return (
     <section className="watchlist-card-grid">
+      {highRiskWarning ? (
+        <aside className="watchlist-high-risk-warning" aria-label="High risk warning">
+          <h2>High Risk</h2>
+          <p>{highRiskWarning.message}</p>
+        </aside>
+      ) : null}
       <WatchlistDetailCardArticle
         label="Potential Path Levels"
         card={closestLevelsCard}
