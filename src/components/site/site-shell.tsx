@@ -192,7 +192,10 @@ function SiteTopbarControls({
           </form>
         </div>
       ) : (
-        <a href="/api/auth/discord/login" className="academy-login-link">
+        <a
+          href="/api/auth/discord/login?returnTo=%2Facademy%2F"
+          className="academy-login-link"
+        >
           Log in with Discord
         </a>
       )}

@@ -58,14 +58,10 @@ export default async function LiveWatchlistSymbolPage({
                 Log in with your premium TradersLink Discord account to view ticker details.
               </p>
               <Link
-                href={
-                  session
-                    ? "/watchlist"
-                    : `/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`
-                }
+                href={`/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`}
                 className="academy-card-action"
               >
-                {session ? "Back to watchlist" : "Log in with Discord"}
+                {session ? "Refresh Discord access" : "Log in with Discord"}
               </Link>
             </div>
           </section>

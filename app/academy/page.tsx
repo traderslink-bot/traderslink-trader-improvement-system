@@ -141,7 +141,7 @@ export default async function AcademyHomePage({
                   ) : null}
                   {authNotice.showLogin ? (
                     <Link
-                      href="/api/auth/discord/login"
+                      href="/api/auth/discord/login?returnTo=%2Facademy%2F"
                       className="academy-auth-alert-link"
                     >
                       Log in with Discord

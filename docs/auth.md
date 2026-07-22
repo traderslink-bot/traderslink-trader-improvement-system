@@ -1,10 +1,10 @@
 # TradersLink Auth
 
-Last audited: 2026-05-25.
+Last audited: 2026-07-21.
 
 ## Scope
 
-Current website auth is Academy-oriented Discord login with a shared site nav auth display. The shared shell calls `/api/me` and shows either a Discord login link or the current Academy user display name.
+Current website auth uses Discord login for Academy progress and Premium watchlist access. Academy content remains public; logging in is only required there when a Discord server member wants to save progress. The shared shell calls `/api/me` and shows either a Discord login link or the current Academy user display name.
 
 ## Routes
 
@@ -18,6 +18,7 @@ Current website auth is Academy-oriented Discord login with a shared site nav au
 - Session cookie: `tl_academy_session`
 - OAuth state cookie: `tl_academy_oauth_state`
 - OAuth prompt cookie: `tl_academy_oauth_prompt`
+- OAuth return-target cookie: `tl_academy_oauth_return_to`
 - Session TTL: 30 days
 - Production domain: `.traderslink.pro`, with host-only cleanup for legacy cookies
 - SameSite: `Lax`
@@ -39,6 +40,16 @@ The login route first tries `prompt=none` unless the user explicitly requests co
 - The user is not in the configured Discord guild.
 - Production is missing `ACADEMY_DATABASE_URL` or `DATABASE_URL`, causing session creation to fail.
 - Browser privacy settings or cross-domain redirects are blocking the cookie.
+
+The login route accepts only same-origin relative `returnTo` paths and defaults to `/watchlist`. The callback preserves that path through silent-login fallback and returns the user to the exact page that started authentication.
+
+## Authorization Boundaries
+
+- Academy pages are public.
+- Saving Academy progress requires a Discord login from a member of the configured TradersLink server. Premium is not required.
+- Live watchlist pages, archive pages, and read/stream APIs additionally require the Discord role configured by `TRADERSLINK_PREMIUM_DISCORD_ROLE_ID` or `DISCORD_PREMIUM_ROLE_ID`.
+- A server member without Premium can retain an Academy progress session, but watchlist pages and APIs remain blocked.
+- The watchlist access screen offers a Discord role refresh so a member who was newly granted Premium can update the roles stored with the website session.
 
 ## Storage
 

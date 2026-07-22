@@ -4,34 +4,48 @@ import { NextResponse, type NextRequest } from "next/server";
 import { setAcademyCookie } from "@/src/lib/academy/academy-auth-cookies";
 import {
   ACADEMY_OAUTH_PROMPT_COOKIE,
+  ACADEMY_OAUTH_RETURN_TO_COOKIE,
   ACADEMY_OAUTH_STATE_COOKIE,
   ACADEMY_SESSION_COOKIE,
   AcademyProgressStore,
+  type AcademySession,
 } from "@/src/lib/academy/academy-progress-store";
+import {
+  buildDiscordAuthResultUrl,
+  isWatchlistAuthReturnTo,
+  normalizeDiscordAuthReturnTo,
+} from "@/src/lib/academy/discord-auth-return";
 import {
   buildDiscordAuthorizeUrl,
   type DiscordOAuthPrompt,
   getDiscordOAuthConfig,
 } from "@/src/lib/academy/discord-oauth";
+import { hasPremiumWatchlistAccess } from "@/src/lib/live-watchlist/live-watchlist-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const origin = request.nextUrl.origin;
-  let hasCurrentSession = false;
+  const returnTo = normalizeDiscordAuthReturnTo(
+    request.nextUrl.searchParams.get("returnTo"),
+  );
+  let currentSession: AcademySession | null = null;
 
   try {
-    const session = await new AcademyProgressStore().getSessionByToken(
+    currentSession = await new AcademyProgressStore().getSessionByToken(
       request.cookies.get(ACADEMY_SESSION_COOKIE)?.value,
     );
-    hasCurrentSession = Boolean(session);
   } catch (error) {
     console.warn("Academy session reuse check failed", error);
   }
 
-  if (hasCurrentSession) {
-    return NextResponse.redirect(new URL("/academy/", origin));
+  if (
+    currentSession &&
+    (!isWatchlistAuthReturnTo(returnTo) ||
+      hasPremiumWatchlistAccess(currentSession))
+  ) {
+    return NextResponse.redirect(new URL(returnTo, origin));
   }
 
   try {
@@ -50,11 +64,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       prompt,
       600,
     );
+    setAcademyCookie(
+      response,
+      request,
+      ACADEMY_OAUTH_RETURN_TO_COOKIE,
+      returnTo,
+      600,
+    );
 
     return response;
   } catch {
     return NextResponse.redirect(
-      new URL("/academy/?auth=missing-config", origin),
+      buildDiscordAuthResultUrl({
+        origin,
+        returnTo,
+        status: "missing-config",
+      }),
     );
   }
 }

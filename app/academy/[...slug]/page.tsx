@@ -104,7 +104,7 @@ export default async function AcademyLessonPage({ params }: PageProps) {
                 and log in with your Discord account.
               </p>
               <a
-                href="/api/auth/discord/login"
+                href={`/api/auth/discord/login?returnTo=${encodeURIComponent(lesson.slug)}`}
                 className="academy-progress-label-link"
               >
                 Log in with Discord

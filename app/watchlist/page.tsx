@@ -83,14 +83,12 @@ function WatchlistAccessMessage({
               </div>
             ) : null}
             <Link
-              href={
-                kind === "login"
-                  ? `/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`
-                  : "/academy/"
-              }
+              href={`/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`}
               className="academy-card-action"
             >
-              {kind === "login" ? "Log in with Discord" : "Back to Academy"}
+              {kind === "login"
+                ? "Log in with Discord"
+                : "Refresh Discord access"}
             </Link>
           </div>
         </section>
@@ -119,6 +117,16 @@ function getWatchlistAuthNotice(authStatus: string | undefined) {
       return {
         title: "Discord membership required",
         body: "Join the TradersLink Discord first, then return here and log in again.",
+      };
+    case "premium-required":
+      return {
+        title: "Premium membership required",
+        body: "Your Discord login worked, but this account does not currently have the Premium member role.",
+      };
+    case "premium-config":
+      return {
+        title: "Premium access is temporarily unavailable",
+        body: "The website cannot verify the Premium member role right now. Please try again later.",
       };
     case "invalid-state":
       return {

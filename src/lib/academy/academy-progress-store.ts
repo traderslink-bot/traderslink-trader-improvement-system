@@ -15,6 +15,7 @@ type NeonSql = ReturnType<typeof neon>;
 export const ACADEMY_SESSION_COOKIE = "tl_academy_session";
 export const ACADEMY_OAUTH_STATE_COOKIE = "tl_academy_oauth_state";
 export const ACADEMY_OAUTH_PROMPT_COOKIE = "tl_academy_oauth_prompt";
+export const ACADEMY_OAUTH_RETURN_TO_COOKIE = "tl_academy_oauth_return_to";
 export const ACADEMY_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
 export interface AcademyUser {

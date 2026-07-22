@@ -55,14 +55,10 @@ export default async function LiveWatchlistArchivePage({
                   : "Log in with your TradersLink Discord account to view archived tickers."}
               </p>
               <Link
-                href={
-                  session
-                    ? "/watchlist"
-                    : `/api/auth/discord/login?returnTo=${encodeURIComponent("/watchlist/archive")}`
-                }
+                href={`/api/auth/discord/login?returnTo=${encodeURIComponent("/watchlist/archive")}`}
                 className="academy-card-action"
               >
-                {session ? "Back to watchlist" : "Log in with Discord"}
+                {session ? "Refresh Discord access" : "Log in with Discord"}
               </Link>
             </div>
           </section>

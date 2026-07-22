@@ -15,6 +15,7 @@ export interface DiscordUser {
 
 export interface DiscordGuildMember {
   joined_at?: string | null;
+  roles?: string[];
   user?: DiscordUser;
 }
 
