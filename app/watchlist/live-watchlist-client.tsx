@@ -616,6 +616,9 @@ function TradersLinkAiReadCard({
   const pullbackPlan = dipBuyPlanVisible
     ? deriveTradersLinkAiPullbackPlan(read)
     : null;
+  const titleOnlyCatalystSources = read.sources.filter(
+    (source) => source.evidence?.excerptKind === "article_title",
+  );
 
   return (
     <article
@@ -639,7 +642,6 @@ function TradersLinkAiReadCard({
         </div>
       </div>
 
-      <p className="watchlist-ai-read-current">{read.currentRead}</p>
       {liveVolumeContext ? (
         <TradersLinkAiLiveVolumeSection
           read={read}
@@ -806,18 +808,26 @@ function TradersLinkAiReadCard({
       ) : null}
 
       <div className="watchlist-ai-read-context-grid">
+        {read.catalystRealityCheck.status !== "none" ? (
+          <section className="watchlist-ai-read-section">
+            <div className="watchlist-ai-read-section-heading">
+              <h3>Catalyst / recent news</h3>
+              <span>{formatAiReadTag(read.catalystRealityCheck.status)}</span>
+            </div>
+            <p>{read.catalystRealityCheck.summary}</p>
+            {titleOnlyCatalystSources.length > 0 ? (
+              <ul>
+                {titleOnlyCatalystSources.map((source) => (
+                  <li key={source.url}>{source.title}</li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="watchlist-ai-read-relevance">
+              <strong>Day-trade impact:</strong> {read.catalystRealityCheck.dayTradeRelevance}
+            </p>
+          </section>
+        ) : null}
         {read.externalResearchEnabled === true ? (
-          <>
-            <section className="watchlist-ai-read-section">
-              <div className="watchlist-ai-read-section-heading">
-                <h3>Catalyst reality check</h3>
-                <span>{formatAiReadTag(read.catalystRealityCheck.status)}</span>
-              </div>
-              <p>{read.catalystRealityCheck.summary}</p>
-              <p className="watchlist-ai-read-relevance">
-                <strong>Day-trade impact:</strong> {read.catalystRealityCheck.dayTradeRelevance}
-              </p>
-            </section>
             <section className="watchlist-ai-read-section">
               <div className="watchlist-ai-read-section-heading">
                 <h3>Dilution risk</h3>
@@ -846,11 +856,10 @@ function TradersLinkAiReadCard({
                 <strong>Day-trade impact:</strong> {read.dilutionRisk.dayTradeRelevance}
               </p>
             </section>
-          </>
         ) : null}
         {read.riskSummary.length > 0 ? (
           <section className="watchlist-ai-read-section">
-            <h3>Intraday risk checks</h3>
+            <h3>Risk checks</h3>
             <ul>
               {read.riskSummary.map((risk) => (
                 <li key={risk}>{risk}</li>
