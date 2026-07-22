@@ -522,6 +522,7 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
     ...state,
     watchlistSlotState: state.watchlistSlotState === "followup" ? "followup" : "active",
     reversalWatchEligible: state.reversalWatchEligible === true,
+    reversalWatchAttemptReady: state.reversalWatchAttemptReady === true,
     reversalWatchlistVisible: state.reversalWatchlistVisible !== false,
     potentialGainCardVisible: state.potentialGainCardVisible !== false,
     watchlistLifecycleLabelsVisible: state.watchlistLifecycleLabelsVisible === true,
@@ -670,6 +671,10 @@ export function applyPatch(
       typeof patch.reversalWatchEligible === "boolean"
         ? patch.reversalWatchEligible
         : baseExisting?.reversalWatchEligible === true,
+    reversalWatchAttemptReady:
+      typeof patch.reversalWatchAttemptReady === "boolean"
+        ? patch.reversalWatchAttemptReady
+        : baseExisting?.reversalWatchAttemptReady === true,
     reversalWatchlistVisible:
       typeof patch.reversalWatchlistVisible === "boolean"
         ? patch.reversalWatchlistVisible
@@ -753,6 +758,10 @@ function applyTickerDataPatch(
       typeof patch.reversalWatchEligible === "boolean"
         ? patch.reversalWatchEligible
         : existing?.reversalWatchEligible === true,
+    reversalWatchAttemptReady:
+      typeof patch.reversalWatchAttemptReady === "boolean"
+        ? patch.reversalWatchAttemptReady
+        : existing?.reversalWatchAttemptReady === true,
     reversalWatchlistVisible:
       typeof patch.reversalWatchlistVisible === "boolean"
         ? patch.reversalWatchlistVisible

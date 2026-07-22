@@ -53,6 +53,7 @@ export type LiveWatchlistCardPatch = {
   firstPostedAt?: number | null;
   watchlistSlotState?: LiveWatchlistSlotState;
   reversalWatchEligible?: boolean;
+  reversalWatchAttemptReady?: boolean;
   reversalWatchlistVisible?: boolean;
   preserveExistingOnReactivation?: boolean;
   potentialGainCardVisible?: boolean;
@@ -80,6 +81,7 @@ export type LiveWatchlistTickerDataPatch = {
   marketDataRevision?: number;
   watchlistSlotState?: LiveWatchlistSlotState;
   reversalWatchEligible?: boolean;
+  reversalWatchAttemptReady?: boolean;
   reversalWatchlistVisible?: boolean;
   potentialGainCardVisible?: boolean;
   watchlistLifecycleLabelsVisible?: boolean;
@@ -413,6 +415,7 @@ export type LiveWatchlistSymbolState = {
   firstPostedAt: number | null;
   watchlistSlotState?: LiveWatchlistSlotState;
   reversalWatchEligible?: boolean;
+  reversalWatchAttemptReady?: boolean;
   reversalWatchlistVisible?: boolean;
   potentialGainCardVisible?: boolean;
   watchlistLifecycleLabelsVisible?: boolean;

@@ -899,10 +899,12 @@ describe("LiveWatchlistStore", () => {
       updatedAt: 1000,
       watchlistSlotState: "followup",
       reversalWatchEligible: true,
+      reversalWatchAttemptReady: true,
       reversalWatchlistVisible: false,
       cards: {},
     });
     expect(reversalWatch.reversalWatchEligible).toBe(true);
+    expect(reversalWatch.reversalWatchAttemptReady).toBe(true);
     expect(reversalWatch.reversalWatchlistVisible).toBe(false);
 
     const preserved = await store.upsertTickerData({
@@ -914,6 +916,7 @@ describe("LiveWatchlistStore", () => {
       nearestResistance: null,
     });
     expect(preserved.reversalWatchEligible).toBe(true);
+    expect(preserved.reversalWatchAttemptReady).toBe(true);
     expect(preserved.reversalWatchlistVisible).toBe(false);
 
     const promoted = await store.upsertPatch({
@@ -922,10 +925,12 @@ describe("LiveWatchlistStore", () => {
       updatedAt: 3000,
       watchlistSlotState: "active",
       reversalWatchEligible: false,
+      reversalWatchAttemptReady: false,
       reversalWatchlistVisible: true,
       cards: {},
     });
     expect(promoted.reversalWatchEligible).toBe(false);
+    expect(promoted.reversalWatchAttemptReady).toBe(false);
     expect(promoted.reversalWatchlistVisible).toBe(true);
   });
 

@@ -1274,6 +1274,12 @@ function isPostmarketAddition(symbol: LiveWatchlistSymbolState): boolean {
 
 function WatchlistLifecycleBadge({ symbol }: { symbol: LiveWatchlistSymbolState }) {
   const lifecycle = symbol.watchlistLifecycle;
+  if (
+    symbol.reversalWatchAttemptReady === true &&
+    lifecycle?.status === "recovery_attempt"
+  ) {
+    return null;
+  }
   if (symbol.watchlistLifecycleLabelsVisible !== true || !lifecycle) {
     return null;
   }
@@ -1284,6 +1290,24 @@ function WatchlistLifecycleBadge({ symbol }: { symbol: LiveWatchlistSymbolState 
       title={lifecycle.reason}
     >
       {lifecycle.label}
+    </span>
+  );
+}
+
+function ReversalAttemptBadge({ symbol }: { symbol: LiveWatchlistSymbolState }) {
+  if (
+    symbol.reversalWatchAttemptReady !== true ||
+    symbol.watchlistLifecycle?.status !== "recovery_attempt"
+  ) {
+    return null;
+  }
+  return (
+    <span
+      className="watchlist-lifecycle-badge"
+      data-lifecycle-status="recovery_attempt"
+      title={symbol.watchlistLifecycle.reason}
+    >
+      Attempting reversal
     </span>
   );
 }
@@ -1329,6 +1353,7 @@ function WatchlistTickerTable({
                   </>
                 ) : null}
               </strong>
+              <ReversalAttemptBadge symbol={symbol} />
               <WatchlistLifecycleBadge symbol={symbol} />
             </span>
             <span className="watchlist-mobile-field" data-mobile-label="Price (may be slightly delayed)">
