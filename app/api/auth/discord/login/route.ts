@@ -50,7 +50,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const config = getDiscordOAuthConfig(origin);
-    const prompt = getDiscordOAuthPrompt(request);
+    const prompt =
+      currentSession &&
+      isWatchlistAuthReturnTo(returnTo) &&
+      !hasPremiumWatchlistAccess(currentSession)
+        ? "consent"
+        : getDiscordOAuthPrompt(request);
     const state = randomBytes(24).toString("base64url");
     const response = NextResponse.redirect(
       buildDiscordAuthorizeUrl({ config, prompt, state }),

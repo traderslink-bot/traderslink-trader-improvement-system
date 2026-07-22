@@ -87,7 +87,7 @@ export function trackGoogleAnalyticsEvent(
 function GoogleAnalyticsPageViews() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const searchParamsString = searchParams.toString();
+  const searchParamsString = searchParams?.toString() ?? "";
 
   useEffect(() => {
     let isCancelled = false;

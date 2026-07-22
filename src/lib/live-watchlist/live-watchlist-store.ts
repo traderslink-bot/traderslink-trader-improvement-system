@@ -19,6 +19,7 @@ type SqliteDatabase = Database.Database;
 type NeonSql = ReturnType<typeof neon>;
 
 const NEON_SYMBOL_WRITE_MAX_ATTEMPTS = 25;
+export const LIVE_WATCHLIST_ARCHIVE_RETENTION_MS = 3 * 24 * 60 * 60 * 1_000;
 
 let sharedSqliteDatabase: SqliteDatabase | null = null;
 let sharedNeonSql: NeonSql | null = null;
@@ -887,6 +888,8 @@ function normalizeLevelMap(value: LiveWatchlistLevelMap | null | undefined): Liv
 }
 
 export class LiveWatchlistStore {
+  constructor(private readonly now: () => number = Date.now) {}
+
   async upsertHealth(patch: LiveWatchlistHealthPatch): Promise<{
     marketDataStatus: LiveWatchlistMarketDataStatus;
     marketDataUpdatedAt: number | null;
@@ -1074,6 +1077,7 @@ export class LiveWatchlistStore {
   }
 
   async countArchives(): Promise<number> {
+    await this.pruneExpiredArchives();
     if (!shouldUseSqliteFallback()) {
       await ensureNeonSchema();
       const rows = (await getNeonSql()`
@@ -1093,6 +1097,7 @@ export class LiveWatchlistStore {
     limit?: number;
     offset?: number;
   }): Promise<LiveWatchlistArchiveSnapshot[]> {
+    await this.pruneExpiredArchives();
     const limit = typeof options?.limit === "number" && Number.isFinite(options.limit)
       ? Math.max(1, Math.min(100, Math.floor(options.limit)))
       : null;
@@ -1147,6 +1152,7 @@ export class LiveWatchlistStore {
   }
 
   async getArchive(archiveId: string): Promise<LiveWatchlistArchiveSnapshot | null> {
+    await this.pruneExpiredArchives();
     const normalizedArchiveId = archiveId.trim().toUpperCase();
     if (!normalizedArchiveId) {
       return null;
@@ -1193,6 +1199,7 @@ export class LiveWatchlistStore {
   }
 
   async getLatestArchiveForSymbol(symbolInput: string): Promise<LiveWatchlistArchiveSnapshot | null> {
+    await this.pruneExpiredArchives();
     const symbol = normalizeSymbol(symbolInput);
     if (!shouldUseSqliteFallback()) {
       await ensureNeonSchema();
@@ -1253,7 +1260,24 @@ export class LiveWatchlistStore {
     return result.changes;
   }
 
+  async pruneExpiredArchives(now = this.now()): Promise<number> {
+    const cutoff = now - LIVE_WATCHLIST_ARCHIVE_RETENTION_MS;
+    if (!shouldUseSqliteFallback()) {
+      await ensureNeonSchema();
+      const rows = (await getNeonSql()`
+        DELETE FROM live_watchlist_archives
+        WHERE archived_at < ${cutoff}
+        RETURNING archive_id
+      `) as Array<{ archive_id?: unknown }>;
+      return rows.length;
+    }
+
+    const db = await getSqliteDatabase();
+    return db.prepare("DELETE FROM live_watchlist_archives WHERE archived_at < ?").run(cutoff).changes;
+  }
+
   private async createArchiveIfEligible(state: LiveWatchlistSymbolState): Promise<void> {
+    await this.pruneExpiredArchives();
     if (!hasCoreArchiveCards(state)) {
       return;
     }

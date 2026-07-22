@@ -314,6 +314,7 @@ function WatchlistV2PotentialPathCard({
           <div className="watchlist-v2-card-title">
             <h2>{symbol.symbol}</h2>
             <span>{formatPrice(symbol.latestPrice)}</span>
+            <small className="watchlist-price-delay-note">(prices may be slightly delayed)</small>
           </div>
         </header>
 
@@ -526,7 +527,6 @@ function TradersLinkAiPullbackScenarioBlock({
     <div className="watchlist-ai-read-level" data-scenario-state={state.toLowerCase().replaceAll(" ", "-")}>
       <div className="watchlist-ai-read-section-heading">
         <h4>{heading}</h4>
-        <span>{state}</span>
       </div>
       <p>{description}</p>
       <dl className="watchlist-ai-read-scenario-items">
@@ -1299,7 +1299,9 @@ function WatchlistTickerTable({
     <section className="watchlist-table" aria-label={ariaLabel}>
       <div className="watchlist-table-head">
         <span>Ticker</span>
-        <span>Price</span>
+        <span>
+          Price <small className="watchlist-price-delay-note">(may be slightly delayed)</small>
+        </span>
         <span>Added</span>
         <span>Updated</span>
         <span>Details</span>
@@ -1329,7 +1331,7 @@ function WatchlistTickerTable({
               </strong>
               <WatchlistLifecycleBadge symbol={symbol} />
             </span>
-            <span className="watchlist-mobile-field" data-mobile-label="Price">
+            <span className="watchlist-mobile-field" data-mobile-label="Price (may be slightly delayed)">
               {formatPrice(symbol.latestPrice)}
             </span>
             <span className="watchlist-mobile-field" data-mobile-label="Added" style={watchlistTimeCellStyle}>

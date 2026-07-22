@@ -115,9 +115,13 @@ describe("Discord Academy auth routes", () => {
       ),
     );
 
-    expect(new URL(response.headers.get("location") ?? "").origin).toBe(
-      "https://discord.com",
-    );
+    const authorizeUrl = new URL(response.headers.get("location") ?? "");
+    expect(authorizeUrl.origin).toBe("https://discord.com");
+    expect(authorizeUrl.searchParams.get("prompt")).toBe("consent");
+    expect(authorizeUrl.searchParams.get("scope")).toContain("guilds.members.read");
+
+    const setCookieHeader = getSetCookieHeaders(response).join("\n");
+    expect(setCookieHeader).toContain(`${ACADEMY_OAUTH_PROMPT_COOKIE}=consent`);
   });
 
   it("reuses a Premium member session for the requested watchlist page", async () => {

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   applyPatch,
+  LIVE_WATCHLIST_ARCHIVE_RETENTION_MS,
   LiveWatchlistStore,
   normalizeLiveWatchlistTimestamp,
   resetLiveWatchlistStoreForTests,
@@ -1273,7 +1274,7 @@ describe("LiveWatchlistStore", () => {
   it("creates an archive snapshot when a fully loaded ticker is deactivated", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("ABCD", 1000));
     await store.upsertPatch({
@@ -1304,7 +1305,7 @@ describe("LiveWatchlistStore", () => {
   it("archives a ticker after TradersLink AI Read replaces the legacy live trader read", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
     const patch = buildCorePatch("AIREAD", 1000);
     patch.cards.liveTraderRead = null;
     patch.cards.tradersLinkAiRead = {
@@ -1332,7 +1333,7 @@ describe("LiveWatchlistStore", () => {
   it("archives a complete level snapshot when no AI read is available", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
     const patch = buildCorePatch("NOAIREAD", 1000);
     patch.cards.liveTraderRead = null;
     patch.cards.tradersLinkAiRead = null;
@@ -1351,7 +1352,7 @@ describe("LiveWatchlistStore", () => {
   it("archives the last active snapshot when a ticker moves to follow-up", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("BIYA", 1000));
     await store.upsertTickerData({
@@ -1392,7 +1393,7 @@ describe("LiveWatchlistStore", () => {
   it("counts and pages archive snapshots in newest-first order", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     for (const [symbol, timestamp] of [["OLD", 1000], ["MID", 2000], ["NEW", 3000]] as const) {
       await store.upsertPatch(buildCorePatch(symbol, timestamp));
@@ -1417,7 +1418,7 @@ describe("LiveWatchlistStore", () => {
   it("does not archive deactivated tickers until core cards are loaded", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch({
       symbol: "ABCD",
@@ -1446,7 +1447,7 @@ describe("LiveWatchlistStore", () => {
   it("archives deactivated tickers with level snapshot cards even before company info arrives", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     const patch = buildCorePatch("ABCD", 1000);
     delete patch.cards.companyInfo;
@@ -1467,7 +1468,7 @@ describe("LiveWatchlistStore", () => {
   it("does not duplicate archives when a deactivation patch is replayed", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("ABCD", 1000));
     const deactivation = {
@@ -1487,7 +1488,7 @@ describe("LiveWatchlistStore", () => {
   it("keeps old archive snapshots immutable when the same symbol is reactivated", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("ABCD", 1000));
     await store.upsertPatch({
@@ -1528,7 +1529,7 @@ describe("LiveWatchlistStore", () => {
   it("keeps same-day cards and Added time when a removed ticker is reactivated from preserved context", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("NXXT", 1000));
     await store.upsertPatch({
@@ -1566,7 +1567,7 @@ describe("LiveWatchlistStore", () => {
   it("restores same-day archived cards when an older reactivation already cleared the live row", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
-    const store = new LiveWatchlistStore();
+    const store = new LiveWatchlistStore(() => 4_000);
 
     await store.upsertPatch(buildCorePatch("ZYBT", 1000));
     await store.upsertPatch({
@@ -1612,5 +1613,33 @@ describe("LiveWatchlistStore", () => {
     expect(restored?.cards.tradersLinkAiRead?.body).toContain("preserved setup read");
     expect(restored?.cards.fullLadder).toBeDefined();
     expect(restored?.cards.liveTraderRead?.body).toContain("holding a range");
+  });
+
+  it("permanently deletes archive snapshots older than three days", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const now = 10 * 24 * 60 * 60 * 1_000;
+    const oldArchivedAt = now - LIVE_WATCHLIST_ARCHIVE_RETENTION_MS - 1;
+    const recentArchivedAt = now - LIVE_WATCHLIST_ARCHIVE_RETENTION_MS + 1;
+    const store = new LiveWatchlistStore(() => now);
+
+    await store.upsertPatch(buildCorePatch("OLD", oldArchivedAt - 1));
+    await store.upsertPatch({
+      symbol: "OLD",
+      status: "deactivated",
+      updatedAt: oldArchivedAt,
+      cards: {},
+    });
+    await store.upsertPatch(buildCorePatch("RECENT", recentArchivedAt - 1));
+    await store.upsertPatch({
+      symbol: "RECENT",
+      status: "deactivated",
+      updatedAt: recentArchivedAt,
+      cards: {},
+    });
+
+    await expect(store.listArchives()).resolves.toMatchObject([{ symbol: "RECENT" }]);
+    await expect(store.countArchives()).resolves.toBe(1);
+    await expect(store.getLatestArchiveForSymbol("OLD")).resolves.toBeNull();
   });
 });
