@@ -1301,6 +1301,53 @@ describe("LiveWatchlistStore", () => {
     await expect(store.getArchive("ABCD-19700101-000002-000")).resolves.toEqual(archives[0]);
   });
 
+  it("archives a ticker after TradersLink AI Read replaces the legacy live trader read", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+    const patch = buildCorePatch("AIREAD", 1000);
+    patch.cards.liveTraderRead = null;
+    patch.cards.tradersLinkAiRead = {
+      title: "TradersLink AI Read",
+      body: "Hold support and clear resistance for continuation.",
+      updatedAt: 1000,
+      priceWhenPosted: 1.18,
+      source: "openai",
+    };
+
+    await store.upsertPatch(patch);
+    await store.upsertPatch({
+      symbol: "AIREAD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    const archives = await store.listArchives();
+    expect(archives).toHaveLength(1);
+    expect(archives[0]?.state.cards.liveTraderRead).toBeUndefined();
+    expect(archives[0]?.state.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
+  });
+
+  it("archives a complete level snapshot when no AI read is available", async () => {
+    process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
+    process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";
+    const store = new LiveWatchlistStore();
+    const patch = buildCorePatch("NOAIREAD", 1000);
+    patch.cards.liveTraderRead = null;
+    patch.cards.tradersLinkAiRead = null;
+
+    await store.upsertPatch(patch);
+    await store.upsertPatch({
+      symbol: "NOAIREAD",
+      status: "deactivated",
+      updatedAt: 2000,
+      cards: {},
+    });
+
+    await expect(store.listArchives()).resolves.toHaveLength(1);
+  });
+
   it("archives the last active snapshot when a ticker moves to follow-up", async () => {
     process.env.LIVE_WATCHLIST_STORAGE = "sqlite";
     process.env.LIVE_WATCHLIST_DB_PATH = ":memory:";

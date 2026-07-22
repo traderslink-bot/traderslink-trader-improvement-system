@@ -307,7 +307,6 @@ function archiveIdFor(symbol: string, archivedAt: number): string {
 function hasCoreArchiveCards(state: LiveWatchlistSymbolState): boolean {
   return Boolean(
     state.cards.nearestSupportResistance &&
-      state.cards.liveTraderRead &&
       state.cards.fullLadder,
   );
 }
