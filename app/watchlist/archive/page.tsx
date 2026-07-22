@@ -41,7 +41,7 @@ export default async function LiveWatchlistArchivePage({
       redirect(`/api/auth/discord/login?returnTo=${encodeURIComponent("/watchlist/archive")}`);
     }
     return (
-      <AcademyShell>
+      <AcademyShell forcedTheme="light">
         <div className="academy-container">
           <section className="academy-hero">
             <div className="academy-card watchlist-access-card">
@@ -79,7 +79,7 @@ export default async function LiveWatchlistArchivePage({
     offset: (currentPage - 1) * archivePageSize,
   });
   return (
-    <AcademyShell>
+    <AcademyShell forcedTheme="light">
       <div className="academy-container">
         <LiveWatchlistArchiveIndex
           archives={archives}

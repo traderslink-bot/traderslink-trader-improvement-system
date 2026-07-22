@@ -44,7 +44,7 @@ export default async function LiveWatchlistPage({
 
   const state = await new LiveWatchlistStore().listSymbols();
   return (
-    <AcademyShell>
+    <AcademyShell forcedTheme="light">
       <div className="academy-container watchlist-container">
         <LiveWatchlistIndexClient initialState={state} />
       </div>
@@ -63,7 +63,7 @@ function WatchlistAccessMessage({
 }) {
   const notice = getWatchlistAuthNotice(authStatus);
   return (
-    <AcademyShell>
+    <AcademyShell forcedTheme="light">
       <div className="academy-container">
         <section className="academy-hero">
           <div className="academy-card watchlist-access-card">

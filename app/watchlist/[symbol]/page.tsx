@@ -48,7 +48,7 @@ export default async function LiveWatchlistSymbolPage({
       redirect(`/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
     return (
-      <AcademyShell>
+      <AcademyShell forcedTheme="light">
         <div className="academy-container">
           <section className="academy-hero">
             <div className="academy-card watchlist-access-card">
@@ -77,7 +77,7 @@ export default async function LiveWatchlistSymbolPage({
   if (state.status === "deactivated") {
     const latestArchive = await new LiveWatchlistStore().getLatestArchiveForSymbol(symbol);
     return (
-      <AcademyShell>
+      <AcademyShell forcedTheme="light">
         <div className="academy-container">
           <div className="watchlist-page">
             <section className="watchlist-detail-hero">
@@ -115,7 +115,7 @@ export default async function LiveWatchlistSymbolPage({
   const health = await new LiveWatchlistStore().getHealth();
 
   return (
-    <AcademyShell>
+    <AcademyShell forcedTheme="light">
       <div className="academy-container watchlist-container">
         <LiveWatchlistDetailClient
           initialMarketDataStatus={health.marketDataStatus}

@@ -15,6 +15,10 @@ describe("watchlist display contract", () => {
     join(process.cwd(), "app", "watchlist", "archive", "page.tsx"),
     join(process.cwd(), "app", "watchlist", "archive", "[archiveId]", "page.tsx"),
   ].map((path) => readFileSync(path, "utf8"));
+  const guidePageSource = readFileSync(
+    join(process.cwd(), "app", "watchlist", "how-it-works", "page.tsx"),
+    "utf8",
+  );
 
   it("keeps pullback state logic without rendering a visible state badge", () => {
     expect(clientSource).toContain("resolveTradersLinkAiPullbackScenarioState(scenario, livePrice)");
@@ -40,5 +44,21 @@ describe("watchlist display contract", () => {
       expect(source).toContain("Log in with Discord");
       expect(source).not.toContain("Refresh Discord access");
     }
+  });
+
+  it("locks every watchlist surface to the light material theme", () => {
+    for (const source of accessPageSources) {
+      expect(source).toContain('forcedTheme="light"');
+    }
+    expect(guidePageSource).toContain('forcedTheme="light"');
+  });
+
+  it("stacks Potential Path support above resistance on phones", () => {
+    expect(cssSource).toMatch(
+      /@media \(max-width: 620px\)[\s\S]*?\.watchlist-v2-nearest,[\s\S]*?\.watchlist-v2-level-columns\s*\{\s*grid-template-columns:\s*1fr;/,
+    );
+    expect(cssSource).toMatch(
+      /@media \(max-width: 620px\)[\s\S]*?\.watchlist-v2-level-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(4\.5rem, auto\) minmax\(3\.7rem, auto\) minmax\(0, 1fr\);/,
+    );
   });
 });

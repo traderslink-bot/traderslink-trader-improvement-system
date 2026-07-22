@@ -4754,6 +4754,43 @@ main.bg-zinc-950 .text-zinc-500 {
     grid-template-columns: 1fr;
   }
 
+  .watchlist-content-card[data-card-label="Potential Path Levels"] {
+    padding: 0.85rem;
+  }
+
+  .watchlist-v2-card {
+    gap: 0.75rem;
+    padding: 0.8rem;
+  }
+
+  .watchlist-v2-card-title {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+
+  .watchlist-v2-card-title .watchlist-price-delay-note {
+    grid-column: 1 / -1;
+  }
+
+  .watchlist-v2-nearest,
+  .watchlist-v2-level-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .watchlist-v2-level-columns {
+    gap: 1rem;
+  }
+
+  .watchlist-v2-level-row {
+    grid-template-columns: minmax(4.5rem, auto) minmax(3.7rem, auto) minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+
+  .watchlist-v2-level-meta {
+    font-size: 0.74rem;
+  }
+
   .watchlist-ai-read-scenario-items > div {
     grid-template-columns: 1fr;
     gap: 0.15rem;

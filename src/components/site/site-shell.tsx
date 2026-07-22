@@ -22,25 +22,32 @@ const signedOutAuthSnapshot: SiteAuthSnapshot = {
 
 export function SiteShell({
   children,
+  forcedTheme,
   shellElement = "div",
 }: {
   children: ReactNode;
+  forcedTheme?: SiteTheme;
   sectionHref?: string;
   sectionLabel?: string;
   shellElement?: "div" | "main";
 }) {
-  const [theme, setTheme] = useState<SiteTheme>("light");
+  const [selectedTheme, setSelectedTheme] = useState<SiteTheme>("light");
   const [auth, setAuth] = useState<SiteAuthSnapshot>(signedOutAuthSnapshot);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const ShellElement = shellElement;
+  const theme = forcedTheme ?? selectedTheme;
   const logoSrc =
     theme === "light"
       ? "/logo-horizontal-light.png"
       : "/logo-horizontal-main.png";
 
   useEffect(() => {
+    if (forcedTheme) {
+      return;
+    }
+
     function syncTheme() {
-      setTheme(getThemeSnapshot());
+      setSelectedTheme(getThemeSnapshot());
     }
 
     syncTheme();
@@ -53,7 +60,7 @@ export function SiteShell({
       window.removeEventListener("traderslink-site-theme-change", syncTheme);
       window.removeEventListener("traderslink-academy-theme-change", syncTheme);
     };
-  }, []);
+  }, [forcedTheme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +102,10 @@ export function SiteShell({
   }, []);
 
   function selectTheme(nextTheme: SiteTheme) {
-    setTheme(nextTheme);
+    if (forcedTheme) {
+      return;
+    }
+    setSelectedTheme(nextTheme);
     window.localStorage.setItem(themeStorageKey, nextTheme);
     window.localStorage.setItem(legacyThemeStorageKey, nextTheme);
     window.dispatchEvent(new Event("traderslink-site-theme-change"));
@@ -128,6 +138,7 @@ export function SiteShell({
           <div className="academy-topbar-actions">
             <SiteTopbarControls
               auth={auth}
+              showThemeToggle={!forcedTheme}
               onSelectTheme={selectTheme}
               theme={theme}
             />
@@ -153,6 +164,7 @@ export function SiteShell({
           >
             <SiteTopbarControls
               auth={auth}
+              showThemeToggle={!forcedTheme}
               onSelectTheme={(nextTheme) => {
                 selectTheme(nextTheme);
                 setIsMenuOpen(false);
@@ -170,10 +182,12 @@ export function SiteShell({
 function SiteTopbarControls({
   auth,
   onSelectTheme,
+  showThemeToggle,
   theme,
 }: {
   auth: SiteAuthSnapshot;
   onSelectTheme: (theme: SiteTheme) => void;
+  showThemeToggle: boolean;
   theme: SiteTheme;
 }) {
   return (
@@ -199,26 +213,28 @@ function SiteTopbarControls({
           Log in with Discord
         </a>
       )}
-      <div
-        className="academy-theme-toggle"
-        role="group"
-        aria-label="Site color theme"
-      >
-        <button
-          type="button"
-          aria-pressed={theme === "light"}
-          onClick={() => onSelectTheme("light")}
+      {showThemeToggle ? (
+        <div
+          className="academy-theme-toggle"
+          role="group"
+          aria-label="Site color theme"
         >
-          Light
-        </button>
-        <button
-          type="button"
-          aria-pressed={theme === "dark"}
-          onClick={() => onSelectTheme("dark")}
-        >
-          Dark
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-pressed={theme === "light"}
+            onClick={() => onSelectTheme("light")}
+          >
+            Light
+          </button>
+          <button
+            type="button"
+            aria-pressed={theme === "dark"}
+            onClick={() => onSelectTheme("dark")}
+          >
+            Dark
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }

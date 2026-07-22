@@ -17,6 +17,7 @@ node_modules/
 
 # local app persistence
 /data/trader-intelligence.sqlite*
+/data/live-watchlist.sqlite*
 /data/db-backups/
 /data/private/
 /data/broker-exports/

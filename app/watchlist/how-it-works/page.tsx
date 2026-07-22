@@ -64,7 +64,7 @@ const levelSources = [
 
 export default function PotentialPathHowItWorksPage() {
   return (
-    <SiteShell shellElement="div">
+    <SiteShell forcedTheme="light" shellElement="div">
       <main className="academy-container-narrow watchlist-guide-page">
         <section className="academy-hero watchlist-guide-hero">
           <div className="academy-hero-copy">
