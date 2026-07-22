@@ -265,6 +265,25 @@ describe("Discord Academy auth routes", () => {
       ACADEMY_SESSION_COOKIE,
     );
   });
+
+  it("returns the Discord server owner to the requested watchlist page", async () => {
+    stubDiscordOAuth({ roles: [], owner: true });
+    vi.stubEnv("ACADEMY_PROGRESS_STORAGE", "sqlite");
+    vi.stubEnv(
+      "TRADER_INTELLIGENCE_DB_PATH",
+      join(tmpdir(), `traderslink-watchlist-owner-${randomUUID()}.sqlite`),
+    );
+    vi.stubEnv("TRADERSLINK_PREMIUM_DISCORD_ROLE_ID", "premium-role");
+
+    const response = await callbackGET(callbackRequest("/watchlist/ALBT"));
+
+    expect(response.headers.get("location")).toBe(
+      "https://traderslink.pro/watchlist/ALBT?auth=connected",
+    );
+    expect(getSetCookieHeaders(response).join("\n")).toContain(
+      ACADEMY_SESSION_COOKIE,
+    );
+  });
 });
 
 function callbackRequest(returnTo: string): NextRequest {
@@ -282,7 +301,13 @@ function callbackRequest(returnTo: string): NextRequest {
   );
 }
 
-function stubDiscordOAuth({ roles }: { roles: string[] }): void {
+function stubDiscordOAuth({
+  roles,
+  owner = false,
+}: {
+  roles: string[];
+  owner?: boolean;
+}): void {
   vi.stubEnv("DISCORD_CLIENT_ID", "client-id");
   vi.stubEnv("DISCORD_CLIENT_SECRET", "client-secret");
   vi.stubGlobal(
@@ -307,6 +332,15 @@ function stubDiscordOAuth({ roles }: { roles: string[] }): void {
       )
       .mockResolvedValueOnce(
         Response.json({ joined_at: "2026-07-21T00:00:00.000Z", roles }),
+      )
+      .mockResolvedValueOnce(
+        Response.json([
+          {
+            id: "1433570740430573642",
+            name: "TradersLink",
+            owner,
+          },
+        ]),
       ),
   );
 }

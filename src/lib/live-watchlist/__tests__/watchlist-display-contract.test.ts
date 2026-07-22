@@ -9,6 +9,12 @@ describe("watchlist display contract", () => {
     "utf8",
   );
   const cssSource = readFileSync(join(process.cwd(), "app", "globals.css"), "utf8");
+  const accessPageSources = [
+    join(process.cwd(), "app", "watchlist", "page.tsx"),
+    join(process.cwd(), "app", "watchlist", "[symbol]", "page.tsx"),
+    join(process.cwd(), "app", "watchlist", "archive", "page.tsx"),
+    join(process.cwd(), "app", "watchlist", "archive", "[archiveId]", "page.tsx"),
+  ].map((path) => readFileSync(path, "utf8"));
 
   it("keeps pullback state logic without rendering a visible state badge", () => {
     expect(clientSource).toContain("resolveTradersLinkAiPullbackScenarioState(scenario, livePrice)");
@@ -27,5 +33,12 @@ describe("watchlist display contract", () => {
     expect(cssSource).toMatch(/\.watchlist-v2-card-title h2\s*\{[\s\S]*?font-size:\s*1\.25rem;/);
     expect(cssSource).toMatch(/\.watchlist-high-risk-warning h2\s*\{[\s\S]*?font-size:\s*1\.25rem;/);
     expect(cssSource).toMatch(/\.watchlist-high-risk-warning p\s*\{[\s\S]*?font-size:\s*0\.86rem;/);
+  });
+
+  it("labels every watchlist authentication action as Discord login", () => {
+    for (const source of accessPageSources) {
+      expect(source).toContain("Log in with Discord");
+      expect(source).not.toContain("Refresh Discord access");
+    }
   });
 });

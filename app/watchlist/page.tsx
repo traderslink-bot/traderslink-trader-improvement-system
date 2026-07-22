@@ -86,9 +86,7 @@ function WatchlistAccessMessage({
               href={`/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`}
               className="academy-card-action"
             >
-              {kind === "login"
-                ? "Log in with Discord"
-                : "Refresh Discord access"}
+              Log in with Discord
             </Link>
           </div>
         </section>

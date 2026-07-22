@@ -25,6 +25,7 @@ export interface AcademyUser {
   avatar: string | null;
   guildId: string;
   roleIds: string[];
+  guildOwner: boolean;
   joinedAt: string | null;
   lastLoginAt: string;
 }
@@ -256,6 +257,29 @@ function extractRoleIdsFromMember(rawMember: unknown): string[] {
     : [];
 }
 
+function extractGuildOwnerFromMember(rawMember: unknown): boolean {
+  return (
+    typeof rawMember === "object" &&
+    rawMember !== null &&
+    (rawMember as { guild_owner?: unknown }).guild_owner === true
+  );
+}
+
+function extractGuildOwner(row: Record<string, unknown>): boolean {
+  const rawJson = row.json;
+  if (typeof rawJson !== "string") {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(rawJson) as {
+      member?: { guild_owner?: unknown };
+    };
+    return parsed.member?.guild_owner === true;
+  } catch {
+    return false;
+  }
+}
+
 function rowToUser(row: Record<string, unknown>): AcademyUser {
   return {
     discordUserId: String(row.discord_user_id),
@@ -265,6 +289,7 @@ function rowToUser(row: Record<string, unknown>): AcademyUser {
     avatar: typeof row.avatar === "string" ? String(row.avatar) : null,
     guildId: String(row.guild_id),
     roleIds: extractRoleIds(row),
+    guildOwner: extractGuildOwner(row),
     joinedAt: typeof row.joined_at === "string" ? String(row.joined_at) : null,
     lastLoginAt: String(row.last_login_at),
   };
@@ -324,6 +349,7 @@ export class AcademyProgressStore {
         avatar: input.avatar ?? null,
         guildId: input.guildId,
         roleIds: extractRoleIdsFromMember(input.rawMember),
+        guildOwner: extractGuildOwnerFromMember(input.rawMember),
         joinedAt: input.joinedAt ?? null,
         lastLoginAt: now,
       };
@@ -373,6 +399,7 @@ export class AcademyProgressStore {
       avatar: input.avatar ?? null,
       guildId: input.guildId,
       roleIds: extractRoleIdsFromMember(input.rawMember),
+      guildOwner: extractGuildOwnerFromMember(input.rawMember),
       joinedAt: input.joinedAt ?? null,
       lastLoginAt: now,
     };

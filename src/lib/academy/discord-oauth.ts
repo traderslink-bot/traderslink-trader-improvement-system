@@ -16,12 +16,14 @@ export interface DiscordUser {
 export interface DiscordGuildMember {
   joined_at?: string | null;
   roles?: string[];
+  guild_owner?: boolean;
   user?: DiscordUser;
 }
 
 export interface DiscordUserGuild {
   id: string;
   name?: string | null;
+  owner?: boolean;
 }
 
 interface DiscordTokenResponse {

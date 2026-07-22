@@ -19,6 +19,7 @@ import {
 } from "@/src/lib/academy/discord-auth-return";
 import {
   exchangeDiscordCode,
+  fetchDiscordCurrentUserGuilds,
   fetchDiscordCurrentUser,
   getSafeDiscordAuthErrorMessage,
   getDiscordOAuthConfig,
@@ -103,6 +104,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return response;
     }
 
+    const watchlistReturn = isWatchlistAuthReturnTo(returnTo);
+    let resolvedGuildMember = guildMember;
+    if (watchlistReturn) {
+      try {
+        const guilds = await fetchDiscordCurrentUserGuilds(token.access_token);
+        const currentGuild = guilds.find((guild) => guild.id === config.guildId);
+        if (currentGuild?.owner === true) {
+          resolvedGuildMember = { ...guildMember, guild_owner: true };
+        }
+      } catch {
+        // The member endpoint still provides the role-based access decision.
+      }
+    }
+
     let sessionToken: string;
     let hasPremiumAccess = false;
 
@@ -114,9 +129,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         globalName: discordUser.global_name ?? null,
         avatar: discordUser.avatar ?? null,
         guildId: config.guildId,
-        joinedAt: guildMember.joined_at ?? null,
+        joinedAt: resolvedGuildMember.joined_at ?? null,
         rawUser: discordUser,
-        rawMember: guildMember,
+        rawMember: resolvedGuildMember,
       });
       const session = await store.createSession(discordUser.id);
       sessionToken = session.token;
@@ -136,7 +151,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return response;
     }
 
-    const watchlistReturn = isWatchlistAuthReturnTo(returnTo);
     let authStatus = "connected";
     if (
       watchlistReturn &&

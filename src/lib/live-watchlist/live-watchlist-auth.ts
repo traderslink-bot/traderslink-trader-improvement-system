@@ -34,7 +34,7 @@ export function hasPremiumWatchlistAccess(session: AcademySession): boolean {
   if (!roleId) {
     return process.env.NODE_ENV !== "production";
   }
-  return session.user.roleIds.includes(roleId);
+  return session.user.guildOwner || session.user.roleIds.includes(roleId);
 }
 
 export async function authorizePremiumWatchlistRequest(

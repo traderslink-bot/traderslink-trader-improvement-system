@@ -62,7 +62,7 @@ export default async function LiveWatchlistArchiveDetailPage({
                 href={`/api/auth/discord/login?returnTo=${encodeURIComponent(returnTo)}`}
                 className="academy-card-action"
               >
-                {session ? "Refresh Discord access" : "Log in with Discord"}
+                Log in with Discord
               </Link>
             </div>
           </section>
