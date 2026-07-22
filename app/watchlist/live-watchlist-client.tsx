@@ -1,5 +1,7 @@
 "use client";
 
+import "flag-icons/css/flag-icons.min.css";
+
 import Link from "next/link";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 
@@ -27,6 +29,7 @@ import {
   getLiveWatchlistEntryGroup,
   shouldShowReversalWatchlist,
 } from "@/src/lib/live-watchlist/live-watchlist-session-group";
+import { getWatchlistCountryFlag } from "@/src/lib/live-watchlist/watchlist-country-flag";
 import {
   isNewerLiveWatchlistSymbolState,
   reconcileLiveWatchlistSnapshot,
@@ -1131,30 +1134,46 @@ function WatchlistTickerTable({
         <span>Updated</span>
         <span>Details</span>
       </div>
-      {symbols.map((symbol) => (
-        <Link
-          key={symbol.symbol}
-          href={`/watchlist/${symbol.symbol}`}
-          className="watchlist-row"
-        >
-          <span className="watchlist-symbol-cell">
-            <strong>{symbol.symbol}</strong>
-            <WatchlistLifecycleBadge symbol={symbol} />
-          </span>
-          <span className="watchlist-mobile-field" data-mobile-label="Price">
-            {formatPrice(symbol.latestPrice)}
-          </span>
-          <span className="watchlist-mobile-field" data-mobile-label="Added" style={watchlistTimeCellStyle}>
-            {formatDateTime(symbol.firstPostedAt)}
-          </span>
-          <span className="watchlist-mobile-field" data-mobile-label="Updated" style={watchlistTimeCellStyle}>
-            {formatTime(symbol.updatedAt)}
-          </span>
-          <span className="watchlist-mobile-field watchlist-details-cell" data-mobile-label="Details">
-            View details
-          </span>
-        </Link>
-      ))}
+      {symbols.map((symbol) => {
+        const countryFlag = getWatchlistCountryFlag(symbol.cards.companyInfo?.metadata?.country);
+        return (
+          <Link
+            key={symbol.symbol}
+            href={`/watchlist/${symbol.symbol}`}
+            className="watchlist-row"
+          >
+            <span className="watchlist-symbol-cell">
+              <strong>
+                {symbol.symbol}
+                {countryFlag ? (
+                  <>
+                    {" "}
+                    <span
+                      className={`fi fi-${countryFlag.code.toLowerCase()} watchlist-country-flag`}
+                      role="img"
+                      aria-label={`${countryFlag.label} flag`}
+                      title={countryFlag.label}
+                    />
+                  </>
+                ) : null}
+              </strong>
+              <WatchlistLifecycleBadge symbol={symbol} />
+            </span>
+            <span className="watchlist-mobile-field" data-mobile-label="Price">
+              {formatPrice(symbol.latestPrice)}
+            </span>
+            <span className="watchlist-mobile-field" data-mobile-label="Added" style={watchlistTimeCellStyle}>
+              {formatDateTime(symbol.firstPostedAt)}
+            </span>
+            <span className="watchlist-mobile-field" data-mobile-label="Updated" style={watchlistTimeCellStyle}>
+              {formatTime(symbol.updatedAt)}
+            </span>
+            <span className="watchlist-mobile-field watchlist-details-cell" data-mobile-label="Details">
+              View details
+            </span>
+          </Link>
+        );
+      })}
     </section>
   );
 }

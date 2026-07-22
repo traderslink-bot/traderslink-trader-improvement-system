@@ -3136,6 +3136,13 @@ main.bg-zinc-950 .text-zinc-500 {
   line-height: 1.5rem;
 }
 
+.watchlist-country-flag {
+  display: inline-block;
+  height: 0.9rem;
+  width: 1.2rem;
+  vertical-align: -0.08em;
+}
+
 .watchlist-read-cell {
   min-width: 0;
   color: var(--academy-muted);
