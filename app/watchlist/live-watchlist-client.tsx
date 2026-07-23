@@ -953,6 +953,34 @@ function StructuredMarketStructureLines({ body }: { body: string }) {
   );
 }
 
+function TradersLinkAiReadStatusCard({
+  status,
+}: {
+  status: "analyzing" | "failed";
+}) {
+  return (
+    <article
+      className="academy-card watchlist-content-card watchlist-ai-read-card"
+      data-card-label="TradersLink AI Read"
+      data-ai-read-status={status}
+    >
+      <div className="academy-card-topline">
+        <WatchlistCardKicker label="TradersLink AI Read" />
+      </div>
+      <h2 className="academy-card-title">
+        {status === "analyzing"
+          ? "AI is analyzing market data"
+          : "AI analysis is taking longer than expected"}
+      </h2>
+      <p className="academy-card-text">
+        {status === "analyzing"
+          ? "The completed trade preparation read will appear here automatically."
+          : "The read will appear here automatically when the next analysis succeeds."}
+      </p>
+    </article>
+  );
+}
+
 function StructuredMarketStructureCard({ body }: { body: string }) {
   return (
     <div className="watchlist-trader-read watchlist-structured-card-body">
@@ -1546,6 +1574,10 @@ function WatchlistDetailCards({ symbol }: { symbol: LiveWatchlistSymbolState }) 
           liveVolumeContext={symbol.liveVolumeContext}
           dipBuyPlanVisible={symbol.tradersLinkAiReadDipBuyPlanVisible !== false}
         />
+      ) : symbol.tradersLinkAiReadCardVisible !== false &&
+        (symbol.tradersLinkAiReadStatus === "analyzing" ||
+          symbol.tradersLinkAiReadStatus === "failed") ? (
+        <TradersLinkAiReadStatusCard status={symbol.tradersLinkAiReadStatus} />
       ) : symbol.tradersLinkAiReadCardVisible !== false ? (
         <article
           className="academy-card watchlist-content-card watchlist-ai-read-card"

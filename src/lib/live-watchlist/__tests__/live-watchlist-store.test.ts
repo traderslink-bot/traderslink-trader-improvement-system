@@ -1001,6 +1001,19 @@ describe("LiveWatchlistStore", () => {
       updatedAt: 1000,
       tradersLinkAiReadCardVisible: true,
       tradersLinkAiReadDipBuyPlanVisible: true,
+      tradersLinkAiReadStatus: "analyzing",
+      cards: {},
+    });
+    expect(published.tradersLinkAiReadStatus).toBe("analyzing");
+    expect(published.cards.tradersLinkAiRead).toBeUndefined();
+
+    const ready = await store.upsertPatch({
+      symbol: "TGHL",
+      status: "live",
+      updatedAt: 1050,
+      tradersLinkAiReadCardVisible: true,
+      tradersLinkAiReadDipBuyPlanVisible: true,
+      tradersLinkAiReadStatus: "ready",
       cards: {
         tradersLinkAiRead: {
           title: "TradersLink AI Read",
@@ -1011,9 +1024,10 @@ describe("LiveWatchlistStore", () => {
         },
       },
     });
-    expect(published.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
-    expect(published.tradersLinkAiReadCardVisible).toBe(true);
-    expect(published.tradersLinkAiReadDipBuyPlanVisible).toBe(true);
+    expect(ready.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
+    expect(ready.tradersLinkAiReadCardVisible).toBe(true);
+    expect(ready.tradersLinkAiReadDipBuyPlanVisible).toBe(true);
+    expect(ready.tradersLinkAiReadStatus).toBe("ready");
 
     const hidden = await store.upsertPatch({
       symbol: "TGHL",
@@ -1036,6 +1050,7 @@ describe("LiveWatchlistStore", () => {
     });
     expect(preserved.tradersLinkAiReadCardVisible).toBe(false);
     expect(preserved.tradersLinkAiReadDipBuyPlanVisible).toBe(false);
+    expect(preserved.tradersLinkAiReadStatus).toBe("ready");
     expect(preserved.cards.tradersLinkAiRead?.title).toBe("TradersLink AI Read");
   });
 
