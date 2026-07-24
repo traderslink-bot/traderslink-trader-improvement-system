@@ -1,3 +1,22 @@
+# 2026-07-24 - GA0-B3 Consecutive-Loss Daily-Stop Simulation
+
+- GA0-B2 is independently accepted and merged through PR #150 at exact SHA
+  `4338cab7d46b8a0548b22346f81b42db5fec3bf0`, which is the B3 merge base and
+  current `origin/main`.
+- The active branch is
+  `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof`; work is isolated in
+  a clean linked worktree because the owner checkout contains unrelated dirty
+  UI/Academy work. No deployment occurred.
+- Implemented the B3-specific deterministic executor,
+  `simulate_daily_stop_rule:v1`, with exact session/aggregate artifacts,
+  evidence, series, diagnostics, receipt, authority, semantic replay, and an
+  independent reference simulator.
+- Added the controlling B3 ADR and focused adversarial/differential tests.
+- Resume point: complete the consolidated executable checkpoint, commit the
+  executable slice, create the later Markdown-only audit handoff, open one
+  draft PR, and stop for independent audit. Do not merge, deploy, resolve
+  audit threads, or begin GA0-B4.
+
 # 2026-07-23 - GA0-B2 Weekday Deterministic Proof
 
 - Started from accepted GA0-B1 merge

@@ -1,5 +1,22 @@
 # Trader Intelligence v3 Project Log
 
+## 2026-07-24 - GA0-B3 consecutive-loss daily-stop simulation active
+
+- GA0-B2 was independently accepted and merged through PR #150 at
+  `4338cab7d46b8a0548b22346f81b42db5fec3bf0`; this exact SHA is the current
+  `origin/main` and B3 merge base.
+- GA0-B3 is active on
+  `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof` with no deployment.
+  The requested draft PR is not opened yet; it will be the single B3 PR after
+  the executable checkpoint.
+- The current scope is only `simulate_daily_stop_rule:v1`, its controlling ADR,
+  exact proof artifact graph, independent reference differential tests, and
+  audit handoff. The owner checkout's unrelated dirty UI/Academy work remains
+  untouched in a separate linked worktree.
+- The stale B2-awaiting-audit gate is superseded for this active branch. The
+  stop boundary remains draft/unmerged, no audit thread changes, no deployment,
+  and no GA0-B4.
+
 ## 2026-07-24 - GA0-B2 second independent-re-audit remediation checkpoint
 
 - Current re-audit findings head: `baf1952812fcb563b32e4f7e7d19d1efa14b8602`.

@@ -42,7 +42,9 @@ export type ContentIdentityDomain =
   | "starting_inventory"
   | "normalized_analysis_arguments"
   | "weekday_execution_payload"
-  | "weekday_execution_authority";
+  | "weekday_execution_authority"
+  | "daily_stop_execution_payload"
+  | "daily_stop_execution_authority";
 
 declare const canonicalDigestBrand: unique symbol;
 declare const canonicalExecutionDigestBrand: unique symbol;
@@ -139,7 +141,7 @@ export function parseCanonicalContentDigest(
 ): ExactResult<CanonicalContentDigest, ContentDigestFailure> {
   if (
     typeof input !== "string" ||
-    !/^ti_v3:(?:canonical_content|canonical_execution|canonical_source_document|correction_record|execution_catalog|correction_result|retrospective_policy|dataset_manifest|eligibility_set|canonical_filter|date_resolution_receipt|analysis_snapshot|evidence_reference|evidence_inventory|enrichment_set|restore_test_record|payload_envelope|analytical_row|analytical_dataset|analytical_dataset_derivation|analytical_partition|exact_metric|analysis_run_context|analysis_run_receipt|exact_table|validated_claim|chart_ready_series|analytical_evidence_bundle|analytical_diagnostics|tool_registry_entry|tool_registry_snapshot|starting_inventory|normalized_analysis_arguments):v[1-9][0-9]*:sha256:[0-9a-f]{64}$/.test(
+    !/^ti_v3:(?:canonical_content|canonical_execution|canonical_source_document|correction_record|execution_catalog|correction_result|retrospective_policy|dataset_manifest|eligibility_set|canonical_filter|date_resolution_receipt|analysis_snapshot|evidence_reference|evidence_inventory|enrichment_set|restore_test_record|payload_envelope|analytical_row|analytical_dataset|analytical_dataset_derivation|analytical_partition|exact_metric|analysis_run_context|analysis_run_receipt|exact_table|validated_claim|chart_ready_series|analytical_evidence_bundle|analytical_diagnostics|tool_registry_entry|tool_registry_snapshot|starting_inventory|normalized_analysis_arguments|weekday_execution_payload|weekday_execution_authority|daily_stop_execution_payload|daily_stop_execution_authority):v[1-9][0-9]*:sha256:[0-9a-f]{64}$/.test(
       input,
     )
   ) {
