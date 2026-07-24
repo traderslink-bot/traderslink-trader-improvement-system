@@ -15,7 +15,7 @@ export type LiveWatchlistGroup = "top_regular" | "main" | "postmarket";
 export type TradersLinkAiReadStatus = "analyzing" | "ready" | "failed";
 export type LiveWatchlistSlotState = "active" | "followup";
 export type LiveWatchlistMarketDataStatus = "live" | "stale" | "offline" | "starting" | "closed";
-export type LiveWatchlistTickerMarketDataStatus = "live" | "stale" | "possible_halt" | "halted";
+export type LiveWatchlistTickerMarketDataStatus = "live" | "stale" | "halted";
 export type LiveWatchlistLifecycleStatus =
   | "monitoring"
   | "active"

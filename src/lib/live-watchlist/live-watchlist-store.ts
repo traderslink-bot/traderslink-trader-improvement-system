@@ -524,8 +524,19 @@ function deriveStateFields(state: LiveWatchlistSymbolState): LiveWatchlistSymbol
   // card fallback in latestPrice. Treat those legacy values as card-derived
   // until a ticker-data patch positively identifies a live quote.
   const inferredLatestPriceSource = state.latestPriceSource ?? "card";
+  // Older rows may still contain the removed possible_halt status. Treat those
+  // rows as ordinary stale data so the legacy unconfirmed-halt label cannot be
+  // resurrected by persisted state.
+  const rawMarketDataStatus = state.marketDataStatus as string | undefined;
+  const marketDataStatus = rawMarketDataStatus === "halted"
+    ? "halted"
+    : rawMarketDataStatus === "stale" || rawMarketDataStatus === "possible_halt"
+      ? "stale"
+      : "live";
   return {
     ...state,
+    marketDataStatus,
+    marketDataStatusReason: marketDataStatus === "halted" ? state.marketDataStatusReason ?? null : null,
     watchlistGroup: normalizeWatchlistGroup(state.watchlistGroup),
     watchlistSlotState: state.watchlistSlotState === "followup" ? "followup" : "active",
     reversalWatchEligible: state.reversalWatchEligible === true,

@@ -126,9 +126,6 @@ function aiReadStatusLabel(
       ? "AI Read update: Trading is halted. This read remains on the last confirmed candle until trading resumes."
       : "AI Read update: Trading is halted. Waiting for confirmed candles before publishing a read.";
   }
-  if (symbol.marketDataStatus === "possible_halt") {
-    return "AI Read update: A possible halt was detected. Waiting for confirmation before treating new price action as current.";
-  }
   return null;
 }
 
@@ -331,15 +328,13 @@ function WatchlistV2PotentialPathCard({
         <header className="watchlist-v2-card-header">
           <div className="watchlist-v2-card-title">
             <h2>{symbol.symbol}</h2>
-            {symbol.marketDataStatus === "halted" || symbol.marketDataStatus === "possible_halt" ? (
+            {symbol.marketDataStatus === "halted" ? (
               <span
                 className="watchlist-potential-path-status"
                 data-market-data-status={symbol.marketDataStatus}
                 title={symbol.marketDataStatusReason ?? undefined}
               >
-                {symbol.marketDataStatus === "halted"
-                  ? "HALTED - Nasdaq confirmed"
-                  : "POSSIBLE HALT - confirmation pending"}
+                HALTED - Nasdaq confirmed
               </span>
             ) : null}
             <span>{formatPrice(symbol.latestPrice)}</span>
