@@ -19,8 +19,8 @@ PR can be accepted. No audit review thread was resolved by this work.
 - B3 merge base: `4338cab7d46b8a0548b22346f81b42db5fec3bf0`
 - Tested executable head: `51c7b421f33b872be69f9ce4a1c34cbda29881e5`
 - Executable parent: `4338cab7d46b8a0548b22346f81b42db5fec3bf0`
-- Documentation/current head: this later Markdown-only handoff commit; the
-  exact SHA is recorded in the final metadata update to this handoff.
+- Documentation/current head: `da9ad60563c27a6cc06d83a0e582913c70c45dbd`
+  (later Markdown-only handoff commit).
 
 ## 3. Commit chronology
 
@@ -28,8 +28,8 @@ PR can be accepted. No audit review thread was resolved by this work.
    B3 merge base.
 2. `51c7b421f33b872be69f9ce4a1c34cbda29881e5` — executable B3 implementation,
    tests, ADR, and status updates; parent is the B2 SHA above.
-3. A later Markdown-only commit adds this handoff and records the tested
-   executable head, PR, evidence, limitations, and audit prompt.
+3. `da9ad60563c27a6cc06d83a0e582913c70c45dbd` — later Markdown-only handoff
+   commit; parent is the executable head and no executable files changed.
 
 ## 4. Changed-file inventory
 
@@ -189,8 +189,8 @@ Executable-head CI is pending, not passed:
 
 - Workflow `CI`, run `30131239211`, job `89605997240`, `test-and-verify` —
   in progress at handoff preparation.
-- Documentation-head CI — not yet created at the time of this initial
-  handoff commit; it must be recorded after the Markdown-only push.
+- Documentation-head CI — no check was reported for `da9ad60563c27a6cc06d83a0e582913c70c45dbd`
+  after the Markdown-only push. This is not a pass.
 
 Deliberately unrun: production deployment, Vercel commands, merge, readiness
 promotion, full Playwright/browser pass, market-data refresh, database
@@ -241,7 +241,7 @@ under every limitation.
 
 ## 18. Ready-to-paste independent-auditor prompt
 
-> Audit GA0-B3 in repository `traderslink-bot/traderslink-trader-improvement-system`, branch `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof`, draft PR #156 (`https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/156`). Accepted B2 merge SHA and B3 merge base are `4338cab7d46b8a0548b22346f81b42db5fec3bf0`; tested executable head is `51c7b421f33b872be69f9ce4a1c34cbda29881e5`; the documentation/current head is the later Markdown-only handoff commit; handoff path is `src/docs/trader-intelligence-v3-ga0-b3-daily-stop-proof-implementation-and-audit-handoff-2026-07-19.md`. Independently inspect the production/reference split, exact decimal authority, canonical arguments and registry, owner/account/currency/sessionDate/timezone/date-basis partitioning, completed-loss streak, flat reset, final-exit stop timestamp, strict later-entry suffix, overlap retention, same-time fail-closed behavior, exclusion ledger, exact reconciliation, evidence/table/series/diagnostic/receipt/replay graph, claim/sample/outlier policy, and all B1/B2 contract boundaries. Run the exact commands in section 17, distinguish passed, pending, blocked, and unrun results, and do not infer proof from implementer evidence. Stop at audit findings: do not merge, deploy, mark ready, resolve audit threads, begin B4, or broaden into AI, UI, chart rendering, market data, support/resistance, Academy, migration, or hosted-user work.
+> Audit GA0-B3 in repository `traderslink-bot/traderslink-trader-improvement-system`, branch `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof`, draft PR #156 (`https://github.com/traderslink-bot/traderslink-trader-improvement-system/pull/156`). Accepted B2 merge SHA and B3 merge base are `4338cab7d46b8a0548b22346f81b42db5fec3bf0`; tested executable head is `51c7b421f33b872be69f9ce4a1c34cbda29881e5`; documentation/current head is `da9ad60563c27a6cc06d83a0e582913c70c45dbd`; handoff path is `src/docs/trader-intelligence-v3-ga0-b3-daily-stop-proof-implementation-and-audit-handoff-2026-07-19.md`. Independently inspect the production/reference split, exact decimal authority, canonical arguments and registry, owner/account/currency/sessionDate/timezone/date-basis partitioning, completed-loss streak, flat reset, final-exit stop timestamp, strict later-entry suffix, overlap retention, same-time fail-closed behavior, exclusion ledger, exact reconciliation, evidence/table/series/diagnostic/receipt/replay graph, claim/sample/outlier policy, and all B1/B2 contract boundaries. Run the exact commands in section 17, distinguish passed, pending, blocked, and unrun results, and do not infer proof from implementer evidence. Stop at audit findings: do not merge, deploy, mark ready, resolve audit threads, begin B4, or broaden into AI, UI, chart rendering, market data, support/resistance, Academy, migration, or hosted-user work.
 
 ## 19. Stop boundary
 
