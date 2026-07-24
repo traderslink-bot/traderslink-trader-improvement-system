@@ -16,9 +16,18 @@ export async function GET(
   }
 
   const { symbol } = await context.params;
-  const state = await new LiveWatchlistStore().getSymbol(symbol);
+  const store = new LiveWatchlistStore();
+  const [state, health] = await Promise.all([
+    store.getSymbol(symbol),
+    store.getHealth(),
+  ]);
   if (!state) {
     return NextResponse.json({ error: "Ticker was not found." }, { status: 404 });
   }
-  return NextResponse.json({ generatedAt: Date.now(), symbol: state });
+  return NextResponse.json({
+    generatedAt: Date.now(),
+    marketDataStatus: health.marketDataStatus,
+    marketDataUpdatedAt: health.marketDataUpdatedAt,
+    symbol: state,
+  });
 }

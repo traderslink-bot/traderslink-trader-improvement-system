@@ -65,6 +65,8 @@ const watchlistTimeCellStyle: CSSProperties = {
   lineHeight: 1.35,
 };
 
+const LIVE_WATCHLIST_CLIENT_POLL_INTERVAL_MS = 15_000;
+
 const tradingViewExchangePrefixes: Record<string, string> = {
   AMEX: "AMEX",
   ARCA: "AMEX",
@@ -1705,12 +1707,21 @@ export function LiveWatchlistIndexClient({
     });
 
     pollTimer = window.setInterval(() => {
-      void refresh();
-    }, 5000);
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    }, LIVE_WATCHLIST_CLIENT_POLL_INTERVAL_MS);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       stream.close();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (pollTimer !== null) {
         window.clearInterval(pollTimer);
       }
@@ -1875,14 +1886,13 @@ export function LiveWatchlistDetailClient({
       if (!response.ok) {
         return;
       }
-      const payload = (await response.json()) as { symbol: LiveWatchlistSymbolState };
+      const payload = (await response.json()) as {
+        marketDataStatus: LiveWatchlistMarketDataStatus;
+        symbol: LiveWatchlistSymbolState;
+      };
       if (!cancelled) {
         setSymbol((current) => reconcileLiveWatchlistSymbolState(current, payload.symbol));
-      }
-      const stateResponse = await fetch("/api/live-watchlist");
-      if (stateResponse.ok && !cancelled) {
-        const statePayload = (await stateResponse.json()) as LiveWatchlistStatePayload;
-        setMarketDataStatus(statePayload.marketDataStatus);
+        setMarketDataStatus(payload.marketDataStatus);
       }
     }
     const stream = new EventSource("/api/live-watchlist/stream");
@@ -1906,12 +1916,21 @@ export function LiveWatchlistDetailClient({
     });
 
     pollTimer = window.setInterval(() => {
-      void refresh();
-    }, 5000);
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    }, LIVE_WATCHLIST_CLIENT_POLL_INTERVAL_MS);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
       stream.close();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (pollTimer !== null) {
         window.clearInterval(pollTimer);
       }

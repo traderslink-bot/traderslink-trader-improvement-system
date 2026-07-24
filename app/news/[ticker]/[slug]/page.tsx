@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
+import { cache, type ReactNode } from "react";
 
 import { SiteShell } from "@/src/components/site/site-shell";
 import smokeysLessonsImage from "@/app/news/images/smokeys-lessons/smokeys-lessons-blue-news.png";
@@ -47,6 +47,12 @@ type NewsSectionIconTone = "primary" | "success" | "warning";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Metadata and the page render request the same article. React's request-scoped
+// cache prevents that pair from issuing duplicate Neon reads.
+const getCachedNewsArticle = cache((ticker: string, slug: string) =>
+  getNewsArticle(ticker, slug),
+);
 
 const chartReadingCourseId = "chart-reading-market-structure";
 const candlestickModuleIds = new Set([
@@ -248,7 +254,7 @@ export async function buildNewsArticleMetadata({
   params,
 }: PageProps & { accessMode?: NewsArticleAccessMode }): Promise<Metadata> {
   const { ticker, slug } = await params;
-  const article = await getNewsArticle(ticker, slug);
+  const article = await getCachedNewsArticle(ticker, slug);
   const basePath = accessMode === "free" ? "/news/free" : "/news";
 
   if (!article) {
@@ -283,7 +289,7 @@ export async function NewsArticleView({
   params,
 }: PageProps & { accessMode?: NewsArticleAccessMode }) {
   const { ticker, slug } = await params;
-  const article = await getNewsArticle(ticker, slug);
+  const article = await getCachedNewsArticle(ticker, slug);
 
   if (!article) {
     notFound();
