@@ -317,7 +317,7 @@ function WatchlistV2PotentialPathCard({
           <div className="watchlist-v2-card-title">
             <h2>{symbol.symbol}</h2>
             <span>{formatPrice(symbol.latestPrice)}</span>
-            <small className="watchlist-price-delay-note">(prices may be slightly delayed)</small>
+            <small className="watchlist-price-delay-note">(delayed 15 sec)</small>
           </div>
         </header>
 
@@ -1383,7 +1383,7 @@ function WatchlistTickerTable({
       <div className="watchlist-table-head">
         <span>Ticker</span>
         <span>
-          Price <small className="watchlist-price-delay-note">(may be slightly delayed)</small>
+          Price <small className="watchlist-price-delay-note">(delayed 15 sec)</small>
         </span>
         <span>Added</span>
         <span>Updated</span>
@@ -1415,7 +1415,7 @@ function WatchlistTickerTable({
               <ReversalAttemptBadge symbol={symbol} />
               <WatchlistLifecycleBadge symbol={symbol} />
             </span>
-            <span className="watchlist-mobile-field" data-mobile-label="Price (may be slightly delayed)">
+            <span className="watchlist-mobile-field" data-mobile-label="Price (delayed 15 sec)">
               {formatPrice(symbol.latestPrice)}
             </span>
             <span className="watchlist-mobile-field" data-mobile-label="Added" style={watchlistTimeCellStyle}>

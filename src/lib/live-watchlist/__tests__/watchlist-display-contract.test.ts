@@ -29,8 +29,8 @@ describe("watchlist display contract", () => {
   });
 
   it("shows the price-delay note on the watchlist and ticker detail", () => {
-    expect(clientSource).toContain("Price <small className=\"watchlist-price-delay-note\">(may be slightly delayed)</small>");
-    expect(clientSource).toContain("(prices may be slightly delayed)");
+    expect(clientSource).toContain("Price <small className=\"watchlist-price-delay-note\">(delayed 15 sec)</small>");
+    expect(clientSource).toContain("(delayed 15 sec)");
   });
 
   it("matches the high-risk heading to the Potential Path ticker size", () => {
