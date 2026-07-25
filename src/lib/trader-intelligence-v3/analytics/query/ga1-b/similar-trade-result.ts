@@ -238,9 +238,11 @@ function validateMatch(
     "unavailableDimensions",
     "kind",
   ], [], path);
+  if (record.ok && record.value.kind !== kind) {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", `${path}.classification`);
+  }
   if (
     !record.ok ||
-    record.value.kind !== kind ||
     !Array.isArray(record.value.executionDigests) ||
     !Array.isArray(record.value.occurrenceKeys) ||
     !Array.isArray(record.value.explanations) ||

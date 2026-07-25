@@ -117,6 +117,22 @@ function mismatchStage(
   return canonicalEqual(supplied, rebuilt) ? null : "final_result_digest";
 }
 
+function shapeFailureStage(path: string): SimilarTradeReplayStage {
+  if (path.includes(".matches") && path.includes("classification")) return "exact_match_classification";
+  if (path.includes(".nearMisses") && path.includes("classification")) return "near_miss_classification";
+  if (path.includes("targetTradeKey")) return "target_trade_resolution";
+  if (path.includes("normalizedFilters")) return "normalized_filter_application";
+  if (path.includes("policies")) return "policy_evaluation";
+  if (path.includes("explanation")) return "explanation_generation";
+  if (path.toLowerCase().includes("metric")) return "summary_metric_calculation";
+  if (path.includes("evidence")) return "evidence_selection";
+  if (path.includes("limitation")) return "limitation_generation";
+  if (path.includes("ordering")) return "deterministic_ordering";
+  if (path.includes("count")) return "output_bounding";
+  if (path.includes("authority") || path.includes("sourceResult")) return "source_result_verification";
+  return "final_result_digest";
+}
+
 export function buildSimilarTradeSearchReplayArtifact(args: Readonly<{
   readonly source: VerifiedTradeQueryDatasetSource;
   readonly partitionReceipt: AnalyticalPartitionReceipt;
@@ -223,16 +239,7 @@ export function replaySimilarTradeSearch(args: Readonly<{
     sourceResult.value,
   );
   if (!shape.ok) {
-    const path = shape.error.path;
-    const stage: SimilarTradeReplayStage =
-      path.includes("explanation") ? "explanation_generation" :
-        path.toLowerCase().includes("metric") ? "summary_metric_calculation" :
-          path.includes("evidence") ? "evidence_selection" :
-            path.includes("limitation") ? "limitation_generation" :
-              path.includes("ordering") ? "deterministic_ordering" :
-                path.includes("count") ? "output_bounding" :
-                  "final_result_digest";
-    return replayFailure(stage, path);
+    return replayFailure(shapeFailureStage(shape.error.path), shape.error.path);
   }
   const rebuilt = searchSimilarTrades({
     source: args.source,

@@ -8,7 +8,11 @@ if (!existsSync(vitest)) { process.stderr.write("GA1-B verifier blocked: bundled
 const scaleOnly = process.argv.includes("--scale-only");
 const focusedOnly = process.argv.includes("--focused-only");
 if (scaleOnly && focusedOnly) { process.stderr.write("GA1-B verifier flags are mutually exclusive.\n"); process.exit(2); }
-const files = ["src/lib/trader-intelligence-v3/__tests__/ga1-a/query-audit-remediation-registry.test.ts", "src/lib/trader-intelligence-v3/__tests__/ga1-b/evidence-similarity-presets.test.ts"];
+const files = [
+  "src/lib/trader-intelligence-v3/__tests__/ga1-a/query-audit-remediation-registry.test.ts",
+  "src/lib/trader-intelligence-v3/__tests__/ga1-b/evidence-similarity-presets.test.ts",
+  "src/lib/trader-intelligence-v3/__tests__/ga1-b/similarity-result-verification-replay.test.ts",
+];
 const args = scaleOnly
   ? [vitest, "run", "src/lib/trader-intelligence-v3/__tests__/ga1-b/ga1-b-scale.test.ts", "--reporter=dot", "--maxWorkers=1", "--pool=forks", "--no-file-parallelism"]
   : [vitest, "run", ...files, "--reporter=dot", "--maxWorkers=1", "--pool=forks", "--no-file-parallelism"];

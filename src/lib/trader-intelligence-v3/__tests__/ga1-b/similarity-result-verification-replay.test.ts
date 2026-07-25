@@ -490,4 +490,53 @@ describe("GA1-B similarity result verification and deterministic replay", () => 
       },
     });
   });
+
+  it("reports exact classification stages for every classification-field tamper", () => {
+    const state = setup();
+    const artifact = buildSimilarTradeSearchReplayArtifact({
+      source: state.fixture.source,
+      partitionReceipt: state.fixture.partition,
+      sourceResult: state.sourceResult,
+      plan: state.plan,
+      result: state.result,
+    });
+    if (!artifact.ok) throw new Error(`${artifact.error.code}:${artifact.error.path}`);
+    const expectStage = (
+      mutate: (result: SimilarTradeSearchResult) => void,
+      stage: "exact_match_classification" | "near_miss_classification",
+    ) => {
+      const replay = clone(artifact.value);
+      mutate(replay.similarityResult);
+      expect(replaySimilarTradeSearch({
+        source: state.fixture.source,
+        partitionReceipt: state.fixture.partition,
+        sourceResult: state.sourceResult,
+        replay,
+      })).toMatchObject({ ok: false, error: { stage } });
+    };
+    expectStage((result) => {
+      (result.matches[0] as unknown as { kind: string }).kind = "near_miss";
+    }, "exact_match_classification");
+    expectStage((result) => {
+      (result.matches[0] as unknown as { matchedDimensions: string[] }).matchedDimensions = [];
+    }, "exact_match_classification");
+    expectStage((result) => {
+      (result.matches[0] as unknown as { unmatchedDimensions: string[] }).unmatchedDimensions = ["symbol"];
+    }, "exact_match_classification");
+    expectStage((result) => {
+      (result.matches[0] as unknown as { unavailableDimensions: string[] }).unavailableDimensions = ["symbol"];
+    }, "exact_match_classification");
+    expectStage((result) => {
+      (result.nearMisses[0] as unknown as { kind: string }).kind = "match";
+    }, "near_miss_classification");
+    expectStage((result) => {
+      (result.nearMisses[0] as unknown as { matchedDimensions: string[] }).matchedDimensions = [];
+    }, "near_miss_classification");
+    expectStage((result) => {
+      (result.nearMisses[0] as unknown as { unmatchedDimensions: string[] }).unmatchedDimensions = [];
+    }, "near_miss_classification");
+    expectStage((result) => {
+      (result.nearMisses[0] as unknown as { unavailableDimensions: string[] }).unavailableDimensions = ["symbol"];
+    }, "near_miss_classification");
+  });
 });

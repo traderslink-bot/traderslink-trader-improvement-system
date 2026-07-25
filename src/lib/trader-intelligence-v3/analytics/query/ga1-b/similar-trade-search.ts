@@ -34,6 +34,8 @@ import {
 export const SIMILAR_TRADE_SEARCH_RESULT_VERSION = "ti_v3_trade_query_similarity_search_result_v1" as const;
 export const TRADE_QUERY_SIMILARITY_SEARCH_VERSION = SIMILAR_TRADE_SEARCH_RESULT_VERSION;
 export const SIMILAR_TRADE_SEARCH_PLAN_VERSION = "ti_v3_similar_trade_search_plan_v1" as const;
+export const SIMILAR_TRADE_ORDERING_POLICY =
+  "unmatched_then_unavailable_then_dimension_priority_then_exact_distance_vector_then_trade_identity_v1" as const;
 
 export type SimilarTradeDimension =
   | "direction"
@@ -168,7 +170,7 @@ export interface SimilarTradeSearchPlan {
   readonly includeNearMisses: boolean;
   readonly maximumMatches: string;
   readonly maximumNearMisses: string;
-  readonly orderingPolicy: "unmatched_then_unavailable_then_trade_identity";
+  readonly orderingPolicy: typeof SIMILAR_TRADE_ORDERING_POLICY;
   readonly evidencePolicy: "exact_row_execution_occurrence_links";
   readonly unavailableDimensionPolicy: "explicit_unavailable";
   readonly limitationPolicy: "deterministic_bounded_limitations";
@@ -778,7 +780,7 @@ export function buildSimilarTradeSearchPlan(
     includeNearMisses: record.value.includeNearMisses,
     maximumMatches: record.value.maximumMatches,
     maximumNearMisses: record.value.maximumNearMisses,
-    orderingPolicy: "unmatched_then_unavailable_then_trade_identity",
+    orderingPolicy: SIMILAR_TRADE_ORDERING_POLICY,
     evidencePolicy: "exact_row_execution_occurrence_links",
     unavailableDimensionPolicy: "explicit_unavailable",
     limitationPolicy: "deterministic_bounded_limitations",

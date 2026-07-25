@@ -137,6 +137,18 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
     expect(build([identityPolicy("direction"), accessorPolicy])).toMatchObject({ ok: false });
     expect(SIMILAR_TRADE_DIMENSION_POLICY_COMPATIBILITY.entry_time).toEqual(["normalized_entry_time_bucket"]);
     expect(SIMILAR_TRADE_DIMENSION_POLICY_COMPATIBILITY.symbol).toEqual(["exact_identity"]);
+    const accepted = build([identityPolicy("direction"), identityPolicy("symbol")]);
+    expect(accepted).toMatchObject({ ok: true });
+    if (accepted.ok) {
+      const legacyOrderingPlan = JSON.parse(JSON.stringify(accepted.value));
+      legacyOrderingPlan.orderingPolicy = "unmatched_then_unavailable_then_trade_identity";
+      expect(searchSimilarTrades({
+        source: fixture.source,
+        partitionReceipt: fixture.partition,
+        result,
+        plan: legacyOrderingPlan,
+      })).toMatchObject({ ok: false });
+    }
   });
 
   it("executes every matching policy with exact numeric, duration, and normalized time authority", () => {

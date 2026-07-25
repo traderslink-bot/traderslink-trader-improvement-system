@@ -9,6 +9,10 @@
   canonical bucket, inclusive range, absolute exact distance, and normalized
   entry-time bucket policies with exact arithmetic and complete deterministic
   explanations.
+- The persisted ordering policy is explicitly versioned as
+  `unmatched_then_unavailable_then_dimension_priority_then_exact_distance_vector_then_trade_identity_v1`,
+  matching the executed comparator and rejecting legacy/incomplete plan
+  identities during reconstruction.
 - Similarity results now bind the complete verified plan, upstream dataset and
   partition authority, unbounded and emitted counts, ordered inventories,
   exact summary metrics, evidence references, and stable limitations. Closed
@@ -16,7 +20,9 @@
   rebuilt artifact; persisted replay reruns the same authority path and emits
   stage-specific mismatch diagnostics.
 - Focused similarity tests, adversarial verification/replay tests, and
-  TypeScript pass. The explicitly enabled
+  TypeScript pass. The governed GA1-B focused verifier includes the GA1-A
+  registry, evidence/similarity/preset, and similarity verification/replay
+  suites. The explicitly enabled
   10,000-row test passed its evidence and similarity assertions, then failed in
   the later preset-execution loop; preset remediation is outside this slice.
 - Resume point after the executable checkpoint: independently review the
