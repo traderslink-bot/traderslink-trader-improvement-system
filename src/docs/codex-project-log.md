@@ -30,6 +30,13 @@
   class instances, and polluted prototypes.
 - Resume point: complete captured focused and scale terminal evidence, then
   commit/push only this correction; keep PR #161 draft/open/unmerged.
+- Added direct runtime coverage for sequence-bucket mapping through a much
+  larger valid sequence, bounded identity cardinality, permutation identity,
+  preset policy/plan tampering, and comparison execution-authority tampering.
+- Direct preset coverage passed 14/14. The focused verifier and TypeScript
+  exited cleanly; changed-path ESLint had no errors (one existing unused
+  registry warning). The required scale command again captured only Vitest
+  startup without a terminal result, so scale status remains unconfirmed.
 
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR

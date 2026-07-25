@@ -14,6 +14,8 @@ import {
   searchSimilarTrades,
   TRADE_QUERY_METRIC_REGISTRY,
 } from "../../analytics";
+import { tradeQueryGroupAssignment } from "../../analytics/query/grouping/grouping-engine";
+import { buildQueryRowSemantics } from "../../analytics/query/execution/row-semantics";
 
 const identityPolicy = (dimension: "direction" | "previous_completed_outcome" | "symbol" | "account") => ({
   dimension,
@@ -278,6 +280,59 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
     const polluted = Object.create({ polluted: true }) as Record<string, unknown>; polluted.presetKey = "analyze_long_vs_short"; polluted.authority = fixture.authority;
     expect(compileGa1BPreset(polluted)).toMatchObject({ ok: false });
   });
+
+  it("maps every verified sequence to the bounded v1 identities without fabricating empty buckets", () => {
+    const fixture = buildSyntheticQueryFixture(100);
+    const semantics = buildQueryRowSemantics(fixture.derived.datasetReceipt.rows);
+    const identities = new Set<string>();
+    for (const item of semantics) {
+      const assignment = tradeQueryGroupAssignment(item, { kind: "trade_sequence_bucket" });
+      identities.add(assignment.groupIdentity);
+      if (item.sequenceInSession === BigInt("1")) expect(assignment.groupIdentity).toBe("sequence_bucket:v1:first");
+      if (item.sequenceInSession === BigInt("2")) expect(assignment.groupIdentity).toBe("sequence_bucket:v1:second");
+      if (item.sequenceInSession === BigInt("3")) expect(assignment.groupIdentity).toBe("sequence_bucket:v1:third");
+      if (item.sequenceInSession >= BigInt("4")) expect(assignment.groupIdentity).toBe("sequence_bucket:v1:fourth_or_later");
+    }
+    expect(identities.size).toBeLessThanOrEqual(4);
+    const compiled = compileGa1BPreset({ presetKey: "analyze_trade_sequence_performance", authority: fixture.authority });
+    if (!compiled.ok) throw new Error(`${compiled.error.code}:${compiled.error.path}`);
+    const first = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+    const reversed = buildSyntheticQueryFixture(100, true);
+    const secondPlan = compileGa1BPreset({ presetKey: "analyze_trade_sequence_performance", authority: reversed.authority });
+    if (!first.ok || !secondPlan.ok) throw new Error("sequence preset setup failed");
+    const second = executeGa1BPreset({ source: reversed.source, partitionReceipt: reversed.partition, preset: secondPlan.value });
+    expect(second).toMatchObject({ ok: true });
+    if (second.ok) {
+      expect(second.value.primaryResultDigest).toBe(first.value.primaryResultDigest);
+      expect(second.value.executionResultDigest).toBe(first.value.executionResultDigest);
+      expect(second.value.primaryResult.rows.map((row) => row.groupIdentity)).toEqual(first.value.primaryResult.rows.map((row) => row.groupIdentity));
+    }
+  });
+
+  it("rejects every material preset and comparison execution artifact tamper at runtime", () => {
+    const fixture = buildSyntheticQueryFixture();
+    const compiled = compileGa1BPreset({ presetKey: "compare_periods", authority: fixture.authority, baselineFilters: [{ kind: "weekday", values: ["monday"] }] });
+    if (!compiled.ok) throw new Error(`${compiled.error.code}:${compiled.error.path}`);
+    const rejectPreset = (mutate: (value: Record<string, unknown>) => void) => { const value = JSON.parse(JSON.stringify(compiled.value)) as Record<string, unknown>; mutate(value); expect(verifyGa1BPreset(value, fixture.authority)).toMatchObject({ ok: false }); };
+    for (const key of ["presetDigest", "minimumSample", "unavailablePolicy", "evidencePolicy", "counterexamplePolicy", "outlierPolicy", "wordingPolicy"] as const) rejectPreset((value) => { value[key] = "tampered"; });
+    rejectPreset((value) => { ((value.primaryPlan as Record<string, unknown>).limits as Record<string, unknown>).groupLimit = "1"; });
+    rejectPreset((value) => { ((value.baselinePlan as Record<string, unknown>).limits as Record<string, unknown>).groupLimit = "1"; });
+    rejectPreset((value) => { value.baselinePlan = null; });
+    rejectPreset((value) => { value.baselinePlan = value.primaryPlan; });
+    rejectPreset((value) => { value.extra = true; });
+    const execution = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+    if (!execution.ok) throw new Error(`${execution.error.code}:${execution.error.path}`);
+    const rejectExecution = (mutate: (value: Record<string, unknown>) => void) => { const value = JSON.parse(JSON.stringify(execution.value)) as Record<string, unknown>; mutate(value); expect(verifyGa1BPresetExecution({ source: fixture.source, partitionReceipt: fixture.partition, execution: value })).toMatchObject({ ok: false }); };
+    for (const key of ["executionResultDigest", "primaryPlanDigest", "primaryResultDigest", "baselinePlanDigest", "baselineResultDigest", "comparisonDigest", "datasetReceiptDigest", "datasetDerivationDigest", "partitionDigest", "currency", "candidateCount", "includedCount", "excludedCount"] as const) rejectExecution((value) => { value[key] = "tampered"; });
+    rejectExecution((value) => { value.primaryResult = value.baselineResult; });
+    rejectExecution((value) => { const primary = value.primaryResult; value.primaryResult = value.baselineResult; value.baselineResult = primary; });
+    rejectExecution((value) => { (value.comparison as Record<string, unknown>).metrics = []; });
+    rejectExecution((value) => { value.evidenceDigests = ["ti_v3:trade_query_evidence:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000"]; });
+    rejectExecution((value) => { value.limitationCodes = ["ti_v3_tampered"]; });
+    rejectExecution((value) => { value.ownerScope = []; });
+    rejectExecution((value) => { value.accountScope = []; });
+    rejectExecution((value) => { value.extra = true; });
+  }, 30_000);
 
   it("declares raw-row and derived-semantic dependencies literally for daily and repeat families", () => {
     const declaration = (metricKey: string) => TRADE_QUERY_METRIC_REGISTRY.entries.find((entry) => entry.metricKey === metricKey);
