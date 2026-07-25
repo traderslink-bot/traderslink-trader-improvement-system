@@ -4,6 +4,7 @@ export * from "./execution";
 export * from "./filters";
 export * from "./gateway";
 export * from "./grouping";
+export * from "./ga1-b";
 export * from "./metrics";
 export * from "./replay";
 export * from "./testing";

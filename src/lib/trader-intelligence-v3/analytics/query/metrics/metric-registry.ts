@@ -195,6 +195,17 @@ const REPEAT_KEYS = new Set<TradeQueryMetricKey>([
   "average_attempts_per_symbol", "median_attempts_per_symbol",
   "repeat_attempt_trade_count", "repeat_attempt_percentage",
 ]);
+const ATTEMPTS_PER_SYMBOL_KEYS = new Set<TradeQueryMetricKey>([
+  "average_attempts_per_symbol", "median_attempts_per_symbol",
+]);
+const REPEAT_ATTEMPT_KEYS = new Set<TradeQueryMetricKey>([
+  "repeat_attempt_trade_count", "repeat_attempt_percentage",
+]);
+const DAILY_PNL_KEYS = new Set<TradeQueryMetricKey>([
+  "average_daily_pnl", "median_daily_pnl", "best_trading_day", "worst_trading_day",
+  "profitable_trading_day_count", "losing_trading_day_count", "flat_trading_day_count",
+  "profitable_day_percentage", "losing_day_percentage", "flat_day_percentage",
+]);
 const OUTCOME_KEYS = new Set<TradeQueryMetricKey>([
   "win_count", "loss_count", "flat_count", "win_rate", "loss_rate", "flat_rate",
   "average_winning_trade", "median_winning_trade", "average_losing_trade",
@@ -304,10 +315,13 @@ function requiredFieldsFor(key: TradeQueryMetricKey): readonly string[] {
   if (key === "total_execution_count" || key === "average_executions_per_trade") {
     add("supportingExecutionDigests");
   }
-  if (DAILY_KEYS.has(key)) add("sessionDate", "finalExitAt", "netPnl");
+  if (DAILY_KEYS.has(key)) add("sessionDate");
+  if (DAILY_PNL_KEYS.has(key)) add("netPnl");
   if (DIRECTION_KEYS.has(key)) add("direction");
-  if (REPEAT_KEYS.has(key)) {
+  if (ATTEMPTS_PER_SYMBOL_KEYS.has(key)) add("stableInstrumentKey");
+  if (REPEAT_ATTEMPT_KEYS.has(key)) {
     add("stableInstrumentKey", "sessionDate", "firstEntryAt", "semanticRoundTripKey");
+    add("canonicalOwnerKey", "canonicalAccountKey", "currency");
   }
   if (SECOND_KEYS.has(key)) add("firstEntryAt", "finalExitAt");
   if (SHARE_KEYS.has(key) || key === "net_pnl_per_100_shares") {
@@ -335,10 +349,12 @@ function requiredDerivedSemanticsFor(key: TradeQueryMetricKey): readonly string[
     for (const value of values) if (!semantics.includes(value)) semantics.push(value);
   };
   if (QUERY_COUNT_KEYS.has(key)) add("verified_query_counts");
-  if (REPEAT_KEYS.has(key)) add("canonical_symbol_session_attempt_order");
+  if (REPEAT_ATTEMPT_KEYS.has(key)) {
+    add("canonical_owner_account_currency_session_symbol_entry_attempt_order");
+  }
   if (STREAK_KEYS.has(key)) add("canonical_completed_trade_order", "realized_outcome");
   if (OUTCOME_KEYS.has(key)) add("realized_outcome");
-  if (DAILY_KEYS.has(key)) add("canonical_completed_trade_order", "daily_realized_pnl");
+  if (DAILY_PNL_KEYS.has(key)) add("session_date_realized_pnl_aggregation");
   if (SECOND_KEYS.has(key)) add("completed_holding_duration");
   if (SHARE_KEYS.has(key) || key === "net_pnl_per_100_shares") add("complete_share_quantity_authority");
   if (key.includes("notional") || key.endsWith("position_size")) add("complete_entry_notional_authority");

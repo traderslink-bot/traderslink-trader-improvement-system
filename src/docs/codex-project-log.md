@@ -181,6 +181,20 @@ and do not begin GA0-B4.
 
 # Codex Project Log
 
+### 2026-07-25 Trader Intelligence v3 GA1-B implementation candidate
+
+GA1-A is accepted and merged at `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`.
+GA1-B is active only on
+`agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack`. It adds a
+GA1-A-bound deterministic evidence-retrieval layer, execution-only
+similar-trade search, ten governed analytics presets, a narrow metric-registry
+metadata correction, and a read-only application adapter. Private-owner CSV
+preflight remains local-only and aggregate-only; full calibration waits for the
+settled GA1-B executable verification. Resume point: run the consolidated
+focused GA1-B suite once, correct only affected failures, then run the final
+10,000-row proof and guards once before committing executable code. Keep the
+future PR draft/open/unmerged and do not deploy.
+
 ### 2026-07-23 Trader Intelligence v3 GA0-B1 Independent-Audit Remediation Candidate
 
 GA0-B1 remains the active roadmap slice on
