@@ -121,9 +121,11 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
       price: ["price"],
       executionId: ["id"],
       orderId: ["order_id"],
-      status: ["activity_type"],
     },
-    notes: ["Designed for CSV serialization of Alpaca's documented trade-activity records."],
+    notes: [
+      "Designed for CSV serialization of Alpaca's documented trade-activity records.",
+      "activity_type identifies the activity record kind and is not treated as an order fill-status column.",
+    ],
   },
   tradezero_historical_fills: {
     id: "tradezero_historical_fills",
@@ -191,7 +193,6 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
     executionLevel: false,
     columnMapping: {
       date: ["Date"],
-      status: ["Type"],
       side: ["Action"],
       symbol: ["Symbol", "Underlying Symbol", "Root Symbol"],
       assetType: ["Instrument Type"],
@@ -203,7 +204,10 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
       fees: ["Fees"],
       orderId: ["Order #"],
     },
-    notes: ["Options rows remain governed by the importer's optionsHandling policy."],
+    notes: [
+      "Options rows remain governed by the importer's optionsHandling policy.",
+      "Type identifies the transaction category and is not treated as an order fill-status column.",
+    ],
   },
   trading212_history: {
     id: "trading212_history",
