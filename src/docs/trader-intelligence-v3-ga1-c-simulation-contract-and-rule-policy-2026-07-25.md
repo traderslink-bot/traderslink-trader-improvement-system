@@ -2,7 +2,7 @@
 
 ## Plan contract
 
-`ti_v3_counterfactual_simulation_plan_v1` is strict plain data and binds:
+`ti_v3_counterfactual_simulation_plan_v2` is strict plain data and binds:
 
 - the complete accepted GA1-A source query plan and its owner/account/currency,
   timezone/date-basis, filters, dataset, derivation, and partition authority;
@@ -20,15 +20,21 @@ policies, max-plus-one, and altered persisted digests fail closed.
 
 ## Dependency-driven state policy
 
-The centralized `ti_v3_rule_state_dependency_policy_v1` declaration covers:
+The centralized `ti_v3_rule_state_dependency_policy_v2` declaration covers
+checkpoint one's accepted dependencies plus the new persisted families:
 
 - executed simulated-entry count;
 - completed realized outcome;
 - completed-loss streak;
 - realized daily P/L;
+- peak realized daily P/L;
 - prior completion timestamp;
 - ticker-attempt state;
+- ticker losing-attempt and ticker-stop state;
 - entry-time cutoff;
+- entry-price authority;
+- cooldown-until state;
+- prior completed outcome and one-shot after-outcome state;
 - size authority;
 - session-stop state.
 
@@ -42,10 +48,9 @@ union in the content-addressed plan. Persisted plans must carry the exact
 reconstructed union. Rules remain plain data; the plan accepts no callbacks,
 executable code, or caller-declared dependency escalation.
 
-Future realized-P/L rules will activate exact realized-daily-P/L state. Future
-cooldown rules will activate prior-completion timestamp state. Future ticker,
-time-cutoff, and sizing rules will activate only their respective state
-families. Adding one family does not initialize every other family.
+Checkpoint-two rules activate only their declared families. Size authority
+remains inactive because proportional resizing is deliberately deferred. Adding
+one family never initializes every other family.
 
 ## Checkpoint-one outcome contract
 
@@ -56,8 +61,10 @@ Every analytical source row receives exactly one ordered classification:
 | `executed_unchanged` | observed execution and economics are retained |
 | `skipped_by_rule` | first matching exclusion rule removed the observed trade |
 | `skipped_session_stopped` | an earlier simulated completion stopped the session |
+| `skipped_ticker_stopped` | an earlier retained completion stopped this stable instrument only |
+| `skipped_during_cooldown` | candidate entry is strictly before loss-cooldown expiry |
 | `excluded_source_filter` | accepted GA1-A scope filters excluded the row |
-| `unavailable_required_authority` | reserved for row-level missing authority |
+| `unavailable_required_authority` | required rule authority is missing; observed economics are conservatively retained and counted unavailable |
 
 Each emitted row binds the source trade key, responsible rule, reason code,
 actual and simulated net P/L, size authority, execution/occurrence references,
@@ -103,25 +110,51 @@ them.
 - nonmatching trades are excluded without changing later state.
 - completed outcomes, entry counts, and loss streaks are not processed.
 
-## Representative governed presets
+## Governed presets
 
-Checkpoint one includes:
+Accepted checkpoint one includes:
 
 - `simulate_stop_after_consecutive_losses`;
 - `simulate_maximum_trades_per_day`;
 - `simulate_direction_only`.
 
-Each preset is content-addressed and declares required authority, compiled plan,
-precedence, reset, minimum sample, missing-data, comparison, evidence,
-counterexample, outlier, allowed-wording, and in-sample policies. The checkpoint
-outlier declaration explicitly records that leave-one-effect-out work is
-deferred; it does not pretend the analysis already exists.
+Checkpoint two adds:
+
+- `simulate_stop_after_daily_dollar_drawdown`: positive exact-dollar input;
+  stop when retained completed daily net P/L is at or below its negative;
+- `simulate_stop_after_profit_giveback`: positive exact-dollar input; inactive
+  until a positive realized peak exists; stop at or above exact giveback;
+- `simulate_skip_fourth_and_later_trades`: fixed three retained entries;
+- `simulate_wait_after_loss`: retained loss completion plus canonical integer
+  seconds; entry exactly at expiry is eligible;
+- `simulate_maximum_attempts_per_ticker`: retained entries counted by stable
+  instrument identity;
+- `simulate_stop_after_losing_ticker_attempts`: non-resetting retained loss
+  count per stable instrument; gains/flats do not reset v1;
+- `simulate_no_new_trades_after_time`: canonical `HH:mm:ss` interpreted in the
+  row's accepted IANA timezone; entry at cutoff is excluded; overnight sessions
+  are rejected;
+- `simulate_exclude_price_range`: explicit inclusive `exclude_inside_v1`
+  bounds over accepted GA1-A entry-price authority;
+- `simulate_skip_repeat_attempts`: first retained stable-instrument attempt only;
+- `simulate_after_outcome_exclusion`: loss/gain/flat option; one next
+  rule-eligible trade is consumed, and a pending exclusion survives nonmatching
+  completions until consumed.
+
+Each preset is content-addressed and binds normalized strict arguments, required
+authority, compiled plan, dependencies, precedence, reset, minimum sample,
+missing data, comparison metrics, affected population, evidence,
+counterexamples, no-outlier-suppression v1, allowed wording, and the in-sample
+warning. Reconstruction recompiles the preset and rejects altered plans,
+caller-declared dependencies, foreign authority, and correctly re-digested
+tampering.
 
 ## Result truth
 
 The result binds the verified source result, complete plan, counts, actual and
 simulated ordered populations, GA1-A exact metrics, exact net P/L comparison,
-one outcome per source row, limitations, and `resultDigest`.
+one outcome per source row, reconciled affected summaries, six bounded evidence
+categories, limitations, and `resultDigest`.
 
 Allowed language: a configured rule produced an exact difference in this
 historical in-sample population.
@@ -129,19 +162,15 @@ historical in-sample population.
 Disallowed language: the rule will improve future performance, proves an edge,
 proves a behavioral diagnosis, or represents executable trading advice.
 
-## Planned reconstruction and replay boundary
+## Reconstruction and replay boundary
 
-The next checkpoint must add a persisted envelope and closed reconstruction:
+Checkpoint two implements governed preset reconstruction and complete result
+re-execution through accepted in-process GA1-A source-result authority. Replay
+rebuilds chronology, classifications, state, metrics, summaries, evidence, and
+the result digest; it returns only the rebuilt result. Unknown fields,
+accessors, class/polluted objects, foreign authority, altered compiled plans,
+and correctly re-digested result/preset tampering fail closed.
 
-1. reopen exact source authority;
-2. reconstruct and verify the GA1-A query result;
-3. reconstruct the simulation plan and governed preset;
-4. rebuild chronological source/filter populations;
-5. initialize session state;
-6. replay completion and rule evaluation;
-7. rebuild classifications and sizing;
-8. recalculate metrics and comparison;
-9. rebuild evidence, counterexamples, outliers, and limitations;
-10. require canonical equality and issue a replay receipt.
-
-A recomputed digest without successful reconstruction will remain invalid.
+A separate persisted envelope and content-addressed replay receipt remain for a
+later final checkpoint. Proportional sizing remains excluded from both execution
+and replay.

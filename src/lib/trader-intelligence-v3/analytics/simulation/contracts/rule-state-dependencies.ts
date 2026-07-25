@@ -1,7 +1,7 @@
 import type { CounterfactualRule } from "./simulation-plan";
 
 export const RULE_STATE_DEPENDENCY_POLICY_VERSION =
-  "ti_v3_rule_state_dependency_policy_v1" as const;
+  "ti_v3_rule_state_dependency_policy_v2" as const;
 
 export interface RuleStateDependencies {
   readonly policyVersion: typeof RULE_STATE_DEPENDENCY_POLICY_VERSION;
@@ -9,9 +9,16 @@ export interface RuleStateDependencies {
   readonly completedRealizedOutcome: boolean;
   readonly completedLossStreak: boolean;
   readonly realizedDailyPnl: boolean;
+  readonly peakRealizedDailyPnl: boolean;
   readonly priorCompletionTimestamp: boolean;
   readonly tickerAttemptState: boolean;
+  readonly tickerLosingAttemptState: boolean;
+  readonly tickerStopState: boolean;
   readonly entryTimeCutoff: boolean;
+  readonly entryPriceAuthority: boolean;
+  readonly cooldownUntilState: boolean;
+  readonly priorCompletedOutcome: boolean;
+  readonly afterOutcomeExclusionState: boolean;
   readonly sizeAuthority: boolean;
   readonly sessionStopState: boolean;
 }
@@ -27,9 +34,16 @@ const NONE: DependencyFlags = Object.freeze({
   completedRealizedOutcome: false,
   completedLossStreak: false,
   realizedDailyPnl: false,
+  peakRealizedDailyPnl: false,
   priorCompletionTimestamp: false,
   tickerAttemptState: false,
+  tickerLosingAttemptState: false,
+  tickerStopState: false,
   entryTimeCutoff: false,
+  entryPriceAuthority: false,
+  cooldownUntilState: false,
+  priorCompletedOutcome: false,
+  afterOutcomeExclusionState: false,
   sizeAuthority: false,
   sessionStopState: false,
 });
@@ -47,6 +61,53 @@ const RULE_DEPENDENCIES: Readonly<Record<RuleKind, DependencyFlags>> =
       completedLossStreak: true,
       priorCompletionTimestamp: true,
       sessionStopState: true,
+    }),
+    stop_after_daily_dollar_drawdown: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      realizedDailyPnl: true,
+      priorCompletionTimestamp: true,
+      sessionStopState: true,
+    }),
+    stop_after_profit_giveback: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      realizedDailyPnl: true,
+      peakRealizedDailyPnl: true,
+      priorCompletionTimestamp: true,
+      sessionStopState: true,
+    }),
+    wait_after_loss: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      priorCompletionTimestamp: true,
+      cooldownUntilState: true,
+    }),
+    maximum_attempts_per_ticker: Object.freeze({
+      ...NONE,
+      tickerAttemptState: true,
+    }),
+    stop_after_losing_ticker_attempts: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      priorCompletionTimestamp: true,
+      tickerLosingAttemptState: true,
+      tickerStopState: true,
+    }),
+    no_new_trades_after_time: Object.freeze({
+      ...NONE,
+      entryTimeCutoff: true,
+    }),
+    exclude_entry_price_range: Object.freeze({
+      ...NONE,
+      entryPriceAuthority: true,
+    }),
+    after_outcome_exclusion: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      priorCompletionTimestamp: true,
+      priorCompletedOutcome: true,
+      afterOutcomeExclusionState: true,
     }),
   });
 

@@ -1,3 +1,32 @@
+# 2026-07-25 - GA1-C preserve-or-exclude checkpoint two active
+
+- Continued draft PR #162 from accepted clean synchronized checkpoint-one
+  remediation `b3655471a99af685a86908a5ef8a21936dc60d1f`.
+- Added ten governed presets through the existing generic engine: daily dollar
+  drawdown, realized-profit giveback, fourth-plus exclusion, wait after loss,
+  stable-instrument attempt limit, losing-instrument stop, accepted-timezone
+  cutoff, inclusive entry-price range exclusion, repeat-attempt exclusion, and
+  one-shot after-outcome exclusion.
+- Extended the centralized dependency union and bounded snapshots for realized
+  and peak P/L, cooldown, instrument attempts/losses/stops, prior outcome, and
+  pending one-shot state. Same-time groups fail only when unknown ordering is
+  material to an active dependency.
+- Expanded results with reconciled helped/harmed trade/day counts, retained and
+  removed outcomes, stop/cooldown events, per-rule affected counts, and bounded
+  classification-derived evidence retaining source, execution, and occurrence
+  authority.
+- Added governed preset reconstruction and complete result re-execution
+  verification, including correctly re-digested tamper rejection.
+- Focused GA1-C development verification is green at 2 files / 27 tests;
+  TypeScript and targeted ESLint pass.
+
+Current best next step:
+
+- Finish the directed GA0-B3/GA1-A/GA1-B regressions and documentation review,
+  commit and push one coherent checkpoint, update draft PR #162, and observe
+  terminal CI. Keep proportional resizing, final 10,000-row proof, merge,
+  deployment, GA1-D, and GA1-E out of scope.
+
 # 2026-07-25 - GA1-B final closure checkpoint
 
 - Independent audit accepted final executable checkpoint

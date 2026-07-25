@@ -49,3 +49,31 @@ Starting head: `21eb0477284cafb7007aa4a8b7dd9afa4eaa5bac`
 Commit, push, and CI identities are recorded after the focused correction is
 published. The final 10,000-row proof, browser, build, private calibration, and
 unrelated suites remain deliberately unrun.
+
+## Checkpoint two: remaining preserve-or-exclude preset pack
+
+Starting head: `b3655471a99af685a86908a5ef8a21936dc60d1f`
+
+| Check | Result |
+| --- | --- |
+| ten new preset compilers and reconstruction | passed |
+| full focused GA1-C suite | 2 files / 27 tests passed |
+| daily drawdown / profit giveback exact state | passed |
+| cutoff / cooldown / attempt boundaries | passed |
+| mixed material and equivalent completion ties | passed |
+| session/account/currency/stable-instrument isolation | passed |
+| skipped and source-filter state isolation | passed |
+| all-ten-preset source permutation | passed |
+| bounded classification-derived evidence | passed, including max plus one |
+| preset and result replay | passed |
+| unknown/accessor/class/polluted/foreign authority | passed |
+| correctly re-digested preset/result tampering | passed |
+| combined GA0-B3 / GA1-A / GA1-B / GA1-C regressions | final run: 6 files / 74 tests passed |
+| TypeScript | passed |
+| targeted ESLint | passed |
+| `git diff --check` | passed |
+| final post-correction local checkpoint | passed |
+| GitHub CI | tracked on draft PR #162 after push |
+
+The final 10,000-row proof, production build, browser/E2E, private CSV
+calibration, deployment, and unrelated suites remain deliberately unrun.

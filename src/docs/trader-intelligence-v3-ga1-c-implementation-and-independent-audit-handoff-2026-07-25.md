@@ -1,13 +1,17 @@
-# GA1-C Checkpoint-One Implementation and Audit Handoff
+# GA1-C Checkpoint-Two Implementation and Audit Handoff
 
 ## Scope delivered
 
-This checkpoint establishes the generic content-addressed simulation plan, the
-execution-only chronological engine skeleton, exact actual-versus-simulated
-metrics, per-trade classifications, and three governed representative presets.
-It intentionally stops before implementing all fourteen presets.
+Checkpoint one established the generic content-addressed simulation plan and
+three representative presets. Checkpoint two retains that accepted engine and
+adds all ten remaining preserve-or-exclude/session-state presets, expanded
+bounded result/evidence contracts, governed preset reconstruction, and complete
+result re-execution verification.
 
-Executable checkpoint: `52f86bcc8235aa7c52d251b1edbb0fd413dd5244`
+Accepted checkpoint-one remediation:
+`b3655471a99af685a86908a5ef8a21936dc60d1f`
+
+Checkpoint-two executable commit: recorded after final verification and commit.
 
 Draft PR: `#162`
 
@@ -36,7 +40,8 @@ Reviewers should concentrate on:
 1. whether a cloned or foreign GA1-A result can become simulation authority;
 2. whether any skipped trade can update simulated state or consume an entry;
 3. whether completion data at or after entry leaks into a decision;
-4. whether mixed same-time completion outcomes fail closed;
+4. whether mixed same-time completion outcomes fail only when an active state
+   can materially depend on their unknown order;
 5. whether owner/account/currency/session state can cross partitions;
 6. whether rule precedence owns classifications deterministically;
 7. whether any financial calculation uses floating point;
@@ -45,17 +50,36 @@ Reviewers should concentrate on:
 10. whether unknown/accessor/class/polluted inputs can pass validation.
 11. whether outcome-independent plans inspect completion outcome signs;
 12. whether plan rule order can silently initialize additional state families.
+13. whether cutoff time uses the accepted row timezone rather than locale or
+    system-local time;
+14. whether attempt state uses stable instrument identity rather than displayed
+    ticker text;
+15. whether all aggregates and bounded evidence reconcile to ordered outcome
+    classifications and retained execution/occurrence references;
+16. whether a correctly re-digested preset or result can bypass reconstruction.
+
+## Checkpoint-two delivered areas
+
+- daily exact-dollar drawdown and realized-profit giveback session stops;
+- fourth-plus, time-cutoff, price-range, and repeat-attempt exclusions;
+- cooldown, stable-instrument attempt limit, losing-instrument stop, and
+  one-shot after-outcome state;
+- dependency-driven bounded snapshots with explicit inactive state;
+- helped/harmed trade/day summaries, stop/cooldown event counts, retained and
+  removed outcome counts, and per-rule affected counts;
+- six bounded, deterministic, classification-derived evidence categories with
+  execution digests, occurrence keys, totals, emitted counts, and truncation;
+- governed preset reconstruction and full result re-execution verification.
 
 ## Known incomplete areas
 
-- only three representative preset families are present;
-- result shape verification and closed persisted replay are not yet complete;
-- evidence selection is limited to row-bound execution/occurrence references;
-- affected days/trades, profitable winners removed, losses avoided,
-  counterexamples, and outlier sensitivity need full governed result contracts;
-- size transformation and unavailable proportional-charge logic are deferred;
-- the fixed-seed 10,000-row proof and workflow are deferred to the final
-  executable checkpoint.
+- `simulate_reduce_size_after_loss` remains deliberately deferred pending
+  proportional P/L, rounding, minimum-size, fee, and charge authority;
+- a standalone persisted replay envelope/receipt is not yet issued, although
+  the complete result is re-executed and digest-verified;
+- final proportional-resizing integration and its focused tests remain;
+- the fixed-seed 10,000-row proof remains reserved for the final executable
+  checkpoint after all presets and sizing decisions are complete.
 
 These are checkpoint boundaries, not claims of completed GA1-C acceptance.
 

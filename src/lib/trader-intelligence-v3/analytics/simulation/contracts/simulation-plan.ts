@@ -1,5 +1,9 @@
 import type { CanonicalContentDigest } from "../../../domain/identity";
-import type { ExactResult } from "../../../domain/exact";
+import {
+  compareExactDecimals,
+  validateExactDecimal,
+  type ExactResult,
+} from "../../../domain/exact";
 import {
   contractFailure,
   finalizeContentAddressedAuthority,
@@ -17,8 +21,8 @@ import {
 } from "./rule-state-dependencies";
 
 export const COUNTERFACTUAL_SIMULATION_PLAN_VERSION =
-  "ti_v3_counterfactual_simulation_plan_v1" as const;
-export const COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION = "v1" as const;
+  "ti_v3_counterfactual_simulation_plan_v2" as const;
+export const COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION = "v2" as const;
 
 export const COUNTERFACTUAL_SIMULATION_LIMITS = Object.freeze({
   maximumRules: 16,
@@ -52,6 +56,78 @@ export type CounterfactualRule =
       precedence: string;
       action: "exclude_trade";
       allowedDirection: "long" | "short";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "stop_after_daily_dollar_drawdown";
+      precedence: string;
+      action: "stop_session";
+      maximumDailyDrawdown: string;
+      thresholdPolicy: "realized_net_pnl_at_or_below_negative_threshold_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "stop_after_profit_giveback";
+      precedence: string;
+      action: "stop_session";
+      maximumProfitGiveback: string;
+      thresholdPolicy:
+        "positive_peak_realized_pnl_giveback_at_or_above_threshold_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "wait_after_loss";
+      precedence: string;
+      action: "cooldown";
+      cooldownSeconds: string;
+      triggerOutcome: "loss";
+      expiryPolicy: "entry_at_or_after_expiry_is_eligible_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "maximum_attempts_per_ticker";
+      precedence: string;
+      action: "exclude_trade";
+      maximumAttempts: string;
+      countPolicy: "retained_simulated_entries_per_stable_instrument_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "stop_after_losing_ticker_attempts";
+      precedence: string;
+      action: "stop_ticker";
+      losingAttemptThreshold: string;
+      gainFlatPolicy: "gain_and_flat_do_not_reset_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "no_new_trades_after_time";
+      precedence: string;
+      action: "exclude_trade";
+      cutoffTime: string;
+      timeBasis: "accepted_iana_timezone_wall_clock_v1";
+      boundaryPolicy: "candidate_entry_at_or_after_cutoff_is_excluded_v1";
+      overnightSessionPolicy: "reject_unsupported_overnight_session_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "exclude_entry_price_range";
+      precedence: string;
+      action: "exclude_trade";
+      lowerEntryPrice: string;
+      upperEntryPrice: string;
+      rangeMode: "exclude_inside_v1";
+      boundaryPolicy: "inclusive_lower_and_upper_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "after_outcome_exclusion";
+      precedence: string;
+      action: "exclude_next_eligible_trade";
+      triggerOutcome: "loss" | "gain" | "flat";
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1";
+      nonMatchingOutcomePolicy:
+        "pending_exclusion_remains_until_consumed_v1";
     }>;
 
 export interface CounterfactualSimulationPlan {
@@ -71,7 +147,7 @@ export interface CounterfactualSimulationPlan {
     readonly sessionResetPolicy:
       "owner_account_currency_session_instrument_state_v1";
     readonly timestampTiePolicy:
-      "strictly_completed_before_entry_fail_closed_mixed_completion_v1";
+      "strictly_completed_before_entry_fail_closed_material_ties_v1";
     readonly missingDataPolicy: "fail_closed_or_classify_unavailable_v1";
     readonly limitationsPolicy: "historical_in_sample_not_future_edge_v1";
     readonly stateDependencyPolicy:
@@ -107,7 +183,7 @@ export const COUNTERFACTUAL_SIMULATION_POLICIES =
     sessionResetPolicy:
       "owner_account_currency_session_instrument_state_v1",
     timestampTiePolicy:
-      "strictly_completed_before_entry_fail_closed_mixed_completion_v1",
+      "strictly_completed_before_entry_fail_closed_material_ties_v1",
     missingDataPolicy: "fail_closed_or_classify_unavailable_v1",
     limitationsPolicy: "historical_in_sample_not_future_edge_v1",
     stateDependencyPolicy: RULE_STATE_DEPENDENCY_POLICY_VERSION,
@@ -146,6 +222,24 @@ function normalizeRule(
       "maximumTrades",
       "countPolicy",
       "allowedDirection",
+      "maximumDailyDrawdown",
+      "thresholdPolicy",
+      "maximumProfitGiveback",
+      "cooldownSeconds",
+      "triggerOutcome",
+      "expiryPolicy",
+      "maximumAttempts",
+      "losingAttemptThreshold",
+      "gainFlatPolicy",
+      "cutoffTime",
+      "timeBasis",
+      "boundaryPolicy",
+      "overnightSessionPolicy",
+      "lowerEntryPrice",
+      "upperEntryPrice",
+      "rangeMode",
+      "consumptionPolicy",
+      "nonMatchingOutcomePolicy",
     ],
     path,
   );
@@ -236,6 +330,251 @@ function normalizeRule(
       }),
     };
   }
+  if (common.value.kind === "stop_after_daily_dollar_drawdown") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "maximumDailyDrawdown",
+      "thresholdPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const threshold = validateExactDecimal(record.value.maximumDailyDrawdown);
+    const zero = validateExactDecimal("0");
+    if (
+      !threshold.ok ||
+      !zero.ok ||
+      compareExactDecimals(threshold.value, zero.value) <= 0 ||
+      record.value.action !== "stop_session" ||
+      record.value.thresholdPolicy !==
+        "realized_net_pnl_at_or_below_negative_threshold_v1"
+    ) return invalid(path);
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "stop_after_daily_dollar_drawdown",
+        precedence: precedence.value,
+        action: "stop_session",
+        maximumDailyDrawdown: threshold.value,
+        thresholdPolicy:
+          "realized_net_pnl_at_or_below_negative_threshold_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "stop_after_profit_giveback") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "maximumProfitGiveback",
+      "thresholdPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const threshold = validateExactDecimal(record.value.maximumProfitGiveback);
+    const zero = validateExactDecimal("0");
+    if (
+      !threshold.ok ||
+      !zero.ok ||
+      compareExactDecimals(threshold.value, zero.value) <= 0 ||
+      record.value.action !== "stop_session" ||
+      record.value.thresholdPolicy !==
+        "positive_peak_realized_pnl_giveback_at_or_above_threshold_v1"
+    ) return invalid(path);
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "stop_after_profit_giveback",
+        precedence: precedence.value,
+        action: "stop_session",
+        maximumProfitGiveback: threshold.value,
+        thresholdPolicy:
+          "positive_peak_realized_pnl_giveback_at_or_above_threshold_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "wait_after_loss") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "cooldownSeconds",
+      "triggerOutcome", "expiryPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const cooldown = validateBoundedPositiveCount(
+      record.value.cooldownSeconds,
+      `${path}.cooldownSeconds`,
+      86_400,
+    );
+    if (
+      !cooldown.ok ||
+      record.value.action !== "cooldown" ||
+      record.value.triggerOutcome !== "loss" ||
+      record.value.expiryPolicy !==
+        "entry_at_or_after_expiry_is_eligible_v1"
+    ) return cooldown.ok ? invalid(path) : cooldown;
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "wait_after_loss",
+        precedence: precedence.value,
+        action: "cooldown",
+        cooldownSeconds: cooldown.value,
+        triggerOutcome: "loss",
+        expiryPolicy: "entry_at_or_after_expiry_is_eligible_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "maximum_attempts_per_ticker") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "maximumAttempts",
+      "countPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const maximum = validateBoundedPositiveCount(
+      record.value.maximumAttempts,
+      `${path}.maximumAttempts`,
+      1_000,
+    );
+    if (
+      !maximum.ok ||
+      record.value.action !== "exclude_trade" ||
+      record.value.countPolicy !==
+        "retained_simulated_entries_per_stable_instrument_v1"
+    ) return maximum.ok ? invalid(path) : maximum;
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "maximum_attempts_per_ticker",
+        precedence: precedence.value,
+        action: "exclude_trade",
+        maximumAttempts: maximum.value,
+        countPolicy:
+          "retained_simulated_entries_per_stable_instrument_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "stop_after_losing_ticker_attempts") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "losingAttemptThreshold",
+      "gainFlatPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const threshold = validateBoundedPositiveCount(
+      record.value.losingAttemptThreshold,
+      `${path}.losingAttemptThreshold`,
+      16,
+    );
+    if (
+      !threshold.ok ||
+      record.value.action !== "stop_ticker" ||
+      record.value.gainFlatPolicy !== "gain_and_flat_do_not_reset_v1"
+    ) return threshold.ok ? invalid(path) : threshold;
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "stop_after_losing_ticker_attempts",
+        precedence: precedence.value,
+        action: "stop_ticker",
+        losingAttemptThreshold: threshold.value,
+        gainFlatPolicy: "gain_and_flat_do_not_reset_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "no_new_trades_after_time") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "cutoffTime",
+      "timeBasis", "boundaryPolicy", "overnightSessionPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    if (
+      typeof record.value.cutoffTime !== "string" ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(
+        record.value.cutoffTime,
+      ) ||
+      record.value.action !== "exclude_trade" ||
+      record.value.timeBasis !== "accepted_iana_timezone_wall_clock_v1" ||
+      record.value.boundaryPolicy !==
+        "candidate_entry_at_or_after_cutoff_is_excluded_v1" ||
+      record.value.overnightSessionPolicy !==
+        "reject_unsupported_overnight_session_v1"
+    ) return invalid(path);
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "no_new_trades_after_time",
+        precedence: precedence.value,
+        action: "exclude_trade",
+        cutoffTime: record.value.cutoffTime,
+        timeBasis: "accepted_iana_timezone_wall_clock_v1",
+        boundaryPolicy:
+          "candidate_entry_at_or_after_cutoff_is_excluded_v1",
+        overnightSessionPolicy:
+          "reject_unsupported_overnight_session_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "exclude_entry_price_range") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "lowerEntryPrice",
+      "upperEntryPrice", "rangeMode", "boundaryPolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    const lower = validateExactDecimal(record.value.lowerEntryPrice);
+    const upper = validateExactDecimal(record.value.upperEntryPrice);
+    const zero = validateExactDecimal("0");
+    if (
+      !lower.ok ||
+      !upper.ok ||
+      !zero.ok ||
+      compareExactDecimals(lower.value, zero.value) <= 0 ||
+      compareExactDecimals(lower.value, upper.value) >= 0 ||
+      record.value.action !== "exclude_trade" ||
+      record.value.rangeMode !== "exclude_inside_v1" ||
+      record.value.boundaryPolicy !== "inclusive_lower_and_upper_v1"
+    ) return invalid(path);
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "exclude_entry_price_range",
+        precedence: precedence.value,
+        action: "exclude_trade",
+        lowerEntryPrice: lower.value,
+        upperEntryPrice: upper.value,
+        rangeMode: "exclude_inside_v1",
+        boundaryPolicy: "inclusive_lower_and_upper_v1",
+      }),
+    };
+  }
+  if (common.value.kind === "after_outcome_exclusion") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "triggerOutcome",
+      "consumptionPolicy", "nonMatchingOutcomePolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    if (
+      record.value.action !== "exclude_next_eligible_trade" ||
+      !["loss", "gain", "flat"].includes(String(record.value.triggerOutcome)) ||
+      record.value.consumptionPolicy !==
+        "consume_one_next_rule_eligible_trade_v1" ||
+      record.value.nonMatchingOutcomePolicy !==
+        "pending_exclusion_remains_until_consumed_v1"
+    ) return invalid(path);
+    return {
+      ok: true,
+      value: Object.freeze({
+        ruleId: ruleId.value,
+        kind: "after_outcome_exclusion",
+        precedence: precedence.value,
+        action: "exclude_next_eligible_trade",
+        triggerOutcome: record.value.triggerOutcome as
+          | "loss"
+          | "gain"
+          | "flat",
+        consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+        nonMatchingOutcomePolicy:
+          "pending_exclusion_remains_until_consumed_v1",
+      }),
+    };
+  }
   return invalid(`${path}.kind`);
 }
 
@@ -288,6 +627,20 @@ function normalize(
     directionRules.length > 1 &&
     new Set(directionRules.map((rule) => rule.allowedDirection)).size > 1
   ) return invalid("$.rules");
+  const singularRuleKinds = new Set<CounterfactualRule["kind"]>([
+    "stop_after_consecutive_losses",
+    "stop_after_daily_dollar_drawdown",
+    "stop_after_profit_giveback",
+    "wait_after_loss",
+    "stop_after_losing_ticker_attempts",
+    "no_new_trades_after_time",
+    "exclude_entry_price_range",
+  ]);
+  for (const kind of singularRuleKinds) {
+    if (rules.filter((rule) => rule.kind === kind).length > 1) {
+      return invalid("$.rules");
+    }
+  }
 
   const policies = validateContractRecord(record.value.policies, [
     "chronologicalOrder", "actualEntryPolicy", "simulatedEntryPolicy",
@@ -352,9 +705,11 @@ function normalize(
       record.value.stateDependencies,
       [
         "policyVersion", "executedEntryCount", "completedRealizedOutcome",
-        "completedLossStreak", "realizedDailyPnl",
-        "priorCompletionTimestamp", "tickerAttemptState", "entryTimeCutoff",
-        "sizeAuthority", "sessionStopState",
+        "completedLossStreak", "realizedDailyPnl", "peakRealizedDailyPnl",
+        "priorCompletionTimestamp", "tickerAttemptState",
+        "tickerLosingAttemptState", "tickerStopState", "entryTimeCutoff",
+        "entryPriceAuthority", "cooldownUntilState", "priorCompletedOutcome",
+        "afterOutcomeExclusionState", "sizeAuthority", "sessionStopState",
       ],
       [],
       "$.stateDependencies",
