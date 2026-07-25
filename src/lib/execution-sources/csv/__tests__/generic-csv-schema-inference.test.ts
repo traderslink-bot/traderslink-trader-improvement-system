@@ -17,13 +17,13 @@ describe("generic CSV schema inference", () => {
     const inference = inferGenericCsvSchema(csvText);
 
     expect(inference.proposedMapping).toMatchObject({
-      symbol: ["Trading Symbol"],
-      timestamp: ["Executed At"],
-      side: ["Instruction"],
-      quantity: ["Filled Shares"],
-      price: ["Average Fill"],
-      commission: ["Commission Paid"],
-      fees: ["Other Fees"],
+      symbol: "Trading Symbol",
+      timestamp: "Executed At",
+      side: "Instruction",
+      quantity: "Filled Shares",
+      price: "Average Fill",
+      commission: "Commission Paid",
+      fees: "Other Fees",
     });
     expect(inference.status).not.toBe("blocked");
     expect(inference.valueMappings).toEqual(
@@ -115,14 +115,14 @@ describe("generic CSV schema inference", () => {
     expect(inference.delimiter).toBe(";");
     expect(inference.headerRowIndex).toBe(2);
     expect(inference.proposedMapping).toMatchObject({
-      date: ["Date"],
-      time: ["Time"],
-      symbol: ["Ticker"],
-      side: ["Action"],
-      quantity: ["Shares"],
-      price: ["Unit Price"],
-      fees: ["Costs"],
-      currency: ["Currency"],
+      date: "Date",
+      time: "Time",
+      symbol: "Ticker",
+      side: "Action",
+      quantity: "Shares",
+      price: "Unit Price",
+      fees: "Costs",
+      currency: "Currency",
     });
   });
 
