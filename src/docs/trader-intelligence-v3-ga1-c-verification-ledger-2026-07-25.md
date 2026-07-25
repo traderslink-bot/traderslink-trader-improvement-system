@@ -26,3 +26,26 @@ Draft PR: `#162`
 
 The final 10,000-row proof is intentionally reserved for the final executable
 checkpoint, as directed. CI status is tracked on draft PR #162.
+
+## Checkpoint-one chronology remediation
+
+Starting head: `21eb0477284cafb7007aa4a8b7dd9afa4eaa5bac`
+
+| Check | Result |
+| --- | --- |
+| direct GA1-C dependency/chronology suite | 1 file / 12 tests passed |
+| mixed tie ignored by direction-only | passed |
+| mixed tie ignored by maximum-trades | passed |
+| mixed tie rejected by consecutive-loss | passed |
+| economically equivalent tied losses | passed |
+| equal/prior completion boundary | passed |
+| skipped-trade completion isolation | passed |
+| dependency/order and three-preset permutation | passed |
+| combined focused and affected regression | 5 files / 59 tests passed |
+| TypeScript | `npx --no-install tsc --noEmit --pretty false` passed |
+| targeted ESLint | simulation, GA1-C test, and synthetic authority paths passed |
+| `git diff --check` | passed |
+
+Commit, push, and CI identities are recorded after the focused correction is
+published. The final 10,000-row proof, browser, build, private calibration, and
+unrelated suites remain deliberately unrun.

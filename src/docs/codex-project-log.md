@@ -19171,3 +19171,27 @@ Current best next step:
   Keep the PR draft, open, unmerged, and undeployed while this architecture
   checkpoint is independently reviewed; continue the remaining GA1-C pack in
   the same PR only after that checkpoint boundary is accepted.
+# 2026-07-25 - GA1-C checkpoint-one chronology remediation
+
+- Continued existing draft PR #162 from exact clean synchronized head
+  `21eb0477284cafb7007aa4a8b7dd9afa4eaa5bac`.
+- Root cause: the engine called completion processing for every included
+  candidate, so mixed simultaneous outcomes could reject direction-only and
+  maximum-trades simulations despite neither rule consuming outcome state.
+- Added centralized `ti_v3_rule_state_dependency_policy_v1` declarations and
+  bound the resolved dependency union into the content-addressed plan.
+- Direction-only now initializes no chronological state; maximum-trades
+  initializes executed-entry count only; consecutive-loss initializes
+  completion, loss-streak, completion-time, and session-stop state.
+- Inactive snapshot fields are explicitly `not_evaluated` with null values.
+  Strict-before-entry, skipped-trade isolation, material mixed-tie rejection,
+  and economically equivalent tied-loss acceptance remain intact.
+- Direct remediation coverage and the affected GA0-B3/GA1-A/GA1-B regressions
+  pass together: 5 files / 59 tests. TypeScript, targeted lint, and diff check
+  also pass.
+
+Current best next step:
+
+- Commit and push only this verified remediation to draft PR #162, then retain
+  the draft/open/unmerged/undeployed stop boundary for independent acceptance.
+  Do not begin the remaining preset pack.

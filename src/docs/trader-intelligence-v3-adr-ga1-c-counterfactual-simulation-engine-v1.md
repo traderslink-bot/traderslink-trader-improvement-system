@@ -46,12 +46,28 @@ Source entries are ordered by accepted entry timestamp, final exit timestamp,
 then semantic round-trip key. State resets by canonical owner, account,
 currency, session date, timezone, and date basis.
 
-Only simulated trades that were actually retained can later affect simulated
-state. A completion affects a candidate only when its accepted final-exit
-timestamp is strictly earlier than that candidate's entry timestamp. A
-completion exactly at entry is not treated as known. Mixed outcomes sharing an
-otherwise unordered completion timestamp fail closed; lexical identity is not
-economic completion authority.
+Chronological state is dependency-driven under
+`ti_v3_rule_state_dependency_policy_v1`. The plan contains the deterministic
+union of its registered rule dependencies. Rule order cannot add or remove a
+state family. The current registry declares:
+
+| Rule | State dependency |
+| --- | --- |
+| `direction_only` | source direction only; no session state |
+| `maximum_trades_per_day` | executed simulated-entry count only |
+| `stop_after_consecutive_losses` | completed outcome, completion timestamp, loss streak, session stop |
+
+Only simulated trades that were actually retained can later affect an active
+state family. Completion rows, outcome signs, loss streaks, and completion-tie
+ambiguity are not processed when no active rule consumes them.
+
+For a completed-outcome rule, a completion affects a candidate only when its
+accepted final-exit timestamp is strictly earlier than that candidate's entry
+timestamp. A completion exactly at entry is not treated as known. Mixed outcomes
+sharing an otherwise unordered completion timestamp fail closed; lexical
+identity is not economic completion authority. Same-time outcomes that are
+economically equivalent for the active loss-streak rule are accepted because
+their ordering cannot change the state available to the next entry.
 
 Flat and profitable completed trades reset the consecutive-loss streak. The
 trade that reaches the configured loss threshold remains executed. Later
@@ -67,6 +83,10 @@ are rejected.
 
 Skipped trades never consume the maximum-trade slot and never provide later
 completion state. This is true independent of their source sequence.
+
+Session snapshots bind the dependency-policy version. Inactive entry-count,
+loss-streak, and session-stop fields are emitted as `not_evaluated` with a null
+value rather than as an evaluated zero.
 
 ## Actual versus simulated truth
 

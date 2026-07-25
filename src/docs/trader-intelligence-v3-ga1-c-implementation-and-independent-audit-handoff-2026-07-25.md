@@ -11,6 +11,24 @@ Executable checkpoint: `52f86bcc8235aa7c52d251b1edbb0fd413dd5244`
 
 Draft PR: `#162`
 
+## Checkpoint-one audit remediation
+
+The original engine processed completions before every included candidate even
+when no active rule consumed completed-outcome state. Consequently, a
+direction-only or maximum-trades plan could fail on a mixed simultaneous
+completion tie that was irrelevant to its result.
+
+The correction adds centralized, versioned rule-state dependency declarations
+and binds their derived union into every simulation plan. Completion processing
+now runs only when the plan requires completed outcomes. Maximum-trades updates
+only executed-entry count. Direction-only initializes no chronological state.
+Snapshots mark inactive state as `not_evaluated`, not evaluated zero.
+
+Consecutive-loss semantics remain strict: only retained simulated trades may
+complete into state, completion must be strictly before entry, equality remains
+unavailable, material mixed ties fail closed, and economically equivalent tied
+outcomes remain admissible.
+
 ## Review focus
 
 Reviewers should concentrate on:
@@ -25,6 +43,8 @@ Reviewers should concentrate on:
 8. whether the result invents fills, prices, charges, sizes, or market paths;
 9. whether source permutations change plan or result identity;
 10. whether unknown/accessor/class/polluted inputs can pass validation.
+11. whether outcome-independent plans inspect completion outcome signs;
+12. whether plan rule order can silently initialize additional state families.
 
 ## Known incomplete areas
 

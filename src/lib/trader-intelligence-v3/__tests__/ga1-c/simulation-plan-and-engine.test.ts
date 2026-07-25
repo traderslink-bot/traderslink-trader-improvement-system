@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCounterfactualSimulationPlan,
+  buildAnalyticalRow,
   buildSyntheticQueryFixture,
+  buildSyntheticQueryFixtureFromRows,
   compileDirectionOnlyPreset,
   compileMaximumTradesPerDayPreset,
   compileStopAfterConsecutiveLossesPreset,
@@ -12,6 +14,7 @@ import {
   executeCounterfactualSimulation,
   executeTradeQuery,
   verifyCounterfactualSimulationPlan,
+  type AnalyticalRow,
 } from "../../analytics";
 
 function clone<T>(value: T): T {
@@ -68,6 +71,65 @@ function verifiedSource(count = 30, reverseRows = false) {
   if (!result.ok) {
     throw new Error(`${result.error.code}:${result.error.path}`);
   }
+  return { fixture, sourceQueryPlan, sourceQueryResult: result.value };
+}
+
+function rebuildRow(
+  template: AnalyticalRow,
+  index: number,
+  input: Readonly<{
+    direction?: "long" | "short";
+    entryAt: string;
+    exitAt: string;
+    netPnl: string;
+  }>,
+): AnalyticalRow {
+  const { rowDigest: _rowDigest, ...content } = template;
+  void _rowDigest;
+  const row = buildAnalyticalRow({
+    ...content,
+    semanticRoundTripKey: `ga1_c_chronology_${index}`,
+    supportingOccurrenceKeys: template.supportingExecutionDigests.map(
+      (_, occurrence) => `ga1_c_chronology_${index}_${occurrence + 1}`,
+    ),
+    displayedSymbol: "DEPENDENCY",
+    stableInstrumentKey: "instrument_dependency",
+    direction: input.direction ?? "long",
+    firstEntryAt: input.entryAt,
+    finalExitAt: input.exitAt,
+    sessionDate: "2026-07-01",
+    weekday: "wednesday",
+    sequenceInPartition: String(index),
+    grossPnl: input.netPnl,
+    signedCharges: "0",
+    netPnl: input.netPnl,
+  });
+  if (!row.ok) throw new Error(`${row.error.code}:${row.error.path}`);
+  return row.value;
+}
+
+function chronologySource(
+  inputs: readonly Parameters<typeof rebuildRow>[2][],
+  reverseRows = false,
+) {
+  const template = buildSyntheticQueryFixture(1).derived.datasetReceipt.rows[0];
+  const fixture = buildSyntheticQueryFixtureFromRows(
+    inputs.map((input, index) => rebuildRow(template, index + 1, input)),
+    reverseRows,
+  );
+  const sourceQueryPlan = fixture.plan({
+    grouping: { kind: "aggregate" },
+    metrics: [
+      "candidate_count", "included_count", "excluded_count",
+      "win_count", "loss_count", "flat_count", "net_pnl",
+    ],
+  });
+  const result = executeTradeQuery({
+    source: fixture.source,
+    partitionReceipt: fixture.partition,
+    queryPlan: sourceQueryPlan,
+  });
+  if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
   return { fixture, sourceQueryPlan, sourceQueryResult: result.value };
 }
 
@@ -281,17 +343,340 @@ describe("GA1-C generic chronological simulation skeleton", () => {
     );
     expect(trigger).toMatchObject({
       classification: "executed_unchanged",
-      sessionStateBefore: { completedLossStreak: "0" },
-      sessionStateAfter: { completedLossStreak: "0" },
+      sessionStateBefore: {
+        completedLossStreak: { state: "evaluated", value: "0" },
+      },
+      sessionStateAfter: {
+        completedLossStreak: { state: "evaluated", value: "0" },
+      },
     });
     expect(later).toMatchObject({
       classification: "skipped_session_stopped",
       responsibleRuleId: "stop_after_one_loss",
       sessionStateBefore: {
-        completedLossStreak: "1",
-        stoppedByRuleId: "stop_after_one_loss",
+        completedLossStreak: { state: "evaluated", value: "1" },
+        stoppedByRuleId: {
+          state: "evaluated",
+          value: "stop_after_one_loss",
+        },
       },
     });
+  });
+
+  it("does not inspect mixed completion outcomes for direction-only or entry-count-only plans", () => {
+    const source = chronologySource([
+      {
+        entryAt: "2026-07-01T09:00:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "-5",
+      },
+      {
+        entryAt: "2026-07-01T09:05:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "7",
+      },
+      {
+        entryAt: "2026-07-01T10:30:00.000000000Z",
+        exitAt: "2026-07-01T10:40:00.000000000Z",
+        netPnl: "2",
+      },
+    ]);
+    const rules = [
+      {
+        ruleId: "long_only",
+        kind: "direction_only",
+        precedence: "1",
+        action: "exclude_trade",
+        allowedDirection: "long",
+      },
+      {
+        ruleId: "maximum_two",
+        kind: "maximum_trades_per_day",
+        precedence: "1",
+        action: "exclude_trade",
+        maximumTrades: "2",
+        countPolicy: "executed_simulated_entries_only_v1",
+      },
+    ] as const;
+    for (const rule of rules) {
+      const result = executeCounterfactualSimulation({
+        source: source.fixture.source,
+        partitionReceipt: source.fixture.partition,
+        sourceQueryResult: source.sourceQueryResult,
+        simulationPlan: plan(source.sourceQueryPlan, [rule]),
+      });
+      expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
+      if (!result.ok) continue;
+      expect(result.value.simulatedTradeKeys).toEqual(
+        rule.kind === "direction_only"
+          ? [
+              "ga1_c_chronology_1",
+              "ga1_c_chronology_2",
+              "ga1_c_chronology_3",
+            ]
+          : ["ga1_c_chronology_1", "ga1_c_chronology_2"],
+      );
+      expect(result.value.plan.stateDependencies).toMatchObject(
+        rule.kind === "direction_only"
+          ? {
+              executedEntryCount: false,
+              completedRealizedOutcome: false,
+              completedLossStreak: false,
+            }
+          : {
+              executedEntryCount: true,
+              completedRealizedOutcome: false,
+              completedLossStreak: false,
+            },
+      );
+      for (const outcome of result.value.tradeOutcomes) {
+        expect(outcome.sessionStateBefore.completedLossStreak)
+          .toEqual({ state: "not_evaluated", value: null });
+        expect(outcome.sessionStateAfter.completedLossStreak)
+          .toEqual({ state: "not_evaluated", value: null });
+      }
+    }
+  });
+
+  it("fails closed on a material mixed completion tie only when completed outcomes are required", () => {
+    const source = chronologySource([
+      {
+        entryAt: "2026-07-01T09:00:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "-1",
+      },
+      {
+        entryAt: "2026-07-01T09:05:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "1",
+      },
+      {
+        entryAt: "2026-07-01T10:30:00.000000000Z",
+        exitAt: "2026-07-01T10:40:00.000000000Z",
+        netPnl: "1",
+      },
+    ]);
+    expect(executeCounterfactualSimulation({
+      source: source.fixture.source,
+      partitionReceipt: source.fixture.partition,
+      sourceQueryResult: source.sourceQueryResult,
+      simulationPlan: plan(source.sourceQueryPlan, [{
+        ruleId: "stop_after_one",
+        kind: "stop_after_consecutive_losses",
+        precedence: "1",
+        action: "stop_session",
+        consecutiveLossThreshold: "1",
+        flatTradePolicy: "flat_resets_loss_streak_v1",
+      }]),
+    })).toMatchObject({
+      ok: false,
+      error: { code: "ti_v3_simulation_ambiguous_completion_tie" },
+    });
+  });
+
+  it("accepts economically equivalent tied losses for the active loss-streak rule", () => {
+    const source = chronologySource([
+      {
+        entryAt: "2026-07-01T09:00:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "-1",
+      },
+      {
+        entryAt: "2026-07-01T09:05:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "-2",
+      },
+      {
+        entryAt: "2026-07-01T10:30:00.000000000Z",
+        exitAt: "2026-07-01T10:40:00.000000000Z",
+        netPnl: "3",
+      },
+    ]);
+    const result = executeCounterfactualSimulation({
+      source: source.fixture.source,
+      partitionReceipt: source.fixture.partition,
+      sourceQueryResult: source.sourceQueryResult,
+      simulationPlan: plan(source.sourceQueryPlan, [{
+        ruleId: "stop_after_two",
+        kind: "stop_after_consecutive_losses",
+        precedence: "1",
+        action: "stop_session",
+        consecutiveLossThreshold: "2",
+        flatTradePolicy: "flat_resets_loss_streak_v1",
+      }]),
+    });
+    expect(result, JSON.stringify(result)).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.value.tradeOutcomes[2]).toMatchObject({
+      classification: "skipped_session_stopped",
+      sessionStateBefore: {
+        completedLossStreak: { state: "evaluated", value: "2" },
+      },
+    });
+  });
+
+  it("keeps equality unavailable, strictly prior completion available, and skipped trades out of completion state", () => {
+    const equality = chronologySource([
+      {
+        entryAt: "2026-07-01T09:00:00.000000000Z",
+        exitAt: "2026-07-01T10:00:00.000000000Z",
+        netPnl: "-1",
+      },
+      {
+        entryAt: "2026-07-01T10:00:00.000000000Z",
+        exitAt: "2026-07-01T11:00:00.000000000Z",
+        netPnl: "2",
+      },
+      {
+        entryAt: "2026-07-01T10:30:00.000000000Z",
+        exitAt: "2026-07-01T10:40:00.000000000Z",
+        netPnl: "1",
+      },
+    ]);
+    const lossRule = {
+      ruleId: "stop_after_one",
+      kind: "stop_after_consecutive_losses",
+      precedence: "1",
+      action: "stop_session",
+      consecutiveLossThreshold: "1",
+      flatTradePolicy: "flat_resets_loss_streak_v1",
+    } as const;
+    const boundary = executeCounterfactualSimulation({
+      source: equality.fixture.source,
+      partitionReceipt: equality.fixture.partition,
+      sourceQueryResult: equality.sourceQueryResult,
+      simulationPlan: plan(equality.sourceQueryPlan, [lossRule]),
+    });
+    expect(boundary).toMatchObject({ ok: true });
+    if (!boundary.ok) return;
+    expect(boundary.value.tradeOutcomes[1].classification)
+      .toBe("executed_unchanged");
+    expect(boundary.value.tradeOutcomes[2].classification)
+      .toBe("skipped_session_stopped");
+
+    const skipped = chronologySource([
+      {
+        direction: "short",
+        entryAt: "2026-07-01T09:00:00.000000000Z",
+        exitAt: "2026-07-01T09:30:00.000000000Z",
+        netPnl: "-5",
+      },
+      {
+        entryAt: "2026-07-01T09:10:00.000000000Z",
+        exitAt: "2026-07-01T11:00:00.000000000Z",
+        netPnl: "1",
+      },
+      {
+        entryAt: "2026-07-01T10:00:00.000000000Z",
+        exitAt: "2026-07-01T10:10:00.000000000Z",
+        netPnl: "1",
+      },
+    ]);
+    const skippedResult = executeCounterfactualSimulation({
+      source: skipped.fixture.source,
+      partitionReceipt: skipped.fixture.partition,
+      sourceQueryResult: skipped.sourceQueryResult,
+      simulationPlan: plan(skipped.sourceQueryPlan, [{
+        ruleId: "long_only",
+        kind: "direction_only",
+        precedence: "1",
+        action: "exclude_trade",
+        allowedDirection: "long",
+      }, {
+        ...lossRule,
+        precedence: "2",
+      }]),
+    });
+    expect(skippedResult).toMatchObject({ ok: true });
+    if (!skippedResult.ok) return;
+    expect(skippedResult.value.tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+      "skipped_by_rule",
+      "executed_unchanged",
+      "executed_unchanged",
+    ]);
+  });
+
+  it("resolves dependencies independently of caller order and preserves all preset digests under source permutation", () => {
+    const source = verifiedSource(30);
+    const first = buildCounterfactualSimulationPlan(
+      plan(source.sourceQueryPlan, [{
+        ruleId: "long_only",
+        kind: "direction_only",
+        precedence: "1",
+        action: "exclude_trade",
+        allowedDirection: "long",
+      }, {
+        ruleId: "maximum_two",
+        kind: "maximum_trades_per_day",
+        precedence: "2",
+        action: "exclude_trade",
+        maximumTrades: "2",
+        countPolicy: "executed_simulated_entries_only_v1",
+      }]),
+      source.fixture.authority,
+    );
+    const second = buildCounterfactualSimulationPlan(
+      plan(source.sourceQueryPlan, [
+        (first.ok ? first.value.rules[1] : {}),
+        (first.ok ? first.value.rules[0] : {}),
+      ]),
+      source.fixture.authority,
+    );
+    expect(first).toMatchObject({ ok: true });
+    expect(second).toMatchObject({ ok: true });
+    if (first.ok && second.ok) {
+      expect(second.value.stateDependencies)
+        .toEqual(first.value.stateDependencies);
+      expect(second.value.planDigest).toBe(first.value.planDigest);
+    }
+
+    const forward = verifiedSource(30, false);
+    const reverse = verifiedSource(30, true);
+    const presetRules = [
+      {
+        ruleId: "long_only",
+        kind: "direction_only",
+        precedence: "1",
+        action: "exclude_trade",
+        allowedDirection: "long",
+      },
+      {
+        ruleId: "maximum_two",
+        kind: "maximum_trades_per_day",
+        precedence: "1",
+        action: "exclude_trade",
+        maximumTrades: "2",
+        countPolicy: "executed_simulated_entries_only_v1",
+      },
+      {
+        ruleId: "stop_after_two",
+        kind: "stop_after_consecutive_losses",
+        precedence: "1",
+        action: "stop_session",
+        consecutiveLossThreshold: "2",
+        flatTradePolicy: "flat_resets_loss_streak_v1",
+      },
+    ] as const;
+    for (const rule of presetRules) {
+      const left = executeCounterfactualSimulation({
+        source: forward.fixture.source,
+        partitionReceipt: forward.fixture.partition,
+        sourceQueryResult: forward.sourceQueryResult,
+        simulationPlan: plan(forward.sourceQueryPlan, [rule]),
+      });
+      const right = executeCounterfactualSimulation({
+        source: reverse.fixture.source,
+        partitionReceipt: reverse.fixture.partition,
+        sourceQueryResult: reverse.sourceQueryResult,
+        simulationPlan: plan(reverse.sourceQueryPlan, [rule]),
+      });
+      expect(left).toMatchObject({ ok: true });
+      expect(right).toMatchObject({ ok: true });
+      if (left.ok && right.ok) {
+        expect(right.value.resultDigest).toBe(left.value.resultDigest);
+      }
+    }
   });
 
   it("is deterministic under source-row permutation and reconciles exact P/L", () => {

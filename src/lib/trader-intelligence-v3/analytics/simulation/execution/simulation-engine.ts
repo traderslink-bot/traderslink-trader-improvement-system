@@ -31,6 +31,7 @@ import {
   verifyCounterfactualSimulationPlan,
   type CounterfactualRule,
   type CounterfactualSimulationPlan,
+  type RuleStateDependencies,
 } from "../contracts";
 
 export const COUNTERFACTUAL_SIMULATION_RESULT_VERSION =
@@ -42,6 +43,18 @@ export type SimulationClassification =
   | "skipped_session_stopped"
   | "excluded_source_filter"
   | "unavailable_required_authority";
+
+export type EvaluatedSimulationState<T> =
+  | Readonly<{ readonly state: "evaluated"; readonly value: T }>
+  | Readonly<{ readonly state: "not_evaluated"; readonly value: null }>;
+
+export interface SimulationSessionStateSnapshot {
+  readonly dependencyPolicyVersion:
+    RuleStateDependencies["policyVersion"];
+  readonly executedTradeCount: EvaluatedSimulationState<string>;
+  readonly completedLossStreak: EvaluatedSimulationState<string>;
+  readonly stoppedByRuleId: EvaluatedSimulationState<string | null>;
+}
 
 export interface SimulationTradeOutcome {
   readonly sourceTradeKey: string;
@@ -57,16 +70,8 @@ export interface SimulationTradeOutcome {
     | "unavailable";
   readonly supportingExecutionDigests: readonly CanonicalContentDigest[];
   readonly supportingOccurrenceKeys: readonly string[];
-  readonly sessionStateBefore: Readonly<{
-    readonly executedTradeCount: string;
-    readonly completedLossStreak: string;
-    readonly stoppedByRuleId: string | null;
-  }>;
-  readonly sessionStateAfter: Readonly<{
-    readonly executedTradeCount: string;
-    readonly completedLossStreak: string;
-    readonly stoppedByRuleId: string | null;
-  }>;
+  readonly sessionStateBefore: SimulationSessionStateSnapshot;
+  readonly sessionStateAfter: SimulationSessionStateSnapshot;
   readonly limitationCodes: readonly string[];
 }
 
@@ -103,8 +108,8 @@ export interface CounterfactualSimulationRequest {
 }
 
 interface MutableSessionState {
-  executedTradeCount: bigint;
-  completedLossStreak: bigint;
+  executedTradeCount: bigint | null;
+  completedLossStreak: bigint | null;
   stoppedByRuleId: string | null;
   executedRows: AnalyticalRow[];
   processedCompletionKeys: Set<string>;
@@ -126,11 +131,33 @@ function sum(rows: readonly AnalyticalRow[]): string {
   return total;
 }
 
-function snapshot(state: MutableSessionState) {
+function evaluated<T>(
+  active: boolean,
+  value: T,
+): EvaluatedSimulationState<T> {
+  return active
+    ? Object.freeze({ state: "evaluated", value })
+    : Object.freeze({ state: "not_evaluated", value: null });
+}
+
+function snapshot(
+  state: MutableSessionState,
+  dependencies: RuleStateDependencies,
+): SimulationSessionStateSnapshot {
   return Object.freeze({
-    executedTradeCount: state.executedTradeCount.toString(),
-    completedLossStreak: state.completedLossStreak.toString(),
-    stoppedByRuleId: state.stoppedByRuleId,
+    dependencyPolicyVersion: dependencies.policyVersion,
+    executedTradeCount: evaluated(
+      dependencies.executedEntryCount,
+      state.executedTradeCount?.toString() ?? "0",
+    ),
+    completedLossStreak: evaluated(
+      dependencies.completedLossStreak,
+      state.completedLossStreak?.toString() ?? "0",
+    ),
+    stoppedByRuleId: evaluated(
+      dependencies.sessionStopState,
+      state.stoppedByRuleId,
+    ),
   });
 }
 
@@ -166,6 +193,12 @@ function applyCompletions(
     { kind: "stop_after_consecutive_losses" }
   > | undefined,
 ): ExactResult<true, AnalyticalContractFailure> {
+  if (state.completedLossStreak === null) {
+    return contractFailure(
+      "ti_v3_analytics_contract_reference_mismatch",
+      "$.stateDependencies.completedLossStreak",
+    );
+  }
   const eligible = state.executedRows
     .filter((row) =>
       row.finalExitAt < entryAt &&
@@ -220,8 +253,8 @@ function tradeOutcome(
   classification: SimulationClassification,
   ruleId: string | null,
   reasonCode: string,
-  before: ReturnType<typeof snapshot>,
-  after: ReturnType<typeof snapshot>,
+  before: SimulationSessionStateSnapshot,
+  after: SimulationSessionStateSnapshot,
 ): SimulationTradeOutcome {
   const executed = classification === "executed_unchanged";
   return Object.freeze({
@@ -307,6 +340,7 @@ export function executeCounterfactualSimulation(
   const simulatedRows: AnalyticalRow[] = [];
   const sessions = new Map<string, MutableSessionState>();
   const rules = [...plan.value.rules];
+  const stateDependencies = plan.value.stateDependencies;
   const lossRule = rules.find(
     (rule): rule is Extract<
       CounterfactualRule,
@@ -318,8 +352,12 @@ export function executeCounterfactualSimulation(
     let state = sessions.get(key);
     if (state === undefined) {
       state = {
-        executedTradeCount: BigInt(0),
-        completedLossStreak: BigInt(0),
+        executedTradeCount: stateDependencies.executedEntryCount
+          ? BigInt(0)
+          : null,
+        completedLossStreak: stateDependencies.completedLossStreak
+          ? BigInt(0)
+          : null,
         stoppedByRuleId: null,
         executedRows: [],
         processedCompletionKeys: new Set(),
@@ -327,7 +365,7 @@ export function executeCounterfactualSimulation(
       sessions.set(key, state);
     }
     if (!includedKeys.has(row.semanticRoundTripKey)) {
-      const current = snapshot(state);
+      const current = snapshot(state, stateDependencies);
       outcomes.push(tradeOutcome(
         row,
         "excluded_source_filter",
@@ -338,9 +376,15 @@ export function executeCounterfactualSimulation(
       ));
       continue;
     }
-    const completions = applyCompletions(state, row.firstEntryAt, lossRule);
-    if (!completions.ok) return completions;
-    const before = snapshot(state);
+    if (stateDependencies.completedRealizedOutcome) {
+      const completions = applyCompletions(
+        state,
+        row.firstEntryAt,
+        lossRule,
+      );
+      if (!completions.ok) return completions;
+    }
+    const before = snapshot(state, stateDependencies);
     let classification: SimulationClassification = "executed_unchanged";
     let responsibleRuleId: string | null = null;
     let reasonCode = "ti_v3_simulation_executed_unchanged";
@@ -356,6 +400,7 @@ export function executeCounterfactualSimulation(
       }
       if (
         rule.kind === "maximum_trades_per_day" &&
+        state.executedTradeCount !== null &&
         state.executedTradeCount >= BigInt(rule.maximumTrades)
       ) {
         classification = "skipped_by_rule";
@@ -374,8 +419,12 @@ export function executeCounterfactualSimulation(
       }
     }
     if (classification === "executed_unchanged") {
-      state.executedTradeCount += BigInt(1);
-      state.executedRows.push(row);
+      if (state.executedTradeCount !== null) {
+        state.executedTradeCount += BigInt(1);
+      }
+      if (stateDependencies.completedRealizedOutcome) {
+        state.executedRows.push(row);
+      }
       simulatedRows.push(row);
     }
     outcomes.push(tradeOutcome(
@@ -384,7 +433,7 @@ export function executeCounterfactualSimulation(
       responsibleRuleId,
       reasonCode,
       before,
-      snapshot(state),
+      snapshot(state, stateDependencies),
     ));
   }
   if (

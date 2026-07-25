@@ -10,6 +10,11 @@ import {
 } from "../../contracts";
 import type { TradeQueryAuthority, TradeQueryPlan } from "../../query/contracts";
 import { buildTradeQueryPlan, verifyTradeQueryPlan } from "../../query/contracts";
+import {
+  resolveCounterfactualRuleStateDependencies,
+  RULE_STATE_DEPENDENCY_POLICY_VERSION,
+  type RuleStateDependencies,
+} from "./rule-state-dependencies";
 
 export const COUNTERFACTUAL_SIMULATION_PLAN_VERSION =
   "ti_v3_counterfactual_simulation_plan_v1" as const;
@@ -54,6 +59,7 @@ export interface CounterfactualSimulationPlan {
   readonly semanticVersion: typeof COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION;
   readonly sourceQueryPlan: TradeQueryPlan;
   readonly rules: readonly CounterfactualRule[];
+  readonly stateDependencies: RuleStateDependencies;
   readonly policies: Readonly<{
     readonly chronologicalOrder:
       "entry_at_then_exit_at_then_semantic_round_trip_key_v1";
@@ -68,6 +74,8 @@ export interface CounterfactualSimulationPlan {
       "strictly_completed_before_entry_fail_closed_mixed_completion_v1";
     readonly missingDataPolicy: "fail_closed_or_classify_unavailable_v1";
     readonly limitationsPolicy: "historical_in_sample_not_future_edge_v1";
+    readonly stateDependencyPolicy:
+      typeof RULE_STATE_DEPENDENCY_POLICY_VERSION;
   }>;
   readonly limits: Readonly<{
     readonly sourceRowLimit: string;
@@ -81,7 +89,7 @@ export interface CounterfactualSimulationPlan {
 
 export type CounterfactualSimulationPlanInput = Omit<
   CounterfactualSimulationPlan,
-  "sourceQueryPlan" | "rules" | "planDigest"
+  "sourceQueryPlan" | "rules" | "stateDependencies" | "planDigest"
 > & {
   readonly sourceQueryPlan: unknown;
   readonly rules: readonly unknown[];
@@ -102,6 +110,7 @@ export const COUNTERFACTUAL_SIMULATION_POLICIES =
       "strictly_completed_before_entry_fail_closed_mixed_completion_v1",
     missingDataPolicy: "fail_closed_or_classify_unavailable_v1",
     limitationsPolicy: "historical_in_sample_not_future_edge_v1",
+    stateDependencyPolicy: RULE_STATE_DEPENDENCY_POLICY_VERSION,
   });
 
 function invalid(path: string): ExactResult<never, AnalyticalContractFailure> {
@@ -237,8 +246,10 @@ function normalize(
 ): ExactResult<CounterfactualSimulationPlan, AnalyticalContractFailure> {
   const record = validateContractRecord(input, [
     "schemaVersion", "semanticVersion", "sourceQueryPlan", "rules",
+    ...(persisted ? ["stateDependencies"] : []),
     "policies", "limits",
-  ], persisted ? ["planDigest"] : []);
+    ...(persisted ? ["planDigest"] : []),
+  ]);
   if (!record.ok) return record;
   if (
     record.value.schemaVersion !== COUNTERFACTUAL_SIMULATION_PLAN_VERSION ||
@@ -283,6 +294,7 @@ function normalize(
     "positionSizingPolicy", "chargesPolicy", "slippageLiquidityPolicy",
     "sessionResetPolicy", "timestampTiePolicy", "missingDataPolicy",
     "limitationsPolicy",
+    "stateDependencyPolicy",
   ], [], "$.policies");
   if (!policies.ok) return policies;
   for (const [key, value] of Object.entries(COUNTERFACTUAL_SIMULATION_POLICIES)) {
@@ -334,6 +346,29 @@ function normalize(
     BigInt(normalizedLimits.affectedTradeLimit.value) <
     BigInt(normalizedLimits.sourceRowLimit.value)
   ) return invalid("$.limits.affectedTradeLimit");
+  const stateDependencies = resolveCounterfactualRuleStateDependencies(rules);
+  if (persisted) {
+    const suppliedDependencies = validateContractRecord(
+      record.value.stateDependencies,
+      [
+        "policyVersion", "executedEntryCount", "completedRealizedOutcome",
+        "completedLossStreak", "realizedDailyPnl",
+        "priorCompletionTimestamp", "tickerAttemptState", "entryTimeCutoff",
+        "sizeAuthority", "sessionStopState",
+      ],
+      [],
+      "$.stateDependencies",
+    );
+    if (!suppliedDependencies.ok) return suppliedDependencies;
+    for (const [key, value] of Object.entries(stateDependencies)) {
+      if (suppliedDependencies.value[key] !== value) {
+        return contractFailure(
+          "ti_v3_analytics_contract_reference_mismatch",
+          `$.stateDependencies.${key}`,
+        );
+      }
+    }
+  }
   const addressed = finalizeContentAddressedAuthority(
     "counterfactual_simulation_plan",
     {
@@ -342,6 +377,7 @@ function normalize(
       sourceQueryPlan: sourceQueryPlan.value,
       rules: Object.freeze([...rules].sort((left, right) =>
         BigInt(left.precedence) < BigInt(right.precedence) ? -1 : 1)),
+      stateDependencies,
       policies: COUNTERFACTUAL_SIMULATION_POLICIES,
       limits: Object.freeze({
         sourceRowLimit: normalizedLimits.sourceRowLimit.value,

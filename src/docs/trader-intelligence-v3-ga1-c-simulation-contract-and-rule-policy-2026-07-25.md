@@ -7,6 +7,7 @@
 - the complete accepted GA1-A source query plan and its owner/account/currency,
   timezone/date-basis, filters, dataset, derivation, and partition authority;
 - ordered governed rules with unique identity and precedence;
+- the derived, versioned state-dependency union for those rules;
 - observed-entry, preserve-or-exclude, observed-size, observed-charge, no-fill-
   invention, reset, timestamp-tie, missing-data, and limitation policies;
 - source-row, affected-trade, session, evidence, and diagnostic bounds;
@@ -16,6 +17,35 @@ Unknown fields, accessors, class instances, non-plain or polluted objects,
 foreign authority, noncanonical counts, zero/negative thresholds, duplicate
 identity, duplicate precedence, contradictory direction rules, unsupported
 policies, max-plus-one, and altered persisted digests fail closed.
+
+## Dependency-driven state policy
+
+The centralized `ti_v3_rule_state_dependency_policy_v1` declaration covers:
+
+- executed simulated-entry count;
+- completed realized outcome;
+- completed-loss streak;
+- realized daily P/L;
+- prior completion timestamp;
+- ticker-attempt state;
+- entry-time cutoff;
+- size authority;
+- session-stop state.
+
+The current direction rule activates none of those state families. The
+maximum-trades rule activates only executed-entry count. The consecutive-loss
+rule activates completed outcome, loss streak, prior completion timestamp, and
+session-stop state.
+
+The resolver unions declarations independently of caller order and stores that
+union in the content-addressed plan. Persisted plans must carry the exact
+reconstructed union. Rules remain plain data; the plan accepts no callbacks,
+executable code, or caller-declared dependency escalation.
+
+Future realized-P/L rules will activate exact realized-daily-P/L state. Future
+cooldown rules will activate prior-completion timestamp state. Future ticker,
+time-cutoff, and sizing rules will activate only their respective state
+families. Adding one family does not initialize every other family.
 
 ## Checkpoint-one outcome contract
 
@@ -33,6 +63,10 @@ Each emitted row binds the source trade key, responsible rule, reason code,
 actual and simulated net P/L, size authority, execution/occurrence references,
 session state before/after, and limitations.
 
+Session snapshots distinguish `evaluated` values from `not_evaluated` nulls and
+bind the dependency-policy version. An inactive loss streak is never presented
+as an evaluated zero.
+
 Source candidates that never became analytical rows remain counted as
 unavailable source authority; no trade identity or economics are fabricated for
 them.
@@ -48,7 +82,9 @@ them.
 - threshold trade: retained;
 - later entries: session-stopped;
 - reset: verified canonical session partition;
-- simultaneous mixed outcomes: fail closed.
+- simultaneous mixed outcomes: fail closed when order can change active state;
+- simultaneous all-loss, all-flat, or all-gain outcomes: accepted when their
+  order is economically equivalent for the active loss-streak rule.
 
 ### Maximum trades per day
 
@@ -57,6 +93,7 @@ them.
 - excluded/stopped/filter-excluded trades do not consume a slot;
 - reset: verified canonical session partition;
 - boundary: the first candidate after the count equals the maximum is skipped.
+- completed outcomes and loss streaks are not processed.
 
 ### Direction only
 
@@ -64,6 +101,7 @@ them.
 - comparison: accepted reconstructed-trade direction;
 - matching trades preserve observed economics;
 - nonmatching trades are excluded without changing later state.
+- completed outcomes, entry counts, and loss streaks are not processed.
 
 ## Representative governed presets
 

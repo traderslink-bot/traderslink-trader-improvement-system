@@ -238,3 +238,75 @@ export function buildSyntheticQueryFixture(
     }),
   });
 }
+
+export function buildSyntheticQueryFixtureFromRows(
+  rowsInput: readonly AnalyticalRow[],
+  reverseRows = false,
+): SyntheticQueryFixture {
+  const base = baseDataset();
+  const dataset = buildAnalyticalDatasetReceipt({
+    schemaVersion: base.schemaVersion,
+    snapshotDigest: base.snapshotDigest,
+    manifestDigest: base.manifestDigest,
+    filterDigest: base.filterDigest,
+    analysisCutoffAt: base.analysisCutoffAt,
+    correctionCutoffAt: base.correctionCutoffAt,
+    correctionResultDigest: base.correctionResultDigest,
+    eligibilitySetDigest: base.eligibilitySetDigest,
+    retrospectivePolicyDigest: base.retrospectivePolicyDigest,
+    evidenceNamespace: base.evidenceNamespace,
+    occurrenceInventoryDigest: base.occurrenceInventoryDigest,
+    roundTripInventoryDigest: base.roundTripInventoryDigest,
+    adapterKey: base.adapterKey,
+    adapterVersion: base.adapterVersion,
+    derivationPolicyKey: base.derivationPolicyKey,
+    derivationPolicyVersion: base.derivationPolicyVersion,
+    rows: reverseRows ? [...rowsInput].reverse() : rowsInput,
+    excludedCandidates: [],
+    limitations: [],
+  });
+  if (!dataset.ok) throw new Error(`${dataset.error.code}:${dataset.error.path}`);
+  const derived = buildVerifiedAnalyticalDatasetDerivation(dataset.value);
+  if (!derived.ok) throw new Error(`${derived.error.code}:${derived.error.path}`);
+  const partition = buildAnalyticalPartitionReceipt({
+    schemaVersion: "ti_v3_analytical_partition_v1",
+    datasetReceipt: derived.value.datasetReceipt,
+    currency: "USD",
+  });
+  if (!partition.ok) throw new Error(`${partition.error.code}:${partition.error.path}`);
+  const authority = Object.freeze({
+    datasetReceipt: derived.value.datasetReceipt,
+    datasetDerivationReceipt: derived.value.derivationReceipt,
+    partitionReceipt: partition.value,
+  });
+  return Object.freeze({
+    source: createInMemoryVerifiedTradeQueryDatasetSource(derived.value),
+    derived: derived.value,
+    partition: partition.value,
+    authority,
+    plan: (options: SyntheticQueryPlanOptions = {}) => ({
+      schemaVersion: TRADE_QUERY_PLAN_VERSION,
+      queryPlanKey: TRADE_QUERY_PLAN_KEY,
+      queryPlanVersion: TRADE_QUERY_PLAN_SEMANTIC_VERSION,
+      authority: tradeQueryAuthorityInput(authority),
+      filters: options.filters ?? [],
+      grouping: options.grouping ?? { kind: "aggregate" },
+      metrics: options.metrics ?? [
+        "candidate_count", "included_count", "excluded_count",
+        "win_count", "loss_count", "flat_count", "gross_pnl", "signed_charges",
+        "net_pnl", "average_pnl", "median_pnl", "expectancy", "win_rate",
+      ],
+      ordering: options.ordering ?? [
+        { by: "group_identity", metricKey: null, direction: "ascending" },
+      ],
+      limits: {
+        groupLimit: options.limits?.groupLimit ?? "64",
+        resultRowLimit: options.limits?.resultRowLimit ?? "64",
+        evidencePerGroup: options.limits?.evidencePerGroup ?? "4",
+        totalEvidenceLimit: options.limits?.totalEvidenceLimit ?? "128",
+        diagnosticLimit: options.limits?.diagnosticLimit ?? "16",
+      },
+      policies: TRADE_QUERY_POLICY,
+    }),
+  });
+}
