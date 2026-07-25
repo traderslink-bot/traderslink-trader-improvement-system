@@ -14,7 +14,7 @@ const files = [
   "src/lib/trader-intelligence-v3/__tests__/ga1-b/similarity-result-verification-replay.test.ts",
 ];
 const args = scaleOnly
-  ? [vitest, "run", "src/lib/trader-intelligence-v3/__tests__/ga1-b/ga1-b-scale.test.ts", "--reporter=dot", "--maxWorkers=1", "--pool=forks", "--no-file-parallelism"]
+  ? [resolve("node_modules/tsx/dist/cli.mjs"), "src/scripts/verify-trader-intelligence-v3-ga1-b-scale.ts"]
   : [vitest, "run", ...files, "--reporter=dot", "--maxWorkers=1", "--pool=forks", "--no-file-parallelism"];
 const result = spawnSync(node, args, { stdio: "inherit", shell: false, env: scaleOnly ? { ...process.env, TI_V3_GA1_B_SCALE_PROOF: "1" } : process.env });
 if (result.error !== undefined || result.status !== 0) { process.stderr.write(`GA1-B verifier failed; status=${result.status ?? "environmental_error"}\n`); process.exit(result.status === null ? 2 : result.status || 1); }

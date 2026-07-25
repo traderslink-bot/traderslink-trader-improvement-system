@@ -38,6 +38,23 @@
   registry warning). The required scale command again captured only Vitest
   startup without a terminal result, so scale status remains unconfirmed.
 
+# 2026-07-25 - GA1-B governed scale observability
+
+- Continued from `bab110bdd5520f212ce43c47c13fff72e73ee895` with clean branch
+  state and draft PR #161. Replaced the scale-only forked Vitest harness with
+  a direct single-process runner that invokes the real fixture, GA1-A query,
+  evidence, similarity, and all ten presets, writing bounded stage/preset
+  JSON records with elapsed time and process memory.
+- The 30-row diagnostic captured every required stage and all ten preset
+  completions in 4,827 ms. The final 10,000-row command captured
+  `fixture_construction_started` at 0 ms (RSS 149,712,896; heap used
+  38,581,232) but the terminal transport terminated before fixture completion
+  or a process exit result. This is an environmental failure during fixture
+  construction, not a passing scale proof and not a contract failure.
+- Resume point: use an execution environment that permits the 10,000-row
+  fixture to finish and capture the direct runner's final exit code; do not
+  weaken the proof or skip stages.
+
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
   #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;
