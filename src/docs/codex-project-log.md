@@ -1,5 +1,17 @@
 # 2026-07-25 - GA1-B final closure checkpoint
 
+- Independent audit accepted final executable checkpoint
+  `6ccdd2c65bf762f88ba5e34957705775e96c2825` from GA1-A base
+  `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`. The audit reviewed direct
+  authority reuse, evidence, similarity verification/replay, all ten presets,
+  bounded sequence and repeat-attempt groupings, read-only boundaries, focused
+  adversarial/permutation coverage, and retained scale evidence.
+- Actions run `30174770237`, job `89721665460`, and its non-sensitive stage
+  artifact confirm the fixed 10,000-row proof completed every stage and preset
+  through `scale_run_completion` in 215,139 ms with conclusion `success`.
+- PR #161 remains draft/open/unmerged/undeployed. It may be marked ready and
+  merged only by a separate owner decision; no GA1-C work was started.
+
 - Final executable authority is `6ccdd2c65bf762f88ba5e34957705775e96c2825`
   on draft PR #161, from accepted GA1-A base
   `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`.
