@@ -257,7 +257,7 @@ describe("GA0-B3 ambiguous-session exclusion and exact population accounting", (
       expect(evidence?.populationState).toBe("empty_included");
       expect(evidence?.candidateKeys).toEqual([]);
       const persisted = JSON.parse(JSON.stringify(fixture.result.value));
-      const empty = persisted.evidenceBundles.find((bundle: any) => bundle.bundleDigest === aggregate?.rows[0]?.evidenceBundleDigest);
+      const empty = persisted.evidenceBundles.find((bundle: { readonly bundleDigest: string }) => bundle.bundleDigest === aggregate?.rows[0]?.evidenceBundleDigest);
       empty.candidateKeys = [fixture.derived.datasetReceipt.rows[0]?.semanticRoundTripKey ?? "missing"];
       expect(rehydrateDailyStopAnalysisExecution(persisted, createSyntheticInMemoryReadOnlySource(fixture.authority)).ok).toBe(false);
     }
@@ -333,7 +333,7 @@ describe("GA0-B3 sample-state and claim authority", () => {
     const simulation = execution.evidenceBundles.find((bundle) => bundle.bundleDigest === classification?.evidenceBundleDigest);
     expect(simulation?.simulationAuthority).toMatchObject({ kind: "daily_stop_simulation_v1", triggerCandidateKey: expect.any(String), stopAt: expect.any(String) });
     const persisted = JSON.parse(JSON.stringify(execution));
-    const persistedSimulation = persisted.evidenceBundles.find((bundle: any) => bundle.bundleDigest === classification?.evidenceBundleDigest);
+    const persistedSimulation = persisted.evidenceBundles.find((bundle: { readonly bundleDigest: string }) => bundle.bundleDigest === classification?.evidenceBundleDigest);
     persistedSimulation.simulationAuthority.removedCandidateKeys = persistedSimulation.simulationAuthority.actualCandidateKeys;
     expect(rehydrateDailyStopAnalysisExecution(persisted, createSyntheticInMemoryReadOnlySource(fixture.authority)).ok).toBe(false);
   });
@@ -379,14 +379,14 @@ describe("GA0-B3 sample-state and claim authority", () => {
     expect(buildValidatedClaim(buildInput(validAuthority)).ok).toBe(true);
     expect(verifyValidatedClaim(claim, execution.runContext, table, execution.evidenceBundles, execution.tables)).toMatchObject({ ok: true });
     for (const mutate of [
-      (authority: any) => { authority.sourceColumnKey = "actual_trade_count"; },
-      (authority: any) => { authority.sourceRowKey = "foreign"; },
-      (authority: any) => { authority.aggregateTableDigest = "ti_v3:exact_table:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000"; },
-      (authority: any) => { authority.thresholdReachedSessionCount = "999"; },
-      (authority: any) => { authority.thresholdReachedSessionRowKeys = ["foreign"]; },
-      (authority: any) => { authority.thresholdReachedSessionRowKeys = [nonThresholdRowKey]; },
-      (authority: any) => { authority.thresholdReachedSessionRowKeys = [validAuthority.thresholdReachedSessionRowKeys[0], validAuthority.thresholdReachedSessionRowKeys[0]]; },
-      (authority: any) => { authority.policyKey = "foreign_policy"; },
+      (authority: Record<string, unknown>) => { authority.sourceColumnKey = "actual_trade_count"; },
+      (authority: Record<string, unknown>) => { authority.sourceRowKey = "foreign"; },
+      (authority: Record<string, unknown>) => { authority.aggregateTableDigest = "ti_v3:exact_table:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000"; },
+      (authority: Record<string, unknown>) => { authority.thresholdReachedSessionCount = "999"; },
+      (authority: Record<string, unknown>) => { authority.thresholdReachedSessionRowKeys = ["foreign"]; },
+      (authority: Record<string, unknown>) => { authority.thresholdReachedSessionRowKeys = [nonThresholdRowKey]; },
+      (authority: Record<string, unknown>) => { authority.thresholdReachedSessionRowKeys = [validAuthority.thresholdReachedSessionRowKeys[0], validAuthority.thresholdReachedSessionRowKeys[0]]; },
+      (authority: Record<string, unknown>) => { authority.policyKey = "foreign_policy"; },
     ]) {
       const candidate = JSON.parse(JSON.stringify(validAuthority));
       mutate(candidate);
@@ -605,10 +605,10 @@ describe("GA0-B3 artifact graph, reference differential, and semantic replay", (
     const persisted = JSON.parse(JSON.stringify(fixture.result.value));
     expect(rehydrateDailyStopAnalysisExecution(persisted, createSyntheticInMemoryReadOnlySource(fixture.authority))).toMatchObject({ ok: true });
     for (const mutate of [
-      (value: any) => { value.tables[0].rows[0].cells[0].metric.value = "2099-01-01"; },
-      (value: any) => { value.executionAuthority.toolKey = "weekday_analysis"; },
-      (value: any) => { value.normalizedArguments.values.consecutiveLossThreshold = "1"; },
-      (value: any) => { value.tables.reverse(); },
+      (value: { tables: Array<{ rows: Array<{ cells: Array<{ metric: { value: string } }> }> }>; executionAuthority: { toolKey: string }; normalizedArguments: { values: { consecutiveLossThreshold: string } } }) => { value.tables[0].rows[0].cells[0].metric.value = "2099-01-01"; },
+      (value: { executionAuthority: { toolKey: string } }) => { value.executionAuthority.toolKey = "weekday_analysis"; },
+      (value: { normalizedArguments: { values: { consecutiveLossThreshold: string } } }) => { value.normalizedArguments.values.consecutiveLossThreshold = "1"; },
+      (value: { tables: Array<unknown> }) => { value.tables.reverse(); },
     ]) {
       const candidate = JSON.parse(JSON.stringify(persisted));
       mutate(candidate);

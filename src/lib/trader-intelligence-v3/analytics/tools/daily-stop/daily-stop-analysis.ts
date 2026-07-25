@@ -35,7 +35,6 @@ import {
   verifyAnalyticalPartitionReceipt,
   type AnalyticalDatasetReceipt,
   type AnalyticalPartitionReceipt,
-  type AnalyticalRow,
 } from "../../dataset";
 import type { NormalizedAnalysisArguments, ToolRegistryEntry } from "../../registry";
 import { isClaimNeutralAnalyticalExclusion } from "../../dataset/analytical-dataset";
@@ -55,7 +54,6 @@ import {
 } from "./daily-stop-exact-math";
 import {
   DAILY_STOP_LIMITATION_CODES,
-  DAILY_STOP_POLICY,
   DAILY_STOP_SAMPLE_STATES,
   buildDailyStopToolRegistryEntry,
   dailyStopSampleState,
@@ -414,8 +412,6 @@ function aggregateRow(
     ...globalLimitations,
     ...(outlierSensitive ? [DAILY_STOP_LIMITATION_CODES.outlierSensitive] : []),
   ]);
-  const noHelped = bestHelped === null;
-  const noHarmed = worstHarmed === null;
   const money = (key: string, value: string | null, reason: string): ExactMetricValue => optionalMoneyMetric(key, currency, value, reason);
   const includedPopulationAvailable = decisions.length > 0;
   const aggregateMoney = (key: string, value: string): ExactMetricValue => includedPopulationAvailable
