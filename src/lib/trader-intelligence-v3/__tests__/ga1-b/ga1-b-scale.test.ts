@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildSyntheticQueryFixture,
+  buildSimilarTradeSearchPlan,
   GA1_B_PRESET_KEYS,
   compileGa1BPreset,
   executeGa1BPreset,
@@ -20,7 +21,21 @@ describe.skipIf(!enabled)("GA1-B fixed-seed 10,000-row scale proof", () => {
     if (!aggregate.ok) return;
     const evidence = retrieveTradeQueryEvidence({ source: fixture.source, partitionReceipt: fixture.partition, result: aggregate.value, request: { target: { kind: "result" }, maximumTrades: "128", maximumExecutions: "512" } });
     expect(evidence).toMatchObject({ ok: true });
-    const search = searchSimilarTrades({ source: fixture.source, partitionReceipt: fixture.partition, result: aggregate.value, request: { targetTradeKey: fixture.derived.datasetReceipt.rows[0].semanticRoundTripKey, dimensions: ["direction", "symbol"], filters: [], includeNearMisses: true, maximumMatches: "128", maximumNearMisses: "128" } });
+    const searchPlan = buildSimilarTradeSearchPlan({
+      targetTradeKey: fixture.derived.datasetReceipt.rows[0].semanticRoundTripKey,
+      dimensions: ["direction", "symbol"],
+      policies: [
+        { dimension: "direction", policyKey: "exact_identity", policyVersion: "v1" },
+        { dimension: "symbol", policyKey: "exact_identity", policyVersion: "v1" },
+      ],
+      filters: [],
+      includeNearMisses: true,
+      maximumMatches: "128",
+      maximumNearMisses: "128",
+    }, fixture.authority, aggregate.value.resultDigest);
+    expect(searchPlan).toMatchObject({ ok: true });
+    if (!searchPlan.ok) return;
+    const search = searchSimilarTrades({ source: fixture.source, partitionReceipt: fixture.partition, result: aggregate.value, plan: searchPlan.value });
     expect(search).toMatchObject({ ok: true });
     for (const presetKey of GA1_B_PRESET_KEYS) {
       const compiled = compileGa1BPreset({ presetKey, authority: fixture.authority, baselineFilters: presetKey === "compare_periods" ? [{ kind: "weekday", values: ["monday"] }] : undefined });

@@ -1,3 +1,30 @@
+# 2026-07-25 - GA1-B similarity policy remediation active
+
+- Continued the existing branch
+  `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
+  #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;
+  all pre-existing unstaged remediation work was preserved.
+- The current slice strictly validates one compatible plain-data policy per
+  requested similarity dimension and evaluates exact identity, exact numeric,
+  canonical bucket, inclusive range, absolute exact distance, and normalized
+  entry-time bucket policies with exact arithmetic and complete deterministic
+  explanations.
+- Similarity results now bind the complete verified plan, upstream dataset and
+  partition authority, unbounded and emitted counts, ordered inventories,
+  exact summary metrics, evidence references, and stable limitations. Closed
+  transported-result verification rebuilds the search and returns only the
+  rebuilt artifact; persisted replay reruns the same authority path and emits
+  stage-specific mismatch diagnostics.
+- Focused similarity tests, adversarial verification/replay tests, and
+  TypeScript pass. The explicitly enabled
+  10,000-row test passed its evidence and similarity assertions, then failed in
+  the later preset-execution loop; preset remediation is outside this slice.
+- Resume point after the executable checkpoint: independently review the
+  complete similarity policy, result-verification, and replay diff. Keep PR
+  #161 draft/open/unmerged and do not begin preset authority/execution,
+  `compare_periods`, importer/calibration, final scale remediation, CI wiring,
+  GA1-C, UI/AI, candle work, deployment, or final handoff.
+
 # 2026-07-25 - GA1-A generic deterministic query gateway active
 
 - Started from accepted `main` at

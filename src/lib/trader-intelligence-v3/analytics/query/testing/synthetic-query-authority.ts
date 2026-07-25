@@ -85,6 +85,11 @@ export interface SyntheticQueryFixture {
   readonly plan: (options?: SyntheticQueryPlanOptions) => SyntheticRawQueryPlan;
 }
 
+export interface SyntheticQueryFixtureAvailabilityOptions {
+  readonly unavailableShareQuantityIndices?: readonly number[];
+  readonly unavailableEntryNotionalIndices?: readonly number[];
+}
+
 function baseDataset() {
   if (cachedBaseDataset !== undefined) return cachedBaseDataset;
   const authority = buildSyntheticGa0B1Authority();
@@ -144,9 +149,27 @@ function buildRows(count: number): readonly AnalyticalRow[] {
 export function buildSyntheticQueryFixture(
   count = 30,
   reverseRows = false,
+  availability: SyntheticQueryFixtureAvailabilityOptions = {},
 ): SyntheticQueryFixture {
   const base = baseDataset();
-  const rows = buildRows(count);
+  const unavailableQuantities = new Set(availability.unavailableShareQuantityIndices ?? []);
+  const unavailableNotionals = new Set(availability.unavailableEntryNotionalIndices ?? []);
+  const rows = buildRows(count).map((row, index) => {
+    if (!unavailableQuantities.has(index) && !unavailableNotionals.has(index)) return row;
+    const { rowDigest: _rowDigest, ...content } = row;
+    void _rowDigest;
+    const rebuilt = buildAnalyticalRow({
+      ...content,
+      shareQuantity: unavailableQuantities.has(index)
+        ? { state: "unavailable", reasonCode: "ti_v3_query_fixture_missing_quantity" }
+        : row.shareQuantity,
+      entryNotional: unavailableNotionals.has(index)
+        ? { state: "unavailable", reasonCode: "ti_v3_query_fixture_missing_notional" }
+        : row.entryNotional,
+    });
+    if (!rebuilt.ok) throw new Error(`${rebuilt.error.code}:${rebuilt.error.path}`);
+    return rebuilt.value;
+  });
   const dataset = buildAnalyticalDatasetReceipt({
     schemaVersion: base.schemaVersion,
     snapshotDigest: base.snapshotDigest,

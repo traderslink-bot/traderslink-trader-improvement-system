@@ -320,8 +320,8 @@ function requiredFieldsFor(key: TradeQueryMetricKey): readonly string[] {
   if (DIRECTION_KEYS.has(key)) add("direction");
   if (ATTEMPTS_PER_SYMBOL_KEYS.has(key)) add("stableInstrumentKey");
   if (REPEAT_ATTEMPT_KEYS.has(key)) {
-    add("stableInstrumentKey", "sessionDate", "firstEntryAt", "semanticRoundTripKey");
-    add("canonicalOwnerKey", "canonicalAccountKey", "currency");
+    add("stableInstrumentKey", "sessionDate", "firstEntryAt", "finalExitAt", "semanticRoundTripKey");
+    add("canonicalOwnerKey", "canonicalAccountKey", "currency", "timezone", "dateBasis");
   }
   if (SECOND_KEYS.has(key)) add("firstEntryAt", "finalExitAt");
   if (SHARE_KEYS.has(key) || key === "net_pnl_per_100_shares") {

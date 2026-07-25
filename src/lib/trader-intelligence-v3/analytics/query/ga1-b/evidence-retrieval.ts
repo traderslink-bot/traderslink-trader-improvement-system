@@ -1,4 +1,4 @@
-import { compareUnicodeCodePoints } from "../../../domain/canonical";
+import { compareUnicodeCodePoints, serializeCanonicalValue } from "../../../domain/canonical";
 import type { CanonicalContentDigest } from "../../../domain/identity";
 import {
   contractFailure,
@@ -14,6 +14,7 @@ import { isVerifiedTradeQueryExecution } from "../execution/verified-execution";
 import { TRADE_QUERY_METRIC_REGISTRY } from "../metrics";
 import {
   verifyTradeQueryResultShape,
+  verifyTradeQueryComparison,
   type TradeQueryComparison,
   type TradeQueryResult,
 } from "../contracts";
@@ -102,11 +103,13 @@ function selectedRows(
 function toTrade(
   semantic: QueryRowSemantics,
   result: TradeQueryResult,
-  rows: readonly QueryRowSemantics[],
+  includedRows: readonly QueryRowSemantics[],
 ): TradeQueryEvidenceTrade {
   const evidenceCandidates = result.evidence.flatMap((evidence) => evidence.candidates)
     .filter((candidate) => candidate.semanticRoundTripKey === semantic.row.semanticRoundTripKey);
-  const roles = new Set<TradeQueryEvidenceTrade["roles"][number]>(["included"]);
+  const included = includedRows.some((item) => item.row.semanticRoundTripKey === semantic.row.semanticRoundTripKey);
+  const roles = new Set<TradeQueryEvidenceTrade["roles"][number]>();
+  if (included) roles.add("included");
   for (const candidate of evidenceCandidates) roles.add(candidate.role);
   return Object.freeze({
     semanticRoundTripKey: semantic.row.semanticRoundTripKey,
@@ -114,10 +117,12 @@ function toTrade(
     executionDigests: Object.freeze([...semantic.row.supportingExecutionDigests]),
     occurrenceKeys: Object.freeze([...semantic.row.supportingOccurrenceKeys]),
     groupIdentity: tradeQueryGroupAssignment(semantic, result.normalizedQueryPlan.grouping).groupIdentity,
-    inclusionState: rows.some((item) => item.row.semanticRoundTripKey === semantic.row.semanticRoundTripKey)
-      ? "included" : "filter_excluded",
+    inclusionState: included ? "included" : "filter_excluded",
     roles: Object.freeze([...roles].sort(compareUnicodeCodePoints)),
-    exclusionReasonCodes: Object.freeze([]),
+    exclusionReasonCodes: Object.freeze(included ? [] : result.normalizedQueryPlan.filters
+      .filter((filter) => applyTradeQueryFilters([semantic], [filter]).excluded.length === 1)
+      .map((filter) => `ti_v3_query_filter_excluded_${filter.kind}`)
+      .sort(compareUnicodeCodePoints)),
     limitationCodes: Object.freeze([...semantic.row.limitationCodes].sort(compareUnicodeCodePoints)),
   });
 }
@@ -126,7 +131,7 @@ export function retrieveTradeQueryEvidence(args: Readonly<{
   readonly source: VerifiedTradeQueryDatasetSource;
   readonly partitionReceipt: AnalyticalPartitionReceipt;
   readonly result: unknown;
-  readonly comparison?: TradeQueryComparison | null;
+  readonly comparison?: Readonly<{ readonly comparison: unknown; readonly targetResult: unknown; readonly baselineResult: unknown }> | null;
   readonly request: TradeQueryEvidenceRetrievalRequest;
 }>): { readonly ok: true; readonly value: TradeQueryEvidenceRetrieval } | {
   readonly ok: false; readonly error: AnalyticalContractFailure;
@@ -142,10 +147,11 @@ export function retrieveTradeQueryEvidence(args: Readonly<{
   if (!result.ok || !isVerifiedTradeQueryExecution(args.result)) {
     return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.result");
   }
-  if (args.comparison !== undefined && args.comparison !== null &&
-    (args.comparison.targetResultDigest !== result.value.resultDigest && args.comparison.baselineResultDigest !== result.value.resultDigest)) {
-    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.comparison");
-  }
+  const comparison = args.comparison === undefined || args.comparison === null ? null : verifyTradeQueryComparison(
+    args.comparison.comparison, args.comparison.targetResult, args.comparison.baselineResult, gateway.value.authority,
+  );
+  if (comparison !== null && !comparison.ok) return comparison;
+  if (comparison !== null && comparison.value.targetResultDigest !== result.value.resultDigest && comparison.value.baselineResultDigest !== result.value.resultDigest) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.comparison");
   const dataset = gateway.value.readBoundedRows(result.value.normalizedQueryPlan);
   if (!dataset.ok) return dataset;
   const semantics = buildQueryRowSemantics(dataset.value.rows);
@@ -167,7 +173,7 @@ export function retrieveTradeQueryEvidence(args: Readonly<{
     retrievalVersion: "v1",
     queryPlanDigest: result.value.normalizedQueryPlan.queryPlanDigest,
     resultDigest: result.value.resultDigest,
-    comparisonDigest: args.comparison?.comparisonDigest ?? null,
+    comparisonDigest: comparison?.value.comparisonDigest ?? null,
     datasetReceiptDigest: result.value.normalizedQueryPlan.authority.datasetReceiptDigest,
     datasetDerivationDigest: result.value.normalizedQueryPlan.authority.datasetDerivationDigest,
     partitionDigest: result.value.normalizedQueryPlan.authority.partitionDigest,
@@ -184,4 +190,19 @@ export function retrieveTradeQueryEvidence(args: Readonly<{
   return built.ok
     ? { ok: true, value: built.value as TradeQueryEvidenceRetrieval }
     : built;
+}
+
+export function verifyTradeQueryEvidenceRetrieval(
+  input: unknown,
+  args: Parameters<typeof retrieveTradeQueryEvidence>[0],
+): { readonly ok: true; readonly value: TradeQueryEvidenceRetrieval } | {
+  readonly ok: false; readonly error: AnalyticalContractFailure;
+} {
+  const rebuilt = retrieveTradeQueryEvidence(args);
+  if (!rebuilt.ok) return rebuilt;
+  const supplied = serializeCanonicalValue(input);
+  const accepted = serializeCanonicalValue(rebuilt.value);
+  return supplied.ok && accepted.ok && supplied.value.json === accepted.value.json
+    ? rebuilt
+    : contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.retrievalDigest");
 }
