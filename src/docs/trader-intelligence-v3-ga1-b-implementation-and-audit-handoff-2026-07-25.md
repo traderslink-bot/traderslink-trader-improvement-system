@@ -1,42 +1,43 @@
-# Trader Intelligence v3 GA1-B Implementation and Independent-Audit Handoff
+# Trader Intelligence v3 GA1-B Final Implementation and Audit Handoff
 
-**Starting commit:** `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`  
-**Executable commit:** `bdf62a222754de2e9aca356c238943cc43314d4b`  
-**Branch:** `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack`
+**Accepted GA1-A base:** `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`
+**Final executable checkpoint:** `6ccdd2c65bf762f88ba5e34957705775e96c2825`
+**Branch / draft PR:** `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` / #161
+
+## Checkpoint history
+
+- `bdf62a22`: original GA1-B evidence analytics foundation.
+- `ecda6b2c`, `1f902671`: similarity result verification/replay and policy-identity corrections.
+- `a922f67f`, `bab110bd`: runtime preset reconstruction, content-addressed execution artifacts, and adversarial authority coverage.
+- `10761cb7`: bounded `trade_sequence_bucket` preset correction.
+- `2ea1ef5c`, `3320aadc`, `a395c7c8`: direct scale observability and temporary pre-merge Actions trigger.
+- `6ccdd2c`: bounded `repeat_attempt_bucket` preset correction and final executable checkpoint.
 
 ## Delivered
 
-- GA1-A-bound evidence retrieval, deterministic similar-trade search, and
-  governed execution-only preset compilation/execution.
-- Ten presets, content-addressed GA1-B artifact domains, a read-only adapter,
-  a narrow literal metric-registry metadata correction, focused tests, and a
-  final-only scale verifier.
+- GA1-A-bound evidence retrieval; deterministic similar-trade search; verified
+  similarity result transport and replay; and complete explanations/evidence.
+- Ten governed execution-only presets, runtime reconstruction/verification,
+  exact comparison binding, and content-addressed preset execution artifacts.
+- Bounded v1 sequence and repeat-attempt groupings, while their raw generic
+  GA1-A groupings remain available outside governed preset authority.
+- Read-only application adapter and the narrow metric-registry metadata fix.
+- Focused verifier coverage plus the manual GitHub Actions governed scale
+  workflow and non-sensitive `ga1-b-governed-scale-stage-records` artifact.
 
-## Verification and corrections
+## Final verification
 
-The focused verifier passed 2 files / 11 tests. A guard found `Number` usage
-in limit parsing; it was replaced with `BigInt`, TypeScript passed, and the
-affected GA1-B test passed 6 tests. Architecture then passed. The 10,000-row
-scale and private-data guard processes completed but their terminal exit output
-was not captured, so both remain unconfirmed rather than reported as passing.
-No full repository, browser, build, deployment, or unrelated legacy suite was
-run.
+The focused GA1-B verifier and TypeScript passed. Targeted ESLint had no
+errors and retained the existing unused `REPEAT_KEYS` warning. `git diff
+--check` passed. GitHub Actions run `30174770237`, job `89721665460`, passed
+the fixed 10,000-row proof at `6ccdd2c` in 215,139 ms, through every stage and
+all ten presets, ending at `scale_run_completion`.
 
-## Private calibration
+## Private calibration and exclusions
 
-Blocked pending an existing verified importer/reconstruction-to-v3-snapshot
-bridge. The earlier private preflight remains aggregate-only and is not copied
-here. No raw private record, identifier, timestamp, symbol, quantity, price,
-or P/L value was read into repository artifacts.
+Private calibration remains blocked on the accepted importer/reconstruction to
+v3 snapshot bridge; no private rows or values were recorded. Full repository
+tests, browser/e2e, production build, deployment, merge, UI/AI, candles,
+market-data, importer work, simulation, and GA1-C are outside this handoff.
 
-## Required audit focus
-
-Review the new GA1-B contracts for strict unknown/foreign/re-digested artifact
-rejection, exact bounds, permutation stability, and validated comparison
-binding. Re-run the scale and private-data guard to obtain captured terminal
-results. Confirm no merge or deployment occurred.
-
-## Git status at handoff
-
-This handoff is Markdown-only. The requested PR must remain draft, open,
-unmerged, and undeployed; no review thread was replied to or resolved.
+PR #161 remains draft, open, unmerged, and undeployed.

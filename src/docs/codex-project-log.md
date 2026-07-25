@@ -1,3 +1,17 @@
+# 2026-07-25 - GA1-B final closure checkpoint
+
+- Final executable authority is `6ccdd2c65bf762f88ba5e34957705775e96c2825`
+  on draft PR #161, from accepted GA1-A base
+  `da5f40f5217f0c6501086c8fead55b3dd6ae4c6b`.
+- GitHub Actions governed proof run `30174770237`, job `89721665460`, passed
+  at that executable head in 215,139 ms. It completed fixture, aggregate,
+  evidence, similarity, all ten presets, and `scale_run_completion`; retained
+  artifact is `ga1-b-governed-scale-stage-records`.
+- Final handoff/ledger/audit prompt supersede the earlier original-checkpoint
+  and unconfirmed-scale notes. The temporary exact-branch Actions trigger was
+  removed; manual dispatch remains. Resume with independent audit only; do not
+  merge, deploy, or begin GA1-C.
+
 # 2026-07-25 - GA1-B similarity policy remediation active
 
 # 2026-07-25 - GA1-B preset authority remediation active

@@ -2,12 +2,9 @@ name: Trader Intelligence v3 GA1-B Governed Scale Proof
 
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, reopened, synchronize]
 
 jobs:
   governed-scale-proof:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack'
     name: GA1-B 10,000-row governed scale proof
     runs-on: ubuntu-latest
     timeout-minutes: 45
