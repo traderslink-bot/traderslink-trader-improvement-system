@@ -59,7 +59,10 @@ export type ContentIdentityDomain =
   | "trade_query_similarity_result"
   | "trade_query_similarity_replay"
   | "trade_query_preset"
-  | "trade_query_preset_execution";
+  | "trade_query_preset_execution"
+  | "counterfactual_simulation_plan"
+  | "counterfactual_simulation_preset"
+  | "counterfactual_simulation_result";
 
 declare const canonicalDigestBrand: unique symbol;
 declare const canonicalExecutionDigestBrand: unique symbol;

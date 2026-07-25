@@ -19145,3 +19145,28 @@ Current best next step:
   push one executable remediation commit and a later Markdown-only independent
   re-audit handoff. Keep PR #160 draft/open/unmerged/undeployed and do not
   begin GA1-B.
+# 2026-07-25 GA1-C counterfactual simulation first checkpoint in progress
+
+- Confirmed required base, local `main`, and `origin/main` at
+  `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`; fast-forwarded the separate clean
+  local-main worktree and created
+  `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`.
+- Reviewed the post-GA0-B direction lock, accepted GA0-B3 daily-stop semantics,
+  GA1-A query/gateway/metric authority, and GA1-B reuse boundary.
+- Added the strict content-addressed generic simulation plan and chronological
+  engine skeleton.
+- Added three representative governed preset families:
+  consecutive-loss session stop, maximum executed trades per day, and
+  direction-only exclusion.
+- The engine requires an executor-issued GA1-A result, reopens the accepted
+  read-only gateway, reuses GA1-A filters/row semantics/metrics, preserves exact
+  observed economics, and emits one classification per source analytical row.
+- Full result reconstruction/replay, the remaining preset pack, resize
+  authority, complete affected-population/evidence/outlier contracts, and the
+  final 10,000-row proof remain in the same GA1-C draft PR after checkpoint one.
+
+Current best next step:
+
+- Finish checkpoint-one focused and affected regression verification, publish
+  one coherent commit, push it, and open the required draft PR. Keep it draft,
+  open, unmerged, and undeployed for independent review.
