@@ -19167,6 +19167,7 @@ Current best next step:
 
 Current best next step:
 
-- Finish checkpoint-one focused and affected regression verification, publish
-  one coherent commit, push it, and open the required draft PR. Keep it draft,
-  open, unmerged, and undeployed for independent review.
+- Checkpoint one is published at executable commit `52f86bcc` in draft PR #162.
+  Keep the PR draft, open, unmerged, and undeployed while this architecture
+  checkpoint is independently reviewed; continue the remaining GA1-C pack in
+  the same PR only after that checkpoint boundary is accepted.

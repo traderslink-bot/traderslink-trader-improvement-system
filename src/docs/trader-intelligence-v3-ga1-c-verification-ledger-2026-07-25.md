@@ -4,6 +4,8 @@
 
 Base: `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`
 Branch: `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`
+Executable checkpoint: `52f86bcc8235aa7c52d251b1edbb0fd413dd5244`
+Draft PR: `#162`
 
 | Check | Result |
 | --- | --- |
@@ -23,4 +25,4 @@ Branch: `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`
 | deployment | not run |
 
 The final 10,000-row proof is intentionally reserved for the final executable
-checkpoint, as directed. Commit and CI identities are added when published.
+checkpoint, as directed. CI status is tracked on draft PR #162.

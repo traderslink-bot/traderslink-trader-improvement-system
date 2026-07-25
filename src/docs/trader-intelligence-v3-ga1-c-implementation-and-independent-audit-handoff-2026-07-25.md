@@ -7,6 +7,10 @@ execution-only chronological engine skeleton, exact actual-versus-simulated
 metrics, per-trade classifications, and three governed representative presets.
 It intentionally stops before implementing all fourteen presets.
 
+Executable checkpoint: `52f86bcc8235aa7c52d251b1edbb0fd413dd5244`
+
+Draft PR: `#162`
+
 ## Review focus
 
 Reviewers should concentrate on:
