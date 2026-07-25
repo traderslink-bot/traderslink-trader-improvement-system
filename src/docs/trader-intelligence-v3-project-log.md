@@ -14,10 +14,25 @@
 
 # Trader Intelligence v3 Project Log
 
+## 2026-07-25 - GA0-B3 final focused corrections active
+
+- The current independent re-audit findings head is
+  `063fb14c67adaa9a8f9269287e2aa0e33c7d3810`; work remains confined to the
+  existing branch and draft PR #156.
+- The executable correction narrows the 512-character key allowance to B3
+  candidate/simulation semantic arrays and makes B3 sample authority
+  content-addressed and verified against the run context, literal v1 source
+  tables, exact threshold-reached session row keys/count, and claim direction
+  and wording.
+- Exact next action: run final checks, push the executable correction and wait
+  for CI, then update the existing handoff as a later Markdown-only commit,
+  wait for docs CI, add the single required top-level PR handoff comment, and
+  stop. No merge, deployment, thread resolution, or GA0-B4.
+
 ## 2026-07-24 - GA0-B3 independent-audit remediation active
 
 - Independent audit findings head is
-  `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`; the verdict was accept with
+  `063fb14c67adaa9a8f9269287e2aa0e33c7d3810`; the verdict was accept with
   required fixes R1-R7.
 - The existing branch and draft PR #156 remain the only implementation
   surface. Ambiguous sessions are excluded from simulation, aggregate, claims,

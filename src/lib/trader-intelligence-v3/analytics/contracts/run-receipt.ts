@@ -90,7 +90,7 @@ export function buildAnalysisRunReceipt(
     const candidate = suppliedClaims[index];
     const table = tables.find((item) => item.tableDigest === candidate?.tableDigest);
     if (table === undefined) return contractFailure("ti_v3_analytics_contract_reference_mismatch", `$.claims[${index}].tableDigest`);
-    const verified = verifyValidatedClaim(candidate, context.value, table, evidence);
+    const verified = verifyValidatedClaim(candidate, context.value, table, evidence, tables);
     if (!verified.ok) return contractFailure(verified.error.code, `$.claims[${index}]${verified.error.path.slice(1)}`);
     claims.push(verified.value);
   }

@@ -1,6 +1,22 @@
+# 2026-07-25 - GA0-B3 final focused corrections active
+
+- Independent re-audit findings head is
+  `063fb14c67adaa9a8f9269287e2aa0e33c7d3810`. The existing branch and draft
+  PR #156 remain the only implementation surface.
+- Final corrections bind the explicit 512-character allowance only to B3
+  candidate/simulation semantic arrays while preserving 256-character
+  ordinary keys, and replace caller-nominal B3 sample metadata with a
+  content-addressed authority tied to verified session and aggregate tables,
+  exact threshold-reached row keys/count, run context, claim direction, and
+  allowed wording.
+- Resume point: complete final verification, push the executable correction and
+  observe CI, then update the existing final handoff Markdown-only and observe
+  its CI. Keep PR #156 draft/open/unmerged, leave audit threads untouched, do
+  not deploy, and do not begin GA0-B4.
+
 # 2026-07-24 - GA0-B3 independent-audit remediation active
 
-- Independent audit findings head `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`
+- Independent audit findings head `063fb14c67adaa9a8f9269287e2aa0e33c7d3810`
   accepted the B3 implementation with required fixes R1-R7.
 - Remediation is confined to the existing branch
   `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof` and draft PR #156.

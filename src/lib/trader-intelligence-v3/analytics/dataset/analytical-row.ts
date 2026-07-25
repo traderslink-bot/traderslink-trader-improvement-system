@@ -191,8 +191,7 @@ export function buildAnalyticalRow(
   const occurrences = validateKeyArray(
     record.value.supportingOccurrenceKeys,
     "$.supportingOccurrenceKeys",
-    1_000,
-    true,
+    { maximumItems: 1_000, preserveOrder: true },
   );
   if (!occurrences.ok) return occurrences;
   if (occurrences.value.length !== executions.value.length) {

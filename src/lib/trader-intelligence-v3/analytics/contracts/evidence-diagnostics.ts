@@ -103,7 +103,7 @@ export function buildAnalyticalEvidenceBundle(
       ? record.value.populationState
       : null;
   if (populationState === null) return contractFailure("ti_v3_analytics_contract_invalid", "$.populationState");
-  const candidateKeys = validateKeyArray(record.value.candidateKeys, "$.candidateKeys", 512);
+  const candidateKeys = validateKeyArray(record.value.candidateKeys, "$.candidateKeys", { maximumKeyLength: 512 });
   if (!candidateKeys.ok) return candidateKeys;
   if (candidateKeys.value.length === 0 && !(record.value.inclusionState === "included" && populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded)) {
     return contractFailure("ti_v3_analytics_contract_invalid", "$.candidateKeys");
@@ -170,9 +170,9 @@ export function buildAnalyticalEvidenceBundle(
     ], [], "$.simulationAuthority");
     if (!authority.ok) return authority;
     if (authority.value.kind !== "daily_stop_simulation_v1") return contractFailure("ti_v3_analytics_contract_invalid", "$.simulationAuthority.kind");
-    const actual = validateKeyArray(authority.value.actualCandidateKeys, "$.simulationAuthority.actualCandidateKeys", 512);
-    const retained = validateKeyArray(authority.value.retainedCandidateKeys, "$.simulationAuthority.retainedCandidateKeys", 512);
-    const removed = validateKeyArray(authority.value.removedCandidateKeys, "$.simulationAuthority.removedCandidateKeys", 512);
+    const actual = validateKeyArray(authority.value.actualCandidateKeys, "$.simulationAuthority.actualCandidateKeys", { maximumKeyLength: 512 });
+    const retained = validateKeyArray(authority.value.retainedCandidateKeys, "$.simulationAuthority.retainedCandidateKeys", { maximumKeyLength: 512 });
+    const removed = validateKeyArray(authority.value.removedCandidateKeys, "$.simulationAuthority.removedCandidateKeys", { maximumKeyLength: 512 });
     if (!actual.ok) return actual;
     if (!retained.ok) return retained;
     if (!removed.ok) return removed;

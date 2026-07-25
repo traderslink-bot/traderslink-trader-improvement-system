@@ -75,7 +75,7 @@ export function buildToolRegistryEntry(input: unknown): ExactResult<ToolRegistry
   const parsed = new Map<string, string>();
   for (const key of keyNames) { const value = validateContractKey(record.value[key], `$.${key}`); if (!value.ok) return value; parsed.set(key, value.value); }
   const schemaDigest = validateClaimedDigest(record.value.argumentSchemaDigest, "$.argumentSchemaDigest", "canonical_content"); if (!schemaDigest.ok) return schemaDigest;
-  const rowFields = validateKeyArray(record.value.requiredRowFields, "$.requiredRowFields", 128); const outputs = validateKeyArray(record.value.outputContracts, "$.outputContracts", 32); const testKeys = validateKeyArray(record.value.focusedTestKeys, "$.focusedTestKeys", 128);
+  const rowFields = validateKeyArray(record.value.requiredRowFields, "$.requiredRowFields", { maximumItems: 128 }); const outputs = validateKeyArray(record.value.outputContracts, "$.outputContracts", { maximumItems: 32 }); const testKeys = validateKeyArray(record.value.focusedTestKeys, "$.focusedTestKeys", { maximumItems: 128 });
   if (!rowFields.ok) return rowFields; if (!outputs.ok) return outputs; if (!testKeys.ok) return testKeys;
   const allowedOutputs = new Set([
     "exact_table_v1", "validated_claim_v1", "chart_ready_series_v1",
@@ -96,7 +96,7 @@ export function buildToolRegistryEntry(input: unknown): ExactResult<ToolRegistry
   const optionalOutputs = validateKeyArray(
     record.value.optionalOutputContractsWhenLimited ?? [],
     "$.optionalOutputContractsWhenLimited",
-    32,
+    { maximumItems: 32 },
   );
   if (
     !optionalOutputs.ok ||

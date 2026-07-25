@@ -9,12 +9,11 @@ import {
   CHART_READY_SERIES_VERSION,
   EXACT_TABLE_VERSION,
   VALIDATED_CLAIM_VERSION,
-  DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
-  DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
   buildAnalysisRunContext,
   buildAnalysisRunReceipt,
   buildAnalyticalDiagnostics,
   buildAnalyticalEvidenceBundle,
+  buildDailyStopSampleAuthority,
   buildChartReadySeries,
   buildExactTable,
   buildValidatedClaim,
@@ -709,6 +708,11 @@ function buildNonBlockedExecution(
     if (aggregateEvidence === undefined) throw new Error("ti_v3_daily_stop_claim_evidence_missing");
     const counterexamples = counterexampleEvidenceDigests(decisions, aggregate.totalDifference, evidenceFactory);
     const direction = dailyStopDirection(aggregate.totalDifference);
+    const sampleSizeAuthority = required(buildDailyStopSampleAuthority({
+      runContextDigest: context.runContextDigest,
+      sessionsTable: sessionTable,
+      aggregateTable,
+    }), "$.claims.sampleSizeAuthority");
     claims.push(required(buildValidatedClaim({
       schemaVersion: VALIDATED_CLAIM_VERSION,
       claimKey: "daily_stop_historical_effect",
@@ -724,19 +728,8 @@ function buildNonBlockedExecution(
       outlierSensitivityState: "stable",
       evidenceBundles: evidenceFactory.bundles,
       counterexampleEvidenceBundleDigests: counterexamples,
-      sampleSizeAuthority: {
-        policyKey: DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
-        policyVersion: DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
-        claimType: `daily_stop_historical_${direction}`,
-        subjectGroupKey: "aggregate",
-        comparisonGroupKey: null,
-        targetTableKey: "daily_stop_aggregate",
-        targetRowKey: "aggregate",
-        targetColumnKey: "threshold_reached_session_count",
-        comparisonRowKey: null,
-        comparisonColumnKey: null,
-        evidencePopulation: "threshold_reached_sessions",
-      },
+      sourceTables: tables,
+      sampleSizeAuthority,
       allowedWordingCode: direction === "helped" ? "under_fixed_historical_removal_rule_simulated_pnl_was_higher" : direction === "harmed" ? "under_fixed_historical_removal_rule_simulated_pnl_was_lower" : "under_fixed_historical_removal_rule_simulated_pnl_was_unchanged",
     }), "$.claims.dailyStopEffect"));
     void aggregateEvidence;

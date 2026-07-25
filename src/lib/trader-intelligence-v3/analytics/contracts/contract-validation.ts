@@ -287,17 +287,22 @@ export function validateReasonCodes(
   return { ok: true, value: Object.freeze([...values].sort(compareUnicodeCodePoints)) };
 }
 
+export interface ValidateKeyArrayOptions {
+  readonly maximumItems?: number;
+  readonly maximumKeyLength?: number;
+  readonly preserveOrder?: boolean;
+}
+
 export function validateKeyArray(
   input: unknown,
   path: string,
-  maximumItems: number = GA0_B1_CONTRACT_LIMITS.maximumReferences,
-  preserveOrder = false,
+  options: ValidateKeyArrayOptions = {},
 ): ExactResult<readonly string[], AnalyticalContractFailure> {
-  const array = validateArray(input, path, maximumItems);
+  const array = validateArray(input, path, options.maximumItems ?? GA0_B1_CONTRACT_LIMITS.maximumReferences);
   if (!array.ok) return contractFailure(array.error.code, array.error.path);
   const values: string[] = [];
   for (let index = 0; index < array.value.length; index += 1) {
-    const value = validateContractKey(array.value[index], `${path}[${index}]`);
+    const value = validateContractKey(array.value[index], `${path}[${index}]`, options.maximumKeyLength ?? GA0_B1_CONTRACT_LIMITS.maximumKeyLength);
     if (!value.ok) return value;
     values.push(value.value);
   }
@@ -306,7 +311,7 @@ export function validateKeyArray(
   }
   return {
     ok: true,
-    value: Object.freeze(preserveOrder ? values : [...values].sort(compareUnicodeCodePoints)),
+    value: Object.freeze(options.preserveOrder ? values : [...values].sort(compareUnicodeCodePoints)),
   };
 }
 

@@ -20,6 +20,7 @@ import {
   validateClaimedDigest,
   validateContractKey,
   validateContractRecord,
+  validateKeyArray,
   validateReasonCodes,
   validateTimezone,
   validateUnit,
@@ -37,6 +38,7 @@ export const VALIDATED_CLAIM_VERSION = "ti_v3_validated_claim_v1" as const;
 export const CHART_READY_SERIES_VERSION = "ti_v3_chart_ready_series_v1" as const;
 export const DAILY_STOP_SAMPLE_SIZE_POLICY_KEY = "ti_v3_daily_stop_threshold_session_sample" as const;
 export const DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION = "v1" as const;
+export const DAILY_STOP_SAMPLE_AUTHORITY_VERSION = "ti_v3_daily_stop_sample_authority_v1" as const;
 
 export interface ExactTableColumn {
   readonly columnKey: string;
@@ -107,21 +109,119 @@ export interface ValidatedClaim {
   readonly evidenceBundleDigests: readonly CanonicalContentDigest[];
   readonly counterexampleEvidenceBundleDigests: readonly CanonicalContentDigest[];
   readonly sampleSizeAuthority?: Readonly<{
+    readonly schemaVersion: typeof DAILY_STOP_SAMPLE_AUTHORITY_VERSION;
     readonly policyKey: typeof DAILY_STOP_SAMPLE_SIZE_POLICY_KEY;
     readonly policyVersion: typeof DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION;
-    readonly claimType: string;
-    readonly subjectGroupKey: string;
-    readonly comparisonGroupKey: string | null;
-    readonly targetTableKey: string;
-    readonly targetRowKey: string;
-    readonly targetColumnKey: string;
-    readonly comparisonRowKey: string | null;
-    readonly comparisonColumnKey: string | null;
-    readonly evidencePopulation: "threshold_reached_sessions";
+    readonly runContextDigest: CanonicalContentDigest;
+    readonly sessionsTableDigest: CanonicalContentDigest;
+    readonly aggregateTableDigest: CanonicalContentDigest;
+    readonly sourceTableKey: "daily_stop_aggregate";
+    readonly sourceTableVersion: "v1";
+    readonly sourceRowKey: "aggregate";
+    readonly sourceColumnKey: "threshold_reached_session_count";
+    readonly thresholdReachedSessionRowKeys: readonly string[];
+    readonly thresholdReachedSessionCount: string;
+    readonly authorityDigest: CanonicalContentDigest;
   }>;
   readonly limitationCodes: readonly string[];
   readonly allowedWordingCode: string;
   readonly claimDigest: CanonicalContentDigest;
+}
+
+export type DailyStopSampleAuthority = NonNullable<ValidatedClaim["sampleSizeAuthority"]>;
+
+function thresholdReachedSessionRowKeys(
+  sessionsTable: ExactTable,
+): ExactResult<readonly string[], AnalyticalContractFailure> {
+  if (sessionsTable.tableKey !== "daily_stop_sessions" || sessionsTable.tableVersion !== "v1") {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority.sessionsTable");
+  }
+  const keys: string[] = [];
+  for (const row of sessionsTable.rows) {
+    const threshold = row.cells.find((cell) => cell.columnKey === "threshold_reached")?.metric;
+    if (threshold?.kind === "enum" && threshold.value === "reached") keys.push(row.rowKey);
+  }
+  return { ok: true, value: Object.freeze(keys.sort(compareUnicodeCodePoints)) };
+}
+
+export function buildDailyStopSampleAuthority(input: Readonly<{
+  readonly runContextDigest: CanonicalContentDigest;
+  readonly sessionsTable: ExactTable;
+  readonly aggregateTable: ExactTable;
+}>): ExactResult<DailyStopSampleAuthority, AnalyticalContractFailure> {
+  if (input.aggregateTable.tableKey !== "daily_stop_aggregate" || input.aggregateTable.tableVersion !== "v1") {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority.aggregateTable");
+  }
+  if (input.sessionsTable.runContextDigest !== input.runContextDigest || input.aggregateTable.runContextDigest !== input.runContextDigest) {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority.runContextDigest");
+  }
+  const rowKeys = thresholdReachedSessionRowKeys(input.sessionsTable);
+  if (!rowKeys.ok) return rowKeys;
+  const aggregateRow = input.aggregateTable.rows.find((row) => row.rowKey === "aggregate");
+  const aggregateCount = aggregateRow?.cells.find((cell) => cell.columnKey === "threshold_reached_session_count")?.metric;
+  if (aggregateCount?.kind !== "integer" || aggregateCount.unit !== "count" || aggregateCount.value !== String(rowKeys.value.length)) {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority.thresholdReachedSessionCount");
+  }
+  return finalizeContentAddressedAuthority("daily_stop_sample_authority", {
+    schemaVersion: DAILY_STOP_SAMPLE_AUTHORITY_VERSION,
+    policyKey: DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
+    policyVersion: DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
+    runContextDigest: input.runContextDigest,
+    sessionsTableDigest: input.sessionsTable.tableDigest,
+    aggregateTableDigest: input.aggregateTable.tableDigest,
+    sourceTableKey: "daily_stop_aggregate",
+    sourceTableVersion: "v1",
+    sourceRowKey: "aggregate",
+    sourceColumnKey: "threshold_reached_session_count",
+    thresholdReachedSessionRowKeys: rowKeys.value,
+    thresholdReachedSessionCount: String(rowKeys.value.length),
+  }, "authorityDigest") as ExactResult<DailyStopSampleAuthority, AnalyticalContractFailure>;
+}
+
+function verifyDailyStopSampleAuthority(
+  input: unknown,
+  context: AnalysisRunContext,
+  sessionsTable: ExactTable,
+  aggregateTable: ExactTable,
+): ExactResult<DailyStopSampleAuthority, AnalyticalContractFailure> {
+  const record = validateContractRecord(input, [
+    "schemaVersion", "policyKey", "policyVersion", "runContextDigest", "sessionsTableDigest", "aggregateTableDigest",
+    "sourceTableKey", "sourceTableVersion", "sourceRowKey", "sourceColumnKey", "thresholdReachedSessionRowKeys",
+    "thresholdReachedSessionCount", "authorityDigest",
+  ], [], "$.sampleSizeAuthority");
+  if (!record.ok) return record;
+  const runContextDigest = validateClaimedDigest(record.value.runContextDigest, "$.sampleSizeAuthority.runContextDigest", "analysis_run_context");
+  const sessionsDigest = validateClaimedDigest(record.value.sessionsTableDigest, "$.sampleSizeAuthority.sessionsTableDigest", "exact_table");
+  const aggregateDigest = validateClaimedDigest(record.value.aggregateTableDigest, "$.sampleSizeAuthority.aggregateTableDigest", "exact_table");
+  const authorityDigest = validateClaimedDigest(record.value.authorityDigest, "$.sampleSizeAuthority.authorityDigest", "daily_stop_sample_authority");
+  const rowKeys = validateKeyArray(record.value.thresholdReachedSessionRowKeys, "$.sampleSizeAuthority.thresholdReachedSessionRowKeys");
+  const count = validateCanonicalCount(record.value.thresholdReachedSessionCount, "$.sampleSizeAuthority.thresholdReachedSessionCount");
+  if (!runContextDigest.ok) return runContextDigest;
+  if (!sessionsDigest.ok) return sessionsDigest;
+  if (!aggregateDigest.ok) return aggregateDigest;
+  if (!authorityDigest.ok) return authorityDigest;
+  if (!rowKeys.ok) return rowKeys;
+  if (!count.ok) return count;
+  if (
+    record.value.schemaVersion !== DAILY_STOP_SAMPLE_AUTHORITY_VERSION ||
+    record.value.policyKey !== DAILY_STOP_SAMPLE_SIZE_POLICY_KEY ||
+    record.value.policyVersion !== DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION ||
+    runContextDigest.value !== context.runContextDigest ||
+    sessionsDigest.value !== sessionsTable.tableDigest ||
+    aggregateDigest.value !== aggregateTable.tableDigest ||
+    record.value.sourceTableKey !== "daily_stop_aggregate" ||
+    record.value.sourceTableVersion !== "v1" ||
+    record.value.sourceRowKey !== "aggregate" ||
+    record.value.sourceColumnKey !== "threshold_reached_session_count"
+  ) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
+  const expected = buildDailyStopSampleAuthority({ runContextDigest: context.runContextDigest, sessionsTable, aggregateTable });
+  if (!expected.ok) return expected;
+  if (
+    count.value !== expected.value.thresholdReachedSessionCount ||
+    rowKeys.value.join("\u0000") !== expected.value.thresholdReachedSessionRowKeys.join("\u0000") ||
+    authorityDigest.value !== expected.value.authorityDigest
+  ) return contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.sampleSizeAuthority.authorityDigest");
+  return expected;
 }
 
 export interface ChartReadySeriesPoint {
@@ -495,7 +595,7 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
     "subjectGroupKey", "comparisonGroupKey", "metricKey", "effectDerivation",
     "confidenceEvidenceLabel", "outlierSensitivityState", "evidenceBundles",
     "allowedWordingCode",
-  ], ["counterexampleEvidenceBundleDigests", "sampleSizeAuthority"]);
+  ], ["counterexampleEvidenceBundleDigests", "sampleSizeAuthority", "sourceTables"]);
   if (!record.ok) return record;
   if (record.value.schemaVersion !== VALIDATED_CLAIM_VERSION) return contractFailure("ti_v3_analytics_contract_invalid", "$.schemaVersion");
   const authorities = input as Record<string, unknown>;
@@ -523,69 +623,35 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
   let comparisonRow: ExactTableRow | undefined;
   let effect: ExactMetricValue = targetCell.metric;
   let sampleSizeAuthority: ValidatedClaim["sampleSizeAuthority"];
-  if (record.value.sampleSizeAuthority !== undefined) {
-    const authority = validateContractRecord(record.value.sampleSizeAuthority, [
-      "policyKey", "policyVersion", "claimType", "subjectGroupKey", "comparisonGroupKey", "targetTableKey",
-      "targetRowKey", "targetColumnKey", "comparisonRowKey", "comparisonColumnKey", "evidencePopulation",
-    ], [], "$.sampleSizeAuthority");
-    if (!authority.ok) return authority;
-    if (
-      authority.value.policyKey !== DAILY_STOP_SAMPLE_SIZE_POLICY_KEY ||
-      authority.value.policyVersion !== DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION ||
-      authority.value.claimType !== parsed.get("claimType") ||
-      authority.value.subjectGroupKey !== parsed.get("subjectGroupKey") ||
-      authority.value.comparisonGroupKey !== comparisonGroupKey ||
-      authority.value.targetTableKey !== table.value.tableKey ||
-      authority.value.evidencePopulation !== "threshold_reached_sessions"
-    ) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
-    const policyKey = validateContractKey(authority.value.policyKey, "$.sampleSizeAuthority.policyKey");
-    const claimType = validateContractKey(authority.value.claimType, "$.sampleSizeAuthority.claimType");
-    const subjectGroup = validateContractKey(authority.value.subjectGroupKey, "$.sampleSizeAuthority.subjectGroupKey");
-    const targetTable = validateContractKey(authority.value.targetTableKey, "$.sampleSizeAuthority.targetTableKey");
-    if (!policyKey.ok) return policyKey;
-    if (!claimType.ok) return claimType;
-    if (!subjectGroup.ok) return subjectGroup;
-    if (!targetTable.ok) return targetTable;
-    if (authority.value.comparisonGroupKey !== null) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority.comparisonGroupKey");
-    if (authority.value.targetRowKey !== "aggregate" || authority.value.targetColumnKey !== "threshold_reached_session_count" || authority.value.comparisonRowKey !== null || authority.value.comparisonColumnKey !== null) {
-      return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
-    }
-    const authorityTargetRowKey = validateContractKey(authority.value.targetRowKey, "$.sampleSizeAuthority.targetRowKey");
-    const authorityTargetColumnKey = validateContractKey(authority.value.targetColumnKey, "$.sampleSizeAuthority.targetColumnKey");
-    if (!authorityTargetRowKey.ok) return authorityTargetRowKey;
-    if (!authorityTargetColumnKey.ok) return authorityTargetColumnKey;
-    const authorityTargetRow = tableRows.find((row) => row.rowKey === authorityTargetRowKey.value);
-    const authorityTargetCell = authorityTargetRow?.cells.find((cell) => cell.columnKey === authorityTargetColumnKey.value);
-    if (authorityTargetRow === undefined || authorityTargetCell === undefined || authorityTargetCell.metric.kind !== "integer" || authorityTargetCell.metric.unit !== "count") return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
-    let authorityComparisonRowKey: string | null = null;
-    let authorityComparisonColumnKey: string | null = null;
-    if (authority.value.comparisonRowKey !== null || authority.value.comparisonColumnKey !== null) {
-      if (authority.value.comparisonRowKey === null || authority.value.comparisonColumnKey === null) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
-      const comparisonKey = validateContractKey(authority.value.comparisonRowKey, "$.sampleSizeAuthority.comparisonRowKey");
-      const comparisonColumn = validateContractKey(authority.value.comparisonColumnKey, "$.sampleSizeAuthority.comparisonColumnKey");
-      if (!comparisonKey.ok) return comparisonKey;
-      if (!comparisonColumn.ok) return comparisonColumn;
-      const comparisonAuthorityRow = tableRows.find((row) => row.rowKey === comparisonKey.value);
-      const comparisonAuthorityCell = comparisonAuthorityRow?.cells.find((cell) => cell.columnKey === comparisonColumn.value);
-      if (comparisonAuthorityRow === undefined || comparisonAuthorityCell === undefined || comparisonAuthorityCell.metric.kind !== "integer" || comparisonAuthorityCell.metric.unit !== "count") return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
-      authorityComparisonRowKey = comparisonKey.value;
-      authorityComparisonColumnKey = comparisonColumn.value;
-    }
-    sampleSizeAuthority = Object.freeze({
-      policyKey: DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
-      policyVersion: DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
-      claimType: claimType.value,
-      subjectGroupKey: subjectGroup.value,
-      comparisonGroupKey: null,
-      targetTableKey: targetTable.value,
-      targetRowKey: authorityTargetRowKey.value,
-      targetColumnKey: authorityTargetColumnKey.value,
-      comparisonRowKey: authorityComparisonRowKey,
-      comparisonColumnKey: authorityComparisonColumnKey,
-      evidencePopulation: "threshold_reached_sessions" as const,
-    });
+  const dailyStopClaimTypes = new Map([
+    ["daily_stop_historical_helped", "positive"],
+    ["daily_stop_historical_harmed", "negative"],
+    ["daily_stop_historical_unchanged", "flat"],
+  ] as const);
+  const claimType = parsed.get("claimType") as string;
+  const isDailyStopClaim = claimType.startsWith("daily_stop_historical_");
+  if (isDailyStopClaim && !dailyStopClaimTypes.has(claimType as "daily_stop_historical_helped" | "daily_stop_historical_harmed" | "daily_stop_historical_unchanged")) {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$.claimType");
   }
-  if ((parsed.get("claimType") as string).startsWith("daily_stop_historical_") && sampleSizeAuthority === undefined) {
+  let dailyStopSessionsTable: ExactTable | undefined;
+  if (isDailyStopClaim) {
+    if (table.value.tableKey !== "daily_stop_aggregate" || table.value.tableVersion !== "v1") {
+      return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.table");
+    }
+    if (!Array.isArray(authorities.sourceTables)) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sourceTables");
+    const sourceTable = (authorities.sourceTables as readonly ExactTable[]).find((candidate) => candidate.tableKey === "daily_stop_sessions");
+    if (sourceTable === undefined) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sourceTables");
+    const verifiedSourceTable = verifyExactTable(sourceTable, context.value, bundles);
+    if (!verifiedSourceTable.ok || verifiedSourceTable.value.tableVersion !== "v1") return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sourceTables");
+    dailyStopSessionsTable = verifiedSourceTable.value;
+  }
+  if (record.value.sampleSizeAuthority !== undefined) {
+    if (!isDailyStopClaim || dailyStopSessionsTable === undefined) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
+    const authority = verifyDailyStopSampleAuthority(record.value.sampleSizeAuthority, context.value, dailyStopSessionsTable, table.value);
+    if (!authority.ok) return authority;
+    sampleSizeAuthority = authority.value;
+  }
+  if (isDailyStopClaim && sampleSizeAuthority === undefined) {
     return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
   }
   if (derivation.value.kind === "difference") {
@@ -654,15 +720,24 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
   const comparisonSampleSize = String(comparisonEvidence?.candidateKeys.length ?? 0);
   const authoritativeTargetSampleSize = sampleSizeAuthority === undefined
     ? targetSampleSize
-    : String((tableRows.find((row) => row.rowKey === sampleSizeAuthority!.targetRowKey)?.cells.find((cell) => cell.columnKey === sampleSizeAuthority!.targetColumnKey)?.metric as { readonly value: string }).value);
-  const authoritativeComparisonSampleSize = sampleSizeAuthority?.comparisonRowKey === null || sampleSizeAuthority?.comparisonRowKey === undefined
-    ? comparisonSampleSize
-    : String((tableRows.find((row) => row.rowKey === sampleSizeAuthority.comparisonRowKey)?.cells.find((cell) => cell.columnKey === sampleSizeAuthority.comparisonColumnKey)?.metric as { readonly value: string }).value);
+    : sampleSizeAuthority.thresholdReachedSessionCount;
+  const authoritativeComparisonSampleSize = comparisonSampleSize;
   const limitations = [...new Set([
     ...table.value.limitationCodes,
     ...evidenceDigests.flatMap((digest) => catalog.value.get(digest)?.limitationCodes ?? []),
   ])].sort(compareUnicodeCodePoints);
   const direction = exactMetricDirection(effect);
+  if (isDailyStopClaim) {
+    const expectedDirection = dailyStopClaimTypes.get(claimType as "daily_stop_historical_helped" | "daily_stop_historical_harmed" | "daily_stop_historical_unchanged");
+    const expectedWordingCode = expectedDirection === "positive"
+      ? "under_fixed_historical_removal_rule_simulated_pnl_was_higher"
+      : expectedDirection === "negative"
+        ? "under_fixed_historical_removal_rule_simulated_pnl_was_lower"
+        : "under_fixed_historical_removal_rule_simulated_pnl_was_unchanged";
+    if (direction !== expectedDirection || parsed.get("allowedWordingCode") !== expectedWordingCode) {
+      return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.allowedWordingCode");
+    }
+  }
   return finalizeContentAddressedAuthority("validated_claim", {
     schemaVersion: VALIDATED_CLAIM_VERSION, claimKey: parsed.get("claimKey") as string,
     claimVersion: parsed.get("claimVersion") as string, claimType: parsed.get("claimType") as string,
@@ -680,7 +755,7 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
   }, "claimDigest") as ExactResult<ValidatedClaim, AnalyticalContractFailure>;
 }
 
-export function verifyValidatedClaim(input: unknown, runContext: AnalysisRunContext, table: ExactTable, evidenceBundles: readonly AnalyticalEvidenceBundle[]): ExactResult<ValidatedClaim, AnalyticalContractFailure> {
+export function verifyValidatedClaim(input: unknown, runContext: AnalysisRunContext, table: ExactTable, evidenceBundles: readonly AnalyticalEvidenceBundle[], sourceTables: readonly ExactTable[] = []): ExactResult<ValidatedClaim, AnalyticalContractFailure> {
   const record = validateContractRecord(input, ["schemaVersion", "claimKey", "claimVersion", "claimType", "runContextDigest", "tableDigest", "partitionDigest", "subjectGroupKey", "comparisonGroupKey", "metricKey", "effectDerivation", "direction", "exactEffect", "targetSampleSize", "comparisonSampleSize", "confidenceEvidenceLabel", "outlierSensitivityState", "evidenceBundleDigests", "counterexampleEvidenceBundleDigests", "limitationCodes", "allowedWordingCode", "claimDigest"], ["sampleSizeAuthority"]);
   if (!record.ok) return record;
   const context = verifyAnalysisRunContext(runContext); if (!context.ok || record.value.runContextDigest !== context.value.runContextDigest || record.value.partitionDigest !== context.value.partitionDigest) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.runContextDigest");
@@ -696,6 +771,7 @@ export function verifyValidatedClaim(input: unknown, runContext: AnalysisRunCont
     counterexampleEvidenceBundleDigests:
       record.value.counterexampleEvidenceBundleDigests,
     ...(record.value.sampleSizeAuthority === undefined ? {} : { sampleSizeAuthority: record.value.sampleSizeAuthority }),
+    sourceTables,
     allowedWordingCode: record.value.allowedWordingCode,
   });
   if (!rebuilt.ok || rebuilt.value.claimDigest !== digest.value) return contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.claimDigest");

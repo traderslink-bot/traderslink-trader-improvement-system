@@ -124,7 +124,15 @@ than 5 threshold-reached sessions, `descriptive_only` for 5–9, and
 aggregate `threshold_reached_session_count` cell, not from trade rows or
 evidence candidates. The B3 sample authority is versioned and binds the claim
 type, aggregate subject/comparison groups, aggregate table/row/column, and
-`threshold_reached_sessions` evidence population. Claims preserve semantic counterexample evidence for
+`threshold_reached_sessions` evidence population. In the final contract this
+authority is content-addressed as `ti_v3_daily_stop_sample_authority_v1` and
+also binds the analysis-run context digest, verified `daily_stop_sessions:v1`
+and `daily_stop_aggregate:v1` table digests, the literal aggregate
+`aggregate.threshold_reached_session_count` cell, the exact sorted
+threshold-reached session row keys, the exact count, and an authority digest.
+The claim validator rejects foreign tables or contexts, fabricated counts or
+row keys, missing/duplicated/non-threshold rows, unsupported claim types, and
+direction/wording mismatches. Claims preserve semantic counterexample evidence for
 opposite-effect sessions, threshold-reached unchanged sessions, leave-one-out
 direction changes, and economically contrary removed trades. Absent categories
 are omitted rather than represented by arbitrary sample rows.

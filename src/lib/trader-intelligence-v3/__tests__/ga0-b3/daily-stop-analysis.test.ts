@@ -16,8 +16,12 @@ import {
   DAILY_STOP_TOOL_KEY,
   dailyStopSampleState,
   buildExactMetricValue,
+  buildAnalyticalRow,
+  verifyAnalyticalRow,
+  ANALYTICAL_ROW_VERSION,
   buildValidatedClaim,
   dailyStopIdentityMetric,
+  verifyValidatedClaim,
   DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
   DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
 } from "../../analytics";
@@ -340,13 +344,18 @@ describe("GA0-B3 sample-state and claim authority", () => {
       const date = `2026-07-${String(index + 1).padStart(2, "0")}`;
       specs.push({ date, minute: 0, netPnl: "-1" }, { date, minute: 2, netPnl: "-1" }, { date, minute: 4, netPnl: "1" });
     }
+    specs.push({ date: "2026-07-11", minute: 0, netPnl: "1" }, { date: "2026-07-11", minute: 2, netPnl: "0" });
     const fixture = executeFixture(specs);
     if (!fixture.result.ok) throw new Error(fixture.result.error.code);
     const execution = fixture.result.value;
     const claim = execution.claims[0];
     const table = execution.tables.find((item) => item.tableKey === "daily_stop_aggregate");
     if (table === undefined || claim === undefined || claim.sampleSizeAuthority === undefined) throw new Error("claim fixture missing");
-    const buildInput = (authority: unknown) => ({
+    const sessionsTable = execution.tables.find((item) => item.tableKey === "daily_stop_sessions");
+    if (sessionsTable === undefined) throw new Error("session table missing");
+    const nonThresholdRowKey = sessionsTable.rows.find((row) => row.cells.some((cell) => cell.columnKey === "threshold_reached" && cell.metric.kind === "enum" && cell.metric.value === "not_reached"))?.rowKey;
+    if (nonThresholdRowKey === undefined) throw new Error("non-threshold session fixture missing");
+    const buildInput = (authority: unknown, overrides: Record<string, unknown> = {}) => ({
       schemaVersion: claim.schemaVersion,
       claimKey: claim.claimKey,
       claimVersion: claim.claimVersion,
@@ -361,21 +370,31 @@ describe("GA0-B3 sample-state and claim authority", () => {
       outlierSensitivityState: claim.outlierSensitivityState,
       evidenceBundles: execution.evidenceBundles,
       counterexampleEvidenceBundleDigests: claim.counterexampleEvidenceBundleDigests,
+      sourceTables: execution.tables,
       sampleSizeAuthority: authority,
       allowedWordingCode: claim.allowedWordingCode,
+      ...overrides,
     });
     const validAuthority = claim.sampleSizeAuthority;
     expect(buildValidatedClaim(buildInput(validAuthority)).ok).toBe(true);
+    expect(verifyValidatedClaim(claim, execution.runContext, table, execution.evidenceBundles, execution.tables)).toMatchObject({ ok: true });
     for (const mutate of [
-      (authority: any) => { authority.targetColumnKey = "actual_trade_count"; },
-      (authority: any) => { authority.targetRowKey = "foreign"; },
-      (authority: any) => { authority.comparisonGroupKey = "foreign"; },
+      (authority: any) => { authority.sourceColumnKey = "actual_trade_count"; },
+      (authority: any) => { authority.sourceRowKey = "foreign"; },
+      (authority: any) => { authority.aggregateTableDigest = "ti_v3:exact_table:v1:sha256:0000000000000000000000000000000000000000000000000000000000000000"; },
+      (authority: any) => { authority.thresholdReachedSessionCount = "999"; },
+      (authority: any) => { authority.thresholdReachedSessionRowKeys = ["foreign"]; },
+      (authority: any) => { authority.thresholdReachedSessionRowKeys = [nonThresholdRowKey]; },
+      (authority: any) => { authority.thresholdReachedSessionRowKeys = [validAuthority.thresholdReachedSessionRowKeys[0], validAuthority.thresholdReachedSessionRowKeys[0]]; },
       (authority: any) => { authority.policyKey = "foreign_policy"; },
     ]) {
       const candidate = JSON.parse(JSON.stringify(validAuthority));
       mutate(candidate);
       expect(buildValidatedClaim(buildInput(candidate)).ok).toBe(false);
     }
+    expect(buildValidatedClaim(buildInput(validAuthority, { claimType: "daily_stop_historical_other" })).ok).toBe(false);
+    expect(buildValidatedClaim(buildInput(validAuthority, { claimType: "daily_stop_historical_helped" })).ok).toBe(false);
+    expect(buildValidatedClaim(buildInput(validAuthority, { allowedWordingCode: "under_fixed_historical_removal_rule_simulated_pnl_was_higher" })).ok).toBe(false);
     expect(buildValidatedClaim(buildInput(undefined)).ok).toBe(false);
     expect(validAuthority.policyKey).toBe(DAILY_STOP_SAMPLE_SIZE_POLICY_KEY);
     expect(validAuthority.policyVersion).toBe(DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION);
@@ -447,8 +466,18 @@ describe("GA0-B3 sample-state and claim authority", () => {
   });
 
   it("accepts source identity lengths through 512 for trigger and exclusion semantics", () => {
+    const fixture = executeFixture([{ date: "2026-07-01", minute: 0, netPnl: "1" }]);
+    expect(fixture.result).toMatchObject({ ok: true });
+    if (!fixture.result.ok) return;
+    const sourceRow = fixture.result.value.tables.length > 0 ? fixture.derived.datasetReceipt.rows[0] : undefined;
+    if (sourceRow === undefined) throw new Error("B1 source row missing");
+    const { rowDigest: _rowDigest, ...rowContent } = sourceRow;
+    void _rowDigest;
     for (const length of [256, 257, 512]) {
       const key = `x${"a".repeat(length - 1)}`;
+      const verifiedRow = buildAnalyticalRow({ ...rowContent, schemaVersion: ANALYTICAL_ROW_VERSION, semanticRoundTripKey: key });
+      expect(verifiedRow).toMatchObject({ ok: true });
+      if (verifiedRow.ok) expect(verifyAnalyticalRow(verifiedRow.value)).toMatchObject({ ok: true });
       const trigger = dailyStopIdentityMetric("threshold_trigger_round_trip", key);
       const candidate = dailyStopIdentityMetric("candidate_key", key);
       expect(trigger.kind).toBe("identity");
@@ -459,6 +488,7 @@ describe("GA0-B3 sample-state and claim authority", () => {
       expect(buildExactMetricValue({ schemaVersion: "ti_v3_exact_metric_value_v1", metricKey: "threshold_trigger_round_trip", kind: "identity", unit: "category", currency: null, value: key }).ok).toBe(true);
     }
     const rejected = `x${"a".repeat(512)}`;
+    expect(buildAnalyticalRow({ ...rowContent, schemaVersion: ANALYTICAL_ROW_VERSION, semanticRoundTripKey: rejected })).toMatchObject({ ok: false });
     expect(buildExactMetricValue({ schemaVersion: "ti_v3_exact_metric_value_v1", metricKey: "threshold_trigger_round_trip", kind: "identity", unit: "category", currency: null, value: rejected }).ok).toBe(false);
   });
 });
