@@ -606,7 +606,12 @@ function tradeOutcome(
     sessionStateBefore: before,
     sessionStateAfter: after,
     triggeredRuleIds: Object.freeze([]),
-    limitationCodes: Object.freeze([]),
+    limitationCodes: Object.freeze(conservativelyRetained
+      ? [
+          reasonCode,
+          "ti_v3_simulation_required_rule_authority_unavailable",
+        ].sort(compareUnicodeCodePoints)
+      : []),
   });
 }
 
@@ -1034,7 +1039,7 @@ export function executeCounterfactualSimulation(
   for (const outcome of finalOutcomes) {
     if (
       outcome.responsibleRuleId !== null &&
-      outcome.classification !== "executed_unchanged"
+      isRuleExcluded(outcome)
     ) {
       ruleAffectedCounts.set(
         outcome.responsibleRuleId,
@@ -1224,6 +1229,9 @@ export function executeCounterfactualSimulation(
       "ti_v3_simulation_no_alternative_fills_or_market_path",
       ...(sourceExcludedCount > 0
         ? ["ti_v3_simulation_source_authority_unavailable"]
+        : []),
+      ...(ruleUnavailableCount > 0
+        ? ["ti_v3_simulation_required_rule_authority_unavailable"]
         : []),
     ].sort(compareUnicodeCodePoints)),
   };

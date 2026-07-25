@@ -70,6 +70,15 @@ Each emitted row binds the source trade key, responsible rule, reason code,
 actual and simulated net P/L, size authority, execution/occurrence references,
 session state before/after, and limitations.
 
+`unavailable_required_authority` is a conservative retained evaluation, not an
+affected or excluded trade. It remains in the simulated population with
+unchanged observed economics and is counted through `unavailableCount`, its
+classification, responsible rule, exact reason, and limitation codes. The
+single authoritative affected predicate includes only `skipped_by_rule`,
+`skipped_session_stopped`, `skipped_ticker_stopped`, and
+`skipped_during_cooldown`; it excludes `executed_unchanged`,
+`excluded_source_filter`, and `unavailable_required_authority`.
+
 Session snapshots distinguish `evaluated` values from `not_evaluated` nulls and
 bind the dependency-policy version. An inactive loss streak is never presented
 as an evaluated zero.
@@ -155,6 +164,11 @@ The result binds the verified source result, complete plan, counts, actual and
 simulated ordered populations, GA1-A exact metrics, exact net P/L comparison,
 one outcome per source row, reconciled affected summaries, six bounded evidence
 categories, limitations, and `resultDigest`.
+
+`ruleSpecificAffectedCounts[].affectedCount` is derived only from that
+authoritative affected predicate and therefore represents actual simulated
+execution/economic changes. Source-filter exclusions and unavailable
+evaluations have their own contract fields and must not inflate it.
 
 Allowed language: a configured rule produced an exact difference in this
 historical in-sample population.

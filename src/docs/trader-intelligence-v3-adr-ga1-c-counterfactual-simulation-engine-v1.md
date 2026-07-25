@@ -128,6 +128,16 @@ counts to ordered outcomes. Evidence is selected only from exact
 classifications and retains source keys, execution digests, occurrence keys,
 qualifying/emitted counts, deterministic order, and truncation state.
 
+The authoritative affected population is the population whose simulated
+execution or economics actually changed: `skipped_by_rule`,
+`skipped_session_stopped`, `skipped_ticker_stopped`, and
+`skipped_during_cooldown`. Missing required rule authority is fail-closed but
+conservatively retained as `unavailable_required_authority`; it preserves
+observed economics and is not an affected/excluded trade. Unavailable
+evaluations remain separately visible in `unavailableCount`, their responsible
+rule and exact reason, and trade/result limitation codes. Per-rule affected
+counts use the same exclusion predicate and cannot count conservative retention.
+
 Preset reconstruction verifies governed arguments, the rebuilt generic plan,
 derived dependencies, and both digests. Result replay reopens accepted
 authority, reruns the engine, and requires the rebuilt result digest. Correctly

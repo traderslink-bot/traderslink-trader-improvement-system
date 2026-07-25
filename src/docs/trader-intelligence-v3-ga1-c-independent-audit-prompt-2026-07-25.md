@@ -1,4 +1,26 @@
-# Independent Audit Prompt: GA1-C Checkpoint Two
+# Independent Re-Audit Handoff: GA1-C Checkpoint Two
+
+Correction starting head:
+`6b7bf67d35fc4b203bc315ab715db81a75566f60`
+
+Final correction commit: the single focused commit containing this handoff;
+resolve the external SHA from draft PR #162 or the final execution report.
+
+The blocking defect was confined to `ruleSpecificAffectedCounts`: it treated a
+responsible, conservatively retained `unavailable_required_authority` outcome
+as affected. The corrected authoritative affected population contains only
+actual simulated execution/economic changes represented by
+`skipped_by_rule`, `skipped_session_stopped`, `skipped_ticker_stopped`, and
+`skipped_during_cooldown`. Unavailable evaluations remain retained and
+separately represented by count, classification, responsible rule, exact
+reason, and limitations.
+
+Re-audit the simulation engine, checkpoint-two focused test, ADR, contract,
+verification ledger, implementation handoff, this handoff, and project log.
+Confirm single and mixed unavailable/excluded reconciliation, replay,
+correctly re-digested affected/unavailable tamper rejection, and permutation
+identity. Proportional resizing, fee infrastructure, standalone replay
+receipt/envelope, final 10,000-row proof, GA1-D, and GA1-E remain deferred.
 
 Audit the draft GA1-C PR against:
 

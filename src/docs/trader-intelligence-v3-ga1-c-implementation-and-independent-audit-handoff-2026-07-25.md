@@ -15,6 +15,31 @@ Checkpoint-two executable commit: recorded after final verification and commit.
 
 Draft PR: `#162`
 
+## Checkpoint-two affected-population audit correction
+
+Correction starting head:
+`6b7bf67d35fc4b203bc315ab715db81a75566f60`
+
+Final correction commit: the single focused commit containing this handoff;
+resolve its external SHA from draft PR #162 or the final execution report
+because a commit cannot include its own content-addressed identity.
+
+The audit found that `ruleSpecificAffectedCounts` counted a responsible
+`unavailable_required_authority` outcome even though the trade was retained
+with unchanged economics. The corrected authoritative affected population is
+exactly the rule-excluded classifications: `skipped_by_rule`,
+`skipped_session_stopped`, `skipped_ticker_stopped`, and
+`skipped_during_cooldown`. `executed_unchanged`, `excluded_source_filter`, and
+`unavailable_required_authority` are not affected trades.
+
+Unavailable rule evaluation remains explicit through `unavailableCount`, the
+trade classification, responsible rule, exact reason, and limitation codes.
+The focused regression covers single and mixed populations, exact summary
+reconciliation, replay, correctly re-digested tampering, and permutation
+identity. Changed files are the simulation engine, the checkpoint-two focused
+test, this handoff, the ADR, contract, ledger, independent re-audit prompt, and
+project log.
+
 ## Checkpoint-one audit remediation
 
 The original engine processed completions before every included candidate even

@@ -77,3 +77,28 @@ Starting head: `b3655471a99af685a86908a5ef8a21936dc60d1f`
 
 The final 10,000-row proof, production build, browser/E2E, private CSV
 calibration, deployment, and unrelated suites remain deliberately unrun.
+
+## Checkpoint-two affected-population audit correction
+
+Starting head: `6b7bf67d35fc4b203bc315ab715db81a75566f60`
+
+Final correction commit: the single focused commit containing this ledger
+section; its external SHA is recorded on draft PR #162 and in the final
+execution report because a commit cannot content-address its own SHA.
+
+The prior per-rule aggregation counted every responsible non-unchanged outcome,
+including conservatively retained `unavailable_required_authority` trades. It
+now uses the same authoritative exclusion predicate as `skippedCount` and the
+economic affected summaries. Unavailable evaluations remain separately
+counted, classified, reasoned, and limited.
+
+| Check | Result |
+| --- | --- |
+| direct corrected GA1-C pack | 1 file / 16 tests passed |
+| full focused GA1-C plus affected GA0-B3 / GA1-A / GA1-B regressions | 6 files / 75 tests passed |
+| TypeScript | `npx --no-install tsc --noEmit --pretty false` passed |
+| targeted ESLint | corrected engine and focused test passed |
+| architecture guard | passed: 485 architecture files, 43 API routes, 82 classified Trader Intelligence routes |
+| `git diff --check` | passed |
+| GitHub CI | observe after push |
+| 10,000-row / browser / E2E / deployment | deliberately not run |

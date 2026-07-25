@@ -685,18 +685,165 @@ describe("GA1-C preserve-or-exclude governed presets", () => {
       { lowerEntryPrice: "5", upperEntryPrice: "15" },
     );
     if (!price.ok) throw new Error(price.error.code);
-    expect(run(missingPrice, price.value)).toMatchObject({
+    const missingPriceResult = run(missingPrice, price.value);
+    expect(missingPriceResult).toMatchObject({
       ok: true,
       value: {
         executedCount: "1",
         skippedCount: "0",
         unavailableCount: "1",
+        actualTradeKeys: ["ga1_c_pack_2_1"],
+        simulatedTradeKeys: ["ga1_c_pack_2_1"],
+        actualNetPnl: "-10",
+        simulatedNetPnl: "-10",
         netPnlDifference: "0",
+        affectedSummary: {
+          tradesHelped: "0",
+          tradesHarmed: "0",
+          losingTradesAvoided: "0",
+          profitableTradesRemoved: "0",
+          neutralAffectedTrades: "0",
+          ruleSpecificAffectedCounts: [],
+        },
         tradeOutcomes: [{
           classification: "unavailable_required_authority",
+          responsibleRuleId: "exclude_price_range",
           reasonCode: "ti_v3_simulation_entry_price_unavailable",
+          actualNetPnl: "-10",
+          simulatedNetPnl: "-10",
+          limitationCodes: [
+            "ti_v3_simulation_entry_price_unavailable",
+            "ti_v3_simulation_required_rule_authority_unavailable",
+          ],
+        }],
+        limitationCodes: expect.arrayContaining([
+          "ti_v3_simulation_required_rule_authority_unavailable",
+        ]),
+      },
+    });
+  });
+
+  it("reconciles unavailable retention separately from genuine affected trades", () => {
+    const inputs = [
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:35:00.000000000Z",
+        netPnl: "-10",
+        entryPrice: null,
+      },
+      {
+        entryAt: "2026-07-01T13:36:00.000000000Z",
+        exitAt: "2026-07-01T13:40:00.000000000Z",
+        netPnl: "5",
+        entryPrice: "10",
+      },
+    ] as const;
+    const prepared = source(inputs);
+    const compiled = compileExcludePriceRangePreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      { lowerEntryPrice: "5", upperEntryPrice: "15" },
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    const result = run(prepared, compiled.value);
+    if (!result.ok) throw new Error(result.error.code);
+    expect(result.value).toMatchObject({
+      executedCount: "1",
+      skippedCount: "1",
+      unavailableCount: "1",
+      simulatedTradeKeys: ["ga1_c_pack_2_1"],
+      affectedSummary: {
+        tradesHelped: "0",
+        tradesHarmed: "1",
+        losingTradesAvoided: "0",
+        profitableTradesRemoved: "1",
+        neutralAffectedTrades: "0",
+        ruleSpecificAffectedCounts: [{
+          ruleId: "exclude_price_range",
+          affectedCount: "1",
         }],
       },
+      tradeOutcomes: [
+        {
+          sourceTradeKey: "ga1_c_pack_2_1",
+          classification: "unavailable_required_authority",
+          responsibleRuleId: "exclude_price_range",
+          reasonCode: "ti_v3_simulation_entry_price_unavailable",
+          actualNetPnl: "-10",
+          simulatedNetPnl: "-10",
+        },
+        {
+          sourceTradeKey: "ga1_c_pack_2_2",
+          classification: "skipped_by_rule",
+          responsibleRuleId: "exclude_price_range",
+          actualNetPnl: "5",
+          simulatedNetPnl: null,
+        },
+      ],
+    });
+
+    const replayed = verifyAndReplayCounterfactualSimulationResult({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.fixture.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      persistedResult: clone(result.value),
+    });
+    expect(replayed, JSON.stringify(replayed)).toMatchObject({
+      ok: true,
+      value: {
+        resultDigest: result.value.resultDigest,
+        skippedCount: "1",
+        unavailableCount: "1",
+        affectedSummary: {
+          ruleSpecificAffectedCounts: [{
+            ruleId: "exclude_price_range",
+            affectedCount: "1",
+          }],
+        },
+      },
+    });
+
+    const { resultDigest: _resultDigest, ...resultBody } = result.value;
+    void _resultDigest;
+    const tamperedBodies = [
+      {
+        ...resultBody,
+        affectedSummary: {
+          ...resultBody.affectedSummary,
+          ruleSpecificAffectedCounts: [{
+            ruleId: "exclude_price_range",
+            affectedCount: "2",
+          }],
+        },
+      },
+      { ...resultBody, unavailableCount: "2" },
+    ];
+    for (const tamperedBody of tamperedBodies) {
+      const redigested = finalizeContentAddressedAuthority(
+        "counterfactual_simulation_result",
+        tamperedBody,
+        "resultDigest",
+      );
+      if (!redigested.ok) throw new Error(redigested.error.code);
+      expect(verifyAndReplayCounterfactualSimulationResult({
+        source: prepared.fixture.source,
+        partitionReceipt: prepared.fixture.partition,
+        sourceQueryResult: prepared.sourceQueryResult,
+        persistedResult: redigested.value,
+      })).toMatchObject({ ok: false });
+    }
+
+    const permuted = source(inputs, { reverse: true });
+    const permutedCompiled = compileExcludePriceRangePreset(
+      permuted.sourceQueryPlan,
+      permuted.fixture.authority,
+      { lowerEntryPrice: "5", upperEntryPrice: "15" },
+    );
+    if (!permutedCompiled.ok) throw new Error(permutedCompiled.error.code);
+    const permutedResult = run(permuted, permutedCompiled.value);
+    expect(permutedResult, JSON.stringify(permutedResult)).toMatchObject({
+      ok: true,
+      value: { resultDigest: result.value.resultDigest },
     });
   });
 

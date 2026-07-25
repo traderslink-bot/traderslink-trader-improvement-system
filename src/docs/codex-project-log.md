@@ -1,3 +1,24 @@
+# 2026-07-25 - GA1-C checkpoint-two affected-population correction active
+
+- Continued draft PR #162 from required clean synchronized head
+  `6b7bf67d35fc4b203bc315ab715db81a75566f60`.
+- Corrected `ruleSpecificAffectedCounts` to use the authoritative rule-excluded
+  population instead of every responsible non-unchanged outcome.
+  `unavailable_required_authority` remains conservatively retained with
+  unchanged economics and is separately represented by unavailable count,
+  classification, responsible rule, exact reason, and limitation codes.
+- Added focused single/mixed reconciliation, replay, correctly re-digested
+  affected/unavailable tamper, and permutation coverage. Direct corrected pack
+  verification passed 1 file / 16 tests.
+- Final local verification passed 6 files / 75 tests, TypeScript, targeted
+  ESLint, the architecture guard, and `git diff --check`.
+
+Current best next step:
+
+- Commit and push this one correction, observe draft PR #162 CI, and stop for
+  independent re-audit. Do not run the final 10,000-row proof, merge, deploy,
+  or begin GA1-D/GA1-E.
+
 # 2026-07-25 - GA1-C preserve-or-exclude checkpoint two active
 
 - Continued draft PR #162 from accepted clean synchronized checkpoint-one
