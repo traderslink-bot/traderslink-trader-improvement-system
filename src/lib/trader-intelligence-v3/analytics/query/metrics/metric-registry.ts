@@ -280,7 +280,7 @@ const ZERO_SAMPLE_ALLOWED_KEYS = new Set<TradeQueryMetricKey>([
 ]);
 const ALL_GROUPINGS = Object.freeze([
   "aggregate", "day", "week", "month", "weekday", "time_bucket",
-  "entry_price_range", "trade_sequence",
+  "entry_price_range", "trade_sequence", "trade_sequence_bucket",
   "previous_completed_outcome", "repeat_attempt", "holding_time_bucket",
   "share_quantity_bucket", "entry_notional_bucket",
   "direction", "symbol", "account",

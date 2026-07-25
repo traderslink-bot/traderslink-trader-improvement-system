@@ -107,6 +107,7 @@ export type TradeQueryGrouping = Readonly<
   | { readonly kind: "entry_price_range"; readonly boundaries: readonly string[] }
   | { readonly kind: "price_range"; readonly boundaries: readonly string[] }
   | { readonly kind: "trade_sequence" }
+  | { readonly kind: "trade_sequence_bucket" }
   | { readonly kind: "previous_completed_outcome" }
   | { readonly kind: "repeat_attempt" }
   | { readonly kind: "holding_time_bucket"; readonly boundariesSeconds: readonly string[] }
@@ -181,7 +182,7 @@ const METRICS = new Set<string>(TRADE_QUERY_METRIC_KEYS);
 const GROUPINGS = new Set([
   "aggregate", "day", "month", "week", "weekday", "time_bucket",
   "entry_price_range", "price_range",
-  "trade_sequence", "previous_completed_outcome", "repeat_attempt",
+  "trade_sequence", "trade_sequence_bucket", "previous_completed_outcome", "repeat_attempt",
   "holding_time_bucket", "share_quantity_bucket", "entry_notional_bucket",
   "position_size_bucket", "direction", "symbol", "account",
 ]);

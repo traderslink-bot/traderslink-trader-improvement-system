@@ -88,6 +88,15 @@ export function tradeQueryGroupAssignment(
     case "trade_sequence":
       facts = [`sequence:${row.sequenceInSession}`, `Trade ${row.sequenceInSession}`, pad(row.sequenceInSession, 20)];
       break;
+    case "trade_sequence_bucket":
+      facts = row.sequenceInSession === BigInt("1")
+        ? ["sequence_bucket:v1:first", "First trade", "1"]
+        : row.sequenceInSession === BigInt("2")
+          ? ["sequence_bucket:v1:second", "Second trade", "2"]
+          : row.sequenceInSession === BigInt("3")
+            ? ["sequence_bucket:v1:third", "Third trade", "3"]
+            : ["sequence_bucket:v1:fourth_or_later", "Fourth and later trades", "4"];
+      break;
     case "previous_completed_outcome":
       facts = [`previous:${row.previousCompletedOutcome}`, row.previousCompletedOutcome, row.previousCompletedOutcome];
       break;

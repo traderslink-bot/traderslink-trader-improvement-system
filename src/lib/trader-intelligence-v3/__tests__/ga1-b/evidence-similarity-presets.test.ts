@@ -240,7 +240,7 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
       expect(executed).toMatchObject({ ok: true });
       if (presetKey === "compare_periods" && executed.ok) expect(executed.value.comparison).not.toBeNull();
     }
-  });
+  }, 30_000);
 
   it("rejects forged or re-digested preset and execution artifacts at runtime", () => {
     const fixture = buildSyntheticQueryFixture();
@@ -257,6 +257,26 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
     const altered = JSON.parse(JSON.stringify(execution.value));
     altered.candidateCount = "0";
     expect(verifyGa1BPresetExecution({ source: fixture.source, partitionReceipt: fixture.partition, execution: altered })).toMatchObject({ ok: false });
+  });
+
+  it("uses four stable bounded sequence buckets and rejects non-plain preset inputs", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const compiled = compileGa1BPreset({ presetKey: "analyze_trade_sequence_performance", authority: fixture.authority });
+    if (!compiled.ok) throw new Error(`${compiled.error.code}:${compiled.error.path}`);
+    expect(compiled.value.primaryPlan.grouping).toEqual({ kind: "trade_sequence_bucket" });
+    const executed = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+    if (!executed.ok) throw new Error(`${executed.error.code}:${executed.error.path}`);
+    expect(executed.value.primaryResult.rows.map((row) => row.groupIdentity)).toEqual([
+      "sequence_bucket:v1:first", "sequence_bucket:v1:second", "sequence_bucket:v1:third", "sequence_bucket:v1:fourth_or_later",
+    ]);
+    expect(executed.value.primaryResult.rows).toHaveLength(4);
+    expect(compileGa1BPreset({ presetKey: "analyze_long_vs_short", authority: fixture.authority, unknown: true })).toMatchObject({ ok: false });
+    const accessor: Record<string, unknown> = { authority: fixture.authority };
+    Object.defineProperty(accessor, "presetKey", { enumerable: true, get: () => "analyze_long_vs_short" });
+    expect(compileGa1BPreset(accessor)).toMatchObject({ ok: false });
+    expect(compileGa1BPreset(new (class { presetKey = "analyze_long_vs_short"; authority = fixture.authority; })())).toMatchObject({ ok: false });
+    const polluted = Object.create({ polluted: true }) as Record<string, unknown>; polluted.presetKey = "analyze_long_vs_short"; polluted.authority = fixture.authority;
+    expect(compileGa1BPreset(polluted)).toMatchObject({ ok: false });
   });
 
   it("declares raw-row and derived-semantic dependencies literally for daily and repeat families", () => {

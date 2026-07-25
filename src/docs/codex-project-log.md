@@ -19,6 +19,18 @@
   output, so it is recorded as unconfirmed, not passing. No UI, AI, importer,
   calibration, deployment, merge, or GA1-C work was performed.
 
+# 2026-07-25 - GA1-B bounded sequence correction active
+
+- Continued from `a922f67fb4f9cee50694c4165f4f96acd9b2eee9` with a clean
+  worktree. Replaced the rejected aggregate sequence substitution with the
+  GA1-A `trade_sequence_bucket` grouping: stable v1 first, second, third, and
+  fourth-or-later identities derived from verified `sequenceInSession`.
+- Preset compilation now validates the outer object through own data
+  descriptors before reading fields, rejecting unknown keys, accessors,
+  class instances, and polluted prototypes.
+- Resume point: complete captured focused and scale terminal evidence, then
+  commit/push only this correction; keep PR #161 draft/open/unmerged.
+
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
   #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;
