@@ -1,5 +1,24 @@
 # 2026-07-25 - GA1-B similarity policy remediation active
 
+# 2026-07-25 - GA1-B preset authority remediation active
+
+- Continued from `1f90267197236ff692c4b5ccd4a1969a0bd83f16` on the existing
+  GA1-B branch and draft PR #161 with a clean worktree.
+- The 10,000-row diagnostic completed the price-range and time-of-day presets,
+  then stalled at `analyze_trade_sequence_performance`: its one-group-per-
+  sequence plan exceeded the governed group population instead of producing a
+  bounded truthful artifact. The preset now has an explicit aggregate sequence
+  policy rather than an unexecutable unbounded grouping.
+- Presets are reconstructed and canonically verified against accepted GA1-A
+  authority at runtime before execution. Execution now returns a content-
+  addressed artifact binding preset, plans, results, comparison, dataset,
+  derivation, partition, owner/account/currency, counts, evidence, and limits.
+- Focused preset authority tests, the governed focused verifier, TypeScript,
+  changed-path lint, and diff checks pass. The final scale invocation again
+  terminated after Vitest startup without a terminal exit record or worker
+  output, so it is recorded as unconfirmed, not passing. No UI, AI, importer,
+  calibration, deployment, merge, or GA1-C work was performed.
+
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
   #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;

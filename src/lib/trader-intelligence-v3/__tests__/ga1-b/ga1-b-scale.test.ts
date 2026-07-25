@@ -39,8 +39,10 @@ describe.skipIf(!enabled)("GA1-B fixed-seed 10,000-row scale proof", () => {
     expect(search).toMatchObject({ ok: true });
     for (const presetKey of GA1_B_PRESET_KEYS) {
       const compiled = compileGa1BPreset({ presetKey, authority: fixture.authority, baselineFilters: presetKey === "compare_periods" ? [{ kind: "weekday", values: ["monday"] }] : undefined });
-      expect(compiled).toMatchObject({ ok: true });
-      if (compiled.ok) expect(executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value })).toMatchObject({ ok: true });
+      if (!compiled.ok) throw new Error(`preset=${presetKey};stage=compile;code=${compiled.error.code};path=${compiled.error.path}`);
+      const executed = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+      if (!executed.ok) throw new Error(`preset=${presetKey};stage=execute;code=${executed.error.code};path=${executed.error.path}`);
+      process.stdout.write(`GA1-B scale preset complete; preset=${presetKey};stage=execute\n`);
     }
   }, 120_000);
 });

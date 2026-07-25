@@ -7,6 +7,8 @@ import {
   buildSimilarTradeSearchPlan,
   compileGa1BPreset,
   executeGa1BPreset,
+  verifyGa1BPreset,
+  verifyGa1BPresetExecution,
   executeTradeQuery,
   retrieveTradeQueryEvidence,
   searchSimilarTrades,
@@ -238,6 +240,23 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
       expect(executed).toMatchObject({ ok: true });
       if (presetKey === "compare_periods" && executed.ok) expect(executed.value.comparison).not.toBeNull();
     }
+  });
+
+  it("rejects forged or re-digested preset and execution artifacts at runtime", () => {
+    const fixture = buildSyntheticQueryFixture();
+    const compiled = compileGa1BPreset({ presetKey: "compare_periods", authority: fixture.authority, baselineFilters: [{ kind: "weekday", values: ["monday"] }] });
+    if (!compiled.ok) throw new Error(`${compiled.error.code}:${compiled.error.path}`);
+    const forgedPlan = JSON.parse(JSON.stringify(compiled.value));
+    forgedPlan.primaryPlan.limits.groupLimit = "1";
+    expect(verifyGa1BPreset(forgedPlan, fixture.authority)).toMatchObject({ ok: false });
+    expect(compileGa1BPreset({ presetKey: "compare_periods", authority: fixture.authority })).toMatchObject({ ok: false });
+    expect(compileGa1BPreset({ presetKey: "analyze_after_loss_behavior", authority: fixture.authority, filters: [{ kind: "previous_completed_outcome", values: ["gain"] }] })).toMatchObject({ ok: false });
+    const execution = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+    if (!execution.ok) throw new Error(`${execution.error.code}:${execution.error.path}`);
+    expect(verifyGa1BPresetExecution({ source: fixture.source, partitionReceipt: fixture.partition, execution: execution.value })).toMatchObject({ ok: true });
+    const altered = JSON.parse(JSON.stringify(execution.value));
+    altered.candidateCount = "0";
+    expect(verifyGa1BPresetExecution({ source: fixture.source, partitionReceipt: fixture.partition, execution: altered })).toMatchObject({ ok: false });
   });
 
   it("declares raw-row and derived-semantic dependencies literally for daily and repeat families", () => {
