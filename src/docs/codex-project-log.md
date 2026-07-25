@@ -55,6 +55,17 @@
   fixture to finish and capture the direct runner's final exit code; do not
   weaken the proof or skip stages.
 
+# 2026-07-25 - GA1-B GitHub scale-proof dispatch
+
+- Continued from `2ea1ef5c76866d522404d545e7c2ed07dcc766e3`. Added the
+  manual-only `Trader Intelligence v3 GA1-B Governed Scale Proof` workflow:
+  Node 22, `npm ci`, a 45-minute timeout, the exact committed scale-only
+  verifier, and an always-uploaded non-sensitive NDJSON stage-record artifact.
+- Corrected runner observability names: fixture construction now has a start
+  event rather than a false completion status, and terminal success is
+  `scale_run_completion`. The 30-row diagnostic completed all stages and ten
+  presets in 4,716 ms.
+
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
   #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;

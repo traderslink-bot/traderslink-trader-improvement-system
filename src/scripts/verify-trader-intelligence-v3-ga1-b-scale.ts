@@ -8,6 +8,7 @@ import {
   retrieveTradeQueryEvidence,
   searchSimilarTrades,
 } from "../lib/trader-intelligence-v3/analytics";
+import { appendFileSync } from "node:fs";
 
 const rowsArgument = process.argv.find((value) => value.startsWith("--rows="));
 const rows = rowsArgument === undefined ? 10_000 : Number(rowsArgument.slice("--rows=".length));
@@ -15,9 +16,16 @@ if (!Number.isSafeInteger(rows) || rows < 1 || rows > 10_000) throw new Error("i
 const startedAt = Date.now();
 let stageStartedAt = startedAt;
 
+function writeRecord(record: Record<string, unknown>): void {
+  const line = `${JSON.stringify(record)}\n`;
+  process.stdout.write(line);
+  const stageLog = process.env.TI_V3_GA1_B_SCALE_STAGE_LOG;
+  if (stageLog !== undefined) appendFileSync(stageLog, line, "utf8");
+}
+
 function report(stage: string, status: "complete" | "failed", error?: { readonly code: string; readonly path: string }): void {
   const memory = process.memoryUsage();
-  process.stdout.write(`${JSON.stringify({ stage, status, elapsedMs: Date.now() - stageStartedAt, totalElapsedMs: Date.now() - startedAt, memory: { rss: memory.rss, heapUsed: memory.heapUsed, heapTotal: memory.heapTotal }, ...(error === undefined ? {} : { error }) })}\n`);
+  writeRecord({ stage, status, elapsedMs: Date.now() - stageStartedAt, totalElapsedMs: Date.now() - startedAt, memory: { rss: memory.rss, heapUsed: memory.heapUsed, heapTotal: memory.heapTotal }, ...(error === undefined ? {} : { error }) });
   stageStartedAt = Date.now();
 }
 
@@ -27,7 +35,7 @@ function requireOk<T>(stage: string, result: { readonly ok: true; readonly value
   throw new Error(`${stage}:${result.error.code}:${result.error.path}`);
 }
 
-report("fixture_construction_started", "complete");
+writeRecord({ event: "fixture_construction_started", totalElapsedMs: 0, memory: (() => { const memory = process.memoryUsage(); return { rss: memory.rss, heapUsed: memory.heapUsed, heapTotal: memory.heapTotal }; })() });
 const fixture = buildSyntheticQueryFixture(rows);
 report("fixture_construction", "complete");
 const aggregate = requireOk("aggregate_execution", executeTradeQuery({ source: fixture.source, partitionReceipt: fixture.partition, queryPlan: fixture.plan() }));
@@ -46,4 +54,4 @@ for (const presetKey of GA1_B_PRESET_KEYS) {
   if (execution.primaryResult.rows.length > Number(preset.primaryPlan.limits.resultRowLimit)) throw new Error(`preset:${presetKey}:result bound mismatch`);
   report(`preset:${presetKey}`, "complete");
 }
-report("deterministic_completion", "complete");
+report("scale_run_completion", "complete");
