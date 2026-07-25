@@ -197,7 +197,9 @@ export function buildExactMetricValue(
       break;
     }
     case "identity": {
-      const value = validateBoundedString(record.value, "$.value", /^[^\u0000-\u001f\u007f]+$/, 256);
+      // Source identities are B1 semanticRoundTripKey/candidateKey values.
+      // Keep the exact metric bound aligned with those accepted source keys.
+      const value = validateBoundedString(record.value, "$.value", /^[^\u0000-\u001f\u007f]+$/, 512);
       if (!value.ok) return value;
       if (base.value.currency !== null) {
         return contractFailure("ti_v3_analytics_contract_currency_mismatch", "$.currency");

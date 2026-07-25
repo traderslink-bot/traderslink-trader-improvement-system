@@ -40,7 +40,7 @@ export function simulateDailyStopReference(
 ): DailyStopReferenceResult {
   const ordered = [...rows].sort(byEntry);
   const completions = [...ordered].sort((left, right) =>
-    left.finalExitAt < right.finalExitAt ? -1 : left.finalExitAt > right.finalExitAt ? 1 : byEntry(left, right));
+    left.finalExitAt < right.finalExitAt ? -1 : left.finalExitAt > right.finalExitAt ? 1 : 0);
   let lossStreak = BigInt(0);
   let trigger: DailyStopReferenceRow | null = null;
   let ambiguous = false;
@@ -53,11 +53,15 @@ export function simulateDailyStopReference(
       index += 1;
     }
     const lossCount = group.filter((row) => compareDailyStopDecimals(row.netPnl, "0") < 0).length;
-    if (group.length > 1 && lossStreak + BigInt(lossCount) >= BigInt(threshold) && lossCount > 0) {
+    const hasLoss = lossCount > 0;
+    const hasNonLoss = group.some((row) => compareDailyStopDecimals(row.netPnl, "0") >= 0);
+    // Same-time mixed outcomes have no admissible completion order. Do not
+    // use entry, semantic, or hash order to manufacture one.
+    if (group.length > 1 && hasLoss && (hasNonLoss || lossStreak + BigInt(lossCount) >= BigInt(threshold))) {
       ambiguous = true;
       break;
     }
-    for (const row of group.sort(byEntry)) {
+    for (const row of group) {
       const outcome = compareDailyStopDecimals(row.netPnl, "0");
       if (outcome < 0) lossStreak += BigInt(1);
       else lossStreak = BigInt(0);

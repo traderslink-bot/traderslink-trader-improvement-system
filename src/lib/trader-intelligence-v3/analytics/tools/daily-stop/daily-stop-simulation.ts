@@ -88,7 +88,7 @@ function sessionIdentity(key: DailyStopSessionKey): string {
 
 function findTrigger(rows: readonly AnalyticalRow[], threshold: string): { readonly trigger: AnalyticalRow | null; readonly ambiguous: boolean } {
   const completions = [...rows].sort((left, right) =>
-    left.finalExitAt < right.finalExitAt ? -1 : left.finalExitAt > right.finalExitAt ? 1 : compareEntry(left, right));
+    left.finalExitAt < right.finalExitAt ? -1 : left.finalExitAt > right.finalExitAt ? 1 : 0);
   let lossStreak = BigInt(0);
   let index = 0;
   while (index < completions.length) {
@@ -99,8 +99,13 @@ function findTrigger(rows: readonly AnalyticalRow[], threshold: string): { reado
       index += 1;
     }
     const lossCount = group.filter((row) => compareDailyStopDecimals(row.netPnl, "0") < 0).length;
-    if (group.length > 1 && lossStreak + BigInt(lossCount) >= BigInt(threshold) && lossCount > 0) return { trigger: null, ambiguous: true };
-    for (const row of group.sort(compareEntry)) {
+    const hasLoss = lossCount > 0;
+    const hasNonLoss = group.some((row) => compareDailyStopDecimals(row.netPnl, "0") >= 0);
+    // Completion order is not admissible when multiple same-time outcomes
+    // mix losses and non-losses. Entry/semantic/hash order is not a semantic
+    // tie-breaker; fail closed because the future streak/trigger can differ.
+    if (group.length > 1 && hasLoss && (hasNonLoss || lossStreak + BigInt(lossCount) >= BigInt(threshold))) return { trigger: null, ambiguous: true };
+    for (const row of group) {
       const outcome = compareDailyStopDecimals(row.netPnl, "0");
       lossStreak = outcome < 0 ? lossStreak + BigInt(1) : BigInt(0);
       if (lossStreak >= BigInt(threshold)) return { trigger: row, ambiguous: false };

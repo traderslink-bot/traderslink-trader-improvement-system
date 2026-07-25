@@ -1,6 +1,6 @@
 # ADR: GA0-B3 Consecutive-Loss Daily-Stop Simulation v1
 
-**Status:** proposed for independent audit
+**Status:** proposed for independent re-audit after final focused remediation
 **Date:** 2026-07-24 America/Toronto
 **Tool:** `simulate_daily_stop_rule:v1`
 
@@ -58,9 +58,11 @@ simulated, removed, difference, or classification value is fabricated. The
 actual rows, exact actual P/L, ambiguity reason, and row-specific evidence are
 preserved in `daily_stop_ambiguous_sessions`. Such a session contributes to
 neither the aggregate, claim sample, nor chart series. If a same-timestamp
-group would make the trigger identity or threshold timing ambiguous, the
-session is also excluded. Same-outcome groups that cannot change the threshold
-are harmless; same-outcome threshold-crossing groups fail closed.
+group mixes any loss with a non-loss, the order is not admissible and the
+session is excluded even when the current streak is below threshold; entry,
+semantic, and hash order are never used as a same-time tie-breaker. Same-outcome
+groups that cannot change the threshold are harmless; same-outcome
+threshold-crossing groups fail closed.
 
 ## Exact tables and equations
 
@@ -81,7 +83,10 @@ the exclusion ledger is non-empty rather than being guessed from candidate
 count; the ledger and its candidate count remain explicit.
 If any candidate is excluded before session identity is available, both
 candidate-session and excluded-session scope are explicitly unavailable rather
-than inferred.
+than inferred. When no session is included, the aggregate uses a
+content-addressed `empty_included` population evidence bundle with zero
+candidate keys; ambiguous rows are never substituted as included evidence and
+financial aggregate cells are unavailable rather than presented as zero.
 
 For every included session the executor proves:
 
@@ -98,8 +103,10 @@ caller-supplied total.
 ## Evidence, series, and claims
 
 Deterministic evidence bundles cover actual rows, retained rows, removed rows,
-the trigger, aggregate population, and the exclusion ledger. Table cells and
-series points retain their source evidence. The three chart-ready series select
+the trigger, aggregate population, and the exclusion ledger. The session
+simulation bundle additionally identifies actual, retained, removed, trigger,
+and stop-time authority; both exact difference and classification bind to that
+bundle. Table cells and series points retain their source evidence. The three chart-ready series select
 only validated session-table values: actual versus simulated net P/L, exact
 difference, and actual versus simulated trade counts. No rendering code or new
 financial calculation is present.
@@ -115,7 +122,9 @@ The aggregate also declares one exact sample state: `insufficient` for fewer
 than 5 threshold-reached sessions, `descriptive_only` for 5–9, and
 `claim_eligible` for 10 or more. Claim sample size is authoritative from the
 aggregate `threshold_reached_session_count` cell, not from trade rows or
-evidence candidates. Claims preserve semantic counterexample evidence for
+evidence candidates. The B3 sample authority is versioned and binds the claim
+type, aggregate subject/comparison groups, aggregate table/row/column, and
+`threshold_reached_sessions` evidence population. Claims preserve semantic counterexample evidence for
 opposite-effect sessions, threshold-reached unchanged sessions, leave-one-out
 direction changes, and economically contrary removed trades. Absent categories
 are omitted rather than represented by arbitrary sample rows.

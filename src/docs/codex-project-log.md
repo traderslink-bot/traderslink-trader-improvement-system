@@ -118,6 +118,20 @@
   independent re-audit handoff. No deploy, GA0-B2 work, route/UI work,
   review-thread resolution, merge, or draft-state change is authorized.
 
+### 2026-07-24 - GA0-B3 final focused remediation in progress
+
+The current re-audit findings head is `f5427b098b5e1f218b666c8c29b8603ad36b38a2`.
+The existing branch and draft PR #156 remain the only implementation surface.
+The final executable remediation covers mixed same-time completion ambiguity,
+verified empty-included aggregate evidence, 512-character source identity
+bounds, complete simulation authority for classification, and the versioned B3
+threshold-session sample policy. Focused B3, B1, and B2 suites are green; the
+executable checkpoint, consolidated verification, CI, and final Markdown-only
+independent re-audit handoff remain.
+
+Keep PR #156 draft/open/unmerged, leave audit threads untouched, do not deploy,
+and do not begin GA0-B4.
+
 # Codex Project Log
 
 ### 2026-07-23 Trader Intelligence v3 GA0-B1 Independent-Audit Remediation Candidate

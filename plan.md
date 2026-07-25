@@ -6,7 +6,7 @@
 **Operational hosting:** local owner testing  
 **Primary domain:** U.S. listed small-cap and micro-cap active trading  
 **Product boundary:** retrospective educational trade review and self-improvement  
-**Current gate:** GA0-B3 — independent-audit remediation active on draft PR #156; findings head `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`; B2 accepted and merged as `4338cab7d46b8a0548b22346f81b42db5fec3bf0`
+**Current gate:** GA0-B3 — final focused remediation active on draft PR #156; re-audit findings head `f5427b098b5e1f218b666c8c29b8603ad36b38a2`; B2 accepted and merged as `4338cab7d46b8a0548b22346f81b42db5fec3bf0`
 **Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md`
 
 Start here when resuming Trader Intelligence product, analytics, simulation,
@@ -205,9 +205,13 @@ branch remains the existing draft PR #156. Ambiguous sessions are excluded
 from simulation, aggregate, claims, and series with preserved actual evidence;
 claim samples are threshold-reached sessions with explicit sample states and
 counterexample evidence; and excluded-candidate scope is unavailable rather
-than inferred. Stop after the remediation executable and later Markdown-only
-handoff commits for independent re-audit. Do not merge, deploy, resolve audit
-threads, or begin GA0-B4.
+than inferred. The final remediation also fails closed on mixed same-time
+loss/non-loss groups, uses verified empty-included aggregate evidence, binds
+classification to complete simulation evidence, accepts source identities
+through the B1 512-character bound, and governs B3 claim sample authority with
+a versioned policy. Stop after the remediation executable and later
+Markdown-only handoff commits for independent re-audit. Do not merge, deploy,
+resolve audit threads, or begin GA0-B4.
 
 ## GA0-B4 — Proof closeout
 

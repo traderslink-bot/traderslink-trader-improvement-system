@@ -10,6 +10,7 @@ import {
   validateKeyArray,
   validateReasonCode,
   validateReasonCodes,
+  validateTimestampValue,
   type AnalyticalContractFailure,
 } from "./contract-validation";
 import { getAnalysisRunContextDependencies, verifyAnalysisRunContext, type AnalysisRunContext } from "./run-context";
@@ -17,6 +18,20 @@ import { isClaimNeutralAnalyticalExclusion } from "../dataset/analytical-dataset
 
 export const ANALYTICAL_EVIDENCE_BUNDLE_VERSION = "ti_v3_analytical_evidence_bundle_v1" as const;
 export const ANALYTICAL_DIAGNOSTICS_VERSION = "ti_v3_analytical_diagnostics_v1" as const;
+
+export const ANALYTICAL_EVIDENCE_POPULATION_STATES = Object.freeze({
+  nonempty: "nonempty",
+  emptyIncluded: "empty_included",
+} as const);
+
+export interface AnalyticalSimulationEvidenceAuthority {
+  readonly kind: "daily_stop_simulation_v1";
+  readonly actualCandidateKeys: readonly string[];
+  readonly retainedCandidateKeys: readonly string[];
+  readonly removedCandidateKeys: readonly string[];
+  readonly triggerCandidateKey: string | null;
+  readonly stopAt: string | null;
+}
 
 export interface AnalyticalEvidenceBundle {
   readonly schemaVersion: typeof ANALYTICAL_EVIDENCE_BUNDLE_VERSION;
@@ -29,7 +44,9 @@ export interface AnalyticalEvidenceBundle {
   readonly partitionCurrency: string;
   readonly comparisonGroupKey: string | null;
   readonly inclusionState: "included" | "excluded";
+  readonly populationState?: "nonempty" | "empty_included";
   readonly candidateKeys: readonly string[];
+  readonly simulationAuthority?: AnalyticalSimulationEvidenceAuthority;
   readonly roundTripKeys: readonly string[];
   readonly occurrenceKeys: readonly string[];
   readonly exclusionReasonCodes: readonly string[];
@@ -66,7 +83,7 @@ export function buildAnalyticalEvidenceBundle(
   const record = validateContractRecord(input, [
     "schemaVersion", "evidenceKey", "runContext", "comparisonGroupKey",
     "inclusionState", "candidateKeys",
-  ], ["limitationCodes"]);
+  ], ["limitationCodes", "populationState", "simulationAuthority"]);
   if (!record.ok) return record;
   if (record.value.schemaVersion !== ANALYTICAL_EVIDENCE_BUNDLE_VERSION) return contractFailure("ti_v3_analytics_contract_invalid", "$.schemaVersion");
   const context = verifyAnalysisRunContext((input as Record<string, unknown>).runContext);
@@ -80,8 +97,23 @@ export function buildAnalyticalEvidenceBundle(
     comparisonGroupKey = group.value;
   }
   if (record.value.inclusionState !== "included" && record.value.inclusionState !== "excluded") return contractFailure("ti_v3_analytics_contract_invalid", "$.inclusionState");
-  const candidateKeys = validateKeyArray(record.value.candidateKeys, "$.candidateKeys");
-  if (!candidateKeys.ok || candidateKeys.value.length === 0) return candidateKeys.ok ? contractFailure("ti_v3_analytics_contract_invalid", "$.candidateKeys") : candidateKeys;
+  const populationState = record.value.populationState === undefined
+    ? undefined
+    : record.value.populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.nonempty || record.value.populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded
+      ? record.value.populationState
+      : null;
+  if (populationState === null) return contractFailure("ti_v3_analytics_contract_invalid", "$.populationState");
+  const candidateKeys = validateKeyArray(record.value.candidateKeys, "$.candidateKeys", 512);
+  if (!candidateKeys.ok) return candidateKeys;
+  if (candidateKeys.value.length === 0 && !(record.value.inclusionState === "included" && populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded)) {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$.candidateKeys");
+  }
+  if (candidateKeys.value.length > 0 && populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded) {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$.populationState");
+  }
+  if (populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded && record.value.inclusionState !== "included") {
+    return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.inclusionState");
+  }
   const dependencies = getAnalysisRunContextDependencies(context.value);
   if (dependencies === null) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.runContext");
   const roundTripKeys = new Set<string>();
@@ -131,6 +163,44 @@ export function buildAnalyticalEvidenceBundle(
       });
     }
   }
+  let simulationAuthority: AnalyticalSimulationEvidenceAuthority | undefined;
+  if (record.value.simulationAuthority !== undefined) {
+    const authority = validateContractRecord(record.value.simulationAuthority, [
+      "kind", "actualCandidateKeys", "retainedCandidateKeys", "removedCandidateKeys", "triggerCandidateKey", "stopAt",
+    ], [], "$.simulationAuthority");
+    if (!authority.ok) return authority;
+    if (authority.value.kind !== "daily_stop_simulation_v1") return contractFailure("ti_v3_analytics_contract_invalid", "$.simulationAuthority.kind");
+    const actual = validateKeyArray(authority.value.actualCandidateKeys, "$.simulationAuthority.actualCandidateKeys", 512);
+    const retained = validateKeyArray(authority.value.retainedCandidateKeys, "$.simulationAuthority.retainedCandidateKeys", 512);
+    const removed = validateKeyArray(authority.value.removedCandidateKeys, "$.simulationAuthority.removedCandidateKeys", 512);
+    if (!actual.ok) return actual;
+    if (!retained.ok) return retained;
+    if (!removed.ok) return removed;
+    if (record.value.inclusionState !== "included" || populationState === ANALYTICAL_EVIDENCE_POPULATION_STATES.emptyIncluded || actual.value.length === 0) {
+      return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.simulationAuthority");
+    }
+    if (actual.value.join("\u0000") !== candidateKeys.value.join("\u0000")) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.simulationAuthority.actualCandidateKeys");
+    const retainedSet = new Set(retained.value);
+    const removedSet = new Set(removed.value);
+    if (retained.value.some((key) => removedSet.has(key)) || retained.value.length + removed.value.length !== actual.value.length || actual.value.some((key) => !retainedSet.has(key) && !removedSet.has(key))) {
+      return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.simulationAuthority");
+    }
+    let triggerCandidateKey: string | null = null;
+    if (authority.value.triggerCandidateKey !== null) {
+      const trigger = validateContractKey(authority.value.triggerCandidateKey, "$.simulationAuthority.triggerCandidateKey", 512);
+      if (!trigger.ok) return trigger;
+      if (!retainedSet.has(trigger.value)) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.simulationAuthority.triggerCandidateKey");
+      triggerCandidateKey = trigger.value;
+    }
+    let stopAt: string | null = null;
+    if (authority.value.stopAt !== null) {
+      const timestamp = validateTimestampValue(authority.value.stopAt, "$.simulationAuthority.stopAt");
+      if (!timestamp.ok) return timestamp;
+      stopAt = timestamp.value;
+    }
+    if ((triggerCandidateKey === null) !== (stopAt === null)) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.simulationAuthority");
+    simulationAuthority = Object.freeze({ kind: "daily_stop_simulation_v1", actualCandidateKeys: actual.value, retainedCandidateKeys: retained.value, removedCandidateKeys: removed.value, triggerCandidateKey, stopAt });
+  }
   return finalizeContentAddressedAuthority("analytical_evidence_bundle", {
     schemaVersion: ANALYTICAL_EVIDENCE_BUNDLE_VERSION,
     evidenceKey: evidenceKey.value,
@@ -142,7 +212,9 @@ export function buildAnalyticalEvidenceBundle(
     partitionCurrency: context.value.partitionCurrency,
     comparisonGroupKey,
     inclusionState: record.value.inclusionState,
+    ...(populationState === undefined ? {} : { populationState }),
     candidateKeys: candidateKeys.value,
+    ...(simulationAuthority === undefined ? {} : { simulationAuthority }),
     ...(record.value.limitationCodes === undefined ? {} : { limitationCodes: record.value.limitationCodes }),
     roundTripKeys: [...roundTripKeys].sort(),
     occurrenceKeys: [...occurrenceKeys].sort(),
@@ -171,7 +243,7 @@ export function verifyAnalyticalEvidenceBundle(
     "occurrenceKeys", "exclusionReasonCodes", "secondaryExclusionReasonCodes",
     "sourceExclusionReasonCodes", "exclusionReasonAuthorities",
     "limitationCodes", "bundleDigest",
-  ]);
+  ], ["populationState", "simulationAuthority"]);
   if (!record.ok) return record;
   const context = verifyAnalysisRunContext(runContext);
   if (!context.ok || record.value.runContextDigest !== context.value.runContextDigest || record.value.snapshotDigest !== context.value.snapshotDigest || record.value.filterDigest !== context.value.filterDigest || record.value.datasetReceiptDigest !== context.value.datasetReceiptDigest || record.value.partitionDigest !== context.value.partitionDigest || record.value.partitionCurrency !== context.value.partitionCurrency) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$");
@@ -183,7 +255,9 @@ export function verifyAnalyticalEvidenceBundle(
     runContext: context.value,
     comparisonGroupKey: record.value.comparisonGroupKey,
     inclusionState: record.value.inclusionState,
+    ...(record.value.populationState === undefined ? {} : { populationState: record.value.populationState }),
     candidateKeys: record.value.candidateKeys,
+    ...(record.value.simulationAuthority === undefined ? {} : { simulationAuthority: record.value.simulationAuthority }),
     limitationCodes: record.value.limitationCodes,
   });
   if (!rebuilt.ok || rebuilt.value.bundleDigest !== digest.value) return contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.bundleDigest");

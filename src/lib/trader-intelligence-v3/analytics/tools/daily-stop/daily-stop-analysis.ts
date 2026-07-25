@@ -9,6 +9,8 @@ import {
   CHART_READY_SERIES_VERSION,
   EXACT_TABLE_VERSION,
   VALIDATED_CLAIM_VERSION,
+  DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
+  DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
   buildAnalysisRunContext,
   buildAnalysisRunReceipt,
   buildAnalyticalDiagnostics,
@@ -22,6 +24,7 @@ import {
   type AnalyticalContractFailure,
   type AnalyticalDiagnostics,
   type AnalyticalEvidenceBundle,
+  type AnalyticalSimulationEvidenceAuthority,
   type ChartReadySeries,
   type ExactMetricValue,
   type ExactTable,
@@ -226,15 +229,15 @@ const AMBIGUOUS_COLUMNS = Object.freeze([
 
 interface EvidenceFactory {
   readonly bundles: AnalyticalEvidenceBundle[];
-  add(key: string, inclusionState: "included" | "excluded", candidateKeys: readonly string[]): AnalyticalEvidenceBundle | null;
+  add(key: string, inclusionState: "included" | "excluded", candidateKeys: readonly string[], options?: Readonly<{ allowEmpty?: boolean; simulationAuthority?: AnalyticalSimulationEvidenceAuthority }>): AnalyticalEvidenceBundle | null;
 }
 
 function createEvidenceFactory(context: AnalysisRunContext, globalLimitations: readonly string[]): EvidenceFactory {
   const bundles: AnalyticalEvidenceBundle[] = [];
   return {
     bundles,
-    add(key, inclusionState, candidateKeys) {
-      if (candidateKeys.length === 0) return null;
+    add(key, inclusionState, candidateKeys, options) {
+      if (candidateKeys.length === 0 && options?.allowEmpty !== true) return null;
       const bundle = required(buildAnalyticalEvidenceBundle({
         schemaVersion: ANALYTICAL_EVIDENCE_BUNDLE_VERSION,
         evidenceKey: key,
@@ -242,6 +245,8 @@ function createEvidenceFactory(context: AnalysisRunContext, globalLimitations: r
         comparisonGroupKey: null,
         inclusionState,
         candidateKeys: uniqueSorted(candidateKeys),
+        ...(candidateKeys.length === 0 ? { populationState: "empty_included" } : {}),
+        ...(options?.simulationAuthority === undefined ? {} : { simulationAuthority: options.simulationAuthority }),
         limitationCodes: globalLimitations,
       }), `$.evidenceBundles.${key}`);
       bundles.push(bundle);
@@ -265,7 +270,16 @@ function sessionRow(
   const retained = evidenceFactory.add(`daily_stop_retained_${evidenceScope}`, "included", decision.retainedRows.map((row) => row.semanticRoundTripKey));
   const removed = evidenceFactory.add(`daily_stop_removed_${evidenceScope}`, "included", decision.removedRows.map((row) => row.semanticRoundTripKey));
   const trigger = decision.triggerRow === null ? null : evidenceFactory.add(`daily_stop_trigger_${evidenceScope}`, "included", [decision.triggerRow.semanticRoundTripKey]);
-  const simulation = evidenceFactory.add(`daily_stop_simulation_${evidenceScope}`, "included", decision.rows.map((row) => row.semanticRoundTripKey));
+  const simulation = evidenceFactory.add(`daily_stop_simulation_${evidenceScope}`, "included", decision.rows.map((row) => row.semanticRoundTripKey), {
+    simulationAuthority: {
+      kind: "daily_stop_simulation_v1",
+      actualCandidateKeys: decision.rows.map((row) => row.semanticRoundTripKey),
+      retainedCandidateKeys: decision.retainedRows.map((row) => row.semanticRoundTripKey),
+      removedCandidateKeys: decision.removedRows.map((row) => row.semanticRoundTripKey),
+      triggerCandidateKey: decision.triggerRow?.semanticRoundTripKey ?? null,
+      stopAt: decision.stopAt,
+    },
+  });
   if (actual === null || retained === null || simulation === null) throw new Error("ti_v3_daily_stop_evidence_missing");
   const limitations = uniqueSorted([...globalLimitations, ...decision.limitationCodes]);
   const currency = decision.sessionKey.currency;
@@ -296,7 +310,7 @@ function sessionRow(
     cell("simulated_net_pnl", moneyMetric("simulated_net_pnl", currency, decision.simulatedNetPnl), retained.bundleDigest),
     cell("removed_net_pnl", moneyMetric("removed_net_pnl", currency, decision.removedNetPnl), removed?.bundleDigest),
     cell("exact_difference", moneyMetric("exact_difference", currency, decision.difference ?? "0"), simulation.bundleDigest),
-    cell("classification", dailyStopEnumMetric("classification", decision.classification), retained.bundleDigest),
+    cell("classification", dailyStopEnumMetric("classification", decision.classification), simulation.bundleDigest),
     cell("actual_row_evidence", dailyStopEnumMetric("actual_row_evidence", "resolved"), actual.bundleDigest),
     cell("retained_row_evidence", dailyStopEnumMetric("retained_row_evidence", "resolved"), retained.bundleDigest),
     cell("removed_row_evidence", dailyStopEnumMetric("removed_row_evidence", decision.removedRows.length > 0 ? "resolved" : "not_applicable"), removed?.bundleDigest),
@@ -376,7 +390,6 @@ function aggregateOutlierSensitive(decisions: readonly DailyStopIncludedSessionD
 
 function aggregateRow(
   decisions: readonly DailyStopIncludedSessionDecision[],
-  fallbackEvidenceRows: readonly AnalyticalRow[],
   candidateSessionCount: string | null,
   excludedSessionCount: string | null,
   sampleState: typeof DAILY_STOP_SAMPLE_STATES[keyof typeof DAILY_STOP_SAMPLE_STATES],
@@ -385,7 +398,7 @@ function aggregateRow(
   currency: string,
 ): Readonly<{ row: Readonly<Record<string, unknown>>; aggregateEvidence: AnalyticalEvidenceBundle; totalDifference: string; outlierSensitive: boolean; limitationCodes: readonly string[] }> {
   const allRows = decisions.flatMap((decision) => decision.rows);
-  const aggregateEvidence = evidenceFactory.add("daily_stop_aggregate_population", "included", (allRows.length > 0 ? allRows : fallbackEvidenceRows).map((row) => row.semanticRoundTripKey));
+  const aggregateEvidence = evidenceFactory.add("daily_stop_aggregate_population", "included", allRows.map((row) => row.semanticRoundTripKey), { allowEmpty: true });
   if (aggregateEvidence === null) throw new Error("ti_v3_daily_stop_aggregate_evidence_missing");
   const thresholdReached = decisions.filter((decision) => decision.thresholdReached);
   const helped = decisions.filter((decision) => decision.classification === "helped");
@@ -405,6 +418,10 @@ function aggregateRow(
   const noHelped = bestHelped === null;
   const noHarmed = worstHarmed === null;
   const money = (key: string, value: string | null, reason: string): ExactMetricValue => optionalMoneyMetric(key, currency, value, reason);
+  const includedPopulationAvailable = decisions.length > 0;
+  const aggregateMoney = (key: string, value: string): ExactMetricValue => includedPopulationAvailable
+    ? moneyMetric(key, currency, value)
+    : dailyStopUnavailableMetric(key, "money", currency, "ti_v3_daily_stop_empty_included_population");
   const evidenceFor = (decision: DailyStopIncludedSessionDecision | null): string | undefined => decision === null ? undefined : evidenceFactory.bundles.find((bundle) => bundle.evidenceKey === `daily_stop_actual_${sessionScope(decision)}`)?.bundleDigest;
   const cells = [
     cell("candidate_session_count", candidateSessionCount === null
@@ -422,14 +439,14 @@ function aggregateRow(
     cell("actual_trade_count", dailyStopIntegerMetric("actual_trade_count", count(allRows))),
     cell("simulated_trade_count", dailyStopIntegerMetric("simulated_trade_count", count(decisions.flatMap((decision) => decision.retainedRows)))),
     cell("removed_trade_count", dailyStopIntegerMetric("removed_trade_count", count(decisions.flatMap((decision) => decision.removedRows)))),
-    cell("actual_total_gross_pnl", moneyMetric("actual_total_gross_pnl", currency, aggregateSums(decisions, "actualGrossPnl")), aggregateEvidence.bundleDigest),
-    cell("actual_total_charges", moneyMetric("actual_total_charges", currency, aggregateSums(decisions, "actualCharges")), aggregateEvidence.bundleDigest),
-    cell("actual_total_net_pnl", moneyMetric("actual_total_net_pnl", currency, aggregateSums(decisions, "actualNetPnl")), aggregateEvidence.bundleDigest),
-    cell("simulated_total_gross_pnl", moneyMetric("simulated_total_gross_pnl", currency, aggregateSums(decisions, "simulatedGrossPnl")), aggregateEvidence.bundleDigest),
-    cell("simulated_total_charges", moneyMetric("simulated_total_charges", currency, aggregateSums(decisions, "simulatedCharges")), aggregateEvidence.bundleDigest),
-    cell("simulated_total_net_pnl", moneyMetric("simulated_total_net_pnl", currency, aggregateSums(decisions, "simulatedNetPnl")), aggregateEvidence.bundleDigest),
-    cell("removed_total_net_pnl", moneyMetric("removed_total_net_pnl", currency, aggregateSums(decisions, "removedNetPnl")), aggregateEvidence.bundleDigest),
-    cell("exact_total_difference", moneyMetric("exact_total_difference", currency, totalDifference), aggregateEvidence.bundleDigest),
+    cell("actual_total_gross_pnl", aggregateMoney("actual_total_gross_pnl", aggregateSums(decisions, "actualGrossPnl")), aggregateEvidence.bundleDigest),
+    cell("actual_total_charges", aggregateMoney("actual_total_charges", aggregateSums(decisions, "actualCharges")), aggregateEvidence.bundleDigest),
+    cell("actual_total_net_pnl", aggregateMoney("actual_total_net_pnl", aggregateSums(decisions, "actualNetPnl")), aggregateEvidence.bundleDigest),
+    cell("simulated_total_gross_pnl", aggregateMoney("simulated_total_gross_pnl", aggregateSums(decisions, "simulatedGrossPnl")), aggregateEvidence.bundleDigest),
+    cell("simulated_total_charges", aggregateMoney("simulated_total_charges", aggregateSums(decisions, "simulatedCharges")), aggregateEvidence.bundleDigest),
+    cell("simulated_total_net_pnl", aggregateMoney("simulated_total_net_pnl", aggregateSums(decisions, "simulatedNetPnl")), aggregateEvidence.bundleDigest),
+    cell("removed_total_net_pnl", aggregateMoney("removed_total_net_pnl", aggregateSums(decisions, "removedNetPnl")), aggregateEvidence.bundleDigest),
+    cell("exact_total_difference", aggregateMoney("exact_total_difference", totalDifference), aggregateEvidence.bundleDigest),
     cell("best_helped_day_effect", money("best_helped_day_effect", bestHelped?.difference ?? null, "ti_v3_daily_stop_no_helped_session"), evidenceFor(bestHelped)),
     cell("worst_harmed_day_effect", money("worst_harmed_day_effect", worstHarmed?.difference ?? null, "ti_v3_daily_stop_no_harmed_session"), evidenceFor(worstHarmed)),
     cell("result_excluding_largest_helped_day", money("result_excluding_largest_helped_day", withoutHelped, "ti_v3_daily_stop_no_helped_session"), evidenceFor(bestHelped)),
@@ -549,7 +566,6 @@ function buildNonBlockedExecution(
   const evidenceFactory = createEvidenceFactory(context, globalLimitations);
   const aggregate = aggregateRow(
     decisions,
-    ambiguousDecisions.flatMap((decision) => decision.rows),
     partition.excludedCandidateKeys.length > 0 ? null : String(groups.length),
     partition.excludedCandidateKeys.length > 0 ? null : String(ambiguousDecisions.length),
     sampleState,
@@ -708,7 +724,19 @@ function buildNonBlockedExecution(
       outlierSensitivityState: "stable",
       evidenceBundles: evidenceFactory.bundles,
       counterexampleEvidenceBundleDigests: counterexamples,
-      sampleSizeAuthority: { targetRowKey: "aggregate", targetColumnKey: "threshold_reached_session_count", comparisonRowKey: null, comparisonColumnKey: null },
+      sampleSizeAuthority: {
+        policyKey: DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
+        policyVersion: DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
+        claimType: `daily_stop_historical_${direction}`,
+        subjectGroupKey: "aggregate",
+        comparisonGroupKey: null,
+        targetTableKey: "daily_stop_aggregate",
+        targetRowKey: "aggregate",
+        targetColumnKey: "threshold_reached_session_count",
+        comparisonRowKey: null,
+        comparisonColumnKey: null,
+        evidencePopulation: "threshold_reached_sessions",
+      },
       allowedWordingCode: direction === "helped" ? "under_fixed_historical_removal_rule_simulated_pnl_was_higher" : direction === "harmed" ? "under_fixed_historical_removal_rule_simulated_pnl_was_lower" : "under_fixed_historical_removal_rule_simulated_pnl_was_unchanged",
     }), "$.claims.dailyStopEffect"));
     void aggregateEvidence;

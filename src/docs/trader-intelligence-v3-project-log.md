@@ -1,3 +1,17 @@
+## 2026-07-24 - GA0-B3 final focused remediation in progress
+
+- Current re-audit findings head: `f5427b098b5e1f218b666c8c29b8603ad36b38a2`.
+- The existing branch and draft PR #156 remain the only implementation
+  surface. No branch, merge, deployment, review-thread mutation, or GA0-B4
+  work is authorized.
+- Final remediation covers fail-closed mixed same-time completion groups,
+  exact empty-included aggregate authority, 512-character source identities,
+  complete simulation authority for classification, and versioned B3 sample
+  authority bound to threshold-reached sessions.
+- Current resume point: run the complete required verification, checkpoint and
+  push the executable commit, observe CI, then create the required later
+  Markdown-only final independent re-audit handoff and stop.
+
 # Trader Intelligence v3 Project Log
 
 ## 2026-07-24 - GA0-B3 independent-audit remediation active

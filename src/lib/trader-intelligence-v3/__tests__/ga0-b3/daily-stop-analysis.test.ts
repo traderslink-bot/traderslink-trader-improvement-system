@@ -15,6 +15,11 @@ import {
   DAILY_STOP_SAMPLE_STATES,
   DAILY_STOP_TOOL_KEY,
   dailyStopSampleState,
+  buildExactMetricValue,
+  buildValidatedClaim,
+  dailyStopIdentityMetric,
+  DAILY_STOP_SAMPLE_SIZE_POLICY_KEY,
+  DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION,
 } from "../../analytics";
 import type { CanonicalExecutionEnvelope } from "../../domain";
 import { buildSyntheticCanonicalExecution, buildSyntheticGa0B1Authority, type SyntheticGa0B1AuthorityOptions } from "../../testing";
@@ -147,6 +152,33 @@ describe("GA0-B3 completed-loss streak and exact suffix semantics", () => {
     expect(fixture.result.value.receipt.limitationCodes).toContain(DAILY_STOP_LIMITATION_CODES.ambiguousCompletionOrder);
     expect(fixture.result.value.claims).toHaveLength(0);
   });
+
+  it("fails closed for loss-plus-win and loss-plus-flat permutations below threshold", () => {
+    for (const nonLoss of ["1", "0"] as const) {
+      const specs: TradeSpec[] = [
+        { date: "2026-07-04", minute: -2, durationMinutes: 1, netPnl: "1", instrument: "prior-win" },
+        { date: "2026-07-04", minute: 0, durationMinutes: 10, netPnl: "-1", instrument: "same-time-loss" },
+        { date: "2026-07-04", minute: 1, durationMinutes: 9, netPnl: nonLoss, instrument: "same-time-non-loss" },
+        { date: "2026-07-04", minute: 20, durationMinutes: 1, netPnl: "-1", instrument: "later-loss-a" },
+        { date: "2026-07-04", minute: 22, durationMinutes: 1, netPnl: "-1", instrument: "later-loss-b" },
+      ];
+      const forward = executeFixture(specs, { consecutiveLossThreshold: "2" });
+      const reversed = executeFixture([...specs].reverse(), { consecutiveLossThreshold: "2" });
+      expect(forward.result).toMatchObject({ ok: true });
+      expect(reversed.result).toMatchObject({ ok: true });
+      if (!forward.result.ok || !reversed.result.ok) continue;
+      expect(forward.result.value.receipt.limitationCodes).toContain(DAILY_STOP_LIMITATION_CODES.ambiguousCompletionOrder);
+      expect(reversed.result.value.receipt.limitationCodes).toContain(DAILY_STOP_LIMITATION_CODES.ambiguousCompletionOrder);
+      expect(forward.result.value.claims).toHaveLength(0);
+      expect(reversed.result.value.claims).toHaveLength(0);
+      const rows = forward.derived.datasetReceipt.rows;
+      const productionForward = simulateDailyStopSession(rows, "2");
+      const productionReverse = simulateDailyStopSession([...rows].reverse(), "2");
+      expect(productionForward.ambiguous).toBe(true);
+      expect(productionReverse.ambiguous).toBe(true);
+      expect(simulateDailyStopReference(rows.map((row) => ({ key: row.semanticRoundTripKey, firstEntryAt: row.firstEntryAt, finalExitAt: row.finalExitAt, netPnl: row.netPnl })), "2").ambiguous).toBe(true);
+    }
+  }, 30000);
 });
 
 describe("GA0-B3 ambiguous-session exclusion and exact population accounting", () => {
@@ -198,6 +230,33 @@ describe("GA0-B3 ambiguous-session exclusion and exact population accounting", (
     expect(allLossThreshold.result).toMatchObject({ ok: true });
     if (!allLossThreshold.result.ok) return;
     expect(allLossThreshold.result.value.tables.find((table) => table.tableKey === "daily_stop_ambiguous_sessions")?.rows).toHaveLength(1);
+  }, 30000);
+
+  it("does not let ambiguous rows become included aggregate evidence", () => {
+    for (const specs of [
+      [
+        { date: "2026-07-05", minute: 0, durationMinutes: 10, netPnl: "-1" as const, instrument: "loss" },
+        { date: "2026-07-05", minute: 1, durationMinutes: 9, netPnl: "0" as const, instrument: "flat" },
+      ],
+      [
+        { date: "2026-07-06", minute: 0, durationMinutes: 10, netPnl: "-1" as const, instrument: "loss" },
+        { date: "2026-07-06", minute: 1, durationMinutes: 9, netPnl: "1" as const, instrument: "win" },
+      ],
+    ] as const) {
+      const fixture = executeFixture(specs);
+      expect(fixture.result).toMatchObject({ ok: true });
+      if (!fixture.result.ok) continue;
+      const aggregate = fixture.result.value.tables.find((table) => table.tableKey === "daily_stop_aggregate");
+      const evidence = fixture.result.value.evidenceBundles.find((bundle) => bundle.bundleDigest === aggregate?.rows[0]?.evidenceBundleDigest);
+      expect(aggregate?.rows[0]?.cells.find((cell) => cell.columnKey === "included_session_count")?.metric).toMatchObject({ kind: "integer", value: "0" });
+      expect(aggregate?.rows[0]?.cells.find((cell) => cell.columnKey === "actual_total_net_pnl")?.metric).toMatchObject({ kind: "unavailable", reasonCode: "ti_v3_daily_stop_empty_included_population" });
+      expect(evidence?.populationState).toBe("empty_included");
+      expect(evidence?.candidateKeys).toEqual([]);
+      const persisted = JSON.parse(JSON.stringify(fixture.result.value));
+      const empty = persisted.evidenceBundles.find((bundle: any) => bundle.bundleDigest === aggregate?.rows[0]?.evidenceBundleDigest);
+      empty.candidateKeys = [fixture.derived.datasetReceipt.rows[0]?.semanticRoundTripKey ?? "missing"];
+      expect(rehydrateDailyStopAnalysisExecution(persisted, createSyntheticInMemoryReadOnlySource(fixture.authority)).ok).toBe(false);
+    }
   }, 30000);
 });
 
@@ -252,6 +311,74 @@ describe("GA0-B3 sample-state and claim authority", () => {
     const counterexampleTampered = JSON.parse(JSON.stringify(fixture.result.value));
     counterexampleTampered.claims[0].counterexampleEvidenceBundleDigests.reverse();
     expect(rehydrateDailyStopAnalysisExecution(counterexampleTampered, createSyntheticInMemoryReadOnlySource(fixture.authority)).ok).toBe(false);
+  }, 120000);
+
+  it("binds classification and exact difference to complete simulation authority", () => {
+    const fixture = executeFixture([
+      { date: "2026-07-10", minute: 0, netPnl: "-1", instrument: "loss-a" },
+      { date: "2026-07-10", minute: 2, netPnl: "-1", instrument: "loss-b" },
+      { date: "2026-07-10", minute: 4, netPnl: "1", instrument: "removed" },
+    ]);
+    if (!fixture.result.ok) throw new Error(fixture.result.error.code);
+    const execution = fixture.result.value;
+    const row = execution.tables.find((table) => table.tableKey === "daily_stop_sessions")?.rows[0];
+    if (row === undefined) throw new Error("session row missing");
+    const classification = row.cells.find((cell) => cell.columnKey === "classification");
+    const difference = row.cells.find((cell) => cell.columnKey === "exact_difference");
+    expect(classification?.evidenceBundleDigest).toBe(difference?.evidenceBundleDigest);
+    const simulation = execution.evidenceBundles.find((bundle) => bundle.bundleDigest === classification?.evidenceBundleDigest);
+    expect(simulation?.simulationAuthority).toMatchObject({ kind: "daily_stop_simulation_v1", triggerCandidateKey: expect.any(String), stopAt: expect.any(String) });
+    const persisted = JSON.parse(JSON.stringify(execution));
+    const persistedSimulation = persisted.evidenceBundles.find((bundle: any) => bundle.bundleDigest === classification?.evidenceBundleDigest);
+    persistedSimulation.simulationAuthority.removedCandidateKeys = persistedSimulation.simulationAuthority.actualCandidateKeys;
+    expect(rehydrateDailyStopAnalysisExecution(persisted, createSyntheticInMemoryReadOnlySource(fixture.authority)).ok).toBe(false);
+  });
+
+  it("rejects every ungoverned B3 sample authority target and missing policy", () => {
+    const specs: TradeSpec[] = [];
+    for (let index = 0; index < 10; index += 1) {
+      const date = `2026-07-${String(index + 1).padStart(2, "0")}`;
+      specs.push({ date, minute: 0, netPnl: "-1" }, { date, minute: 2, netPnl: "-1" }, { date, minute: 4, netPnl: "1" });
+    }
+    const fixture = executeFixture(specs);
+    if (!fixture.result.ok) throw new Error(fixture.result.error.code);
+    const execution = fixture.result.value;
+    const claim = execution.claims[0];
+    const table = execution.tables.find((item) => item.tableKey === "daily_stop_aggregate");
+    if (table === undefined || claim === undefined || claim.sampleSizeAuthority === undefined) throw new Error("claim fixture missing");
+    const buildInput = (authority: unknown) => ({
+      schemaVersion: claim.schemaVersion,
+      claimKey: claim.claimKey,
+      claimVersion: claim.claimVersion,
+      claimType: claim.claimType,
+      runContext: execution.runContext,
+      table,
+      subjectGroupKey: claim.subjectGroupKey,
+      comparisonGroupKey: claim.comparisonGroupKey,
+      metricKey: claim.metricKey,
+      effectDerivation: claim.effectDerivation,
+      confidenceEvidenceLabel: claim.confidenceEvidenceLabel,
+      outlierSensitivityState: claim.outlierSensitivityState,
+      evidenceBundles: execution.evidenceBundles,
+      counterexampleEvidenceBundleDigests: claim.counterexampleEvidenceBundleDigests,
+      sampleSizeAuthority: authority,
+      allowedWordingCode: claim.allowedWordingCode,
+    });
+    const validAuthority = claim.sampleSizeAuthority;
+    expect(buildValidatedClaim(buildInput(validAuthority)).ok).toBe(true);
+    for (const mutate of [
+      (authority: any) => { authority.targetColumnKey = "actual_trade_count"; },
+      (authority: any) => { authority.targetRowKey = "foreign"; },
+      (authority: any) => { authority.comparisonGroupKey = "foreign"; },
+      (authority: any) => { authority.policyKey = "foreign_policy"; },
+    ]) {
+      const candidate = JSON.parse(JSON.stringify(validAuthority));
+      mutate(candidate);
+      expect(buildValidatedClaim(buildInput(candidate)).ok).toBe(false);
+    }
+    expect(buildValidatedClaim(buildInput(undefined)).ok).toBe(false);
+    expect(validAuthority.policyKey).toBe(DAILY_STOP_SAMPLE_SIZE_POLICY_KEY);
+    expect(validAuthority.policyVersion).toBe(DAILY_STOP_SAMPLE_SIZE_POLICY_VERSION);
   }, 120000);
 
   it("keeps claim sample direction honest for all-helped, all-harmed, and unchanged populations", () => {
@@ -318,6 +445,22 @@ describe("GA0-B3 sample-state and claim authority", () => {
     expect(longValue).toMatch(/^excluded_[0-9a-f]{64}$/);
     expect(longValue).not.toBe(punctuation);
   });
+
+  it("accepts source identity lengths through 512 for trigger and exclusion semantics", () => {
+    for (const length of [256, 257, 512]) {
+      const key = `x${"a".repeat(length - 1)}`;
+      const trigger = dailyStopIdentityMetric("threshold_trigger_round_trip", key);
+      const candidate = dailyStopIdentityMetric("candidate_key", key);
+      expect(trigger.kind).toBe("identity");
+      expect(candidate.kind).toBe("identity");
+      if (trigger.kind !== "identity" || candidate.kind !== "identity") continue;
+      expect(trigger.value).toHaveLength(length);
+      expect(candidate.value).toHaveLength(length);
+      expect(buildExactMetricValue({ schemaVersion: "ti_v3_exact_metric_value_v1", metricKey: "threshold_trigger_round_trip", kind: "identity", unit: "category", currency: null, value: key }).ok).toBe(true);
+    }
+    const rejected = `x${"a".repeat(512)}`;
+    expect(buildExactMetricValue({ schemaVersion: "ti_v3_exact_metric_value_v1", metricKey: "threshold_trigger_round_trip", kind: "identity", unit: "category", currency: null, value: rejected }).ok).toBe(false);
+  });
 });
 
 describe("GA0-B3 artifact graph, reference differential, and semantic replay", () => {
@@ -381,14 +524,17 @@ describe("GA0-B3 artifact graph, reference differential, and semantic replay", (
   }, 30000);
 
   it("differential-tests generated thresholds, flats, wins, losses, overlaps, ties, and later completions", () => {
-    const cases: readonly Readonly<{ readonly threshold: string; readonly specs: readonly TradeSpec[] }>[] = [
-      { threshold: "1", specs: [{ date: "2026-07-01", minute: 0, netPnl: "-1" }, { date: "2026-07-01", minute: 2, netPnl: "1" }, { date: "2026-07-01", minute: 4, netPnl: "0" }] },
-      { threshold: "2", specs: [{ date: "2026-07-02", minute: 0, netPnl: "-1" }, { date: "2026-07-02", minute: 2, netPnl: "-1" }, { date: "2026-07-02", minute: 4, netPnl: "1" }] },
-      { threshold: "3", specs: [{ date: "2026-07-03", minute: 0, netPnl: "-1" }, { date: "2026-07-03", minute: 2, netPnl: "-1" }, { date: "2026-07-03", minute: 4, netPnl: "0" }, { date: "2026-07-03", minute: 6, netPnl: "-1" }, { date: "2026-07-03", minute: 8, netPnl: "2" }] },
-      { threshold: "16", specs: Array.from({ length: 16 }, (_, index) => ({ date: "2026-07-07", minute: index, netPnl: index === 15 ? "1" as const : "-1" as const })) },
+    const cases: Readonly<{ readonly threshold: string; readonly specs: readonly TradeSpec[] }>[] = Array.from({ length: 16 }, (_, index) => {
+      const threshold = String(index + 1);
+      const date = `2026-07-${String(index + 1).padStart(2, "0")}`;
+      return { threshold, specs: Array.from({ length: index + 1 }, (_, tradeIndex) => ({ date, minute: tradeIndex * 2, netPnl: tradeIndex === index ? "1" as const : "-1" as const })) };
+    });
+    cases.push(
+      { threshold: "1", specs: [{ date: "2026-07-17", minute: 0, netPnl: "-1" }, { date: "2026-07-17", minute: 2, netPnl: "1" }, { date: "2026-07-17", minute: 4, netPnl: "0" }] },
+      { threshold: "3", specs: [{ date: "2026-07-18", minute: 0, netPnl: "-1" }, { date: "2026-07-18", minute: 2, netPnl: "-1" }, { date: "2026-07-18", minute: 4, netPnl: "0" }, { date: "2026-07-18", minute: 6, netPnl: "-1" }, { date: "2026-07-18", minute: 8, netPnl: "2" }] },
       { threshold: "2", specs: [{ date: "2026-07-08", minute: 0, netPnl: "-1", durationMinutes: 5, instrument: "first" }, { date: "2026-07-08", minute: 2, netPnl: "-1", durationMinutes: 1, instrument: "second" }, { date: "2026-07-08", minute: 4, netPnl: "1", instrument: "later" }] },
       { threshold: "2", specs: [{ date: "2026-07-09", minute: -2, durationMinutes: 1, netPnl: "-1", instrument: "prior" }, { date: "2026-07-09", minute: 0, durationMinutes: 10, netPnl: "-1", instrument: "loss" }, { date: "2026-07-09", minute: 1, durationMinutes: 9, netPnl: "1", instrument: "win" }] },
-    ];
+    );
     for (const testCase of cases) {
       const fixture = executeFixture(testCase.specs, { consecutiveLossThreshold: testCase.threshold });
       expect(fixture.result).toMatchObject({ ok: true });
