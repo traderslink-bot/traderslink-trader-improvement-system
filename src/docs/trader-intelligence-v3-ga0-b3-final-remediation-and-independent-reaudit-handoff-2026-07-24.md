@@ -1,12 +1,13 @@
 # Trader Intelligence v3 GA0-B3 Final Remediation and Independent Re-Audit Handoff
 
-**Date:** 2026-07-24 America/Toronto  
+**Date:** 2026-07-25 America/Toronto
 **Repository:** `traderslink-bot/traderslink-trader-improvement-system`  
 **Branch:** `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof`  
 **Draft PR:** #156, still draft/open/unmerged  
 **B2 merge base / observed `origin/main`:** `4338cab7d46b8a0548b22346f81b42db5fec3bf0`  
-**Final executable remediation checkpoint:** `2a4fa84d` (`fix(ti-v3): close final GA0-B3 audit gaps`)  
-**Current re-audit findings head:** `f5427b098b5e1f218b666c8c29b8603ad36b38a2`  
+**Final executable remediation checkpoint:** `a92033f6bc3f3e963bed013a1537e68f5a695c48` (`test(ti-v3): keep GA0-B3 checkpoint lint-clean`)
+**Executable correction predecessor:** `19341a3b5cf9186818e346ddca37b0fbf5ad7fcb` (`fix(ti-v3): close final GA0-B3 contract gaps`)
+**Current re-audit findings head:** `063fb14c67adaa9a8f9269287e2aa0e33c7d3810`
 **Previous remediation executable:** `6125874284d635444c44254c8f4e6eb686b03551`  
 **Previous remediation handoff:** `2d548edd1ed632bea02cd70c0181d15f57243b3b`  
 
@@ -19,6 +20,28 @@ mark ready, deploy, begin GA0-B4, or expand into AI, UI, charts, market data,
 support/resistance, coaching, Academy, migrations, hosted users, or production
 work. The next action is independent re-audit only.
 
+## Final correction chronology and disposition
+
+The complete final sequence from the accepted B2 base is:
+
+1. `51c7b421f33b872be69f9ce4a1c34cbda29881e5` original B3 implementation.
+2. `da9ad605f26b07f4b2196a5167b3e6933a6c3ea3` original implementation handoff.
+3. `9c762a239f4f584dc42b49905ab6315573f7ffa6` original audit metadata.
+4. `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c` original findings.
+5. `6125874284d635444c44254c8f4e6eb686b03551` first remediation executable.
+6. `2d548edd1ed632bea02cd70c0181d15f57243b3b` first remediation handoff.
+7. `f5427b098b5e1f218b666c8c29b8603ad36b38a2` prior re-audit findings.
+8. `2a4fa84d1af559b891b0a922afce5683df94f686` prior focused executable.
+9. `5af1fcfa08243740f9e470c99826f8315b6e720c` prior final handoff.
+10. `063fb14c67adaa9a8f9269287e2aa0e33c7d3810` current re-audit findings.
+11. `19341a3b5cf9186818e346ddca37b0fbf5ad7fcb` final contract correction.
+12. `a92033f6bc3f3e963bed013a1537e68f5a695c48` final lint-clean executable head.
+
+The current findings left R1 (key-array option semantics), R2 (caller-nominal
+sample authority), and R3 (incomplete handoff metadata). This head closes R1
+and R2 in executable contracts and closes R3 in this handoff. All audit review
+threads remain unresolved and untouched.
+
 ## Chronology and source authority
 
 The immutable B3 chronology from the accepted B2 base is:
@@ -29,13 +52,18 @@ The immutable B3 chronology from the accepted B2 base is:
 4. `ddfd892e...` — original independent audit findings.
 5. `61258742...` — first remediation executable checkpoint.
 6. `2d548edd...` — first remediation handoff.
-7. `f5427b09...` — current independent re-audit findings.
-8. `2a4fa84d` — final focused executable remediation checkpoint.
+7. `f5427b098b5e1f218b666c8c29b8603ad36b38a2` — prior independent re-audit findings.
+8. `2a4fa84d1af559b891b0a922afce5683df94f686` — prior focused executable remediation checkpoint.
+9. `5af1fcfa08243740f9e470c99826f8315b6e720c` — prior final re-audit handoff.
+10. `063fb14c67adaa9a8f9269287e2aa0e33c7d3810` — current independent re-audit findings.
+11. `19341a3b5cf9186818e346ddca37b0fbf5ad7fcb` — final contract correction.
+12. `a92033f6bc3f3e963bed013a1537e68f5a695c48` — final lint-clean executable head.
 
 The original audit verdict and current re-audit verdict are both “accept with
-required fixes.” The seven original B3 review threads remain unresolved and
-untouched. The current re-audit identified five required final fixes; this
-checkpoint addresses those five fixes and adds direct tests for each.
+required fixes.” The original and later audit threads remain unresolved and
+untouched. The current re-audit identified R1 through R3 as still open after
+the prior checkpoint; this head closes R1 and R2 in executable contracts and
+records the R3 handoff correction here.
 
 ## Five final executable fixes
 
@@ -70,10 +98,12 @@ an empty authority whose candidate list is changed to an ambiguous row.
 ### 3. Source identity bounds are aligned through 512 characters
 
 Exact identity metrics now accept the B1 `semanticRoundTripKey` and
-`candidateKey` source bound of 512 characters without truncation. Evidence key
-arrays and simulation authority key arrays use the same bound. The 513-character
-case remains rejected upstream. Tests cover lengths 256, 257, 512, and 513 for
-trigger-semantic and excluded-candidate identity paths.
+`candidateKey` source bound of 512 characters without truncation. The shared
+key-array validator separates maximum item count from per-key length: ordinary
+occurrence, diagnostic, table-row, and registry keys retain the 256-character
+default, while only B3 candidate and simulation semantic arrays opt into 512.
+Verified B1 analytical-row construction covers 256, 257, and 512; 513 remains
+rejected at the B1 row/metric boundary before B3 evidence can accept it.
 
 ### 4. Classification is bound to complete simulation evidence
 
@@ -86,13 +116,18 @@ the simulation authority reject the persisted graph.
 ### 5. B3 claim sample authority is governed and versioned
 
 B3 claims now require the policy
-`ti_v3_daily_stop_threshold_session_sample` version `v1`. The authority binds
-claim type, subject/comparison groups, aggregate table/row/column, and the
-`threshold_reached_sessions` evidence population. The only approved target is
-`daily_stop_aggregate` / `aggregate` /
-`threshold_reached_session_count`, with no comparison group. Direct builder
-tests reject actual trade count, foreign row, foreign comparison, foreign
-policy, and omitted policy authority.
+`ti_v3_daily_stop_threshold_session_sample` version `v1` and the
+content-addressed authority schema `ti_v3_daily_stop_sample_authority_v1`.
+The authority binds the run-context digest, verified
+`daily_stop_sessions:v1` and `daily_stop_aggregate:v1` table digests, literal
+`aggregate.threshold_reached_session_count`, exact sorted threshold-reached
+session row keys/count, and its own authority digest. Only
+`daily_stop_aggregate:v1` / `aggregate` /
+`threshold_reached_session_count` is approved. Only helped/harmed/unchanged
+claim types are allowed, with exact higher/lower/unchanged wording matched to
+the effect direction. Builder and verifier tests reject foreign tables or
+contexts, fabricated counts, missing/foreign/duplicated/non-threshold rows,
+unsupported or opposite claims, opposite wording, and missing authority.
 
 ## Changed-file inventory
 
@@ -104,11 +139,15 @@ The executable checkpoint changed:
 - `src/lib/trader-intelligence-v3/analytics/contracts/evidence-diagnostics.ts`
 - `src/lib/trader-intelligence-v3/analytics/contracts/exact-metric.ts`
 - `src/lib/trader-intelligence-v3/analytics/contracts/table-claim-series.ts`
+- `src/lib/trader-intelligence-v3/analytics/contracts/contract-validation.ts`
+- `src/lib/trader-intelligence-v3/analytics/contracts/run-receipt.ts`
+- `src/lib/trader-intelligence-v3/analytics/dataset/analytical-row.ts`
+- `src/lib/trader-intelligence-v3/analytics/registry/tool-registry-contract.ts`
+- `src/lib/trader-intelligence-v3/domain/identity/content-digest.ts`
 - `src/lib/trader-intelligence-v3/__tests__/ga0-b3/daily-stop-analysis.test.ts`
 - `src/docs/trader-intelligence-v3-adr-ga0-b3-daily-stop-proof-v1.md`
 - `src/docs/codex-project-log.md`
 - `src/docs/trader-intelligence-v3-project-log.md`
-- `plan.md`
 
 This handoff is intentionally a later Markdown-only change. No package
 manifest, lockfile, deployment configuration, route, UI, or production repo was
@@ -118,15 +157,18 @@ changed.
 
 ### Local focused verification
 
-- `git diff --check`: passed before the executable commit.
-- `npx tsc --noEmit --pretty false`: passed.
+- `git diff --check`: passed on the executable heads and before this docs-only update.
+- `npx tsc --noEmit`: passed on `a92033f6bc3f3e963bed013a1537e68f5a695c48`.
 - GA0-B3 focused/reference/differential suite: **21/21 passed**.
 - Affected GA0-B1 proof-contract and analytical-dataset suites: **35/35 passed**.
 - Affected GA0-B2 weekday analysis/exact-math suites: **24/24 passed**.
+- Changed-path ESLint: passed using the verified compatible local dependency
+  tree. The default shared-junction invocation is separately blocked before
+  linting because `traderslink.pro/node_modules/acorn-jsx` is missing `./xhtml`.
 - Architecture verifier: passed; 437 architecture files scanned, 43 API routes
   scanned, 82 Trader Intelligence routes classified.
-- Private-data verifier: passed; 23,737 records scanned, 23,704 final-tree
-  records scanned, 33 PR-history blobs scanned.
+- Private-data verifier: passed; 23,766 records scanned, 23,706 final-tree
+  records scanned, 60 PR-history blobs scanned.
 
 ### Required consolidated verifier
 
@@ -147,13 +189,19 @@ manifest was changed to mask this environment issue.
 
 ### GitHub Actions
 
-The executable checkpoint triggered the following green CI run:
+The final executable head triggered the following green CI run:
 
-- Run `30144041625`
-- Job `test-and-verify` / `89642463517`
+- Run `30146366372`
+- Job `test-and-verify` / `89648958438`
 - Conclusion: success
 - Passed steps: tests, GA0-A2 exact-truth verification, architecture
   boundaries, private-data safety, Layer 2, and Layer 3.
+
+The prior executable CI run `30144764079` passed at findings head
+`063fb14c67adaa9a8f9269287e2aa0e33c7d3810`. The preceding documentation CI
+run `30144168903` passed for the prior handoff. The documentation CI for this
+Markdown-only head is recorded in the final top-level PR handoff comment after
+it completes.
 
 Earlier remediation evidence remains recorded for chronology:
 
@@ -175,8 +223,8 @@ Intelligence v3 GA0-B3. Audit only the existing draft PR #156 in
 `traderslink-bot/traderslink-trader-improvement-system`, branch
 `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof`, against B2 merge base
 `4338cab7d46b8a0548b22346f81b42db5fec3bf0`. The final executable checkpoint is
-`2a4fa84d`; the current findings being remediated are based on
-`f5427b098b5e1f218b666c8c29b8603ad36b38a2`.
+`a92033f6bc3f3e963bed013a1537e68f5a695c48`; the current findings being remediated are based on
+`063fb14c67adaa9a8f9269287e2aa0e33c7d3810`.
 
 Re-review the five fixes above and independently verify:
 
@@ -186,14 +234,16 @@ Re-review the five fixes above and independently verify:
 2. Empty included-population evidence is explicit, persisted, replay-verified,
    and never populated from ambiguous or excluded rows; financial aggregates do
    not claim a zero result for an unavailable population.
-3. Identity bounds accept 256/257/512 and reject 513 at the correct upstream
-   source boundary without truncation for trigger and excluded-candidate paths.
+3. Identity bounds accept 256/257/512 and reject 513 at the B1 analytical-row
+   and metric boundary without truncation; only B3 candidate and simulation
+   semantic arrays opt into the 512 source-key bound.
 4. Classification and exact difference bind to a complete simulation authority
    that identifies actual/retained/removed/trigger/stop, and tampering is
    rejected by replay.
-5. The B3 sample policy is required and binds claim type, subject/comparison
-   groups, approved aggregate table/row/column, and evidence semantics; direct
-   builder and verifier rejection cases are present.
+5. The B3 sample policy is required and binds run context, literal v1 source
+   tables, approved aggregate row/column, exact threshold-reached row keys and
+   count, claim type, exact effect direction, wording, and evidence semantics;
+   direct builder and verifier rejection cases are present.
 
 Run the focused B3 suite, affected B1/B2 suites, TypeScript, changed-path
 ESLint, architecture/private-data checks, and the repository-defined
