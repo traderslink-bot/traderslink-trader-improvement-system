@@ -9,6 +9,7 @@ import {
   validateContractRecord,
   validateKeyArray,
   validateReasonCode,
+  validateReasonCodes,
   type AnalyticalContractFailure,
 } from "./contract-validation";
 import { getAnalysisRunContextDependencies, verifyAnalysisRunContext, type AnalysisRunContext } from "./run-context";
@@ -65,7 +66,7 @@ export function buildAnalyticalEvidenceBundle(
   const record = validateContractRecord(input, [
     "schemaVersion", "evidenceKey", "runContext", "comparisonGroupKey",
     "inclusionState", "candidateKeys",
-  ]);
+  ], ["limitationCodes"]);
   if (!record.ok) return record;
   if (record.value.schemaVersion !== ANALYTICAL_EVIDENCE_BUNDLE_VERSION) return contractFailure("ti_v3_analytics_contract_invalid", "$.schemaVersion");
   const context = verifyAnalysisRunContext((input as Record<string, unknown>).runContext);
@@ -86,6 +87,11 @@ export function buildAnalyticalEvidenceBundle(
   const roundTripKeys = new Set<string>();
   const occurrenceKeys = new Set<string>();
   const limitationCodes = new Set<string>();
+  if (record.value.limitationCodes !== undefined) {
+    const suppliedLimitations = validateReasonCodes(record.value.limitationCodes, "$.limitationCodes");
+    if (!suppliedLimitations.ok) return suppliedLimitations;
+    suppliedLimitations.value.forEach((code) => limitationCodes.add(code));
+  }
   const exclusionReasonCodes = new Set<string>();
   const secondaryExclusionReasonCodes = new Set<string>();
   const sourceExclusionReasonCodes = new Set<string>();
@@ -137,6 +143,7 @@ export function buildAnalyticalEvidenceBundle(
     comparisonGroupKey,
     inclusionState: record.value.inclusionState,
     candidateKeys: candidateKeys.value,
+    ...(record.value.limitationCodes === undefined ? {} : { limitationCodes: record.value.limitationCodes }),
     roundTripKeys: [...roundTripKeys].sort(),
     occurrenceKeys: [...occurrenceKeys].sort(),
     exclusionReasonCodes: [...exclusionReasonCodes].sort(),
@@ -177,6 +184,7 @@ export function verifyAnalyticalEvidenceBundle(
     comparisonGroupKey: record.value.comparisonGroupKey,
     inclusionState: record.value.inclusionState,
     candidateKeys: record.value.candidateKeys,
+    limitationCodes: record.value.limitationCodes,
   });
   if (!rebuilt.ok || rebuilt.value.bundleDigest !== digest.value) return contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.bundleDigest");
   return rebuilt;

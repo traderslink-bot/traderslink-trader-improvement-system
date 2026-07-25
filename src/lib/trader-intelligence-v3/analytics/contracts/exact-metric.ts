@@ -18,6 +18,7 @@ import {
   validateUnit,
   type AnalyticalContractFailure,
 } from "./contract-validation";
+import { validateBoundedString } from "../../domain/foundation";
 
 export const EXACT_METRIC_VALUE_VERSION = "ti_v3_exact_metric_value_v1" as const;
 const MONETARY_UNITS = new Set(["money", "money_per_trade", "pnl", "charges", "notional"]);
@@ -57,6 +58,7 @@ export type ExactMetricValue = Readonly<
           readonly dateBasis: string;
         }
       | { readonly kind: "enum"; readonly value: string }
+      | { readonly kind: "identity"; readonly value: string }
       | { readonly kind: "unavailable"; readonly reasonCode: string }
     ) & {
       readonly metricDigest: CanonicalContentDigest;
@@ -109,6 +111,7 @@ export function buildExactMetricValue(
     timestamp: ["value", "timezone", "dateBasis"],
     date: ["value", "timezone", "dateBasis"],
     enum: ["value"],
+    identity: ["value"],
     unavailable: ["value", "reasonCode"],
   });
   const expectedFields = typeof record.kind === "string" ? kindFields[record.kind] : undefined;
@@ -186,6 +189,15 @@ export function buildExactMetricValue(
     }
     case "enum": {
       const value = validateContractKey(record.value, "$.value");
+      if (!value.ok) return value;
+      if (base.value.currency !== null) {
+        return contractFailure("ti_v3_analytics_contract_currency_mismatch", "$.currency");
+      }
+      content = { ...base.value, schemaVersion: EXACT_METRIC_VALUE_VERSION, kind: record.kind, value: value.value };
+      break;
+    }
+    case "identity": {
+      const value = validateBoundedString(record.value, "$.value", /^[^\u0000-\u001f\u007f]+$/, 256);
       if (!value.ok) return value;
       if (base.value.currency !== null) {
         return contractFailure("ti_v3_analytics_contract_currency_mismatch", "$.currency");

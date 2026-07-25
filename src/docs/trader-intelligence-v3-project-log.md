@@ -1,5 +1,18 @@
 # Trader Intelligence v3 Project Log
 
+## 2026-07-24 - GA0-B3 independent-audit remediation active
+
+- Independent audit findings head is
+  `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`; the verdict was accept with
+  required fixes R1-R7.
+- The existing branch and draft PR #156 remain the only implementation
+  surface. Ambiguous sessions are excluded from simulation, aggregate, claims,
+  and series with preserved actual evidence; claims use threshold-reached
+  sample authority; and limitations are projected across the complete graph.
+- Exact next action: complete focused verification, push the executable
+  remediation, then make the required later Markdown-only re-audit handoff and
+stop. No merge, deployment, thread resolution, or GA0-B4.
+
 ## 2026-07-24 - GA0-B3 consecutive-loss daily-stop simulation active
 
 - GA0-B2 was independently accepted and merged through PR #150 at

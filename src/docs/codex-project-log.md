@@ -1,3 +1,19 @@
+# 2026-07-24 - GA0-B3 independent-audit remediation active
+
+- Independent audit findings head `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`
+  accepted the B3 implementation with required fixes R1-R7.
+- Remediation is confined to the existing branch
+  `agent/trader-intelligence-v3-ga0-b3-daily-stop-proof` and draft PR #156.
+  The B2 merge base remains `4338cab7d46b8a0548b22346f81b42db5fec3bf0`.
+- Current work excludes ambiguous sessions from simulated populations, binds
+  claims to threshold-reached sample cells, preserves row-specific exclusion
+  evidence, strengthens production/reference parity, and projects limitations
+  through evidence, tables, series, claims, diagnostics, and the receipt.
+- Resume point: finish focused verification, commit and push the executable
+  remediation, wait for CI, then make the required later Markdown-only
+  independent re-audit handoff commit. Keep PR #156 draft/open/unmerged, leave
+  audit threads untouched, and do not deploy or begin GA0-B4.
+
 # 2026-07-24 - GA0-B3 Consecutive-Loss Daily-Stop Simulation
 
 - GA0-B2 is independently accepted and merged through PR #150 at exact SHA

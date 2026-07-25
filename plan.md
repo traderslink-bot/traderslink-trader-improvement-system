@@ -6,7 +6,7 @@
 **Operational hosting:** local owner testing  
 **Primary domain:** U.S. listed small-cap and micro-cap active trading  
 **Product boundary:** retrospective educational trade review and self-improvement  
-**Current gate:** GA0-B3 — `simulate_daily_stop_rule:v1` active on draft PR (B2 accepted and merged as `4338cab7d46b8a0548b22346f81b42db5fec3bf0`)
+**Current gate:** GA0-B3 — independent-audit remediation active on draft PR #156; findings head `ddfd892eadd8b641cd9d8bbcee72f18a79c7407c`; B2 accepted and merged as `4338cab7d46b8a0548b22346f81b42db5fec3bf0`
 **Active implementation plan:** `src/docs/trader-intelligence-v3-ga0-b-deterministic-proof-implementation-plan-2026-07-19.md`
 
 Start here when resuming Trader Intelligence product, analytics, simulation,
@@ -195,6 +195,19 @@ Deliver:
 Handoff:
 
 `src/docs/trader-intelligence-v3-ga0-b3-daily-stop-proof-implementation-and-audit-handoff-2026-07-19.md`
+
+Current remediation handoff:
+
+`src/docs/trader-intelligence-v3-ga0-b3-remediation-and-independent-reaudit-handoff-2026-07-24.md`
+
+The B3 audit accepted the implementation with required fixes. The active
+branch remains the existing draft PR #156. Ambiguous sessions are excluded
+from simulation, aggregate, claims, and series with preserved actual evidence;
+claim samples are threshold-reached sessions with explicit sample states and
+counterexample evidence; and excluded-candidate scope is unavailable rather
+than inferred. Stop after the remediation executable and later Markdown-only
+handoff commits for independent re-audit. Do not merge, deploy, resolve audit
+threads, or begin GA0-B4.
 
 ## GA0-B4 — Proof closeout
 

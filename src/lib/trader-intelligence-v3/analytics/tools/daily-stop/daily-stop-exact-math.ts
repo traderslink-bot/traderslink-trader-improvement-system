@@ -87,7 +87,32 @@ export function dailyStopEnumMetric(
   metricKey: string,
   value: string,
 ): ExactMetricValue {
-  return metric({ metricKey, kind: "enum", unit: "category", currency: null, value: value.toLowerCase() });
+  return metric({ metricKey, kind: "enum", unit: "category", currency: null, value });
+}
+
+export function dailyStopIdentityMetric(
+  metricKey: string,
+  value: string,
+): ExactMetricValue {
+  return metric({ metricKey, kind: "identity", unit: "category", currency: null, value });
+}
+
+export function dailyStopDateMetric(
+  metricKey: string,
+  value: string,
+  timezone: string,
+  dateBasis: string,
+): ExactMetricValue {
+  return metric({ metricKey, kind: "date", unit: "date", currency: null, value, timezone, dateBasis });
+}
+
+export function dailyStopTimestampMetric(
+  metricKey: string,
+  value: string,
+  timezone: string,
+  dateBasis: string,
+): ExactMetricValue {
+  return metric({ metricKey, kind: "timestamp", unit: "timestamp", currency: null, value, timezone, dateBasis });
 }
 
 export function dailyStopUnavailableMetric(

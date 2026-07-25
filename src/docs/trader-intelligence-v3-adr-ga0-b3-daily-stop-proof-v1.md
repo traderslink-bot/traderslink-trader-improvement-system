@@ -53,11 +53,14 @@ including positions still open at the stop; their eventual exact outcome is not
 recalculated. The artifact discloses that the rule removes future entries only.
 
 When simultaneous completion outcomes conflict and no accepted authoritative tie
-order exists, the session is explicitly limited and no trigger or suffix is
-guessed. If a same-timestamp group would make the trigger identity or threshold
-timing ambiguous, the session is also limited. Same-outcome groups that cannot
-change the threshold are harmless; same-outcome threshold-crossing groups fail
-closed.
+order exists, the session is excluded from the simulation population: no
+simulated, removed, difference, or classification value is fabricated. The
+actual rows, exact actual P/L, ambiguity reason, and row-specific evidence are
+preserved in `daily_stop_ambiguous_sessions`. Such a session contributes to
+neither the aggregate, claim sample, nor chart series. If a same-timestamp
+group would make the trigger identity or threshold timing ambiguous, the
+session is also excluded. Same-outcome groups that cannot change the threshold
+are harmless; same-outcome threshold-crossing groups fail closed.
 
 ## Exact tables and equations
 
@@ -68,11 +71,17 @@ P/L; exact difference; classification; evidence; overlap disclosure; and
 limitations. The aggregate table exposes candidate/included/excluded counts,
 threshold/help/harm/unchanged counts, all exact totals, best/worst day effects,
 both leave-one-session effects, largest absolute contribution, outlier state,
-and limitations. Exclusion candidates remain in an explicit exclusion table.
+and limitations. Ambiguous sessions have a separate row ledger with unavailable
+simulation fields and preserved actual evidence. Manifest/read-model exclusion
+candidates remain in an explicit per-candidate exclusion table with a bounded
+content-addressed row key and one evidence bundle per candidate.
 Because an excluded candidate does not carry an included session's canonical
 session identity, the aggregate `excluded_session_count` is unavailable when
 the exclusion ledger is non-empty rather than being guessed from candidate
 count; the ledger and its candidate count remain explicit.
+If any candidate is excluded before session identity is available, both
+candidate-session and excluded-session scope are explicitly unavailable rather
+than inferred.
 
 For every included session the executor proves:
 
@@ -102,6 +111,15 @@ reached sessions, with no genuine limitations and stable direction after both
 largest-helped and largest-harmed session exclusions. No high-confidence claim
 is emitted. A sensitive outlier result is limited and emits zero claims.
 
+The aggregate also declares one exact sample state: `insufficient` for fewer
+than 5 threshold-reached sessions, `descriptive_only` for 5–9, and
+`claim_eligible` for 10 or more. Claim sample size is authoritative from the
+aggregate `threshold_reached_session_count` cell, not from trade rows or
+evidence candidates. Claims preserve semantic counterexample evidence for
+opposite-effect sessions, threshold-reached unchanged sessions, leave-one-out
+direction changes, and economically contrary removed trades. Absent categories
+are omitted rather than represented by arbitrary sample rows.
+
 Claims may say only that this fixed historical removal rule produced higher,
 lower, or unchanged simulated P/L, or that evidence was descriptive/insufficient
 or sensitive. They must not say the rule will improve the future, that a trader
@@ -122,8 +140,13 @@ canonical artifact graph. WeakMap branding is not persistence proof.
 
 The independent reference simulator uses a separate completion sweep and does
 not import or call the production streak, trigger, retention, or suffix loop.
-Focused tests compare it with production across fixed overlap/tie, flat-reset,
-threshold, permutation, no-threshold, helped, harmed, and unchanged cases.
+Focused tests compare it with production across thresholds 1–16, flat-reset,
+wins/losses, overlaps, later completions, ties, permutations, no-threshold,
+helped, harmed, unchanged, and ambiguous cases. Date, timestamp, and identity
+metrics preserve their exact canonical kinds and timezone/date-basis context;
+diagnostics, evidence, tables, series, claims, and the receipt project every
+partition, exclusion, ambiguity, sample, outlier, eligibility, and authority
+limitation consistently.
 
 ## Limitations and deferred work
 

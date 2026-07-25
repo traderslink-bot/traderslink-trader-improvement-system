@@ -1,4 +1,5 @@
 import { compareDailyStopDecimals } from "./daily-stop-exact-math";
+import { addDailyStopDecimals, subtractDailyStopDecimals } from "./daily-stop-exact-math";
 
 export interface DailyStopReferenceRow {
   readonly key: string;
@@ -14,6 +15,15 @@ export interface DailyStopReferenceResult {
   readonly triggerKey: string | null;
   readonly stopAt: string | null;
   readonly ambiguous: boolean;
+  readonly simulationState: "included" | "excluded_ambiguous";
+  readonly ambiguityReasonCode: string | null;
+  readonly actualTradeCount: string;
+  readonly simulatedTradeCount: string;
+  readonly removedTradeCount: string;
+  readonly actualNetPnl: string;
+  readonly simulatedNetPnl: string | null;
+  readonly removedNetPnl: string | null;
+  readonly difference: string | null;
 }
 
 function byEntry(left: DailyStopReferenceRow, right: DailyStopReferenceRow): number {
@@ -42,8 +52,8 @@ export function simulateDailyStopReference(
       group.push(completions[index]);
       index += 1;
     }
-    const outcomes = new Set(group.map((row) => compareDailyStopDecimals(row.netPnl, "0")));
-    if (group.length > 1 && outcomes.size > 1) {
+    const lossCount = group.filter((row) => compareDailyStopDecimals(row.netPnl, "0") < 0).length;
+    if (group.length > 1 && lossStreak + BigInt(lossCount) >= BigInt(threshold) && lossCount > 0) {
       ambiguous = true;
       break;
     }
@@ -52,18 +62,17 @@ export function simulateDailyStopReference(
       if (outcome < 0) lossStreak += BigInt(1);
       else lossStreak = BigInt(0);
       if (lossStreak >= BigInt(threshold)) {
-        if (group.length > 1 && outcomes.size === 1 && lossStreak - BigInt(1) < BigInt(threshold)) {
-          ambiguous = true;
-          break;
-        }
         trigger = row;
         break;
       }
     }
   }
-  if (ambiguous) return Object.freeze({ retainedKeys: [], removedKeys: [], thresholdReached: false, triggerKey: null, stopAt: null, ambiguous: true });
+  const actualNetPnl = addDailyStopDecimals(ordered.map((row) => row.netPnl));
+  if (ambiguous) return Object.freeze({ retainedKeys: [], removedKeys: [], thresholdReached: false, triggerKey: null, stopAt: null, ambiguous: true, simulationState: "excluded_ambiguous", ambiguityReasonCode: "ti_v3_daily_stop_completion_order_ambiguous", actualTradeCount: String(ordered.length), simulatedTradeCount: "0", removedTradeCount: "0", actualNetPnl, simulatedNetPnl: null, removedNetPnl: null, difference: null });
   const removed = trigger === null ? [] : ordered.filter((row) => row.firstEntryAt > trigger.finalExitAt);
   const removedSet = new Set(removed.map((row) => row.key));
+  const removedNetPnl = addDailyStopDecimals(removed.map((row) => row.netPnl));
+  const simulatedNetPnl = subtractDailyStopDecimals(actualNetPnl, removedNetPnl);
   return Object.freeze({
     retainedKeys: ordered.filter((row) => !removedSet.has(row.key)).map((row) => row.key),
     removedKeys: removed.map((row) => row.key),
@@ -71,5 +80,14 @@ export function simulateDailyStopReference(
     triggerKey: trigger?.key ?? null,
     stopAt: trigger?.finalExitAt ?? null,
     ambiguous: false,
+    simulationState: "included",
+    ambiguityReasonCode: null,
+    actualTradeCount: String(ordered.length),
+    simulatedTradeCount: String(ordered.length - removed.length),
+    removedTradeCount: String(removed.length),
+    actualNetPnl,
+    simulatedNetPnl,
+    removedNetPnl,
+    difference: subtractDailyStopDecimals(simulatedNetPnl, actualNetPnl),
   });
 }

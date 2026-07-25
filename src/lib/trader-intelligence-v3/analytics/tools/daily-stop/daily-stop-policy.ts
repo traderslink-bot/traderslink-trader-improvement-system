@@ -42,11 +42,28 @@ export const DAILY_STOP_POLICY = Object.freeze({
 
 export const DAILY_STOP_LIMITATION_CODES = Object.freeze({
   thresholdSampleInsufficient: "ti_v3_daily_stop_threshold_sample_insufficient",
+  thresholdSampleDescriptiveOnly: "ti_v3_daily_stop_threshold_sample_descriptive_only",
   ambiguousCompletionOrder: "ti_v3_daily_stop_completion_order_ambiguous",
   unsupportedSimulationState: "ti_v3_daily_stop_simulation_state_unavailable",
   outlierSensitive: "ti_v3_daily_stop_outlier_contribution_exceeded",
   excludedSessionScopeUnavailable: "ti_v3_daily_stop_excluded_session_scope_unavailable",
 } as const);
+
+export const DAILY_STOP_SAMPLE_STATES = Object.freeze({
+  insufficient: "insufficient",
+  descriptiveOnly: "descriptive_only",
+  claimEligible: "claim_eligible",
+} as const);
+
+export type DailyStopSampleState = typeof DAILY_STOP_SAMPLE_STATES[keyof typeof DAILY_STOP_SAMPLE_STATES];
+
+export function dailyStopSampleState(thresholdReachedSessionCount: number): DailyStopSampleState {
+  return thresholdReachedSessionCount < DAILY_STOP_POLICY.minimumDescriptiveSessions
+    ? DAILY_STOP_SAMPLE_STATES.insufficient
+    : thresholdReachedSessionCount < DAILY_STOP_POLICY.minimumTentativeSessions
+      ? DAILY_STOP_SAMPLE_STATES.descriptiveOnly
+      : DAILY_STOP_SAMPLE_STATES.claimEligible;
+}
 
 const argumentSchema = createCanonicalContentIdentity("canonical_content", "v1", {
   schemaKey: "ti_v3_daily_stop_rule_arguments",

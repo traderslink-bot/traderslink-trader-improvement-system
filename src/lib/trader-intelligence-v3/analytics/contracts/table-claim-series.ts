@@ -104,6 +104,12 @@ export interface ValidatedClaim {
   readonly outlierSensitivityState: "not_evaluated" | "stable" | "sensitive" | "unavailable";
   readonly evidenceBundleDigests: readonly CanonicalContentDigest[];
   readonly counterexampleEvidenceBundleDigests: readonly CanonicalContentDigest[];
+  readonly sampleSizeAuthority?: Readonly<{
+    readonly targetRowKey: string;
+    readonly targetColumnKey: string;
+    readonly comparisonRowKey: string | null;
+    readonly comparisonColumnKey: string | null;
+  }>;
   readonly limitationCodes: readonly string[];
   readonly allowedWordingCode: string;
   readonly claimDigest: CanonicalContentDigest;
@@ -258,7 +264,7 @@ function evidenceCatalog(
 function parseColumns(input: unknown): ExactResult<readonly ExactTableColumn[], AnalyticalContractFailure> {
   if (!Array.isArray(input) || input.length === 0 || input.length > GA0_B1_CONTRACT_LIMITS.maximumColumns) return contractFailure("ti_v3_analytics_contract_oversized", "$.columns");
   const columns: ExactTableColumn[] = [];
-  const kinds = new Set<ExactMetricValue["kind"]>(["exact_decimal", "exact_ratio", "integer", "duration", "timestamp", "date", "enum", "unavailable"]);
+  const kinds = new Set<ExactMetricValue["kind"]>(["exact_decimal", "exact_ratio", "integer", "duration", "timestamp", "date", "enum", "identity", "unavailable"]);
   for (let index = 0; index < input.length; index += 1) {
     const path = `$.columns[${index}]`;
     const record = validateContractRecord(
@@ -480,7 +486,7 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
     "subjectGroupKey", "comparisonGroupKey", "metricKey", "effectDerivation",
     "confidenceEvidenceLabel", "outlierSensitivityState", "evidenceBundles",
     "allowedWordingCode",
-  ], ["counterexampleEvidenceBundleDigests"]);
+  ], ["counterexampleEvidenceBundleDigests", "sampleSizeAuthority"]);
   if (!record.ok) return record;
   if (record.value.schemaVersion !== VALIDATED_CLAIM_VERSION) return contractFailure("ti_v3_analytics_contract_invalid", "$.schemaVersion");
   const authorities = input as Record<string, unknown>;
@@ -507,6 +513,33 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
   let comparisonColumnKey: string | null = null;
   let comparisonRow: ExactTableRow | undefined;
   let effect: ExactMetricValue = targetCell.metric;
+  let sampleSizeAuthority: ValidatedClaim["sampleSizeAuthority"];
+  if (record.value.sampleSizeAuthority !== undefined) {
+    const authority = validateContractRecord(record.value.sampleSizeAuthority, ["targetRowKey", "targetColumnKey", "comparisonRowKey", "comparisonColumnKey"], [], "$.sampleSizeAuthority");
+    if (!authority.ok) return authority;
+    const authorityTargetRowKey = validateContractKey(authority.value.targetRowKey, "$.sampleSizeAuthority.targetRowKey");
+    const authorityTargetColumnKey = validateContractKey(authority.value.targetColumnKey, "$.sampleSizeAuthority.targetColumnKey");
+    if (!authorityTargetRowKey.ok) return authorityTargetRowKey;
+    if (!authorityTargetColumnKey.ok) return authorityTargetColumnKey;
+    const authorityTargetRow = tableRows.find((row) => row.rowKey === authorityTargetRowKey.value);
+    const authorityTargetCell = authorityTargetRow?.cells.find((cell) => cell.columnKey === authorityTargetColumnKey.value);
+    if (authorityTargetRow === undefined || authorityTargetCell === undefined || authorityTargetCell.metric.kind !== "integer" || authorityTargetCell.metric.unit !== "count") return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
+    let authorityComparisonRowKey: string | null = null;
+    let authorityComparisonColumnKey: string | null = null;
+    if (authority.value.comparisonRowKey !== null || authority.value.comparisonColumnKey !== null) {
+      if (authority.value.comparisonRowKey === null || authority.value.comparisonColumnKey === null) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
+      const comparisonKey = validateContractKey(authority.value.comparisonRowKey, "$.sampleSizeAuthority.comparisonRowKey");
+      const comparisonColumn = validateContractKey(authority.value.comparisonColumnKey, "$.sampleSizeAuthority.comparisonColumnKey");
+      if (!comparisonKey.ok) return comparisonKey;
+      if (!comparisonColumn.ok) return comparisonColumn;
+      const comparisonAuthorityRow = tableRows.find((row) => row.rowKey === comparisonKey.value);
+      const comparisonAuthorityCell = comparisonAuthorityRow?.cells.find((cell) => cell.columnKey === comparisonColumn.value);
+      if (comparisonAuthorityRow === undefined || comparisonAuthorityCell === undefined || comparisonAuthorityCell.metric.kind !== "integer" || comparisonAuthorityCell.metric.unit !== "count") return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.sampleSizeAuthority");
+      authorityComparisonRowKey = comparisonKey.value;
+      authorityComparisonColumnKey = comparisonColumn.value;
+    }
+    sampleSizeAuthority = Object.freeze({ targetRowKey: authorityTargetRowKey.value, targetColumnKey: authorityTargetColumnKey.value, comparisonRowKey: authorityComparisonRowKey, comparisonColumnKey: authorityComparisonColumnKey });
+  }
   if (derivation.value.kind === "difference") {
     const rowKey = validateContractKey(derivation.value.comparisonRowKey, "$.effectDerivation.comparisonRowKey");
     const columnKey = validateContractKey(derivation.value.comparisonColumnKey, "$.effectDerivation.comparisonColumnKey");
@@ -571,6 +604,12 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
   }
   const targetSampleSize = String(targetEvidence.candidateKeys.length);
   const comparisonSampleSize = String(comparisonEvidence?.candidateKeys.length ?? 0);
+  const authoritativeTargetSampleSize = sampleSizeAuthority === undefined
+    ? targetSampleSize
+    : String((tableRows.find((row) => row.rowKey === sampleSizeAuthority!.targetRowKey)?.cells.find((cell) => cell.columnKey === sampleSizeAuthority!.targetColumnKey)?.metric as { readonly value: string }).value);
+  const authoritativeComparisonSampleSize = sampleSizeAuthority?.comparisonRowKey === null || sampleSizeAuthority?.comparisonRowKey === undefined
+    ? comparisonSampleSize
+    : String((tableRows.find((row) => row.rowKey === sampleSizeAuthority.comparisonRowKey)?.cells.find((cell) => cell.columnKey === sampleSizeAuthority.comparisonColumnKey)?.metric as { readonly value: string }).value);
   const limitations = [...new Set([
     ...table.value.limitationCodes,
     ...evidenceDigests.flatMap((digest) => catalog.value.get(digest)?.limitationCodes ?? []),
@@ -584,16 +623,17 @@ export function buildValidatedClaim(input: unknown): ExactResult<ValidatedClaim,
     subjectGroupKey: parsed.get("subjectGroupKey") as string, comparisonGroupKey,
     metricKey: parsed.get("metricKey") as string,
     effectDerivation: { kind: derivation.value.kind, targetRowKey: targetRowKey.value, targetColumnKey: targetColumnKey.value, comparisonRowKey, comparisonColumnKey },
-    direction, exactEffect: effect, targetSampleSize, comparisonSampleSize,
+    direction, exactEffect: effect, targetSampleSize: authoritativeTargetSampleSize, comparisonSampleSize: authoritativeComparisonSampleSize,
     confidenceEvidenceLabel: record.value.confidenceEvidenceLabel,
     outlierSensitivityState: record.value.outlierSensitivityState,
     evidenceBundleDigests: evidenceDigests, counterexampleEvidenceBundleDigests: counterDigests,
     limitationCodes: limitations, allowedWordingCode: parsed.get("allowedWordingCode") as string,
+    ...(sampleSizeAuthority === undefined ? {} : { sampleSizeAuthority }),
   }, "claimDigest") as ExactResult<ValidatedClaim, AnalyticalContractFailure>;
 }
 
 export function verifyValidatedClaim(input: unknown, runContext: AnalysisRunContext, table: ExactTable, evidenceBundles: readonly AnalyticalEvidenceBundle[]): ExactResult<ValidatedClaim, AnalyticalContractFailure> {
-  const record = validateContractRecord(input, ["schemaVersion", "claimKey", "claimVersion", "claimType", "runContextDigest", "tableDigest", "partitionDigest", "subjectGroupKey", "comparisonGroupKey", "metricKey", "effectDerivation", "direction", "exactEffect", "targetSampleSize", "comparisonSampleSize", "confidenceEvidenceLabel", "outlierSensitivityState", "evidenceBundleDigests", "counterexampleEvidenceBundleDigests", "limitationCodes", "allowedWordingCode", "claimDigest"]);
+  const record = validateContractRecord(input, ["schemaVersion", "claimKey", "claimVersion", "claimType", "runContextDigest", "tableDigest", "partitionDigest", "subjectGroupKey", "comparisonGroupKey", "metricKey", "effectDerivation", "direction", "exactEffect", "targetSampleSize", "comparisonSampleSize", "confidenceEvidenceLabel", "outlierSensitivityState", "evidenceBundleDigests", "counterexampleEvidenceBundleDigests", "limitationCodes", "allowedWordingCode", "claimDigest"], ["sampleSizeAuthority"]);
   if (!record.ok) return record;
   const context = verifyAnalysisRunContext(runContext); if (!context.ok || record.value.runContextDigest !== context.value.runContextDigest || record.value.partitionDigest !== context.value.partitionDigest) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.runContextDigest");
   const verifiedTable = verifyExactTable(table, context.value, evidenceBundles); if (!verifiedTable.ok || record.value.tableDigest !== verifiedTable.value.tableDigest) return contractFailure("ti_v3_analytics_contract_reference_mismatch", "$.tableDigest");
@@ -607,6 +647,7 @@ export function verifyValidatedClaim(input: unknown, runContext: AnalysisRunCont
     outlierSensitivityState: record.value.outlierSensitivityState, evidenceBundles,
     counterexampleEvidenceBundleDigests:
       record.value.counterexampleEvidenceBundleDigests,
+    ...(record.value.sampleSizeAuthority === undefined ? {} : { sampleSizeAuthority: record.value.sampleSizeAuthority }),
     allowedWordingCode: record.value.allowedWordingCode,
   });
   if (!rebuilt.ok || rebuilt.value.claimDigest !== digest.value) return contractFailure("ti_v3_analytics_contract_digest_mismatch", "$.claimDigest");

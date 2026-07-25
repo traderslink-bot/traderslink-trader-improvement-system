@@ -21,7 +21,9 @@ export interface DailyStopSessionDecision {
   readonly rows: readonly AnalyticalRow[];
   readonly retainedRows: readonly AnalyticalRow[];
   readonly removedRows: readonly AnalyticalRow[];
+  readonly simulationState: "included" | "excluded_ambiguous";
   readonly thresholdReached: boolean;
+  readonly thresholdState: "reached" | "not_reached" | "ambiguous";
   readonly triggerRow: AnalyticalRow | null;
   readonly stopAt: string | null;
   readonly ambiguous: boolean;
@@ -29,6 +31,20 @@ export interface DailyStopSessionDecision {
   readonly actualGrossPnl: string;
   readonly actualCharges: string;
   readonly actualNetPnl: string;
+  readonly simulatedGrossPnl: string | null;
+  readonly simulatedCharges: string | null;
+  readonly simulatedNetPnl: string | null;
+  readonly removedGrossPnl: string | null;
+  readonly removedCharges: string | null;
+  readonly removedNetPnl: string | null;
+  readonly difference: string | null;
+  readonly classification: "helped" | "harmed" | "unchanged" | null;
+  readonly ambiguityReasonCode: string | null;
+  readonly overlapDisclosure?: string;
+}
+
+export type DailyStopIncludedSessionDecision = DailyStopSessionDecision & {
+  readonly simulationState: "included";
   readonly simulatedGrossPnl: string;
   readonly simulatedCharges: string;
   readonly simulatedNetPnl: string;
@@ -37,7 +53,10 @@ export interface DailyStopSessionDecision {
   readonly removedNetPnl: string;
   readonly difference: string;
   readonly classification: "helped" | "harmed" | "unchanged";
-  readonly overlapDisclosure?: string;
+};
+
+export function isIncludedDailyStopSessionDecision(decision: DailyStopSessionDecision): decision is DailyStopIncludedSessionDecision {
+  return decision.simulationState === "included";
 }
 
 function compareEntry(left: AnalyticalRow, right: AnalyticalRow): number {
@@ -67,10 +86,6 @@ function sessionIdentity(key: DailyStopSessionKey): string {
   return [key.canonicalOwnerKey, key.canonicalAccountKey, key.currency, key.sessionDate, key.timezone, key.dateBasis].join("|");
 }
 
-function isMixedCompletionGroup(group: readonly AnalyticalRow[]): boolean {
-  return new Set(group.map((row) => compareDailyStopDecimals(row.netPnl, "0"))).size > 1;
-}
-
 function findTrigger(rows: readonly AnalyticalRow[], threshold: string): { readonly trigger: AnalyticalRow | null; readonly ambiguous: boolean } {
   const completions = [...rows].sort((left, right) =>
     left.finalExitAt < right.finalExitAt ? -1 : left.finalExitAt > right.finalExitAt ? 1 : compareEntry(left, right));
@@ -83,14 +98,12 @@ function findTrigger(rows: readonly AnalyticalRow[], threshold: string): { reado
       group.push(completions[index]);
       index += 1;
     }
-    if (group.length > 1 && isMixedCompletionGroup(group)) return { trigger: null, ambiguous: true };
+    const lossCount = group.filter((row) => compareDailyStopDecimals(row.netPnl, "0") < 0).length;
+    if (group.length > 1 && lossStreak + BigInt(lossCount) >= BigInt(threshold) && lossCount > 0) return { trigger: null, ambiguous: true };
     for (const row of group.sort(compareEntry)) {
       const outcome = compareDailyStopDecimals(row.netPnl, "0");
       lossStreak = outcome < 0 ? lossStreak + BigInt(1) : BigInt(0);
-      if (lossStreak >= BigInt(threshold)) {
-        if (group.length > 1 && lossStreak - BigInt(1) < BigInt(threshold)) return { trigger: null, ambiguous: true };
-        return { trigger: row, ambiguous: false };
-      }
+      if (lossStreak >= BigInt(threshold)) return { trigger: row, ambiguous: false };
     }
   }
   return { trigger: null, ambiguous: false };
@@ -114,6 +127,33 @@ export function simulateDailyStopSession(
   const actualGrossPnl = sum(rows, "grossPnl");
   const actualCharges = sum(rows, "signedCharges");
   const actualNetPnl = sum(rows, "netPnl");
+  if (triggerResult.ambiguous) {
+    return Object.freeze({
+      sessionKey,
+      rows,
+      retainedRows: Object.freeze([]),
+      removedRows: Object.freeze([]),
+      simulationState: "excluded_ambiguous",
+      thresholdReached: false,
+      thresholdState: "ambiguous",
+      triggerRow: null,
+      stopAt: null,
+      ambiguous: true,
+      limitationCodes: Object.freeze([DAILY_STOP_LIMITATION_CODES.ambiguousCompletionOrder]),
+      ambiguityReasonCode: DAILY_STOP_LIMITATION_CODES.ambiguousCompletionOrder,
+      actualGrossPnl,
+      actualCharges,
+      actualNetPnl,
+      simulatedGrossPnl: null,
+      simulatedCharges: null,
+      simulatedNetPnl: null,
+      removedGrossPnl: null,
+      removedCharges: null,
+      removedNetPnl: null,
+      difference: null,
+      classification: null,
+    });
+  }
   const simulatedGrossPnl = sum(retainedRows, "grossPnl");
   const simulatedCharges = sum(retainedRows, "signedCharges");
   const simulatedNetPnl = sum(retainedRows, "netPnl");
@@ -129,7 +169,9 @@ export function simulateDailyStopSession(
     rows,
     retainedRows,
     removedRows,
+    simulationState: "included",
     thresholdReached: triggerResult.trigger !== null && !triggerResult.ambiguous,
+    thresholdState: triggerResult.trigger === null ? "not_reached" : "reached",
     triggerRow: triggerResult.ambiguous ? null : triggerResult.trigger,
     stopAt: triggerResult.ambiguous ? null : triggerResult.trigger?.finalExitAt ?? null,
     ambiguous: triggerResult.ambiguous,
@@ -145,6 +187,7 @@ export function simulateDailyStopSession(
     removedNetPnl,
     difference,
     classification: dailyStopDirection(difference),
+    ambiguityReasonCode: null,
     // The disclosure is intentionally retained in the session object for the
     // artifact builder; it is not a claim-blocking limitation.
     ...(disclosures.length > 0 ? { overlapDisclosure: disclosures[0] } : {}),
