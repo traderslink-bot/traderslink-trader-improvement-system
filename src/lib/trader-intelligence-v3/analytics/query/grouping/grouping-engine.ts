@@ -103,6 +103,15 @@ export function tradeQueryGroupAssignment(
     case "repeat_attempt":
       facts = [`repeat:${row.repeatAttempt}`, `Attempt ${row.repeatAttempt}`, pad(row.repeatAttempt, 20)];
       break;
+    case "repeat_attempt_bucket":
+      facts = row.repeatAttempt === BigInt("1")
+        ? ["repeat_attempt_bucket:v1:first", "First attempt", "1"]
+        : row.repeatAttempt === BigInt("2")
+          ? ["repeat_attempt_bucket:v1:second", "Second attempt", "2"]
+          : row.repeatAttempt === BigInt("3")
+            ? ["repeat_attempt_bucket:v1:third", "Third attempt", "3"]
+            : ["repeat_attempt_bucket:v1:fourth_or_later", "Fourth and later attempts", "4"];
+      break;
     case "holding_time_bucket": {
       const index = grouping.boundariesSeconds.findIndex((boundary) => row.holdingSecondsFloor < BigInt(boundary));
       if (index === 0) {

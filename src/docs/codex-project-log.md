@@ -66,6 +66,18 @@
   `scale_run_completion`. The 30-row diagnostic completed all stages and ten
   presets in 4,716 ms.
 
+# 2026-07-25 - GA1-B bounded repeat-attempt correction
+
+- GitHub scale run `30174336550` reached the governed preset loop and failed
+  at `analyze_ticker_repeat_attempts` with
+  `ti_v3_analytics_contract_oversized` at `$.result.groups`. The raw generic
+  `repeat_attempt` grouping is intentionally unbounded and remains available
+  for GA1-A; only the governed preset now uses `repeat_attempt_bucket`.
+- Verified repeat attempts are one-based (`previousAttempts + 1`) within the
+  existing owner/account/currency/session/symbol semantic partition. The v1
+  grouping maps 1, 2, 3, and 4+ to stable first, second, third, and
+  fourth-or-later identities without fabricating empty buckets.
+
 - Continued the existing branch
   `agent/trader-intelligence-v3-ga1-b-evidence-analytics-pack` and draft PR
   #161 at starting HEAD `d145cd4ca72c2708878bed0c825135c588d1e852`;

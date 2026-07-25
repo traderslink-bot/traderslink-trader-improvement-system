@@ -309,6 +309,37 @@ describe("GA1-B deterministic evidence, similarity, and governed execution-only 
     }
   });
 
+  it("maps verified one-based repeat attempts to four bounded v1 identities", () => {
+    const fixture = buildSyntheticQueryFixture(100);
+    const semantics = buildQueryRowSemantics(fixture.derived.datasetReceipt.rows);
+    const identities = new Set<string>();
+    for (const item of semantics) {
+      const assignment = tradeQueryGroupAssignment(item, { kind: "repeat_attempt_bucket" });
+      identities.add(assignment.groupIdentity);
+      if (item.repeatAttempt === BigInt("1")) expect(assignment.groupIdentity).toBe("repeat_attempt_bucket:v1:first");
+      if (item.repeatAttempt === BigInt("2")) expect(assignment.groupIdentity).toBe("repeat_attempt_bucket:v1:second");
+      if (item.repeatAttempt === BigInt("3")) expect(assignment.groupIdentity).toBe("repeat_attempt_bucket:v1:third");
+      if (item.repeatAttempt >= BigInt("4")) expect(assignment.groupIdentity).toBe("repeat_attempt_bucket:v1:fourth_or_later");
+    }
+    expect(identities.size).toBeLessThanOrEqual(4);
+    const generic = executeTradeQuery({ source: fixture.source, partitionReceipt: fixture.partition, queryPlan: fixture.plan({ grouping: { kind: "repeat_attempt" } }) });
+    expect(generic).toMatchObject({ ok: true });
+    const compiled = compileGa1BPreset({ presetKey: "analyze_ticker_repeat_attempts", authority: fixture.authority });
+    if (!compiled.ok) throw new Error(`${compiled.error.code}:${compiled.error.path}`);
+    expect(compiled.value.primaryPlan.grouping).toEqual({ kind: "repeat_attempt_bucket" });
+    const first = executeGa1BPreset({ source: fixture.source, partitionReceipt: fixture.partition, preset: compiled.value });
+    const reversed = buildSyntheticQueryFixture(100, true);
+    const secondPlan = compileGa1BPreset({ presetKey: "analyze_ticker_repeat_attempts", authority: reversed.authority });
+    if (!first.ok || !secondPlan.ok) throw new Error("repeat preset setup failed");
+    const second = executeGa1BPreset({ source: reversed.source, partitionReceipt: reversed.partition, preset: secondPlan.value });
+    expect(second).toMatchObject({ ok: true });
+    if (second.ok) {
+      expect(second.value.primaryResultDigest).toBe(first.value.primaryResultDigest);
+      expect(second.value.executionResultDigest).toBe(first.value.executionResultDigest);
+      expect(second.value.primaryResult.rows.map((row) => row.groupIdentity)).toEqual(first.value.primaryResult.rows.map((row) => row.groupIdentity));
+    }
+  }, 30_000);
+
   it("rejects every material preset and comparison execution artifact tamper at runtime", () => {
     const fixture = buildSyntheticQueryFixture();
     const compiled = compileGa1BPreset({ presetKey: "compare_periods", authority: fixture.authority, baselineFilters: [{ kind: "weekday", values: ["monday"] }] });
