@@ -14,8 +14,8 @@ async function GETHandler(
   const routeParams = await context.params;
   const tradeId = decodeURIComponent(routeParams.tradeId);
   const repository = new SqliteImportCommitRepository();
-  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
-  const trade = repository.getTrade(context.ownerId, tradeId);
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const trade = repository.getTrade(ownerContext.ownerId, tradeId);
 
   if (!trade) {
     return Response.json(

@@ -13,9 +13,9 @@ async function POSTHandler(
   const routeParams = await context.params;
   const tradeId = decodeURIComponent(routeParams.tradeId);
   const repository = new SqliteImportCommitRepository();
-  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const trade = repository.markTradeClosedByUser({
-    userId: context.ownerId,
+    userId: ownerContext.ownerId,
     tradeId,
   });
 

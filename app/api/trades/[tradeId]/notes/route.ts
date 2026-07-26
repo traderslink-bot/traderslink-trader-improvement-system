@@ -36,9 +36,9 @@ async function POSTHandler(
   }
 
   const repository = new SqliteImportCommitRepository();
-  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const note = repository.addTradeNote({
-    userId: context.ownerId,
+    userId: ownerContext.ownerId,
     tradeId,
     body: body.body,
   });

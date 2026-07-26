@@ -40,7 +40,7 @@ export function resolveConfiguredOwnerWorkspaceImportContext(args: {
   const ownerId = process.env.TRADER_INTELLIGENCE_OWNER_ID?.trim();
   if (!ownerId) throw new Error("ti_v3_owner_id_missing");
   return resolveOwnerWorkspaceImportContext({
-    owner: { identity: { ownerId }, authorizationMode: "local_owner_adapter" },
+    owner: { identity: { ownerId } },
     repository: args.repository,
   });
 }

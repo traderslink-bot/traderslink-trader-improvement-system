@@ -24,7 +24,7 @@ let originalDataMode: string | undefined;
 
 function context(ownerId: string, repository: SqliteImportCommitRepository) {
   return resolveOwnerWorkspaceImportContext({
-    owner: { identity: { ownerId }, authorizationMode: "local_owner_adapter" },
+    owner: { identity: { ownerId } },
     repository,
   });
 }

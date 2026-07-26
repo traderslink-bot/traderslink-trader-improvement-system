@@ -69,9 +69,9 @@ async function POSTHandler(
   }
 
   const repository = new SqliteImportCommitRepository();
-  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const state = repository.setTradeReviewItemStatus({
-    userId: context.ownerId,
+    userId: ownerContext.ownerId,
     tradeId,
     itemId: itemId as TradeReviewChecklistItemId,
     status: body.status as TradeReviewChecklistItemStatus,
