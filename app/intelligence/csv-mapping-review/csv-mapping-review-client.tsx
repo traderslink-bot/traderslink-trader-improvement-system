@@ -13,6 +13,14 @@ import {
 } from "@/src/lib/execution-sources/csv";
 
 const STORAGE_KEY = "traderslink.csv-mapping-templates.v1";
+const COMMON_TIMEZONES = [
+  "America/New_York",
+  "America/Toronto",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "UTC",
+] as const;
 
 const DESTINATIONS: Array<{
   value: BrokerExecutionCsvCanonicalField | "ignore";
@@ -36,6 +44,12 @@ const DESTINATIONS: Array<{
   { value: "netAmount", label: "Net amount" },
   { value: "currency", label: "Currency" },
 ];
+
+interface CsvMappingReviewClientProps {
+  accountLabel: string;
+  accountTimezone: string;
+  importDefaultTimezone: string;
+}
 
 function parseStoredTemplates(value: string | null): CsvSavedMappingTemplate[] {
   if (!value) return [];
@@ -72,9 +86,7 @@ function mappingFromSelections(
   const result: BrokerExecutionCsvColumnMapping = {};
   for (const [header, field] of Object.entries(selections)) {
     if (field === "ignore") continue;
-    const current = result[field];
-    const values = Array.isArray(current) ? current : current ? [current] : [];
-    result[field] = [...values, header];
+    result[field] = header;
   }
   return result;
 }
@@ -85,17 +97,39 @@ function confidenceClass(confidence: string): string {
   return "text-rose-300";
 }
 
-export default function CsvMappingReviewClient() {
+function formatInTimezone(timestamp: string, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+    }).format(new Date(timestamp));
+  } catch {
+    return timestamp;
+  }
+}
+
+export default function CsvMappingReviewClient({
+  accountLabel,
+  accountTimezone,
+  importDefaultTimezone,
+}: CsvMappingReviewClientProps) {
+  const accountImportTimezone = importDefaultTimezone || accountTimezone;
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [inference, setInference] = useState<CsvSchemaInferenceResult | null>(null);
   const [selections, setSelections] = useState<
     Record<string, BrokerExecutionCsvCanonicalField | "ignore">
   >({});
-  const [sideMappings, setSideMappings] = useState<Record<string, "buy" | "sell">>(
-    {},
-  );
-  const [timezone, setTimezone] = useState("America/New_York");
+  const [sideMappings, setSideMappings] = useState<Record<string, "buy" | "sell">>({});
+  const [useTimezoneOverride, setUseTimezoneOverride] = useState(false);
+  const [timezoneOverride, setTimezoneOverride] = useState(accountImportTimezone);
+  const [customTimezone, setCustomTimezone] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templates, setTemplates] = useState<CsvSavedMappingTemplate[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -103,6 +137,12 @@ export default function CsvMappingReviewClient() {
   useEffect(() => {
     setTemplates(parseStoredTemplates(window.localStorage.getItem(STORAGE_KEY)));
   }, []);
+
+  const effectiveTimezone = useTimezoneOverride
+    ? timezoneOverride === "custom"
+      ? customTimezone.trim() || accountImportTimezone
+      : timezoneOverride
+    : accountImportTimezone;
 
   const review = useMemo(() => {
     if (!inference || !csvText) return null;
@@ -114,20 +154,20 @@ export default function CsvMappingReviewClient() {
         .filter(([, field]) => field === "ignore")
         .map(([header]) => header),
       sideValueMapping: sideMappings,
-      timestampTimezone: timezone,
+      timestampTimezone: effectiveTimezone,
     });
-  }, [csvText, inference, selections, sideMappings, timezone]);
+  }, [csvText, inference, selections, sideMappings, effectiveTimezone]);
 
   async function loadFile(file: File) {
     const text = await file.text();
     const nextInference = inferGenericCsvSchema(text);
     const savedMatch = matchCsvSavedMappingTemplate(nextInference, templates);
     const initialMapping = savedMatch?.template.columnMapping ?? nextInference.proposedMapping;
+    const byHeader = mappingByHeader(initialMapping);
     const initialSelections: Record<
       string,
       BrokerExecutionCsvCanonicalField | "ignore"
     > = {};
-    const byHeader = mappingByHeader(initialMapping);
     for (const header of nextInference.headers) {
       initialSelections[header] = byHeader[header] ?? "ignore";
     }
@@ -137,13 +177,26 @@ export default function CsvMappingReviewClient() {
           .filter((item) => item.normalizedValue)
           .map((item) => [item.sourceValue, item.normalizedValue as "buy" | "sell"]),
       );
+    const savedTimezone = savedMatch?.template.timestampTimezone;
 
     setCsvText(text);
     setFileName(file.name);
     setInference(nextInference);
     setSelections(initialSelections);
     setSideMappings(initialSideMappings);
-    setTimezone(savedMatch?.template.timestampTimezone ?? "America/New_York");
+    setUseTimezoneOverride(Boolean(savedTimezone));
+    if (savedTimezone) {
+      if ((COMMON_TIMEZONES as readonly string[]).includes(savedTimezone)) {
+        setTimezoneOverride(savedTimezone);
+        setCustomTimezone("");
+      } else {
+        setTimezoneOverride("custom");
+        setCustomTimezone(savedTimezone);
+      }
+    } else {
+      setTimezoneOverride(accountImportTimezone);
+      setCustomTimezone("");
+    }
     setTemplateName(savedMatch?.template.name ?? file.name.replace(/\.csv$/iu, ""));
     setNotice(
       savedMatch
@@ -175,7 +228,7 @@ export default function CsvMappingReviewClient() {
       inference,
       effectiveMapping: review.effectiveMapping,
       sideValueMapping: sideMappings,
-      timestampTimezone: timezone,
+      timestampTimezone: useTimezoneOverride ? effectiveTimezone : undefined,
     });
     const next = [template, ...templates.filter((item) => item.id !== template.id)];
     setTemplates(next);
@@ -227,26 +280,19 @@ export default function CsvMappingReviewClient() {
       {inference ? (
         <>
           <section className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Format status</p>
-              <p className="mt-2 text-lg font-semibold capitalize">{review?.status ?? inference.status}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Confidence</p>
-              <p className={`mt-2 text-lg font-semibold capitalize ${confidenceClass(inference.overallConfidence)}`}>
-                {inference.overallConfidence}
-              </p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Header row</p>
-              <p className="mt-2 text-lg font-semibold">{inference.headerRowIndex + 1}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Delimiter</p>
-              <p className="mt-2 text-lg font-semibold">
-                {inference.delimiter === "\t" ? "Tab" : inference.delimiter}
-              </p>
-            </div>
+            {[
+              ["Format status", review?.status ?? inference.status],
+              ["Confidence", inference.overallConfidence],
+              ["Header row", String(inference.headerRowIndex + 1)],
+              ["Delimiter", inference.delimiter === "\t" ? "Tab" : inference.delimiter],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+                <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
+                <p className={`mt-2 text-lg font-semibold capitalize ${label === "Confidence" ? confidenceClass(value) : ""}`}>
+                  {value}
+                </p>
+              </div>
+            ))}
           </section>
 
           <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
@@ -276,8 +322,7 @@ export default function CsvMappingReviewClient() {
                           : "No sample values"}
                       </td>
                       <td className={`px-4 py-4 capitalize ${confidenceClass(column.confidence)}`}>
-                        {column.confidence}
-                        {column.requiresReview ? " · review" : ""}
+                        {column.confidence}{column.requiresReview ? " · review" : ""}
                       </td>
                       <td className="px-4 py-4">
                         <select
@@ -338,14 +383,46 @@ export default function CsvMappingReviewClient() {
           <section className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
               <h2 className="text-xl font-semibold">Import settings</h2>
-              <label className="mt-4 block text-sm text-zinc-300">
-                Timestamp timezone
-                <input
-                  value={timezone}
-                  onChange={(event) => setTimezone(event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
-                />
-              </label>
+              <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+                <p className="text-sm font-medium text-zinc-200">Timestamp timezone</p>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Using {accountImportTimezone} from {accountLabel}. Timezone-less broker timestamps are converted to UTC for storage.
+                </p>
+                <label className="mt-3 flex items-center gap-2 text-sm text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={useTimezoneOverride}
+                    onChange={(event) => setUseTimezoneOverride(event.target.checked)}
+                  />
+                  Change for this import
+                </label>
+                {useTimezoneOverride ? (
+                  <div className="mt-3 space-y-3">
+                    <select
+                      value={timezoneOverride}
+                      onChange={(event) => setTimezoneOverride(event.target.value)}
+                      className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                    >
+                      {COMMON_TIMEZONES.map((timezone) => (
+                        <option key={timezone} value={timezone}>{timezone}</option>
+                      ))}
+                      <option value="custom">Custom IANA timezone</option>
+                    </select>
+                    {timezoneOverride === "custom" ? (
+                      <input
+                        value={customTimezone}
+                        onChange={(event) => setCustomTimezone(event.target.value)}
+                        placeholder="Example: America/Halifax"
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                      />
+                    ) : null}
+                    <p className="text-xs text-amber-300">
+                      This override is saved with the CSV format only when enabled.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
               <label className="mt-4 block text-sm text-zinc-300">
                 Saved format name
                 <input
@@ -366,6 +443,9 @@ export default function CsvMappingReviewClient() {
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
               <h2 className="text-xl font-semibold">Live import preview</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Displayed in {accountTimezone}; UTC remains the stored execution timestamp.
+              </p>
               {duplicateDestinationFields.length > 0 ? (
                 <p className="mt-3 text-sm text-rose-300">
                   Resolve duplicate destinations: {duplicateDestinationFields.join(", ")}.
@@ -383,28 +463,24 @@ export default function CsvMappingReviewClient() {
               {review?.importResult ? (
                 <div className="mt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div className="rounded-lg bg-zinc-950 p-3">
-                      <p className="text-xs text-zinc-500">Accepted rows</p>
-                      <p className="mt-1 text-lg font-semibold">{review.importResult.acceptedExecutionCount}</p>
-                    </div>
-                    <div className="rounded-lg bg-zinc-950 p-3">
-                      <p className="text-xs text-zinc-500">Rejected rows</p>
-                      <p className="mt-1 text-lg font-semibold">{review.importResult.rejectedRowCount}</p>
-                    </div>
-                    <div className="rounded-lg bg-zinc-950 p-3">
-                      <p className="text-xs text-zinc-500">Skipped rows</p>
-                      <p className="mt-1 text-lg font-semibold">{review.importResult.skippedRowCount}</p>
-                    </div>
-                    <div className="rounded-lg bg-zinc-950 p-3">
-                      <p className="text-xs text-zinc-500">Detected trades</p>
-                      <p className="mt-1 text-lg font-semibold">{review.importResult.requestCount}</p>
-                    </div>
+                    {[
+                      ["Accepted rows", review.importResult.acceptedExecutionCount],
+                      ["Rejected rows", review.importResult.rejectedRowCount],
+                      ["Skipped rows", review.importResult.skippedRowCount],
+                      ["Detected trades", review.importResult.requestCount],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg bg-zinc-950 p-3">
+                        <p className="text-xs text-zinc-500">{label}</p>
+                        <p className="mt-1 text-lg font-semibold">{value}</p>
+                      </div>
+                    ))}
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
+                    <table className="w-full min-w-[760px] text-sm">
                       <thead className="text-left text-xs uppercase tracking-wide text-zinc-500">
                         <tr>
-                          <th className="py-2 pr-3">Time</th>
+                          <th className="py-2 pr-3">Account time</th>
+                          <th className="py-2 pr-3">UTC</th>
                           <th className="py-2 pr-3">Symbol</th>
                           <th className="py-2 pr-3">Side</th>
                           <th className="py-2 pr-3">Shares</th>
@@ -416,7 +492,8 @@ export default function CsvMappingReviewClient() {
                       <tbody>
                         {review.importResult.executions.slice(0, 20).map((execution, index) => (
                           <tr key={`${execution.timestamp}-${execution.symbol}-${index}`} className="border-t border-zinc-800">
-                            <td className="py-2 pr-3 text-zinc-400">{execution.timestamp}</td>
+                            <td className="py-2 pr-3 text-zinc-200">{formatInTimezone(execution.timestamp, accountTimezone)}</td>
+                            <td className="py-2 pr-3 text-xs text-zinc-500">{execution.timestamp}</td>
                             <td className="py-2 pr-3 font-medium">{execution.symbol}</td>
                             <td className="py-2 pr-3 capitalize">{execution.side}</td>
                             <td className="py-2 pr-3">{execution.shares}</td>
