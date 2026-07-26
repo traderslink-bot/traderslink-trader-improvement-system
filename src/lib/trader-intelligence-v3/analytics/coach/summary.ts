@@ -62,8 +62,9 @@ function metricCategory(finding: CoachFinding): CoachSummaryMetricCategory {
 }
 
 function confidence(result: CoachAnalyticsResult, finding: CoachFinding | null): CoachSummaryConfidence {
-  if (result.authorityStatus === "unsupported" || result.unsupportedData !== null) return "unsupported";
+  if (result.authorityStatus === "unsupported") return "unsupported";
   if (result.sampleSizeStatus !== "meets_minimum_sample" || result.authorityStatus !== "verified_execution_only" || finding === null || finding.evidence.length === 0) return "weak";
+  if (result.unsupportedData !== null) return "unsupported";
   return result.limitationCodes.length === 0 && finding.limitationCodes.length === 0 ? "strong" : "qualified";
 }
 
@@ -104,7 +105,7 @@ function actionable(item: CoachSummaryRankedFinding): boolean {
 
 function weakSources(results: readonly CoachAnalyticsResult[]): readonly CoachSummaryWeakSource[] {
   return Object.freeze(results.flatMap((result) => {
-    if (result.authorityStatus === "unsupported" || result.unsupportedData !== null) return [];
+    if (result.authorityStatus === "unsupported") return [];
     const value = confidence(result, result.primaryFinding);
     if (value !== "weak") return [];
     const reason = result.sampleSizeStatus !== "meets_minimum_sample"
