@@ -1,3 +1,9 @@
+# 2026-07-26 - Expanded broker CSV presets wired through import boundaries
+
+- The eleven data-driven CSV presets are now selectable in `/intelligence/import-dry-run` and accepted by the save and decision-review server boundaries. They resolve to the hardened generic parser with their explicit mappings, while user mapping corrections retain priority.
+- Alpaca `FILL` rows and TradeZero `canceled=false` rows are accepted; Alpaca cancellation activities and TradeZero `canceled=true` rows are skipped. Focused preset, persistence, decision-review, parser, and automated QA tests passed; TypeScript, changed-path ESLint, and the production build passed.
+- Resume point: collect anonymized real exports before describing any broker as fully calibrated. Do not broaden into unrelated analytics or watchlist work.
+
 # 2026-07-25 - CSV mapping persistence and controlled continuation active
 
 - Started from merged CSV inference PR #164 (`e47b9a1f20394109f7ab61cc44d3e01d9ecc6ee7`) on branch `agent/csv-mapping-persistence-and-commit`.

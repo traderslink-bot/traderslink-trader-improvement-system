@@ -1668,7 +1668,15 @@ function rowIsFilledOrder(
     return true;
   }
 
+  const usesCanceledBoolean = spec.aliases.status.some(
+    (alias) => normalizeHeader(alias) === "canceled",
+  );
+
   return (
+    normalized === "fill" ||
+    normalized === "partial_fill" ||
+    normalized === "partial fill" ||
+    (usesCanceledBoolean && normalized === "false") ||
     normalized.includes("filled") ||
     normalized.includes("executed") ||
     normalized.includes("complete")
