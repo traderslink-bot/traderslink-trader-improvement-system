@@ -15,6 +15,7 @@ export const COACH_ANALYTICS_SEMANTIC_VERSION = "v1" as const;
 export type CoachIntentKey =
   | "rank_negative_performance_drivers"
   | "rank_positive_performance_drivers"
+  | "coach_summary_analysis"
   | "time_window_performance"
   | "session_performance"
   | "hold_time_performance"
@@ -168,4 +169,80 @@ export interface CoachAnalyticsResult {
     readonly requiredData: readonly string[];
   }> | null;
   readonly coachResultDigest: CanonicalContentDigest;
+}
+
+export const COACH_SUMMARY_RESULT_VERSION = "ti_v3_coach_summary_result_v1" as const;
+export const COACH_SUMMARY_SEMANTIC_VERSION = "v1" as const;
+
+export type CoachSummaryConfidence = "strong" | "qualified" | "weak" | "unsupported";
+export type CoachSummaryMetricCategory =
+  | "performance_pnl"
+  | "giveback_money"
+  | "drawdown_money"
+  | "day_consistency_ratio"
+  | "other";
+
+export interface CoachSummarySourceReference {
+  readonly capabilityKey: CoachCapabilityKey;
+  readonly coachResultDigest: CanonicalContentDigest;
+  readonly queryPlanDigest: CanonicalContentDigest | null;
+  readonly queryResultDigest: CanonicalContentDigest | null;
+  readonly comparisonDigest: CanonicalContentDigest | null;
+  readonly authorityStatus: CoachAuthorityStatus;
+  readonly sampleSizeStatus: CoachSampleSizeStatus;
+  readonly includedTradeCount: string;
+  readonly limitationCodes: readonly string[];
+  readonly unsupportedData: CoachAnalyticsResult["unsupportedData"];
+}
+
+export interface CoachSummaryRankedFinding {
+  readonly source: CoachSummarySourceReference;
+  readonly finding: CoachFinding;
+  readonly confidence: CoachSummaryConfidence;
+  readonly metricCategory: CoachSummaryMetricCategory;
+}
+
+export interface CoachSummaryUnsupportedData {
+  readonly code: string;
+  readonly requiredData: readonly string[];
+  readonly sources: readonly CoachSummarySourceReference[];
+}
+
+export interface CoachSummaryEvidenceCoverage {
+  readonly sourceResultCount: string;
+  readonly actionableFindingCount: string;
+  readonly sourceWithEvidenceCount: string;
+  readonly evidenceReferenceCount: string;
+  readonly evidenceOmittedCount: string;
+}
+
+export interface CoachSummaryWeakSource {
+  readonly source: CoachSummarySourceReference;
+  readonly confidence: CoachSummaryConfidence;
+  readonly reason: "insufficient_sample_size" | "limited_authority" | "missing_bounded_evidence";
+}
+
+export interface CoachSummaryResult {
+  readonly schemaVersion: typeof COACH_SUMMARY_RESULT_VERSION;
+  readonly semanticVersion: typeof COACH_SUMMARY_SEMANTIC_VERSION;
+  readonly sourceResults: readonly CoachSummarySourceReference[];
+  readonly topNegativeLeaks: readonly CoachSummaryRankedFinding[];
+  readonly topPositiveStrengths: readonly CoachSummaryRankedFinding[];
+  readonly categorizedFindings: Readonly<{
+    readonly givebackMoney: readonly CoachSummaryRankedFinding[];
+    readonly drawdownMoney: readonly CoachSummaryRankedFinding[];
+    readonly dayConsistencyRatio: readonly CoachSummaryRankedFinding[];
+  }>;
+  readonly highestConfidenceFinding: CoachSummaryRankedFinding | null;
+  readonly weakFindings: readonly CoachSummaryWeakSource[];
+  readonly limitationWarnings: readonly string[];
+  readonly unsupportedDataSummary: readonly CoachSummaryUnsupportedData[];
+  readonly evidenceCoverage: CoachSummaryEvidenceCoverage;
+  readonly nextFocus: Readonly<{
+    readonly kind: "finding" | "rule_to_test" | "unavailable";
+    readonly finding: CoachSummaryRankedFinding | null;
+    readonly ruleCandidateKey: string | null;
+  }>;
+  readonly ruleToTestRanking: readonly CoachSummaryRankedFinding[];
+  readonly summaryResultDigest: CanonicalContentDigest;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   executeCoachCapability,
   executeCoachIntent,
+  executeCoachSummary,
 } from "../../analytics/coach";
 import {
   buildSyntheticQueryFixture,
@@ -400,5 +401,90 @@ describe("GA1-D Coach Trading Intelligence Foundation", () => {
       sampleSizeStatus: "insufficient_sample_size",
       unsupportedData: { code: "insufficient_sample_size" },
     });
+  });
+
+  it("builds deterministic top-leak and top-strength sections from verified P/L findings only", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const summary = executeCoachSummary({ source: fixture.source, partitionReceipt: fixture.partition });
+    expect(summary).toMatchObject({ ok: true });
+    if (!summary.ok) return;
+    expect(summary.value.topNegativeLeaks).toHaveLength(3);
+    expect(summary.value.topPositiveStrengths).toHaveLength(3);
+    for (const finding of [...summary.value.topNegativeLeaks, ...summary.value.topPositiveStrengths]) {
+      expect(finding).toMatchObject({
+        confidence: expect.stringMatching(/strong|qualified/),
+        metricCategory: "performance_pnl",
+        source: { authorityStatus: "verified_execution_only", sampleSizeStatus: "meets_minimum_sample" },
+      });
+      expect(finding.finding.evidence.length).toBeGreaterThan(0);
+    }
+    expect(summary.value.nextFocus).toMatchObject({ kind: "finding", finding: summary.value.topNegativeLeaks[0] });
+  });
+
+  it("keeps giveback, drawdown, and day-consistency findings in separate deterministic categories", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const summary = executeCoachSummary({ source: fixture.source, partitionReceipt: fixture.partition });
+    expect(summary).toMatchObject({ ok: true });
+    if (!summary.ok) return;
+    expect(summary.value.categorizedFindings.givebackMoney[0]).toMatchObject({
+      metricCategory: "giveback_money",
+      finding: { metric: { metricKey: "maximum_peak_profit_giveback" } },
+    });
+    expect(summary.value.categorizedFindings.drawdownMoney[0]).toMatchObject({
+      metricCategory: "drawdown_money",
+      finding: { metric: { metricKey: "maximum_intraday_drawdown" } },
+    });
+    expect(summary.value.categorizedFindings.dayConsistencyRatio[0]).toMatchObject({
+      metricCategory: "day_consistency_ratio",
+      finding: { metric: { metricKey: "profitable_day_percentage" } },
+    });
+  });
+
+  it("summarizes unsupported source capabilities without promoting them as actionable", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const summary = executeCoachSummary({ source: fixture.source, partitionReceipt: fixture.partition });
+    expect(summary).toMatchObject({ ok: true });
+    if (!summary.ok) return;
+    expect(summary.value.unsupportedDataSummary.map((item) => item.code)).toEqual(expect.arrayContaining([
+      "exit_quality_or_alternative_outcome_authority_required",
+      "setup_tags_required",
+      "mistake_tags_required",
+    ]));
+    expect(summary.value.topNegativeLeaks.some((item) => item.confidence === "unsupported")).toBe(false);
+    expect(summary.value.ruleToTestRanking.some((item) => item.confidence === "unsupported")).toBe(false);
+  });
+
+  it("identifies weak source results when minimum samples cannot support findings", () => {
+    const fixture = buildSyntheticQueryFixture(2);
+    const summary = executeCoachSummary({
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+      capabilityKeys: ["time_window_performance", "hold_time_performance"],
+    });
+    expect(summary).toMatchObject({ ok: true });
+    if (!summary.ok) return;
+    expect(summary.value.weakFindings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ confidence: "weak", reason: "insufficient_sample_size" }),
+    ]));
+    expect(summary.value.topNegativeLeaks).toEqual([]);
+  });
+
+  it("ranks only existing rule-to-test keys and preserves source digest identity deterministically", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const first = executeCoachSummary({ source: fixture.source, partitionReceipt: fixture.partition });
+    const second = executeCoachSummary({ source: fixture.source, partitionReceipt: fixture.partition });
+    expect(first).toMatchObject({ ok: true });
+    expect(second).toMatchObject({ ok: true });
+    if (!first.ok || !second.ok) return;
+    expect(first.value.summaryResultDigest).toBe(second.value.summaryResultDigest);
+    expect(first.value.ruleToTestRanking.map((item) => item.finding.ruleCandidateKey)).toEqual(expect.arrayContaining([
+      "wait_after_loss",
+      "maximum_trades_per_day",
+      "stop_after_profit_giveback",
+      "skip_repeat_attempts",
+    ]));
+    for (const source of first.value.sourceResults) {
+      expect(source.coachResultDigest).toMatch(/^ti_v3:coach_analytics_result:v1:sha256:/);
+    }
   });
 });

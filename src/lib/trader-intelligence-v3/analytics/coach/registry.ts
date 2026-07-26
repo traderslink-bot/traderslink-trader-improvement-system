@@ -146,6 +146,26 @@ export const COACH_CAPABILITY_REGISTRY = Object.freeze([
   preset("habit_trend_analysis", "compare_periods", ["current_period", "prior_period"], "period_trend", "current_period_vs_prior_period"),
 ] as const satisfies readonly CoachCapabilityDefinition[]);
 
+export const COACH_SUMMARY_CAPABILITY_KEYS = Object.freeze([
+  "time_window_performance",
+  "session_performance",
+  "price_range_performance",
+  "position_size_performance",
+  "hold_time_performance",
+  "profit_giveback_analysis",
+  "intraday_drawdown_analysis",
+  "day_outcome_consistency",
+  "prior_outcome_performance",
+  "after_win_performance",
+  "trade_sequence_performance",
+  "repeat_ticker_attempts",
+  "overtrading_analysis",
+  "losers_held_too_long",
+  "winners_cut_too_early",
+  "setup_tag_performance",
+  "mistake_tag_performance",
+] as const satisfies readonly CoachCapabilityKey[]);
+
 const CAPABILITIES = new Map(COACH_CAPABILITY_REGISTRY.map((item) => [item.capabilityKey, item]));
 
 export function getCoachCapability(key: CoachCapabilityKey): CoachCapabilityDefinition {
@@ -157,6 +177,7 @@ export function getCoachCapability(key: CoachCapabilityKey): CoachCapabilityDefi
 export const COACH_INTENT_CAPABILITY_MAP: Readonly<Record<CoachIntentKey, readonly CoachCapabilityKey[]>> = Object.freeze({
   rank_negative_performance_drivers: ["time_window_performance", "session_performance", "price_range_performance", "position_size_performance", "hold_time_performance", "profit_giveback_analysis", "intraday_drawdown_analysis"],
   rank_positive_performance_drivers: ["time_window_performance", "session_performance", "price_range_performance", "position_size_performance", "hold_time_performance"],
+  coach_summary_analysis: COACH_SUMMARY_CAPABILITY_KEYS,
   time_window_performance: ["time_window_performance"],
   session_performance: ["session_performance"],
   hold_time_performance: ["hold_time_performance"],

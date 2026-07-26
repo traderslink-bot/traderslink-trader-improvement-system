@@ -73,6 +73,20 @@ status moves are made by this checkpoint-four handoff update.
 - [blocked_by_missing_data] held-too-long proxy (requires exit-quality or alternative-outcome authority)
 - [blocked_by_missing_data] exited-too-soon proxy (requires exit-quality or alternative-outcome authority)
 
+## Checkpoint Five Exact Status Update
+
+Checkpoint five adds a deterministic Coach summary-composition result. It composes existing executor-issued, verified capability results; it does not add a calculator, new authority, UI, LLM, market-data, candle, notification, simulation, memory/profile, dashboard, or agent surface.
+
+- [implemented_now] Top three negative leaks are ranked only within the verified P/L performance category.
+- [implemented_now] Top three positive strengths are ranked only within the verified P/L performance category.
+- [implemented_now] Giveback-money, drawdown-money, and day-consistency-ratio findings are retained in separate categories rather than compared naively to P/L.
+- [implemented_now] Highest-confidence finding uses deterministic categorical confidence: `strong`, `qualified`, `weak`, or `unsupported`.
+- [implemented_now] Weak or insufficient source identification, limitation warnings, evidence coverage, source-result identities, and grouped unsupported-data summaries are retained in the Coach-ready result.
+- [implemented_now] Next focus selects an eligible negative leak first, then an existing eligible rule-to-test, and otherwise reports unavailable.
+- [implemented_now] Existing rule-to-test candidates are ranked deterministically without claiming a rule has proven performance improvement.
+
+No checkpoint-five item is newly marked blocked: the summary preserves pre-existing source unsupported-data responses instead of fabricating a finding.
+
 ## Complete controlling inventory
 ## Engine 1 - Analytics Engine
 ### Already available foundation

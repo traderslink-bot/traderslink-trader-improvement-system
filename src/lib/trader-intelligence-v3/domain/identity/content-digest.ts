@@ -65,7 +65,8 @@ export type ContentIdentityDomain =
   | "counterfactual_simulation_result"
   | "counterfactual_simulation_replay_envelope"
   | "counterfactual_simulation_replay_receipt"
-  | "coach_analytics_result";
+  | "coach_analytics_result"
+  | "coach_summary_result";
 
 declare const canonicalDigestBrand: unique symbol;
 declare const canonicalExecutionDigestBrand: unique symbol;
