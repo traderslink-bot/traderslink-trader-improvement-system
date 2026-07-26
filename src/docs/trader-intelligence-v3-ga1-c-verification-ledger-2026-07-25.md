@@ -1,5 +1,40 @@
 # GA1-C Verification Ledger
 
+## Fee-aware resizing checkpoint
+
+Committed starting head:
+`d2fb09c683b9009f34100d7dfefb4253cbbd8ebb`
+
+Recovered state: seven modified files and no untracked files on
+`agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`. The preserved
+scaffold was retained and completed in place.
+
+This checkpoint adds the final governed `simulate_reduce_size_after_loss`
+preset, exact rational post-floor economics, fee-component authority, explicit
+limited-net dispositions, centralized dependencies/snapshots, reconciled resize
+summaries/evidence, and governed replay reconstruction. Exact final command
+counts, commit SHA, push, and GitHub CI are recorded in the external completion
+report because the commit cannot contain its own identity.
+
+| Check | Result |
+| --- | --- |
+| focused resize and fee-authority scenarios | passed during development |
+| all GA1-C | passed: 3 files / 45 tests |
+| strict/equal completion, skipped/filter isolation | passed |
+| even/odd/zero/missing/fractional/negative quantity | passed |
+| explicit-zero, complete, partial, estimated, missing, legacy fees | passed |
+| gross exact while net limited | passed |
+| downstream completed-net failure | passed |
+| generic/governed reconstruction and replay | passed |
+| affected GA0-B3 / GA1-A / GA1-B | passed: 4 files / 47 tests |
+| combined required tests | passed: 7 files / 92 tests |
+| TypeScript | passed |
+| targeted ESLint | passed with zero warnings |
+| architecture | passed: 488 files, 43 API routes, 82 classified routes |
+| `git diff --check` | passed |
+| final 10,000-row proof | deliberately not run |
+| browser / E2E / deployment | deliberately not run |
+
 ## Checkpoint 1
 
 Base: `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`

@@ -1,5 +1,37 @@
 # GA1-C Checkpoint-Two Implementation and Audit Handoff
 
+## Fee-aware resizing checkpoint
+
+Starting head:
+`d2fb09c683b9009f34100d7dfefb4253cbbd8ebb`
+
+The final governed preset, `simulate_reduce_size_after_loss`, now reconstructs
+through the same generic plan, executor, result re-execution, governed-origin
+envelope, and receipt path as every accepted preset. It introduces no alternate
+engine, price, fill, candle, slippage, liquidity, or market path.
+
+The fixed v1 policy arms after a retained exact-net loss completes strictly
+before entry, consumes at the next candidate that reaches the rule, floors
+exact `0.5` sizing to whole shares, and excludes below one share. Higher
+precedence and source-filter exclusions do not consume it. Session reset is
+owner/account/currency/session/timezone/date-basis scoped; resize pending is
+session-wide across stable instruments, while ticker-specific rules remain
+instrument scoped.
+
+Review exact rational post-floor gross P/L; retained fixed/non-scaling fees;
+ratio-scaled quantity/notional/sell-regulatory fees; and distinct complete,
+partial, account-calculated, explicit-zero, estimated, not-included,
+unavailable, and undecomposed fee states. Gross comparison remains available
+when net is limited. Aggregate net/effect is null/not-comparable rather than
+mixing authority. A later completed-net consumer fails at its first relevant
+chronological boundary when resized net is not exact.
+
+Review the resize detail contract, count/population reconciliation, per-rule
+counts, bounded evidence categories, evaluated/not-evaluated snapshots, replay
+reconstruction, redigested tamper rejection, and source-permutation identity.
+Manual entry and importers do not gain implicit fee authority; future importer
+and account-level fee-policy work must emit explicit versioned authority.
+
 ## Scope delivered
 
 Checkpoint one established the generic content-addressed simulation plan and
@@ -46,7 +78,7 @@ reference reduction fail semantically. Missing, unknown, extra, mismatched, and
 foreign origin/preset inputs fail closed.
 
 Review the discriminated issuance union, strict runtime request shape,
-plan/envelope reconstruction, all thirteen governed presets, direct generic
+plan/envelope reconstruction, all fourteen governed presets, direct generic
 plans, deterministic receipt binding, and source permutation identity. The
 final remediation commit and verification/CI identities are recorded externally
 after completion because the commit cannot contain its own SHA.
@@ -134,13 +166,9 @@ Reviewers should concentrate on:
 
 ## Known incomplete areas
 
-- `simulate_reduce_size_after_loss` remains deliberately deferred pending
-  proportional P/L, rounding, minimum-size, fee, and charge authority;
-- the standalone persisted replay envelope/receipt now includes the focused
-  non-downgradable origin correction described above;
-- final proportional-resizing integration and its focused tests remain;
-- the fixed-seed 10,000-row proof remains reserved for the final executable
-  checkpoint after all presets and sizing decisions are complete.
+- manual entry and importers do not yet emit broker/account fee components;
+- future account-level fee policy requires a separate governed authority;
+- the fixed-seed 10,000-row proof remains deliberately unrun.
 
 These are checkpoint boundaries, not claims of completed GA1-C acceptance.
 
@@ -176,9 +204,9 @@ Independent audit should review:
 - cross-query and cross-simulation authority rejection;
 - dependency, execution-policy, bound, preset-argument, result, envelope, and
   receipt tamper rejection, including correctly re-digested artifacts;
-- generic and all thirteen governed preset reconstruction;
+- generic and all fourteen governed preset reconstruction;
 - repeated replay and source-storage permutation identity; and
 - the ten deterministic mismatch stages.
 
-Deferred work remains proportional resizing, share rounding, charges and fees,
-the final 10,000-row proof, GA1-D, GA1-E, merge, and deployment.
+Deferred work is limited to the final 10,000-row proof, future importer/account
+fee-authority work, GA1-D, GA1-E, merge, and deployment.

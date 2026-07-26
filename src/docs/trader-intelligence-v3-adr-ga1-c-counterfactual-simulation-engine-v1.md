@@ -1,7 +1,7 @@
 # ADR: GA1-C Generic Counterfactual Simulation Engine v1
 
 **Date:** 2026-07-25 America/Toronto
-**Status:** second executable checkpoint candidate
+**Status:** fee-aware resizing executable checkpoint candidate
 **Base:** `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`
 **Branch:** `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`
 
@@ -26,11 +26,26 @@ instrument attempts, no-new-trades cutoff, entry-price range exclusion,
 repeat-attempt exclusion, and one-shot after-outcome exclusion. All compile into
 this same plan and engine.
 
-The only deliberately unimplemented preset is proportional size reduction after
-a loss. Its P/L scaling, share rounding, minimum-size, commission, regulatory
-charge, fixed-fee, variable-fee, and unavailable-authority policies require a
-separate focused authority decision. The final 10,000-row proof remains reserved
-until that decision and final replay-envelope work are complete.
+The final governed preset is `simulate_reduce_size_after_loss`. A retained
+simulated trade whose exact net loss completes strictly before a later candidate
+arms one session-wide pending resize. The first candidate that reaches the
+resize rule consumes it. Higher-precedence and source-filter exclusions do not
+consume it. The multiplier is exactly `0.5`; the simulated quantity is
+`floor(original * 0.5)` whole shares. A result below one share is an explicit
+zero-size exclusion. Pending state resets across owner, account, currency,
+accepted session, timezone, and date-basis boundaries. It is intentionally
+session-wide across stable instruments; instrument-scoped attempt/stop rules
+remain isolated by stable instrument.
+
+The engine preserves accepted entry and exit prices, executions, fills, and
+market path. Exact gross P/L uses the post-floor size ratio, not blindly `0.5`
+for odd quantities. It retains fixed and non-scaling fee components and scales
+quantity-variable, notional-variable, and sell-side regulatory components by
+that exact ratio. Broker-complete and account-policy-calculated components, or
+an explicit-zero declaration, can produce exact resized net P/L. Broker-partial,
+estimated, unavailable, not-included, and unknown/undecomposed authority remain
+distinct and never become zero. Gross comparison remains exact when net
+comparison is incomplete or unavailable.
 
 ## Accepted authority reuse
 
@@ -56,7 +71,7 @@ then semantic round-trip key. State resets by canonical owner, account,
 currency, session date, timezone, and date basis.
 
 Chronological state is dependency-driven under
-`ti_v3_rule_state_dependency_policy_v2`. Checkpoint two increments the accepted
+`ti_v3_rule_state_dependency_policy_v3`. The resizing checkpoint increments the accepted
 v1 policy because it adds persisted state families and rule declarations. The
 plan contains the deterministic
 union of its registered rule dependencies. Rule order cannot add or remove a
@@ -75,6 +90,7 @@ state family. The current registry declares:
 | no-new-trades cutoff | accepted timezone wall-clock entry time |
 | entry-price range | accepted GA1-A entry-price authority |
 | after-outcome exclusion | prior completed outcome and one-shot pending state |
+| reduce size after loss | completed exact net outcome, completion timestamp, pending resize, size authority, fee authority |
 
 Only simulated trades that were actually retained can later affect an active
 state family. Completion rows, outcome signs, loss streaks, and completion-tie
@@ -113,6 +129,22 @@ prior outcome, and pending one-shot rule identities. Every inactive family is
 as evaluated.
 
 ## Actual versus simulated truth
+
+Resize outcomes separately classify exact-net execution, incomplete,
+unavailable, and estimated net authority, quantity-unavailable evaluation, and
+zero simulated size. They bind original/simulated quantity, exact ratio,
+rounding and minimum policies, gross economics, fee components, charge and net
+authority, supporting execution digests, occurrence keys, and limitations.
+Result summaries reconcile gross- and net-comparable populations separately;
+net totals and effect become `null`/`not_comparable` when any retained resize
+lacks exact net authority. A later chronological rule that needs the completed
+resized net outcome fails closed at the first relevant future entry.
+
+Manual entry and future importers must provide explicit fee authority. Existing
+aggregate charge totals default to `not_included` for resizing and are never
+interpreted as explicit zero. Future account fee-policy calculators may produce
+`account_policy_calculated` authority only through a separately governed,
+versioned policy.
 
 Checkpoint one supports historical removal only. Retained trades preserve their
 accepted entry, exit, size, gross/net economics, charges, execution references,

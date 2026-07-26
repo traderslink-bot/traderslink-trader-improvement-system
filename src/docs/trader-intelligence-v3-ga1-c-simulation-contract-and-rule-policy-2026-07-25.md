@@ -2,7 +2,7 @@
 
 ## Plan contract
 
-`ti_v3_counterfactual_simulation_plan_v2` is strict plain data and binds:
+`ti_v3_counterfactual_simulation_plan_v3` is strict plain data and binds:
 
 - the complete accepted GA1-A source query plan and its owner/account/currency,
   timezone/date-basis, filters, dataset, derivation, and partition authority;
@@ -20,7 +20,7 @@ policies, max-plus-one, and altered persisted digests fail closed.
 
 ## Dependency-driven state policy
 
-The centralized `ti_v3_rule_state_dependency_policy_v2` declaration covers
+The centralized `ti_v3_rule_state_dependency_policy_v3` declaration covers
 checkpoint one's accepted dependencies plus the new persisted families:
 
 - executed simulated-entry count;
@@ -48,9 +48,56 @@ union in the content-addressed plan. Persisted plans must carry the exact
 reconstructed union. Rules remain plain data; the plan accepts no callbacks,
 executable code, or caller-declared dependency escalation.
 
-Checkpoint-two rules activate only their declared families. Size authority
-remains inactive because proportional resizing is deliberately deferred. Adding
-one family never initializes every other family.
+Checkpoint-two rules activate only their declared families. The resize rule
+activates completed outcome/timestamp, session-wide pending resize, size
+authority, and fee authority. Adding one family never initializes every other
+family.
+
+## Governed resize policy
+
+`simulate_reduce_size_after_loss` compiles the fixed v1 rule:
+
+- trigger only from a retained simulated exact-net loss whose completion is
+  strictly earlier than the candidate entry;
+- arm one pending resize in the owner/account/currency/session partition;
+- do not arm from skipped or source-filtered trades;
+- do not consume on a higher-precedence or source-filter exclusion;
+- consume on the first candidate that reaches the resize rule, including a
+  zero-share exclusion;
+- use multiplier `0.5`, floor toward zero to whole shares, and exclude below
+  one share;
+- reset pending state by accepted session; the rule is session-wide across
+  stable instruments, while ticker attempt/stop state remains instrument-scoped;
+- preserve observed prices, fills, timestamps, executions, and market path.
+
+The post-floor exact ratio controls proportional gross P/L and variable fees.
+For example, five shares become two, ratio `2/5`; the engine does not call this
+an exact half. Fixed and non-scaling components are retained. Quantity,
+notional, and sell-side regulatory components scale by the exact ratio.
+Unknown/undecomposed components prevent exact resized net authority.
+
+Fee authority states are `broker_reported_complete`,
+`broker_reported_partial`, `account_policy_calculated`, `explicitly_zero`,
+`estimated`, `not_included`, and `unavailable`. Missing authority defaults to
+`not_included`; it never defaults to zero. Complete broker/account components
+must reconcile to historical signed charges. Partial and estimated authority
+requires an explicit reason. Legacy aggregate charges remain undecomposed and
+fail closed for resized net P/L.
+
+Resize outcomes bind original and simulated quantity, exact size ratio, floor
+and minimum policies, original and simulated gross P/L, actual fee authority
+and components, simulated charges and authority, actual and simulated net
+authority, evidence references, reason, and limitations. Gross remains exact
+where quantity authority exists even if net is incomplete, unavailable, or
+estimated. Net totals never mix exact and non-exact values. A future candidate
+that requires a completed resized net outcome fails closed when that exact
+authority is absent.
+
+Exact rational economics remain authoritative even when their denominator
+cannot be represented as a terminating canonical decimal. In that case the
+rational resize detail remains exact, while legacy scalar net totals are null
+and later decimal-state consumers fail closed rather than substituting the
+historical net.
 
 ## Checkpoint-one outcome contract
 
@@ -59,6 +106,12 @@ Every analytical source row receives exactly one ordered classification:
 | Classification | Meaning |
 | --- | --- |
 | `executed_unchanged` | observed execution and economics are retained |
+| `executed_resized` | exact quantity, gross, charges, and net are resized |
+| `executed_resized_net_incomplete` | quantity and gross are exact; broker fee coverage is partial |
+| `executed_resized_net_unavailable` | quantity and gross are exact; net fee authority is unavailable/not included/undecomposed |
+| `executed_resized_net_estimated` | quantity and gross are exact; fee/net authority remains explicitly estimated |
+| `excluded_zero_simulated_size` | floor rounding produced fewer than one simulated share |
+| `resize_unavailable_quantity` | whole positive quantity authority is absent |
 | `skipped_by_rule` | first matching exclusion rule removed the observed trade |
 | `skipped_session_stopped` | an earlier simulated completion stopped the session |
 | `skipped_ticker_stopped` | an earlier retained completion stopped this stable instrument only |
@@ -131,6 +184,8 @@ Checkpoint two adds:
 
 - `simulate_stop_after_daily_dollar_drawdown`: positive exact-dollar input;
   stop when retained completed daily net P/L is at or below its negative;
+- `simulate_reduce_size_after_loss`: fixed exact `0.5` multiplier, whole-share
+  floor, one next eligible trade, and component-authorized fees;
 - `simulate_stop_after_profit_giveback`: positive exact-dollar input; inactive
   until a positive realized peak exists; stop at or above exact giveback;
 - `simulate_skip_fourth_and_later_trades`: fixed three retained entries;
@@ -244,7 +299,7 @@ diagnostic at the exact stage:
 9. `expected_result_digest`;
 10. `replay_receipt_verification`.
 
-The replay path supports direct generic plans and all thirteen accepted
+The replay path supports direct generic plans and all fourteen accepted
 execution-only presets. Max-plus-one artifact references or diagnostics fail
 closed. Unknown, missing, extra, unsupported-version, foreign-authority, and
 correctly re-digested tampering also fail closed. Historical in-sample results

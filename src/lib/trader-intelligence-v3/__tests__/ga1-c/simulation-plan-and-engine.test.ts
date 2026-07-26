@@ -333,7 +333,7 @@ describe("GA1-C generic chronological simulation skeleton", () => {
       "ti_v3_simulation_historical_in_sample_not_future_edge",
     );
     expect(result.value.effect).toBe("harmed");
-    expect(result.value.netPnlDifference.startsWith("-")).toBe(true);
+    expect(result.value.netPnlDifference?.startsWith("-")).toBe(true);
   });
 
   it("uses only completed realized losses strictly before a later entry", () => {

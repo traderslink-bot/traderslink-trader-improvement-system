@@ -24,7 +24,7 @@ import {
 } from "../contracts";
 
 export const EXECUTION_ONLY_SIMULATION_PRESET_VERSION =
-  "ti_v3_execution_only_simulation_preset_v2" as const;
+  "ti_v3_execution_only_simulation_preset_v3" as const;
 
 export type RepresentativeSimulationPresetKey =
   | "simulate_stop_after_consecutive_losses"
@@ -39,7 +39,8 @@ export type RepresentativeSimulationPresetKey =
   | "simulate_no_new_trades_after_time"
   | "simulate_exclude_price_range"
   | "simulate_skip_repeat_attempts"
-  | "simulate_after_outcome_exclusion";
+  | "simulate_after_outcome_exclusion"
+  | "simulate_reduce_size_after_loss";
 
 export interface RepresentativeSimulationPreset {
   readonly schemaVersion: typeof EXECUTION_ONLY_SIMULATION_PRESET_VERSION;
@@ -55,7 +56,8 @@ export interface RepresentativeSimulationPreset {
     "owner_account_currency_verified_session_v1";
   readonly minimumSamplePolicy: "descriptive_at_any_exact_sample_v1";
   readonly missingDataPolicy: "fail_closed_or_classify_unavailable_v1";
-  readonly comparisonPolicy: "actual_vs_simulated_exact_metrics_v1";
+  readonly comparisonPolicy:
+    "separate_exact_gross_and_exact_net_populations_v1";
   readonly affectedPopulationPolicy:
     "exact_rule_classifications_reconciled_to_ordered_outcomes_v1";
   readonly evidencePolicy:
@@ -137,7 +139,8 @@ function finish(
         "owner_account_currency_verified_session_v1" as const,
       minimumSamplePolicy: "descriptive_at_any_exact_sample_v1" as const,
       missingDataPolicy: "fail_closed_or_classify_unavailable_v1" as const,
-      comparisonPolicy: "actual_vs_simulated_exact_metrics_v1" as const,
+      comparisonPolicy:
+        "separate_exact_gross_and_exact_net_populations_v1" as const,
       affectedPopulationPolicy:
         "exact_rule_classifications_reconciled_to_ordered_outcomes_v1" as const,
       evidencePolicy:
@@ -663,6 +666,34 @@ export function compileAfterOutcomeExclusionPreset(
   );
 }
 
+/** A deliberately fixed v1 policy: after a strictly completed retained loss,
+ * resize only the next rule-eligible entry to floor(50% of whole shares). */
+export function compileReduceSizeAfterLossPreset(
+  sourceQueryPlan: unknown,
+  authority: TradeQueryAuthority,
+  argumentsInput: unknown,
+): ExactResult<CompiledRepresentativeSimulationPreset, AnalyticalContractFailure> {
+  const argumentsValue = emptyArguments(argumentsInput);
+  if (!argumentsValue.ok) return argumentsValue;
+  return finish(
+    "simulate_reduce_size_after_loss",
+    sourceQueryPlan,
+    authority,
+    argumentsValue.value,
+    {
+      ruleId: "reduce_size_after_loss",
+      kind: "reduce_size_after_loss",
+      precedence: "1",
+      action: "resize_next_eligible_trade",
+      reductionMultiplier: "0.5",
+      triggerPolicy: "completed_retained_exact_net_loss_v1",
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+      sizingPolicy: "floor_to_whole_share_minimum_one_v1",
+      feePolicy: "complete_declared_components_only_v1",
+    },
+  );
+}
+
 function compilePresetByKey(
   presetKey: RepresentativeSimulationPresetKey,
   sourceQueryPlan: unknown,
@@ -751,6 +782,8 @@ function compilePresetByKey(
         authority,
         argumentsInput,
       );
+    case "simulate_reduce_size_after_loss":
+      return compileReduceSizeAfterLossPreset(sourceQueryPlan, authority, argumentsInput);
   }
 }
 
@@ -790,6 +823,7 @@ export function verifyCompiledExecutionOnlySimulationPreset(
       "simulate_exclude_price_range",
       "simulate_skip_repeat_attempts",
       "simulate_after_outcome_exclusion",
+      "simulate_reduce_size_after_loss",
     ].includes(preset.value.presetKey)
   ) {
     return contractFailure(

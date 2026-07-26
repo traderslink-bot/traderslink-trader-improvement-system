@@ -21,8 +21,8 @@ import {
 } from "./rule-state-dependencies";
 
 export const COUNTERFACTUAL_SIMULATION_PLAN_VERSION =
-  "ti_v3_counterfactual_simulation_plan_v2" as const;
-export const COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION = "v2" as const;
+  "ti_v3_counterfactual_simulation_plan_v3" as const;
+export const COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION = "v3" as const;
 
 export const COUNTERFACTUAL_SIMULATION_LIMITS = Object.freeze({
   maximumRules: 16,
@@ -128,6 +128,17 @@ export type CounterfactualRule =
       consumptionPolicy: "consume_one_next_rule_eligible_trade_v1";
       nonMatchingOutcomePolicy:
         "pending_exclusion_remains_until_consumed_v1";
+    }>
+  | Readonly<{
+      ruleId: string;
+      kind: "reduce_size_after_loss";
+      precedence: string;
+      action: "resize_next_eligible_trade";
+      reductionMultiplier: "0.5";
+      triggerPolicy: "completed_retained_exact_net_loss_v1";
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1";
+      sizingPolicy: "floor_to_whole_share_minimum_one_v1";
+      feePolicy: "complete_declared_components_only_v1";
     }>;
 
 export interface CounterfactualSimulationPlan {
@@ -141,12 +152,15 @@ export interface CounterfactualSimulationPlan {
     readonly chronologicalOrder:
       "entry_at_then_exit_at_then_semantic_round_trip_key_v1";
     readonly actualEntryPolicy: "accepted_observed_entries_v1";
-    readonly simulatedEntryPolicy: "preserve_or_exclude_observed_entries_v1";
-    readonly positionSizingPolicy: "preserve_observed_size_v1";
-    readonly chargesPolicy: "preserve_observed_charges_v1";
+    readonly simulatedEntryPolicy:
+      "preserve_exclude_or_governed_resize_observed_entries_v1";
+    readonly positionSizingPolicy:
+      "preserve_or_floor_half_whole_share_size_v1";
+    readonly chargesPolicy:
+      "preserve_or_complete_component_authorized_resize_v1";
     readonly slippageLiquidityPolicy: "unsupported_no_alternative_fills_v1";
     readonly sessionResetPolicy:
-      "owner_account_currency_session_instrument_state_v1";
+      "owner_account_currency_session_reset_with_instrument_scoped_rules_v1";
     readonly timestampTiePolicy:
       "strictly_completed_before_entry_fail_closed_material_ties_v1";
     readonly missingDataPolicy: "fail_closed_or_classify_unavailable_v1";
@@ -177,12 +191,15 @@ export const COUNTERFACTUAL_SIMULATION_POLICIES =
     chronologicalOrder:
       "entry_at_then_exit_at_then_semantic_round_trip_key_v1",
     actualEntryPolicy: "accepted_observed_entries_v1",
-    simulatedEntryPolicy: "preserve_or_exclude_observed_entries_v1",
-    positionSizingPolicy: "preserve_observed_size_v1",
-    chargesPolicy: "preserve_observed_charges_v1",
+    simulatedEntryPolicy:
+      "preserve_exclude_or_governed_resize_observed_entries_v1",
+    positionSizingPolicy:
+      "preserve_or_floor_half_whole_share_size_v1",
+    chargesPolicy:
+      "preserve_or_complete_component_authorized_resize_v1",
     slippageLiquidityPolicy: "unsupported_no_alternative_fills_v1",
     sessionResetPolicy:
-      "owner_account_currency_session_instrument_state_v1",
+      "owner_account_currency_session_reset_with_instrument_scoped_rules_v1",
     timestampTiePolicy:
       "strictly_completed_before_entry_fail_closed_material_ties_v1",
     missingDataPolicy: "fail_closed_or_classify_unavailable_v1",
@@ -241,6 +258,10 @@ function normalizeRule(
       "rangeMode",
       "consumptionPolicy",
       "nonMatchingOutcomePolicy",
+      "reductionMultiplier",
+      "triggerPolicy",
+      "sizingPolicy",
+      "feePolicy",
     ],
     path,
   );
@@ -576,6 +597,27 @@ function normalizeRule(
       }),
     };
   }
+  if (common.value.kind === "reduce_size_after_loss") {
+    const record = validateContractRecord(input, [
+      "ruleId", "kind", "precedence", "action", "reductionMultiplier",
+      "triggerPolicy", "consumptionPolicy", "sizingPolicy", "feePolicy",
+    ], [], path);
+    if (!record.ok) return record;
+    if (record.value.action !== "resize_next_eligible_trade" ||
+      record.value.reductionMultiplier !== "0.5" ||
+      record.value.triggerPolicy !== "completed_retained_exact_net_loss_v1" ||
+      record.value.consumptionPolicy !== "consume_one_next_rule_eligible_trade_v1" ||
+      record.value.sizingPolicy !== "floor_to_whole_share_minimum_one_v1" ||
+      record.value.feePolicy !== "complete_declared_components_only_v1") return invalid(path);
+    return { ok: true, value: Object.freeze({
+      ruleId: ruleId.value, kind: "reduce_size_after_loss", precedence: precedence.value,
+      action: "resize_next_eligible_trade", reductionMultiplier: "0.5",
+      triggerPolicy: "completed_retained_exact_net_loss_v1",
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+      sizingPolicy: "floor_to_whole_share_minimum_one_v1",
+      feePolicy: "complete_declared_components_only_v1",
+    }) };
+  }
   return invalid(`${path}.kind`);
 }
 
@@ -640,6 +682,7 @@ function normalize(
     "stop_after_losing_ticker_attempts",
     "no_new_trades_after_time",
     "exclude_entry_price_range",
+    "reduce_size_after_loss",
   ]);
   for (const kind of singularRuleKinds) {
     if (rules.filter((rule) => rule.kind === kind).length > 1) {
@@ -715,6 +758,7 @@ function normalize(
         "tickerLosingAttemptState", "tickerStopState", "entryTimeCutoff",
         "entryPriceAuthority", "cooldownUntilState", "priorCompletedOutcome",
         "afterOutcomeExclusionState", "sizeAuthority", "sessionStopState",
+        "pendingResizeAfterLossState", "feeAuthority",
       ],
       [],
       "$.stateDependencies",

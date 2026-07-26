@@ -7,6 +7,7 @@ import {
   buildSyntheticQueryFixture,
   buildSyntheticQueryFixtureFromRows,
   compileAfterOutcomeExclusionPreset,
+  compileReduceSizeAfterLossPreset,
   compileDirectionOnlyPreset,
   compileExcludePriceRangePreset,
   compileMaximumAttemptsPerTickerPreset,
@@ -21,6 +22,7 @@ import {
   compileWaitAfterLossPreset,
   COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
   COUNTERFACTUAL_SIMULATION_POLICIES,
+  COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
   COUNTERFACTUAL_SIMULATION_REPLAY_ENVELOPE_VERSION,
   COUNTERFACTUAL_SIMULATION_REPLAY_LIMITS,
   COUNTERFACTUAL_SIMULATION_REPLAY_SEMANTIC_VERSION,
@@ -176,7 +178,7 @@ function source(
 function generic(prepared: ReturnType<typeof source>) {
   const plan = buildCounterfactualSimulationPlan({
     schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
-    semanticVersion: "v2",
+    semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
     planOrigin: "generic_plan",
     sourceQueryPlan: prepared.sourceQueryPlan,
     rules: [{
@@ -611,6 +613,11 @@ describe("GA1-C persisted simulation replay envelope", () => {
         prepared.fixture.authority,
         { triggerOutcome: "loss" },
       ),
+      () => compileReduceSizeAfterLossPreset(
+        prepared.sourceQueryPlan,
+        prepared.fixture.authority,
+        {},
+      ),
     ];
     for (const compile of compilers) {
       const compiled = compile();
@@ -727,7 +734,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
     });
     const otherSimulation = buildCounterfactualSimulationPlan({
       schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
-      semanticVersion: "v2",
+      semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
       planOrigin: "generic_plan",
       sourceQueryPlan: otherPlan,
       rules: [{

@@ -1,5 +1,36 @@
 # Independent Re-Audit Handoff: GA1-C Checkpoint Two
 
+## Current audit target: fee-aware resizing checkpoint
+
+Audit the continuation from committed head
+`d2fb09c683b9009f34100d7dfefb4253cbbd8ebb` on draft PR #162. The target is
+the final governed `simulate_reduce_size_after_loss` preset plus its analytical
+fee authority, centralized dependencies, generic executor, result/evidence,
+governed-origin replay envelope, and receipt integration.
+
+Verify strict-before-entry retained-loss triggering; one next-rule-eligible
+consumption; higher-precedence/filter/skip isolation; session reset; session-
+wide cross-instrument pending state; exact `0.5` multiplier; whole-share floor;
+zero-size exclusion; and no invented prices, fills, candles, or market path.
+
+Attempt even, odd, zero, missing, negative, and fractional quantities. Review
+exact post-floor ratios and rational gross P/L. Verify fixed/non-scaling fees
+are retained and quantity/notional/sell-regulatory components scale by the
+exact ratio. Attempt complete, partial, account-calculated, explicit-zero,
+estimated, not-included, unavailable, and unknown/undecomposed fee authority.
+Missing or legacy aggregate fees must never become zero. Gross must remain
+exact when net is limited; aggregate net must become non-comparable, and later
+completed-net consumers must fail closed.
+
+Reconcile every resize summary and evidence bucket to ordered outcomes. Attempt
+max-plus-one, foreign owner/account/currency/partition authority, plan origin,
+multiplier/policy/quantity/ratio/gross/fees/net-authority/summary/evidence/
+envelope/receipt tampering, including correctly re-digested artifacts. Confirm
+generic and governed reconstruction, result re-execution, deterministic replay,
+and source permutation identity. Report exact file/line evidence. Keep the PR
+draft/open/unmerged/undeployed; do not run the final 10,000-row proof or begin
+GA1-D/GA1-E.
+
 Correction starting head:
 `6b7bf67d35fc4b203bc315ab715db81a75566f60`
 
@@ -19,8 +50,8 @@ Re-audit the simulation engine, checkpoint-two focused test, ADR, contract,
 verification ledger, implementation handoff, this handoff, and project log.
 Confirm single and mixed unavailable/excluded reconciliation, replay,
 correctly re-digested affected/unavailable tamper rejection, and permutation
-identity. Proportional resizing, fee infrastructure, standalone replay
-receipt/envelope, final 10,000-row proof, GA1-D, and GA1-E remain deferred.
+identity. This historical section is superseded by the current resizing audit
+target above.
 
 Audit the draft GA1-C PR against:
 
@@ -29,9 +60,7 @@ Audit the draft GA1-C PR against:
 - `src/docs/trader-intelligence-v3-ga1-c-simulation-contract-and-rule-policy-2026-07-25.md`;
 - accepted GA0-B3, GA1-A, and GA1-B contracts.
 
-Treat this as the preserve-or-exclude/session-state checkpoint, not final GA1-C:
-proportional resizing, a standalone replay receipt/envelope, and the final
-10,000-row proof remain deferred.
+Treat this historical preserve-or-exclude section as prior accepted context.
 
 Audit every new preset and its compiled generic rule. Attempt authority
 substitution, caller-declared dependency substitution, altered compiled plans,
@@ -85,9 +114,10 @@ issuance without a preset, governed plan/result issued as generic, mismatched
 and foreign presets, governed replay without a preset, and generic replay with a
 preset. Correctly re-digest and attempt governed-to-generic substitution,
 generic-to-governed substitution, governed-preset-reference removal, and
-eight-to-seven reference reduction. Verify all thirteen preset keys, direct
+eight-to-seven reference reduction. Verify all fourteen preset keys, direct
 generic plans, exact stage codes, deterministic receipt binding and repeat
 identity, and source-storage permutation identity.
 
-Keep resizing, fees, final scale proof, GA1-D, GA1-E, merge, and deployment out
-of scope.
+For that historical origin remediation, resizing was out of scope; the current
+audit target above now includes it. Final scale proof, GA1-D, GA1-E, merge, and
+deployment remain out of scope.

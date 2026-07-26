@@ -6,6 +6,7 @@ import {
   buildSyntheticQueryFixture,
   buildSyntheticQueryFixtureFromRows,
   compileAfterOutcomeExclusionPreset,
+  compileReduceSizeAfterLossPreset,
   compileExcludePriceRangePreset,
   compileMaximumAttemptsPerTickerPreset,
   compileNoNewTradesAfterTimePreset,
@@ -39,6 +40,11 @@ type RowInput = Readonly<{
   sessionDate?: string;
   session?: "premarket" | "regular" | "after_hours" | "overnight";
   entryPrice?: string | null;
+  quantity?: string | null;
+  grossPnl?: string;
+  signedCharges?: string;
+  feeAuthority?: unknown;
+  owner?: string;
 }>;
 
 function clone<T>(value: T): T {
@@ -56,6 +62,7 @@ function row(template: AnalyticalRow, index: number, input: RowInput) {
       (_, occurrence) => `ga1_c_pack_2_${index}_${occurrence + 1}`,
     ),
     canonicalAccountKey: input.account ?? "account_ga1_c_pack_2",
+    canonicalOwnerKey: input.owner ?? content.canonicalOwnerKey,
     stableInstrumentKey: input.instrument ?? "instrument_ga1_c_a",
     displayedSymbol: input.instrument === "instrument_ga1_c_b" ? "PACKB" : "PACKA",
     direction: input.direction ?? "long",
@@ -66,8 +73,8 @@ function row(template: AnalyticalRow, index: number, input: RowInput) {
     weekday: "wednesday",
     session: input.session ?? "regular",
     sequenceInPartition: String(index),
-    grossPnl: input.netPnl,
-    signedCharges: "0",
+    grossPnl: input.grossPnl ?? input.netPnl,
+    signedCharges: input.signedCharges ?? "0",
     netPnl: input.netPnl,
     entryNotional: input.entryPrice === null
       ? {
@@ -79,12 +86,15 @@ function row(template: AnalyticalRow, index: number, input: RowInput) {
           amount: input.entryPrice ?? "10",
           currency,
         },
-    shareQuantity: input.entryPrice === null
+    shareQuantity: input.quantity === null || input.entryPrice === null
       ? {
           state: "unavailable",
-          reasonCode: "ti_v3_test_entry_price_unavailable",
+          reasonCode: "ti_v3_test_quantity_unavailable",
         }
-      : { state: "available", quantity: "1" },
+      : { state: "available", quantity: input.quantity ?? "1" },
+    ...(input.feeAuthority === undefined
+      ? {}
+      : { feeAuthority: input.feeAuthority }),
   });
   if (!built.ok) throw new Error(`${built.error.code}:${built.error.path}`);
   return built.value;
@@ -1073,5 +1083,625 @@ describe("GA1-C preserve-or-exclude governed presets", () => {
       sourceQueryResult: prepared.sourceQueryResult,
       persistedResult: redigestedResult.value,
     })).toMatchObject({ ok: false });
+  });
+
+  it("resizes the next strictly-later eligible trade with exact floor ratio and mixed fees", () => {
+    const prepared = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:35:00.000000000Z",
+        netPnl: "-10",
+        quantity: "10",
+      },
+      {
+        entryAt: "2026-07-01T13:36:00.000000000Z",
+        exitAt: "2026-07-01T13:40:00.000000000Z",
+        grossPnl: "100",
+        signedCharges: "-2",
+        netPnl: "98",
+        quantity: "5",
+        instrument: "instrument_ga1_c_b",
+        feeAuthority: {
+          state: "broker_reported_complete",
+          components: [
+            { kind: "fixed", signedAmount: "-1" },
+            { kind: "quantity_variable", signedAmount: "-1" },
+          ],
+        },
+      },
+    ]);
+    const compiled = compileReduceSizeAfterLossPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      {},
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    expect(verifyCompiledExecutionOnlySimulationPreset(
+      clone(compiled.value),
+      prepared.fixture.authority,
+    )).toMatchObject({ ok: true });
+    const result = run(prepared, compiled.value);
+    if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
+    const resized = result.value.tradeOutcomes[1];
+    expect(resized).toMatchObject({
+      classification: "executed_resized",
+      responsibleRuleId: "reduce_size_after_loss",
+      reasonCode: "ti_v3_simulation_resize_executed_exact_net",
+      simulatedNetPnl: "38.6",
+      sessionStateBefore: {
+        pendingResizeAfterLossRuleIds: {
+          state: "evaluated",
+          value: ["reduce_size_after_loss"],
+        },
+      },
+      sessionStateAfter: {
+        pendingResizeAfterLossRuleIds: {
+          state: "evaluated",
+          value: [],
+        },
+      },
+      resizeEconomics: {
+        state: "evaluated",
+        value: {
+          originalQuantity: "5",
+          simulatedQuantity: "2",
+          sizeRatio: { numerator: "2", denominator: "5" },
+          simulatedGrossPnl: { numerator: "40", denominator: "1" },
+          simulatedCharges: { numerator: "-7", denominator: "5" },
+          simulatedNetPnl: { numerator: "193", denominator: "5" },
+          fixedChargesRetained: { numerator: "-1", denominator: "1" },
+          variableChargesRecalculated: {
+            numerator: "-2",
+            denominator: "5",
+          },
+        },
+      },
+    });
+    expect(result.value).toMatchObject({
+      resizedCount: "1",
+      simulatedNetPnl: "28.6",
+      netPnlDifference: "-59.4",
+      resizeSummary: {
+        resizedCount: "1",
+        exactGrossComparisonCount: "1",
+        exactNetComparisonCount: "1",
+        originalAggregateQuantity: "5",
+        simulatedAggregateQuantity: "2",
+        grossPnlDifference: { numerator: "-60", denominator: "1" },
+        netPnlDifference: { numerator: "-297", denominator: "5" },
+        grossHarmedCount: "1",
+        netHarmedCount: "1",
+        netUnclassifiedCount: "0",
+      },
+    });
+  });
+
+  it("uses strict completion, ignores gain and flat, and consumes a zero-share resize once", () => {
+    const equal = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:35:00.000000000Z",
+        netPnl: "-10",
+      },
+      {
+        entryAt: "2026-07-01T13:35:00.000000000Z",
+        exitAt: "2026-07-01T13:36:00.000000000Z",
+        netPnl: "4",
+        quantity: "2",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+      {
+        entryAt: "2026-07-01T13:37:00.000000000Z",
+        exitAt: "2026-07-01T13:38:00.000000000Z",
+        netPnl: "4",
+        quantity: "1",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+      {
+        entryAt: "2026-07-01T13:39:00.000000000Z",
+        exitAt: "2026-07-01T13:40:00.000000000Z",
+        netPnl: "4",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+    ]);
+    const compiled = compileReduceSizeAfterLossPreset(
+      equal.sourceQueryPlan,
+      equal.fixture.authority,
+      {},
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    const result = run(equal, compiled.value);
+    if (!result.ok) throw new Error(result.error.code);
+    expect(result.value.tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+        "executed_unchanged",
+        "executed_unchanged",
+        "excluded_zero_simulated_size",
+        "executed_unchanged",
+      ]);
+    expect(result.value.resizeSummary).toMatchObject({
+      resizedCount: "0",
+      zeroSizeExclusionCount: "1",
+      originalAggregateQuantity: "1",
+      simulatedAggregateQuantity: "0",
+    });
+
+    for (const netPnl of ["0", "5"]) {
+      const noTrigger = source([
+        {
+          entryAt: "2026-07-01T13:30:00.000000000Z",
+          exitAt: "2026-07-01T13:31:00.000000000Z",
+          netPnl,
+        },
+        {
+          entryAt: "2026-07-01T13:32:00.000000000Z",
+          exitAt: "2026-07-01T13:33:00.000000000Z",
+          netPnl: "4",
+          quantity: "4",
+          feeAuthority: { state: "explicitly_zero" },
+        },
+      ]);
+      const noTriggerPreset = compileReduceSizeAfterLossPreset(
+        noTrigger.sourceQueryPlan,
+        noTrigger.fixture.authority,
+        {},
+      );
+      if (!noTriggerPreset.ok) throw new Error(noTriggerPreset.error.code);
+      const noTriggerResult = run(noTrigger, noTriggerPreset.value);
+      if (!noTriggerResult.ok) throw new Error(noTriggerResult.error.code);
+      expect(noTriggerResult.value.resizedCount).toBe("0");
+    }
+  });
+
+  it("preserves pending state across higher-precedence and source exclusions but resets by session", () => {
+    const prepared = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-10",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:33:00.000000000Z",
+        netPnl: "-3",
+        direction: "short",
+      },
+      {
+        entryAt: "2026-07-01T13:34:00.000000000Z",
+        exitAt: "2026-07-01T13:35:00.000000000Z",
+        netPnl: "8",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+      {
+        entryAt: "2026-07-02T13:30:00.000000000Z",
+        exitAt: "2026-07-02T13:31:00.000000000Z",
+        sessionDate: "2026-07-02",
+        netPnl: "8",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+    ]);
+    const result = executeCounterfactualSimulation({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.fixture.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: directPlan(prepared.sourceQueryPlan, [
+        {
+          ruleId: "long_only_first",
+          kind: "direction_only",
+          precedence: "1",
+          action: "exclude_trade",
+          allowedDirection: "long",
+        },
+        {
+          ruleId: "resize_second",
+          kind: "reduce_size_after_loss",
+          precedence: "2",
+          action: "resize_next_eligible_trade",
+          reductionMultiplier: "0.5",
+          triggerPolicy: "completed_retained_exact_net_loss_v1",
+          consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+          sizingPolicy: "floor_to_whole_share_minimum_one_v1",
+          feePolicy: "complete_declared_components_only_v1",
+        },
+      ]),
+    });
+    if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
+    expect(result.value.tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+        "executed_unchanged",
+        "skipped_by_rule",
+        "executed_resized",
+        "executed_unchanged",
+      ]);
+  });
+
+  it("keeps gross exact while partial, estimated, missing, and legacy fees stay non-exact", () => {
+    const authorities = [
+      {
+        state: "broker_reported_partial",
+        components: [{ kind: "quantity_variable", signedAmount: "-1" }],
+        reasonCode: "ti_v3_test_partial_fees",
+      },
+      {
+        state: "estimated",
+        components: [{ kind: "quantity_variable", signedAmount: "-1" }],
+        reasonCode: "ti_v3_test_estimated_fees",
+      },
+      {
+        state: "not_included",
+        reasonCode: "ti_v3_test_fees_not_included",
+      },
+      {
+        state: "unavailable",
+        reasonCode: "ti_v3_test_fees_unavailable",
+      },
+      {
+        state: "broker_reported_complete",
+        components: [{ kind: "unknown_undecomposed", signedAmount: "-2" }],
+      },
+    ] as const;
+    const expected = [
+      "executed_resized_net_incomplete",
+      "executed_resized_net_estimated",
+      "executed_resized_net_unavailable",
+      "executed_resized_net_unavailable",
+      "executed_resized_net_unavailable",
+    ];
+    for (let index = 0; index < authorities.length; index += 1) {
+      const prepared = source([
+        {
+          entryAt: "2026-07-01T13:30:00.000000000Z",
+          exitAt: "2026-07-01T13:31:00.000000000Z",
+          netPnl: "-10",
+        },
+        {
+          entryAt: "2026-07-01T13:32:00.000000000Z",
+          exitAt: "2026-07-01T13:33:00.000000000Z",
+          grossPnl: "10",
+          signedCharges: index === 4 ? "-2" : "0",
+          netPnl: index === 4 ? "8" : "10",
+          quantity: "4",
+          feeAuthority: authorities[index],
+        },
+      ]);
+      const compiled = compileReduceSizeAfterLossPreset(
+        prepared.sourceQueryPlan,
+        prepared.fixture.authority,
+        {},
+      );
+      if (!compiled.ok) throw new Error(compiled.error.code);
+      const result = run(prepared, compiled.value);
+      if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
+      expect(result.value.tradeOutcomes[1].classification).toBe(expected[index]);
+      expect(result.value.tradeOutcomes[1].resizeEconomics).toMatchObject({
+        state: "evaluated",
+        value: {
+          simulatedGrossPnl: { numerator: "5", denominator: "1" },
+          simulatedGrossPnlAuthority: "exact",
+          simulatedNetPnl: null,
+        },
+      });
+      expect(result.value.simulatedNetPnl).toBeNull();
+      expect(result.value.netPnlDifference).toBeNull();
+      expect(result.value.effect).toBe("not_comparable");
+    }
+  });
+
+  it("fails closed at a later completion boundary when resized net is unavailable", () => {
+    const prepared = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-10",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:33:00.000000000Z",
+        grossPnl: "10",
+        netPnl: "10",
+        quantity: "4",
+        feeAuthority: {
+          state: "not_included",
+          reasonCode: "ti_v3_test_not_included",
+        },
+      },
+      {
+        entryAt: "2026-07-01T13:34:00.000000000Z",
+        exitAt: "2026-07-01T13:35:00.000000000Z",
+        netPnl: "1",
+      },
+    ]);
+    const compiled = compileReduceSizeAfterLossPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      {},
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    expect(run(prepared, compiled.value)).toMatchObject({
+      ok: false,
+      error: {
+        code: "ti_v3_simulation_completed_net_authority_unavailable",
+      },
+    });
+  });
+
+  it("fails closed for absent, zero, negative, and fractional quantity authority", () => {
+    const cases = [
+      {
+        quantity: null,
+        classification: "resize_unavailable_quantity",
+        reason: "ti_v3_simulation_resize_quantity_authority_unavailable",
+      },
+      {
+        quantity: "0",
+        classification: "resize_unavailable_quantity",
+        reason: "ti_v3_simulation_resize_positive_quantity_required",
+      },
+      {
+        quantity: "2.5",
+        classification: "resize_unavailable_quantity",
+        reason: "ti_v3_simulation_resize_whole_share_quantity_required",
+      },
+    ] as const;
+    for (const item of cases) {
+      const prepared = source([
+        {
+          entryAt: "2026-07-01T13:30:00.000000000Z",
+          exitAt: "2026-07-01T13:31:00.000000000Z",
+          netPnl: "-1",
+        },
+        {
+          entryAt: "2026-07-01T13:32:00.000000000Z",
+          exitAt: "2026-07-01T13:33:00.000000000Z",
+          netPnl: "2",
+          quantity: item.quantity,
+          feeAuthority: { state: "explicitly_zero" },
+        },
+      ]);
+      const compiled = compileReduceSizeAfterLossPreset(
+        prepared.sourceQueryPlan,
+        prepared.fixture.authority,
+        {},
+      );
+      if (!compiled.ok) throw new Error(compiled.error.code);
+      const result = run(prepared, compiled.value);
+      if (!result.ok) throw new Error(result.error.code);
+      expect(result.value.tradeOutcomes[1]).toMatchObject({
+        classification: item.classification,
+        reasonCode: item.reason,
+      });
+    }
+    const template = buildSyntheticQueryFixture(1).derived.datasetReceipt.rows[0];
+    const { rowDigest: _rowDigest, ...negativeContent } = template;
+    void _rowDigest;
+    expect(buildAnalyticalRow({
+      ...negativeContent,
+      shareQuantity: { state: "available", quantity: "-1" },
+    })).toMatchObject({ ok: false });
+
+    const nonTerminating = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-1",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:33:00.000000000Z",
+        grossPnl: "1",
+        netPnl: "1",
+        quantity: "3",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+    ]);
+    const nonTerminatingPreset = compileReduceSizeAfterLossPreset(
+      nonTerminating.sourceQueryPlan,
+      nonTerminating.fixture.authority,
+      {},
+    );
+    if (!nonTerminatingPreset.ok) {
+      throw new Error(nonTerminatingPreset.error.code);
+    }
+    const nonTerminatingResult = run(
+      nonTerminating,
+      nonTerminatingPreset.value,
+    );
+    if (!nonTerminatingResult.ok) {
+      throw new Error(nonTerminatingResult.error.code);
+    }
+    expect(nonTerminatingResult.value.tradeOutcomes[1]).toMatchObject({
+      classification: "executed_resized",
+      simulatedNetPnl: null,
+      resizeEconomics: {
+        state: "evaluated",
+        value: {
+          simulatedNetPnl: { numerator: "1", denominator: "3" },
+          simulatedNetPnlAuthority: "exact",
+        },
+      },
+    });
+    expect(nonTerminatingResult.value).toMatchObject({
+      simulatedNetPnl: null,
+      netPnlDifference: null,
+      effect: "not_comparable",
+    });
+  });
+
+  it("does not trigger from a source-filtered loss and leaves inactive resize snapshots unevaluated", () => {
+    const prepared = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-10",
+        direction: "short",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:33:00.000000000Z",
+        netPnl: "4",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+    ], {
+      filters: [{ kind: "direction", values: ["long"] }],
+    });
+    const compiled = compileReduceSizeAfterLossPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      {},
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    const result = run(prepared, compiled.value);
+    if (!result.ok) throw new Error(result.error.code);
+    expect(result.value.tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+        "excluded_source_filter",
+        "executed_unchanged",
+      ]);
+
+    const direction = compileExcludePriceRangePreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      { lowerEntryPrice: "5", upperEntryPrice: "15" },
+    );
+    if (!direction.ok) throw new Error(direction.error.code);
+    const inactive = run(prepared, direction.value);
+    if (!inactive.ok) throw new Error(inactive.error.code);
+    expect(inactive.value.tradeOutcomes[0].sessionStateBefore)
+      .toMatchObject({
+        pendingResizeAfterLossRuleIds: {
+          state: "not_evaluated",
+          value: null,
+        },
+      });
+  });
+
+  it("isolates pending resize by owner and account", () => {
+    for (const boundary of ["owner", "account"] as const) {
+      const prepared = source([
+        {
+          entryAt: "2026-07-01T13:30:00.000000000Z",
+          exitAt: "2026-07-01T13:31:00.000000000Z",
+          netPnl: "-10",
+          owner: "owner_resize_a",
+          account: "account_resize_a",
+        },
+        {
+          entryAt: "2026-07-01T13:32:00.000000000Z",
+          exitAt: "2026-07-01T13:33:00.000000000Z",
+          netPnl: "4",
+          quantity: "4",
+          feeAuthority: { state: "explicitly_zero" },
+          owner: boundary === "owner" ? "owner_resize_b" : "owner_resize_a",
+          account: boundary === "account"
+            ? "account_resize_b"
+            : "account_resize_a",
+        },
+      ]);
+      const compiled = compileReduceSizeAfterLossPreset(
+        prepared.sourceQueryPlan,
+        prepared.fixture.authority,
+        {},
+      );
+      if (!compiled.ok) throw new Error(compiled.error.code);
+      const result = run(prepared, compiled.value);
+      if (!result.ok) throw new Error(result.error.code);
+      expect(result.value.resizedCount).toBe("0");
+    }
+  });
+
+  it("composes deterministically with cooldown, session-stop, ticker-attempt, and after-outcome rules", () => {
+    const rows = [
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-10",
+        quantity: "4",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:32:30.000000000Z",
+        netPnl: "4",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+      {
+        entryAt: "2026-07-01T13:33:00.000000000Z",
+        exitAt: "2026-07-01T13:34:00.000000000Z",
+        netPnl: "4",
+        quantity: "4",
+        feeAuthority: { state: "explicitly_zero" },
+      },
+    ] as const;
+    const resizeRule = {
+      ruleId: "resize_after_loss",
+      kind: "reduce_size_after_loss",
+      precedence: "2",
+      action: "resize_next_eligible_trade",
+      reductionMultiplier: "0.5",
+      triggerPolicy: "completed_retained_exact_net_loss_v1",
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+      sizingPolicy: "floor_to_whole_share_minimum_one_v1",
+      feePolicy: "complete_declared_components_only_v1",
+    } as const;
+    const runRules = (rules: readonly unknown[]) => {
+      const prepared = source(rows);
+      const result = executeCounterfactualSimulation({
+        source: prepared.fixture.source,
+        partitionReceipt: prepared.fixture.partition,
+        sourceQueryResult: prepared.sourceQueryResult,
+        simulationPlan: directPlan(prepared.sourceQueryPlan, rules),
+      });
+      if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
+      return result.value;
+    };
+    expect(runRules([{
+      ruleId: "cooldown_first",
+      kind: "wait_after_loss",
+      precedence: "1",
+      action: "cooldown",
+      cooldownSeconds: "120",
+      triggerOutcome: "loss",
+      expiryPolicy: "entry_at_or_after_expiry_is_eligible_v1",
+    }, resizeRule]).tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+        "executed_unchanged",
+        "skipped_during_cooldown",
+        "executed_resized",
+      ]);
+    expect(runRules([{
+      ruleId: "session_stop_first",
+      kind: "stop_after_consecutive_losses",
+      precedence: "1",
+      action: "stop_session",
+      consecutiveLossThreshold: "1",
+      flatTradePolicy: "flat_resets_loss_streak_v1",
+    }, resizeRule]).resizedCount).toBe("0");
+    expect(runRules([{
+      ruleId: "attempt_first",
+      kind: "maximum_attempts_per_ticker",
+      precedence: "1",
+      action: "exclude_trade",
+      maximumAttempts: "1",
+      countPolicy: "retained_simulated_entries_per_stable_instrument_v1",
+    }, resizeRule]).resizedCount).toBe("0");
+    expect(runRules([{
+      ruleId: "after_loss_first",
+      kind: "after_outcome_exclusion",
+      precedence: "1",
+      action: "exclude_next_eligible_trade",
+      triggerOutcome: "loss",
+      consumptionPolicy: "consume_one_next_rule_eligible_trade_v1",
+      nonMatchingOutcomePolicy:
+        "pending_exclusion_remains_until_consumed_v1",
+    }, resizeRule]).tradeOutcomes.map((outcome) =>
+      outcome.classification)).toEqual([
+        "executed_unchanged",
+        "skipped_by_rule",
+        "executed_resized",
+      ]);
   });
 });

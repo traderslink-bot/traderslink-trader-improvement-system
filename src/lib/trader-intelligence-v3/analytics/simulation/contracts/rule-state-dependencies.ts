@@ -1,7 +1,7 @@
 import type { CounterfactualRule } from "./simulation-plan";
 
 export const RULE_STATE_DEPENDENCY_POLICY_VERSION =
-  "ti_v3_rule_state_dependency_policy_v2" as const;
+  "ti_v3_rule_state_dependency_policy_v3" as const;
 
 export interface RuleStateDependencies {
   readonly policyVersion: typeof RULE_STATE_DEPENDENCY_POLICY_VERSION;
@@ -21,6 +21,8 @@ export interface RuleStateDependencies {
   readonly afterOutcomeExclusionState: boolean;
   readonly sizeAuthority: boolean;
   readonly sessionStopState: boolean;
+  readonly pendingResizeAfterLossState: boolean;
+  readonly feeAuthority: boolean;
 }
 
 type RuleKind = CounterfactualRule["kind"];
@@ -46,6 +48,8 @@ const NONE: DependencyFlags = Object.freeze({
   afterOutcomeExclusionState: false,
   sizeAuthority: false,
   sessionStopState: false,
+  pendingResizeAfterLossState: false,
+  feeAuthority: false,
 });
 
 const RULE_DEPENDENCIES: Readonly<Record<RuleKind, DependencyFlags>> =
@@ -108,6 +112,14 @@ const RULE_DEPENDENCIES: Readonly<Record<RuleKind, DependencyFlags>> =
       priorCompletionTimestamp: true,
       priorCompletedOutcome: true,
       afterOutcomeExclusionState: true,
+    }),
+    reduce_size_after_loss: Object.freeze({
+      ...NONE,
+      completedRealizedOutcome: true,
+      priorCompletionTimestamp: true,
+      pendingResizeAfterLossState: true,
+      sizeAuthority: true,
+      feeAuthority: true,
     }),
   });
 

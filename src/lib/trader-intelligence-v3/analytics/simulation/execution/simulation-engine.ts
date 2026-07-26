@@ -6,7 +6,10 @@ import {
 import type { CanonicalContentDigest } from "../../../domain/identity";
 import {
   addExactDecimals,
+  addExactRatios,
   compareExactDecimals,
+  createExactRatio,
+  decimalToExactRatio,
   subtractExactDecimals,
   validateExactDecimal,
   type CanonicalDecimal,
@@ -40,12 +43,24 @@ import {
   type CounterfactualSimulationPlan,
   type RuleStateDependencies,
 } from "../contracts";
+import {
+  calculateResizeEconomics,
+  exactSimulationAmountToDecimal,
+  type ExactSimulationAmount,
+  type ResizeEconomics,
+} from "./resize-economics";
 
 export const COUNTERFACTUAL_SIMULATION_RESULT_VERSION =
-  "ti_v3_counterfactual_simulation_result_v2" as const;
+  "ti_v3_counterfactual_simulation_result_v3" as const;
 
 export type SimulationClassification =
   | "executed_unchanged"
+  | "executed_resized"
+  | "excluded_zero_simulated_size"
+  | "resize_unavailable_quantity"
+  | "executed_resized_net_incomplete"
+  | "executed_resized_net_unavailable"
+  | "executed_resized_net_estimated"
   | "skipped_by_rule"
   | "skipped_session_stopped"
   | "skipped_ticker_stopped"
@@ -75,6 +90,7 @@ export interface SimulationSessionStateSnapshot {
   readonly pendingAfterOutcomeRuleIds: EvaluatedSimulationState<
     readonly string[]
   >;
+  readonly pendingResizeAfterLossRuleIds: EvaluatedSimulationState<readonly string[]>;
 }
 
 export interface SimulationTradeOutcome {
@@ -87,6 +103,7 @@ export interface SimulationTradeOutcome {
   readonly actualSizeAuthority: "accepted_observed_execution";
   readonly simulatedSizeAuthority:
     | "accepted_observed_execution"
+    | "governed_exact_resize"
     | "not_executed"
     | "unavailable";
   readonly supportingExecutionDigests: readonly CanonicalContentDigest[];
@@ -95,6 +112,38 @@ export interface SimulationTradeOutcome {
   readonly sessionStateAfter: SimulationSessionStateSnapshot;
   readonly triggeredRuleIds: readonly string[];
   readonly limitationCodes: readonly string[];
+  readonly resizeEconomics: EvaluatedSimulationState<ResizeEconomics>;
+}
+
+export interface SimulationResizeSummary {
+  readonly resizedCount: string;
+  readonly zeroSizeExclusionCount: string;
+  readonly resizeAuthorityUnavailableCount: string;
+  readonly exactGrossComparisonCount: string;
+  readonly exactNetComparisonCount: string;
+  readonly incompleteNetComparisonCount: string;
+  readonly unavailableNetComparisonCount: string;
+  readonly estimatedNetComparisonCount: string;
+  readonly originalAggregateQuantity: string | null;
+  readonly simulatedAggregateQuantity: string | null;
+  readonly actualGrossPnl: ExactSimulationAmount;
+  readonly simulatedGrossPnl: ExactSimulationAmount;
+  readonly grossPnlDifference: ExactSimulationAmount;
+  readonly netPnlDifference: ExactSimulationAmount | null;
+  readonly fixedChargesRetained: ExactSimulationAmount;
+  readonly variableChargesRecalculated: ExactSimulationAmount;
+  readonly grossHelpedCount: string;
+  readonly grossHarmedCount: string;
+  readonly grossUnchangedCount: string;
+  readonly netHelpedCount: string;
+  readonly netHarmedCount: string;
+  readonly netUnchangedCount: string;
+  readonly netUnclassifiedCount: string;
+  readonly perRule: readonly Readonly<{
+    readonly ruleId: string;
+    readonly resizedCount: string;
+    readonly zeroSizeExclusionCount: string;
+  }>[];
 }
 
 export interface SimulationAffectedSummary {
@@ -122,7 +171,13 @@ export type SimulationEvidenceCategory =
   | "losing_trades_avoided"
   | "profitable_trades_removed"
   | "rule_triggering_trades"
-  | "counterexamples_rule_made_results_worse";
+  | "counterexamples_rule_made_results_worse"
+  | "representative_resized_trades"
+  | "zero_size_exclusions"
+  | "gross_helped_resized_trades"
+  | "gross_harmed_resized_trades"
+  | "exact_net_resized_trades"
+  | "fee_authority_limited_resized_trades";
 
 export interface SimulationEvidenceBucket {
   readonly category: SimulationEvidenceCategory;
@@ -149,7 +204,7 @@ export interface CounterfactualSimulationResult {
   readonly includedCount: string;
   readonly excludedCount: string;
   readonly executedCount: string;
-  readonly resizedCount: "0";
+  readonly resizedCount: string;
   readonly skippedCount: string;
   readonly unavailableCount: string;
   readonly actualTradeKeys: readonly string[];
@@ -157,9 +212,10 @@ export interface CounterfactualSimulationResult {
   readonly actualMetrics: readonly ExactMetricValue[];
   readonly simulatedMetrics: readonly ExactMetricValue[];
   readonly actualNetPnl: string;
-  readonly simulatedNetPnl: string;
-  readonly netPnlDifference: string;
-  readonly effect: "helped" | "harmed" | "unchanged";
+  readonly simulatedNetPnl: string | null;
+  readonly netPnlDifference: string | null;
+  readonly effect: "helped" | "harmed" | "unchanged" | "not_comparable";
+  readonly resizeSummary: SimulationResizeSummary;
   readonly affectedSummary: SimulationAffectedSummary;
   readonly evidence: readonly SimulationEvidenceBucket[];
   readonly tradeOutcomes: readonly SimulationTradeOutcome[];
@@ -187,7 +243,9 @@ interface MutableSessionState {
   stoppedInstruments: Map<string, string> | null;
   priorCompletedOutcome: "none" | "loss" | "gain" | "flat" | null;
   pendingAfterOutcomeRules: Set<string> | null;
+  pendingResizeAfterLossRules: Set<string> | null;
   executedRows: AnalyticalRow[];
+  unavailableCompletionKeys: Map<string, string>;
   processedCompletionKeys: Set<string>;
 }
 
@@ -271,6 +329,10 @@ function snapshot(
         [...(state.pendingAfterOutcomeRules ?? new Set<string>())]
           .sort(compareUnicodeCodePoints),
       ),
+    ),
+    pendingResizeAfterLossRuleIds: evaluated(
+      dependencies.pendingResizeAfterLossState,
+      Object.freeze([...(state.pendingResizeAfterLossRules ?? new Set<string>())].sort(compareUnicodeCodePoints)),
     ),
   });
 }
@@ -403,6 +465,14 @@ function applyCompletions(
   dependencies: RuleStateDependencies,
   triggeringTradeKeysByRule: Map<string, Set<string>>,
 ): ExactResult<true, AnalyticalContractFailure> {
+  for (const [sourceTradeKey, finalExitAt] of state.unavailableCompletionKeys) {
+    if (finalExitAt < entryAt) {
+      return contractFailure(
+        "ti_v3_simulation_completed_net_authority_unavailable",
+        `$.chronology.${sourceTradeKey}`,
+      );
+    }
+  }
   const eligible = state.executedRows
     .filter((row) =>
       row.finalExitAt < entryAt &&
@@ -512,6 +582,10 @@ function applyCompletions(
         state.pendingAfterOutcomeRules?.add(rule.ruleId);
         recordTriggers(triggeringTradeKeysByRule, rule.ruleId, group);
       }
+      if (rule.kind === "reduce_size_after_loss" && outcomes.has("loss")) {
+        state.pendingResizeAfterLossRules?.add(rule.ruleId);
+        recordTriggers(triggeringTradeKeysByRule, rule.ruleId, group);
+      }
       if (
         rule.kind === "stop_after_consecutive_losses" &&
         state.completedLossStreak !== null &&
@@ -586,8 +660,14 @@ function tradeOutcome(
   reasonCode: string,
   before: SimulationSessionStateSnapshot,
   after: SimulationSessionStateSnapshot,
+  simulatedNetPnlOverride?: string,
+  resizeEconomics?: ResizeEconomics,
 ): SimulationTradeOutcome {
-  const executed = classification === "executed_unchanged";
+  const executed = classification === "executed_unchanged" ||
+    classification === "executed_resized" ||
+    classification === "executed_resized_net_incomplete" ||
+    classification === "executed_resized_net_unavailable" ||
+    classification === "executed_resized_net_estimated";
   const conservativelyRetained =
     classification === "unavailable_required_authority";
   return Object.freeze({
@@ -596,9 +676,19 @@ function tradeOutcome(
     responsibleRuleId: ruleId,
     reasonCode,
     actualNetPnl: row.netPnl,
-    simulatedNetPnl: executed || conservativelyRetained ? row.netPnl : null,
+    simulatedNetPnl: classification === "executed_unchanged"
+      ? row.netPnl
+      : classification === "executed_resized"
+        ? (simulatedNetPnlOverride ?? null)
+      : conservativelyRetained
+        ? row.netPnl
+        : null,
     actualSizeAuthority: "accepted_observed_execution",
-    simulatedSizeAuthority: executed || conservativelyRetained
+    simulatedSizeAuthority: classification.startsWith("executed_resized")
+      ? "governed_exact_resize"
+      : classification === "resize_unavailable_quantity"
+        ? "unavailable"
+      : executed || conservativelyRetained
       ? "accepted_observed_execution"
       : "not_executed",
     supportingExecutionDigests: row.supportingExecutionDigests,
@@ -606,23 +696,239 @@ function tradeOutcome(
     sessionStateBefore: before,
     sessionStateAfter: after,
     triggeredRuleIds: Object.freeze([]),
-    limitationCodes: Object.freeze(conservativelyRetained
-      ? [
+    limitationCodes: Object.freeze([
+      ...(conservativelyRetained
+        ? [
           reasonCode,
           "ti_v3_simulation_required_rule_authority_unavailable",
-        ].sort(compareUnicodeCodePoints)
-      : []),
+        ]
+        : []),
+      ...(resizeEconomics?.limitationCodes ?? []),
+    ].sort(compareUnicodeCodePoints)),
+    resizeEconomics: evaluated(
+      resizeEconomics !== undefined,
+      resizeEconomics as ResizeEconomics,
+    ),
   });
 }
 
 function isRuleExcluded(outcome: SimulationTradeOutcome): boolean {
   return outcome.classification !== "executed_unchanged" &&
+    outcome.classification !== "executed_resized" &&
+    outcome.classification !== "executed_resized_net_incomplete" &&
+    outcome.classification !== "executed_resized_net_unavailable" &&
+    outcome.classification !== "executed_resized_net_estimated" &&
     outcome.classification !== "excluded_source_filter" &&
     outcome.classification !== "unavailable_required_authority";
 }
 
 function countString(value: number): string {
   return String(value);
+}
+
+function exactAmountFromDecimal(
+  value: string,
+  currency: AnalyticalRow["currency"],
+): ExactSimulationAmount {
+  const parsed = validateExactDecimal(value);
+  if (!parsed.ok) throw new Error(parsed.error.code);
+  const converted = decimalToExactRatio(parsed.value);
+  if (!converted.ok) throw new Error(converted.error.code);
+  return Object.freeze({
+    numerator: converted.value.numerator,
+    denominator: converted.value.denominator,
+    currency,
+  });
+}
+
+function addAmounts(
+  left: ExactSimulationAmount,
+  right: ExactSimulationAmount,
+): ExactSimulationAmount {
+  if (left.currency !== right.currency) {
+    throw new Error("ti_v3_simulation_currency_mismatch");
+  }
+  const added = addExactRatios(
+    {
+      numerator: left.numerator,
+      denominator: left.denominator,
+    } as never,
+    {
+      numerator: right.numerator,
+      denominator: right.denominator,
+    } as never,
+  );
+  if (!added.ok) throw new Error(added.error.code);
+  return Object.freeze({
+    numerator: added.value.numerator,
+    denominator: added.value.denominator,
+    currency: left.currency,
+  });
+}
+
+function subtractAmounts(
+  left: ExactSimulationAmount,
+  right: ExactSimulationAmount,
+): ExactSimulationAmount {
+  const negative = createExactRatio(
+    (-BigInt(right.numerator)).toString(),
+    right.denominator,
+  );
+  if (!negative.ok) throw new Error(negative.error.code);
+  return addAmounts(left, {
+    numerator: negative.value.numerator,
+    denominator: negative.value.denominator,
+    currency: right.currency,
+  });
+}
+
+function compareAmountToZero(value: ExactSimulationAmount): -1 | 0 | 1 {
+  const numerator = BigInt(value.numerator);
+  return numerator < BigInt(0) ? -1 : numerator > BigInt(0) ? 1 : 0;
+}
+
+function buildResizeSummary(
+  outcomes: readonly SimulationTradeOutcome[],
+  currency: AnalyticalRow["currency"],
+): SimulationResizeSummary {
+  const resizing = outcomes.filter(
+    (outcome) => outcome.resizeEconomics.state === "evaluated",
+  );
+  let originalQuantity = BigInt(0);
+  let simulatedQuantity = BigInt(0);
+  let quantityComplete = true;
+  let actualGross = exactAmountFromDecimal("0", currency);
+  let simulatedGross = exactAmountFromDecimal("0", currency);
+  let fixed = exactAmountFromDecimal("0", currency);
+  let variable = exactAmountFromDecimal("0", currency);
+  let exactNetDifference = exactAmountFromDecimal("0", currency);
+  let netDifferenceComplete = true;
+  let grossHelped = 0;
+  let grossHarmed = 0;
+  let grossUnchanged = 0;
+  let netHelped = 0;
+  let netHarmed = 0;
+  let netUnchanged = 0;
+  let netUnclassified = 0;
+  const perRule = new Map<string, { resized: number; zero: number }>();
+  for (const outcome of resizing) {
+    const detail = outcome.resizeEconomics.value!;
+    if (
+      detail.originalQuantity === null ||
+      detail.simulatedQuantity === null
+    ) {
+      quantityComplete = false;
+    } else {
+      originalQuantity += BigInt(detail.originalQuantity);
+      simulatedQuantity += BigInt(detail.simulatedQuantity);
+    }
+    if (detail.simulatedGrossPnl !== null) {
+      actualGross = addAmounts(actualGross, detail.originalGrossPnl);
+      simulatedGross = addAmounts(
+        simulatedGross,
+        detail.simulatedGrossPnl,
+      );
+      const difference = subtractAmounts(
+        detail.simulatedGrossPnl,
+        detail.originalGrossPnl,
+      );
+      const comparison = compareAmountToZero(difference);
+      if (comparison > 0) grossHelped += 1;
+      else if (comparison < 0) grossHarmed += 1;
+      else grossUnchanged += 1;
+    }
+    if (detail.fixedChargesRetained !== null) {
+      fixed = addAmounts(fixed, detail.fixedChargesRetained);
+    }
+    if (detail.variableChargesRecalculated !== null) {
+      variable = addAmounts(
+        variable,
+        detail.variableChargesRecalculated,
+      );
+    }
+    if (detail.simulatedNetPnl !== null) {
+      const actualNet = exactAmountFromDecimal(
+        detail.actualNetPnl,
+        currency,
+      );
+      const difference = subtractAmounts(detail.simulatedNetPnl, actualNet);
+      exactNetDifference = addAmounts(exactNetDifference, difference);
+      const comparison = compareAmountToZero(difference);
+      if (comparison > 0) netHelped += 1;
+      else if (comparison < 0) netHarmed += 1;
+      else netUnchanged += 1;
+    } else {
+      netDifferenceComplete = false;
+      netUnclassified += 1;
+    }
+    if (outcome.responsibleRuleId !== null) {
+      const counts = perRule.get(outcome.responsibleRuleId) ?? {
+        resized: 0,
+        zero: 0,
+      };
+      if (
+        outcome.classification === "executed_resized" ||
+        outcome.classification === "executed_resized_net_incomplete" ||
+        outcome.classification === "executed_resized_net_unavailable" ||
+        outcome.classification === "executed_resized_net_estimated"
+      ) {
+        counts.resized += 1;
+      }
+      if (outcome.classification === "excluded_zero_simulated_size") {
+        counts.zero += 1;
+      }
+      perRule.set(outcome.responsibleRuleId, counts);
+    }
+  }
+  return Object.freeze({
+    resizedCount: countString(resizing.filter((outcome) =>
+      outcome.classification.startsWith("executed_resized")).length),
+    zeroSizeExclusionCount: countString(resizing.filter((outcome) =>
+      outcome.classification === "excluded_zero_simulated_size").length),
+    resizeAuthorityUnavailableCount: countString(resizing.filter((outcome) =>
+      outcome.classification === "resize_unavailable_quantity").length),
+    exactGrossComparisonCount: countString(resizing.filter((outcome) =>
+      outcome.resizeEconomics.value!.simulatedGrossPnlAuthority === "exact"
+    ).length),
+    exactNetComparisonCount: countString(resizing.filter((outcome) =>
+      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact"
+    ).length),
+    incompleteNetComparisonCount: countString(resizing.filter((outcome) =>
+      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "incomplete"
+    ).length),
+    unavailableNetComparisonCount: countString(resizing.filter((outcome) =>
+      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "unavailable"
+    ).length),
+    estimatedNetComparisonCount: countString(resizing.filter((outcome) =>
+      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "estimated"
+    ).length),
+    originalAggregateQuantity: quantityComplete
+      ? originalQuantity.toString()
+      : null,
+    simulatedAggregateQuantity: quantityComplete
+      ? simulatedQuantity.toString()
+      : null,
+    actualGrossPnl: actualGross,
+    simulatedGrossPnl: simulatedGross,
+    grossPnlDifference: subtractAmounts(simulatedGross, actualGross),
+    netPnlDifference: netDifferenceComplete ? exactNetDifference : null,
+    fixedChargesRetained: fixed,
+    variableChargesRecalculated: variable,
+    grossHelpedCount: countString(grossHelped),
+    grossHarmedCount: countString(grossHarmed),
+    grossUnchangedCount: countString(grossUnchanged),
+    netHelpedCount: countString(netHelped),
+    netHarmedCount: countString(netHarmed),
+    netUnchangedCount: countString(netUnchanged),
+    netUnclassifiedCount: countString(netUnclassified),
+    perRule: Object.freeze([...perRule]
+      .sort(([left], [right]) => compareUnicodeCodePoints(left, right))
+      .map(([ruleId, counts]) => Object.freeze({
+        ruleId,
+        resizedCount: countString(counts.resized),
+        zeroSizeExclusionCount: countString(counts.zero),
+      }))),
+  });
 }
 
 function buildEvidenceBucket(
@@ -761,7 +1067,10 @@ export function executeCounterfactualSimulation(
           stateDependencies.afterOutcomeExclusionState
             ? new Set()
             : null,
+        pendingResizeAfterLossRules:
+          stateDependencies.pendingResizeAfterLossState ? new Set() : null,
         executedRows: [],
+        unavailableCompletionKeys: new Map(),
         processedCompletionKeys: new Set(),
       };
       sessions.set(key, state);
@@ -800,6 +1109,8 @@ export function executeCounterfactualSimulation(
     let classification: SimulationClassification = "executed_unchanged";
     let responsibleRuleId: string | null = null;
     let reasonCode = "ti_v3_simulation_executed_unchanged";
+    let simulatedRow = row;
+    let resizeDetails: ResizeEconomics | undefined;
     const rowSemantics = includedSemantics.get(row.semanticRoundTripKey);
     if (rowSemantics === undefined) {
       return contractFailure(
@@ -815,6 +1126,44 @@ export function executeCounterfactualSimulation(
         classification = "skipped_session_stopped";
         responsibleRuleId = rule.ruleId;
         reasonCode = "ti_v3_simulation_session_stopped";
+        break;
+      }
+      if (rule.kind === "reduce_size_after_loss" && state.pendingResizeAfterLossRules?.has(rule.ruleId)) {
+        const resized = calculateResizeEconomics(row);
+        state.pendingResizeAfterLossRules.delete(rule.ruleId);
+        responsibleRuleId = rule.ruleId;
+        classification = resized.disposition;
+        reasonCode = resized.reasonCode;
+        resizeDetails = resized;
+        if (
+          resized.simulatedQuantity !== null &&
+          resized.simulatedNetPnlAuthority === "exact" &&
+          resized.simulatedGrossPnl !== null &&
+          resized.simulatedCharges !== null &&
+          resized.simulatedNetPnl !== null
+        ) {
+          const gross = exactSimulationAmountToDecimal(
+            resized.simulatedGrossPnl,
+          );
+          const charges = exactSimulationAmountToDecimal(
+            resized.simulatedCharges,
+          );
+          const net = exactSimulationAmountToDecimal(
+            resized.simulatedNetPnl,
+          );
+          if (gross !== null && charges !== null && net !== null) {
+            simulatedRow = Object.freeze({
+              ...row,
+              grossPnl: gross,
+              signedCharges: charges,
+              netPnl: net,
+              shareQuantity: Object.freeze({
+                state: "available" as const,
+                quantity: resized.simulatedQuantity,
+              }),
+            });
+          }
+        }
         break;
       }
       if (
@@ -934,6 +1283,10 @@ export function executeCounterfactualSimulation(
     }
     if (
       classification === "executed_unchanged" ||
+      classification === "executed_resized" ||
+      classification === "executed_resized_net_incomplete" ||
+      classification === "executed_resized_net_unavailable" ||
+      classification === "executed_resized_net_estimated" ||
       classification === "unavailable_required_authority"
     ) {
       if (state.executedTradeCount !== null) {
@@ -946,10 +1299,29 @@ export function executeCounterfactualSimulation(
             BigInt(0)) + BigInt(1),
         );
       }
-      if (stateDependencies.completedRealizedOutcome) {
-        state.executedRows.push(row);
+      if (
+        stateDependencies.completedRealizedOutcome &&
+        (classification === "executed_unchanged" ||
+          (classification === "executed_resized" &&
+            simulatedRow !== row))
+      ) {
+        state.executedRows.push(simulatedRow);
+      } else if (
+        stateDependencies.completedRealizedOutcome &&
+        classification !== "unavailable_required_authority"
+      ) {
+        state.unavailableCompletionKeys.set(
+          row.semanticRoundTripKey,
+          row.finalExitAt,
+        );
       }
-      simulatedRows.push(row);
+      if (
+        classification === "executed_unchanged" ||
+        (classification === "executed_resized" && simulatedRow !== row) ||
+        classification === "unavailable_required_authority"
+      ) {
+        simulatedRows.push(simulatedRow);
+      }
     }
     outcomes.push(tradeOutcome(
       row,
@@ -958,6 +1330,10 @@ export function executeCounterfactualSimulation(
       reasonCode,
       before,
       snapshot(state, stateDependencies, row.stableInstrumentKey),
+      classification === "executed_resized" && simulatedRow !== row
+        ? simulatedRow.netPnl
+        : undefined,
+      resizeDetails,
     ));
   }
   if (
@@ -971,12 +1347,18 @@ export function executeCounterfactualSimulation(
   }
   const actualRows = filtered.included.map((item) => item.row);
   const actualNetPnl = sum(actualRows);
-  const simulatedNetPnl = sum(simulatedRows);
-  const difference = subtractExactDecimals(
-    exact(simulatedNetPnl),
-    exact(actualNetPnl),
-  );
-  if (!difference.ok) {
+  const netComparisonComplete = !outcomes.some((outcome) =>
+    outcome.classification === "resize_unavailable_quantity" ||
+    (outcome.classification === "executed_resized" &&
+      outcome.simulatedNetPnl === null) ||
+    outcome.classification === "executed_resized_net_incomplete" ||
+    outcome.classification === "executed_resized_net_unavailable" ||
+    outcome.classification === "executed_resized_net_estimated");
+  const simulatedNetPnl = netComparisonComplete ? sum(simulatedRows) : null;
+  const difference = simulatedNetPnl === null
+    ? null
+    : subtractExactDecimals(exact(simulatedNetPnl), exact(actualNetPnl));
+  if (difference !== null && !difference.ok) {
     return contractFailure(difference.error.code, "$.netPnlDifference");
   }
   const sourceExcludedCount = data.value.excludedCandidates.length;
@@ -997,12 +1379,13 @@ export function executeCounterfactualSimulation(
       simulatedRows.length,
     ),
   });
-  const simulatedKeys = new Set(
-    simulatedRows.map((row) => row.semanticRoundTripKey),
-  );
-  const simulatedSemantics = [...simulatedKeys]
-    .map((key) => includedSemantics.get(key))
-    .filter((item): item is NonNullable<typeof item> => item !== undefined);
+  const simulatedKeys = new Set(outcomes
+    .filter((outcome) =>
+      outcome.classification === "executed_unchanged" ||
+      outcome.classification.startsWith("executed_resized") ||
+      outcome.classification === "unavailable_required_authority")
+    .map((outcome) => outcome.sourceTradeKey));
+  const simulatedSemantics = buildQueryRowSemantics(simulatedRows);
   const triggeringRulesByTrade = new Map<string, string[]>();
   for (const [ruleId, keys] of triggeringTradeKeysByRule) {
     for (const key of keys) {
@@ -1073,7 +1456,9 @@ export function executeCounterfactualSimulation(
   }
   let daysHelped = 0;
   let daysHarmed = 0;
-  for (const [key, actualPnl] of actualPnlBySession) {
+  for (const [key, actualPnl] of netComparisonComplete
+    ? actualPnlBySession
+    : new Map<string, CanonicalDecimal>()) {
     const sessionDifference = subtractExactDecimals(
       simulatedPnlBySession.get(key) ?? exact("0"),
       actualPnl,
@@ -1116,6 +1501,35 @@ export function executeCounterfactualSimulation(
   }
   const triggeringOutcomes = finalOutcomes
     .filter((outcome) => outcome.triggeredRuleIds.length > 0);
+  const resizeSummary = buildResizeSummary(
+    finalOutcomes,
+    plan.value.sourceQueryPlan.authority.currency,
+  );
+  const resizedOutcomes = finalOutcomes.filter((outcome) =>
+    outcome.resizeEconomics.state === "evaluated" &&
+    outcome.classification.startsWith("executed_resized"));
+  const zeroSizeOutcomes = finalOutcomes.filter((outcome) =>
+    outcome.classification === "excluded_zero_simulated_size");
+  const exactNetResizeOutcomes = resizedOutcomes.filter((outcome) =>
+    outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact");
+  const feeLimitedResizeOutcomes = resizedOutcomes.filter((outcome) =>
+    outcome.resizeEconomics.value!.simulatedNetPnlAuthority !== "exact");
+  const grossHelpedResizeOutcomes = resizedOutcomes.filter((outcome) => {
+    const detail = outcome.resizeEconomics.value!;
+    return detail.simulatedGrossPnl !== null &&
+      compareAmountToZero(subtractAmounts(
+        detail.simulatedGrossPnl,
+        detail.originalGrossPnl,
+      )) > 0;
+  });
+  const grossHarmedResizeOutcomes = resizedOutcomes.filter((outcome) => {
+    const detail = outcome.resizeEconomics.value!;
+    return detail.simulatedGrossPnl !== null &&
+      compareAmountToZero(subtractAmounts(
+        detail.simulatedGrossPnl,
+        detail.originalGrossPnl,
+      )) < 0;
+  });
   const evidenceLimit = BigInt(plan.value.limits.evidenceTradeLimit);
   const affectedSummary = Object.freeze({
     tradesHelped: countString(removedLossKeys.length),
@@ -1173,12 +1587,52 @@ export function executeCounterfactualSimulation(
     ),
     buildEvidenceBucket(
       "counterexamples_rule_made_results_worse",
-      removedGainOutcomes,
+      Object.freeze([
+        ...removedGainOutcomes,
+        ...grossHarmedResizeOutcomes.filter((outcome) =>
+          !removedGainOutcomes.includes(outcome)),
+      ]),
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "representative_resized_trades",
+      resizedOutcomes,
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "zero_size_exclusions",
+      zeroSizeOutcomes,
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "gross_helped_resized_trades",
+      grossHelpedResizeOutcomes,
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "gross_harmed_resized_trades",
+      grossHarmedResizeOutcomes,
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "exact_net_resized_trades",
+      exactNetResizeOutcomes,
+      evidenceLimit,
+    ),
+    buildEvidenceBucket(
+      "fee_authority_limited_resized_trades",
+      feeLimitedResizeOutcomes,
       evidenceLimit,
     ),
   ]);
   const ruleUnavailableCount = finalOutcomes.filter((outcome) =>
     outcome.classification === "unavailable_required_authority"
+  ).length;
+  const resizeUnavailableCount = finalOutcomes.filter((outcome) =>
+    outcome.classification === "resize_unavailable_quantity" ||
+    outcome.classification === "executed_resized_net_incomplete" ||
+    outcome.classification === "executed_resized_net_unavailable" ||
+    outcome.classification === "executed_resized_net_estimated"
   ).length;
   const ruleSkippedCount = finalOutcomes.filter(isRuleExcluded).length;
   const body = {
@@ -1191,36 +1645,44 @@ export function executeCounterfactualSimulation(
     excludedCount: String(
       filtered.excluded.length + sourceExcludedCount,
     ),
-    executedCount: String(simulatedRows.length),
-    resizedCount: "0" as const,
+    executedCount: String(finalOutcomes.filter((outcome) =>
+      outcome.classification === "executed_unchanged" ||
+      outcome.classification.startsWith("executed_resized") ||
+      outcome.classification === "unavailable_required_authority").length),
+    resizedCount: resizeSummary.resizedCount,
     skippedCount: String(ruleSkippedCount),
-    unavailableCount: String(sourceExcludedCount + ruleUnavailableCount),
+    unavailableCount: String(
+      sourceExcludedCount + ruleUnavailableCount + resizeUnavailableCount,
+    ),
     actualTradeKeys: Object.freeze(
       actualRows.map((row) => row.semanticRoundTripKey),
     ),
-    simulatedTradeKeys: Object.freeze(
-      simulatedRows.map((row) => row.semanticRoundTripKey),
-    ),
+    simulatedTradeKeys: Object.freeze([...simulatedKeys]),
     actualMetrics: calculateTradeQueryMetrics(
       plan.value.sourceQueryPlan.metrics,
       filtered.included,
       actualCounts,
       plan.value.sourceQueryPlan.authority.currency,
     ),
-    simulatedMetrics: calculateTradeQueryMetrics(
-      plan.value.sourceQueryPlan.metrics,
-      simulatedSemantics,
-      simulatedCounts,
-      plan.value.sourceQueryPlan.authority.currency,
-    ),
+    simulatedMetrics: netComparisonComplete
+      ? calculateTradeQueryMetrics(
+          plan.value.sourceQueryPlan.metrics,
+          simulatedSemantics,
+          simulatedCounts,
+          plan.value.sourceQueryPlan.authority.currency,
+        )
+      : Object.freeze([]),
     actualNetPnl,
     simulatedNetPnl,
-    netPnlDifference: difference.value,
-    effect: compareExactDecimals(difference.value, exact("0")) > 0
+    netPnlDifference: difference?.ok ? difference.value : null,
+    effect: difference === null
+      ? "not_comparable" as const
+      : compareExactDecimals(difference.value, exact("0")) > 0
       ? "helped" as const
       : compareExactDecimals(difference.value, exact("0")) < 0
         ? "harmed" as const
         : "unchanged" as const,
+    resizeSummary,
     affectedSummary,
     evidence,
     tradeOutcomes: finalOutcomes,
@@ -1232,6 +1694,9 @@ export function executeCounterfactualSimulation(
         : []),
       ...(ruleUnavailableCount > 0
         ? ["ti_v3_simulation_required_rule_authority_unavailable"]
+        : []),
+      ...(!netComparisonComplete
+        ? ["ti_v3_simulation_net_comparison_population_incomplete"]
         : []),
     ].sort(compareUnicodeCodePoints)),
   };
@@ -1264,7 +1729,8 @@ export function verifyAndReplayCounterfactualSimulationResult(
     "resizedCount", "skippedCount", "unavailableCount", "actualTradeKeys",
     "simulatedTradeKeys", "actualMetrics", "simulatedMetrics", "actualNetPnl",
     "simulatedNetPnl", "netPnlDifference", "effect", "affectedSummary",
-    "evidence", "tradeOutcomes", "limitationCodes", "resultDigest",
+    "resizeSummary", "evidence", "tradeOutcomes", "limitationCodes",
+    "resultDigest",
   ]);
   if (!record.ok) return record;
   if (

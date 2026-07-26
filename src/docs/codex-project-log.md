@@ -1,3 +1,29 @@
+# 2026-07-25 - GA1-C fee-aware post-loss resize checkpoint active
+
+- Continued draft PR #162 at accepted origin checkpoint `d2fb09c`.
+- Added governed preset `simulate_reduce_size_after_loss`: a retained, strictly
+  completed exact-net loss arms one session-scoped next eligible entry; that
+  entry is resized to floor(50%) whole shares and consumes the arm.
+- The generic engine remains the only executor. It preserves observed trade
+  prices and fills and recalculates gross P/L by the exact post-floor ratio.
+  Fixed/non-scaling charges are retained; quantity/notional/sell-regulatory
+  components scale by that ratio. Net is exact only for explicit-zero or
+  complete declared components. Legacy totals, partial/estimated/missing fees,
+  undecomposed components, and missing/fractional sizing remain explicit rather
+  than guessed.
+- Added exact/limited resize outcomes, rational gross/net/charge evidence,
+  reconciled summaries, bounded evidence buckets, centralized pending/size/fee
+  dependencies, fail-closed later-net chronology, and governed replay coverage.
+- Final local verification passes all GA1-C tests (3 files / 45 tests) plus
+  affected GA0-B3 (21), GA1-A (11), and GA1-B (15): 7 files / 92 tests.
+  TypeScript, targeted ESLint, architecture, and diff checks pass.
+
+Current best next step:
+
+- Inspect the final diff, commit/push one checkpoint to draft PR #162, observe
+  CI, and stop
+  for independent audit. Do not merge, deploy, or run the 10,000-row proof.
+
 # 2026-07-25 - GA1-C governed-preset origin downgrade remediation active
 
 - Recovered interrupted Codex task
