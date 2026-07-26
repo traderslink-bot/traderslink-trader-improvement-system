@@ -123,6 +123,12 @@ export interface CounterfactualSimulationReplayEnvelope {
   readonly declaredOutputBounds: CounterfactualSimulationPlan["limits"];
   readonly requiredSimulationAuthorityScope:
     "verified_ga1_a_query_result_and_execution_rows_v1";
+  /**
+   * Declared authority for the supplied plan. A plan's rules are not evidence
+   * that it was produced by a named governed preset, so this cannot be
+   * inferred from plan shape or an optional artifact.
+   */
+  readonly planOrigin: "generic_plan" | "governed_preset";
   readonly governedPresetReference: GovernedPresetReference | null;
   readonly artifactReferences: readonly ReplayArtifactReference[];
   readonly replayBounds: Readonly<{
@@ -171,13 +177,128 @@ type ReplayFailureResult = Readonly<{
   readonly error: CounterfactualSimulationReplayFailure;
 }>;
 
-export interface CounterfactualSimulationReplayArtifacts {
+interface CounterfactualSimulationReplayArtifactBase {
   readonly source: VerifiedTradeQueryDatasetSource;
   readonly partitionReceipt: AnalyticalPartitionReceipt;
   readonly sourceQueryResult: TradeQueryResult;
   readonly simulationPlan: unknown;
   readonly persistedResult: unknown;
+}
+
+/** Replay accepts an optional preset only so generic envelopes can reject it. */
+export interface CounterfactualSimulationReplayArtifacts
+  extends CounterfactualSimulationReplayArtifactBase {
   readonly compiledPreset?: unknown;
+}
+
+export type CounterfactualSimulationReplayIssuanceArtifacts =
+  | (CounterfactualSimulationReplayArtifactBase & Readonly<{
+    readonly planOrigin: "generic_plan";
+    readonly compiledPreset?: undefined;
+  }>)
+  | (CounterfactualSimulationReplayArtifactBase & Readonly<{
+    readonly planOrigin: "governed_preset";
+    readonly compiledPreset: unknown;
+  }>);
+
+function verifyIssuanceRequest(
+  input: unknown,
+): ExactResult<
+  CounterfactualSimulationReplayIssuanceArtifacts,
+  AnalyticalContractFailure
+> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$");
+  }
+  let prototype: object | null;
+  let keys: readonly (string | symbol)[];
+  let descriptors: PropertyDescriptorMap;
+  try {
+    prototype = Object.getPrototypeOf(input) as object | null;
+    keys = Reflect.ownKeys(input);
+    descriptors = Object.getOwnPropertyDescriptors(input);
+  } catch {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$");
+  }
+  if (prototype !== Object.prototype && prototype !== null) {
+    return contractFailure("ti_v3_analytics_contract_invalid", "$");
+  }
+  const requiredKeys = [
+    "source",
+    "partitionReceipt",
+    "sourceQueryResult",
+    "simulationPlan",
+    "persistedResult",
+    "planOrigin",
+  ] as const;
+  const allowedKeys = new Set<string>([...requiredKeys, "compiledPreset"]);
+  const invalidKey = keys.find((key) =>
+    typeof key !== "string" || !allowedKeys.has(key)
+  );
+  if (invalidKey !== undefined) {
+    return contractFailure(
+      "ti_v3_analytics_contract_invalid",
+      typeof invalidKey === "string" ? `$.${invalidKey}` : "$",
+    );
+  }
+  const missingKey = requiredKeys.find((key) => descriptors[key] === undefined);
+  if (missingKey !== undefined) {
+    return contractFailure(
+      "ti_v3_analytics_contract_invalid",
+      `$.${missingKey}`,
+    );
+  }
+  for (const key of keys) {
+    if (typeof key !== "string") continue;
+    const descriptor = descriptors[key];
+    if (
+      descriptor === undefined ||
+      descriptor.get !== undefined ||
+      descriptor.set !== undefined ||
+      !("value" in descriptor)
+    ) {
+      return contractFailure(
+        "ti_v3_analytics_contract_invalid",
+        `$.${key}`,
+      );
+    }
+  }
+  const record = Object.fromEntries(
+    keys.map((key) => [
+      key as string,
+      descriptors[key as string].value as unknown,
+    ]),
+  );
+  if (record.planOrigin === "generic_plan") {
+    if (record.compiledPreset !== undefined) {
+      return contractFailure(
+        "ti_v3_analytics_contract_invalid",
+        "$.compiledPreset",
+      );
+    }
+    return {
+      ok: true,
+      value: record as unknown as
+        CounterfactualSimulationReplayIssuanceArtifacts,
+    };
+  }
+  if (record.planOrigin === "governed_preset") {
+    if (record.compiledPreset === undefined) {
+      return contractFailure(
+        "ti_v3_analytics_contract_invalid",
+        "$.compiledPreset",
+      );
+    }
+    return {
+      ok: true,
+      value: record as unknown as
+        CounterfactualSimulationReplayIssuanceArtifacts,
+    };
+  }
+  return contractFailure(
+    "ti_v3_analytics_contract_invalid",
+    "$.planOrigin",
+  );
 }
 
 function canonicalEqual(left: unknown, right: unknown): boolean {
@@ -305,7 +426,7 @@ interface VerifiedReplayArtifacts {
 }
 
 function verifyArtifactsForIssue(
-  args: CounterfactualSimulationReplayArtifacts,
+  args: CounterfactualSimulationReplayIssuanceArtifacts,
 ): ExactResult<VerifiedReplayArtifacts, AnalyticalContractFailure> {
   const gateway = openReadOnlyTradeQueryGateway(
     args.source,
@@ -344,8 +465,20 @@ function verifyArtifactsForIssue(
       "$.simulationPlan.sourceQueryPlan",
     );
   }
+  if (simulationPlan.value.planOrigin !== args.planOrigin) {
+    return contractFailure(
+      "ti_v3_analytics_contract_reference_mismatch",
+      "$.planOrigin",
+    );
+  }
   let preset: CompiledRepresentativeSimulationPreset | null = null;
-  if (args.compiledPreset !== undefined) {
+  if (args.planOrigin === "governed_preset") {
+    if (args.compiledPreset === undefined) {
+      return contractFailure(
+        "ti_v3_analytics_contract_invalid",
+        "$.compiledPreset",
+      );
+    }
     const verifiedPreset = verifyCompiledExecutionOnlySimulationPreset(
       args.compiledPreset,
       gateway.value.authority,
@@ -360,6 +493,11 @@ function verifyArtifactsForIssue(
       );
     }
     preset = verifiedPreset.value;
+  } else if (args.compiledPreset !== undefined) {
+    return contractFailure(
+      "ti_v3_analytics_contract_invalid",
+      "$.compiledPreset",
+    );
   }
   const simulationResult = verifyAndReplayCounterfactualSimulationResult({
     source: args.source,
@@ -395,12 +533,14 @@ function verifyArtifactsForIssue(
 }
 
 export function issueCounterfactualSimulationReplayEnvelope(
-  args: CounterfactualSimulationReplayArtifacts,
+  args: CounterfactualSimulationReplayIssuanceArtifacts,
 ): ExactResult<
   CounterfactualSimulationReplayEnvelope,
   AnalyticalContractFailure
 > {
-  const verified = verifyArtifactsForIssue(args);
+  const request = verifyIssuanceRequest(args);
+  if (!request.ok) return request;
+  const verified = verifyArtifactsForIssue(request.value);
   if (!verified.ok) return verified;
   const presetReference = verified.value.preset === null
     ? null
@@ -432,6 +572,7 @@ export function issueCounterfactualSimulationReplayEnvelope(
       declaredOutputBounds: verified.value.simulationPlan.limits,
       requiredSimulationAuthorityScope:
         "verified_ga1_a_query_result_and_execution_rows_v1" as const,
+      planOrigin: request.value.planOrigin,
       governedPresetReference: presetReference,
       artifactReferences: artifactReferences(
         verified.value.authority,
@@ -473,6 +614,7 @@ const ENVELOPE_KEYS = Object.freeze([
   "executionPolicies",
   "declaredOutputBounds",
   "requiredSimulationAuthorityScope",
+  "planOrigin",
   "governedPresetReference",
   "artifactReferences",
   "replayBounds",
@@ -757,13 +899,34 @@ function verifyEnvelopeShape(
     );
     if (!digest.ok) return digest;
   }
+  if (
+    (record.value.planOrigin !== "generic_plan" &&
+      record.value.planOrigin !== "governed_preset") ||
+    (record.value.planOrigin === "generic_plan" &&
+      record.value.governedPresetReference !== null) ||
+    (record.value.planOrigin === "governed_preset" &&
+      record.value.governedPresetReference === null)
+  ) {
+    return contractFailure(
+      "ti_v3_analytics_contract_invalid",
+      "$.planOrigin",
+    );
+  }
+  const expectedArtifactReferenceCount =
+    record.value.planOrigin === "generic_plan" ? 7 : 8;
+  if (record.value.artifactReferences.length !== expectedArtifactReferenceCount) {
+    return contractFailure(
+      "ti_v3_analytics_contract_reference_mismatch",
+      "$.artifactReferences",
+    );
+  }
   const expectedReferences = artifactReferences(
     authority.value,
     record.value.sourceQueryPlanDigest as CanonicalContentDigest,
     record.value.sourceQueryResultDigest as CanonicalContentDigest,
     record.value.simulationPlanDigest as CanonicalContentDigest,
     record.value.persistedSimulationResultDigest as CanonicalContentDigest,
-    record.value.governedPresetReference === null
+    record.value.planOrigin === "generic_plan"
       ? null
       : (
           record.value.governedPresetReference as GovernedPresetReference
@@ -921,6 +1084,7 @@ export function replayCounterfactualSimulationEnvelope(
     !simulationPlan.ok ||
     simulationPlan.value.planDigest !==
       envelope.value.simulationPlanDigest ||
+    simulationPlan.value.planOrigin !== envelope.value.planOrigin ||
     simulationPlan.value.sourceQueryPlan.queryPlanDigest !==
       queryPlan.value.queryPlanDigest ||
     !canonicalEqual(
@@ -939,7 +1103,7 @@ export function replayCounterfactualSimulationEnvelope(
       simulationPlan.ok ? "$.simulationPlanDigest" : simulationPlan.error.path,
     );
   }
-  if (envelope.value.governedPresetReference === null) {
+  if (envelope.value.planOrigin === "generic_plan") {
     if (args.compiledPreset !== undefined) {
       return replayFailure(
         "preset_reconstruction",
@@ -947,6 +1111,9 @@ export function replayCounterfactualSimulationEnvelope(
       );
     }
   } else {
+    if (envelope.value.governedPresetReference === null) {
+      return replayFailure("preset_reconstruction", "$.governedPresetReference");
+    }
     const preset = verifyCompiledExecutionOnlySimulationPreset(
       args.compiledPreset,
       gateway.value.authority,

@@ -146,11 +146,35 @@ envelope and receipt layered over that path are specified below.
 
 ## Persisted replay envelope and receipt
 
+Independent audit found that the original issuance request made
+`compiledPreset` optional. A caller could therefore omit the preset for a
+governed execution and issue a generic envelope with no governed-preset
+reference. The generic plan still proved the exact rules and policies executed,
+but it could not prove the claimed named preset or its governed arguments.
+
+The correction makes plan origin explicit, content-addressed, and
+non-downgradable. Both the simulation plan and replay envelope declare exactly
+one origin:
+
+- `generic_plan` requires no compiled preset and exactly seven artifact
+  references;
+- `governed_preset` requires the fully reconstructed compiled preset and exactly
+  eight artifact references.
+
+Origin is declared by the producer rather than inferred from rule shape. An
+arbitrary generic plan may have the same rules as a preset without proving that
+the preset key, version, arguments, or policy contract authorized it. The
+simulation-plan digest binds origin before envelope issuance, and the envelope
+digest binds the same origin, preset reference, and exact ordered reference
+set. Consequently, omitting the preset, changing either origin, removing the
+preset reference, or reducing eight references to seven fails semantically even
+when the altered artifact is correctly re-digested.
+
 The standalone replay checkpoint adds two distinct content-addressed artifacts.
 The envelope identifies the dataset and derivation receipts, analytical
 partition, executor-issued source query result, query plan, simulation plan,
 persisted result, execution policies, state-dependency policy, output bounds,
-and optional governed preset. It stores strict digest references rather than
+and the origin-required governed preset. It stores strict digest references rather than
 duplicating the full query result, plan, result, or preset.
 
 The envelope is not execution authority. Replay still requires the externally

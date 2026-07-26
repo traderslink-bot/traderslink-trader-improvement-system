@@ -139,6 +139,7 @@ function directPlan(
   return {
     schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
     semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
+    planOrigin: "generic_plan",
     sourceQueryPlan,
     rules,
     policies: COUNTERFACTUAL_SIMULATION_POLICIES,

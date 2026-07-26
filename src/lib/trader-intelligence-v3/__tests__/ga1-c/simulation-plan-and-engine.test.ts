@@ -38,6 +38,7 @@ function plan(
   return {
     schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
     semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
+    planOrigin: "generic_plan",
     sourceQueryPlan,
     rules,
     policies: COUNTERFACTUAL_SIMULATION_POLICIES,
@@ -180,8 +181,25 @@ describe("GA1-C counterfactual plan contract", () => {
       action: "exclude_trade",
       allowedDirection: "long",
     } as const;
+    const explicitPlan = plan(sourceQueryPlan, [longOnly]);
+    const { planOrigin: _missingOrigin, ...missingOrigin } = explicitPlan;
+    void _missingOrigin;
+    expect(
+      buildCounterfactualSimulationPlan(missingOrigin, fixture.authority),
+    ).toMatchObject({ ok: false, error: { path: "$.planOrigin" } });
     expect(buildCounterfactualSimulationPlan({
-      ...plan(sourceQueryPlan, [longOnly]),
+      ...explicitPlan,
+      planOrigin: "inferred_plan",
+    }, fixture.authority)).toMatchObject({
+      ok: false,
+      error: { path: "$.planOrigin" },
+    });
+    expect(buildCounterfactualSimulationPlan({
+      ...explicitPlan,
+      planOriginAuthority: "extra",
+    }, fixture.authority)).toMatchObject({ ok: false });
+    expect(buildCounterfactualSimulationPlan({
+      ...explicitPlan,
       rawSql: "select *",
     }, fixture.authority)).toMatchObject({ ok: false });
     expect(buildCounterfactualSimulationPlan(plan(sourceQueryPlan, [

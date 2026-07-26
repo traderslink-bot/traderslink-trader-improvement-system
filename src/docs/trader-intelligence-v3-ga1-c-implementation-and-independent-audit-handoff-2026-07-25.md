@@ -15,6 +15,42 @@ Checkpoint-two executable commit: recorded after final verification and commit.
 
 Draft PR: `#162`
 
+## Governed-preset origin downgrade remediation
+
+Required starting head:
+`a97ce351ae13f9168e9a0dc3d4a7c218bd34fc2d`
+
+The persisted replay checkpoint originally accepted optional
+`compiledPreset`. Omitting it allowed a governed plan and persisted result to
+be represented by a generic envelope with a null preset reference. That proved
+the executed rules and policies but silently discarded the named preset and its
+governed arguments.
+
+The focused correction introduces an explicit plan-origin contract:
+
+- `generic_plan`: origin must be declared in the content-addressed simulation
+  plan and envelope; issuance accepts no compiled preset; the envelope contains
+  no preset reference and exactly seven ordered artifact references; replay
+  rejects any supplied preset.
+- `governed_preset`: origin must be declared in both artifacts; issuance
+  requires and fully reconstructs the compiled preset; its generated plan digest
+  must equal the supplied plan digest; the envelope binds preset
+  schema/key/version/digest and exactly eight ordered references; replay
+  requires the matching compiled preset.
+
+The implementation does not infer origin from rules. A generic plan cannot
+prove a named preset. Plan origin is part of the simulation-plan digest and
+envelope digest, so correctly re-digested governed-to-generic downgrade,
+generic-to-governed upgrade, preset-reference removal, and eight-to-seven
+reference reduction fail semantically. Missing, unknown, extra, mismatched, and
+foreign origin/preset inputs fail closed.
+
+Review the discriminated issuance union, strict runtime request shape,
+plan/envelope reconstruction, all thirteen governed presets, direct generic
+plans, deterministic receipt binding, and source permutation identity. The
+final remediation commit and verification/CI identities are recorded externally
+after completion because the commit cannot contain its own SHA.
+
 ## Checkpoint-two affected-population audit correction
 
 Correction starting head:
@@ -100,8 +136,8 @@ Reviewers should concentrate on:
 
 - `simulate_reduce_size_after_loss` remains deliberately deferred pending
   proportional P/L, rounding, minimum-size, fee, and charge authority;
-- a standalone persisted replay envelope/receipt is delivered by the replay
-  checkpoint described below;
+- the standalone persisted replay envelope/receipt now includes the focused
+  non-downgradable origin correction described above;
 - final proportional-resizing integration and its focused tests remain;
 - the fixed-seed 10,000-row proof remains reserved for the final executable
   checkpoint after all presets and sizing decisions are complete.
@@ -121,7 +157,7 @@ resolve its external SHA from draft PR #162 or the final execution report.
 
 This checkpoint adds a portable content-addressed envelope containing strict
 references to accepted source, query, simulation, policy, bound, result, and
-optional preset identities. It does not embed or replace the authoritative
+origin-governed preset identities. It does not embed or replace the authoritative
 artifacts. Replay requires those external artifacts, reopens read-only source
 authority, verifies the executor capability, reconstructs query/plan/preset
 authority, and delegates to the generic simulation executor plus accepted

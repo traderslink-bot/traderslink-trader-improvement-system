@@ -133,6 +133,7 @@ export type CounterfactualRule =
 export interface CounterfactualSimulationPlan {
   readonly schemaVersion: typeof COUNTERFACTUAL_SIMULATION_PLAN_VERSION;
   readonly semanticVersion: typeof COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION;
+  readonly planOrigin: "generic_plan" | "governed_preset";
   readonly sourceQueryPlan: TradeQueryPlan;
   readonly rules: readonly CounterfactualRule[];
   readonly stateDependencies: RuleStateDependencies;
@@ -584,7 +585,7 @@ function normalize(
   persisted: boolean,
 ): ExactResult<CounterfactualSimulationPlan, AnalyticalContractFailure> {
   const record = validateContractRecord(input, [
-    "schemaVersion", "semanticVersion", "sourceQueryPlan", "rules",
+    "schemaVersion", "semanticVersion", "planOrigin", "sourceQueryPlan", "rules",
     ...(persisted ? ["stateDependencies"] : []),
     "policies", "limits",
     ...(persisted ? ["planDigest"] : []),
@@ -594,6 +595,10 @@ function normalize(
     record.value.schemaVersion !== COUNTERFACTUAL_SIMULATION_PLAN_VERSION ||
     record.value.semanticVersion !== COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION
   ) return invalid("$.schemaVersion");
+  const planOrigin = record.value.planOrigin;
+  if (planOrigin !== "generic_plan" && planOrigin !== "governed_preset") {
+    return invalid("$.planOrigin");
+  }
   const sourceQueryPlan = persisted
     ? verifyTradeQueryPlan(record.value.sourceQueryPlan, authority)
     : buildTradeQueryPlan(record.value.sourceQueryPlan, authority);
@@ -729,6 +734,7 @@ function normalize(
     {
       schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
       semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
+      planOrigin,
       sourceQueryPlan: sourceQueryPlan.value,
       rules: Object.freeze([...rules].sort((left, right) =>
         BigInt(left.precedence) < BigInt(right.precedence) ? -1 : 1)),

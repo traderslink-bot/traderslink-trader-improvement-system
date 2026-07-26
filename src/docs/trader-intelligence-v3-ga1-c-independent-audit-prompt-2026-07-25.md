@@ -52,23 +52,41 @@ mark ready, or broaden scope.
 
 ## Focused replay-envelope audit handoff
 
-Audit the executable replay-envelope checkpoint from starting head
-`ad3a8597df9fccd60d8eca69d63e082bc755c9b9`. Resolve the final checkpoint SHA
+Audit the focused plan-origin remediation from required starting head
+`a97ce351ae13f9168e9a0dc3d4a7c218bd34fc2d`. Resolve the final remediation SHA
 from the current draft PR #162 head because the commit cannot embed its own
-identity.
+identity. The prior replay-envelope checkpoint remains part of the audit
+surface.
 
 Confirm the persisted envelope identifies but never substitutes for the
 read-only source, partition, executor-issued query result, simulation plan,
-persisted result, and optional governed preset. Confirm successful replay calls
+persisted result, and origin-required governed preset. Confirm successful replay calls
 the accepted generic executor and complete result re-execution, and only then
 issues the receipt. Receipt digest/shape verification alone must not be treated
 as execution authority.
 
+The blocking defect was an authority downgrade: optional `compiledPreset`
+allowed a governed plan/result to be issued as a generic envelope merely by
+omission. Confirm the correction declares and content-addresses exactly
+`generic_plan` or `governed_preset` in both plan and envelope. Do not accept
+heuristic inference from rule shape.
+
+For generic origin, require no preset reference, no supplied compiled preset,
+and exactly seven ordered artifact references. For governed origin, require the
+fully reconstructed matching preset, its schema/key/version/digest and governed
+arguments through the strict preset artifact, matching generated plan digest,
+and exactly eight ordered references.
+
 Attempt cloned capability, foreign owner/account/currency/partition, cross-plan
 and cross-result substitution, dependency/policy/bound/preset/result tampering,
 correctly re-digested envelope/result/receipt tampering, unsupported versions,
-unknown/missing/extra fields, and max-plus-one references/diagnostics. Verify
-all thirteen preset keys, direct generic plans, exact stage codes, repeat
+unknown/missing/extra origin fields, generic issuance with a preset, governed
+issuance without a preset, governed plan/result issued as generic, mismatched
+and foreign presets, governed replay without a preset, and generic replay with a
+preset. Correctly re-digest and attempt governed-to-generic substitution,
+generic-to-governed substitution, governed-preset-reference removal, and
+eight-to-seven reference reduction. Verify all thirteen preset keys, direct
+generic plans, exact stage codes, deterministic receipt binding and repeat
 identity, and source-storage permutation identity.
 
 Keep resizing, fees, final scale proof, GA1-D, GA1-E, merge, and deployment out

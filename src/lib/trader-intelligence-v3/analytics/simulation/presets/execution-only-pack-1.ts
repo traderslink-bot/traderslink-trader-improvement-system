@@ -112,6 +112,7 @@ function finish(
   const plan = buildCounterfactualSimulationPlan({
     schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
     semanticVersion: COUNTERFACTUAL_SIMULATION_SEMANTIC_VERSION,
+    planOrigin: "governed_preset",
     sourceQueryPlan,
     rules: [rule],
     policies: COUNTERFACTUAL_SIMULATION_POLICIES,

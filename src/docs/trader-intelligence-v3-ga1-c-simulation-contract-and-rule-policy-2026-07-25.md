@@ -200,14 +200,30 @@ Replay envelope version
 - state-dependency, chronological-order, timestamp-tie, sizing, charge,
   missing-data, and all other accepted execution policies;
 - declared simulation output bounds and required GA1-A authority scope;
-- either no governed preset or the exact preset schema/key/version/digest;
-- seven generic artifact references or eight when a preset is present; and
+- explicit `generic_plan` or `governed_preset` origin, also bound by the
+  simulation-plan digest;
+- no governed preset and exactly seven ordered references for `generic_plan`;
+- the exact preset schema/key/version/digest and exactly eight ordered
+  references for `governed_preset`; and
 - explicit artifact, diagnostic, reconstruction-evidence, and receipt bounds.
 
 The envelope is stored with, not instead of, the authoritative source,
 partition receipt, executor-issued query result, simulation plan, persisted
-result, and optional compiled preset. A digest establishes content identity,
-not authority or successful execution.
+result, and origin-required compiled preset. Generic issuance rejects any
+compiled preset. Governed issuance requires one and reconstructs its accepted
+authority, governed arguments, preset digest, and generated plan digest before
+the envelope can be issued. A generic plan proves the rules and policies it
+executes; it cannot prove the validity of a named preset or its arguments.
+
+Origin is never inferred from plan shape. Missing, unknown, or extra origin
+fields fail closed. A governed plan and result cannot be issued as generic by
+omitting the preset because the governed origin is part of the plan digest.
+Replay applies the same split: generic replay rejects a supplied preset, while
+governed replay requires the exact reconstructed preset. Correctly re-digested
+generic-to-governed substitution, governed-to-generic substitution, preset
+reference removal, and eight-to-seven reference reduction all fail
+semantically. A digest establishes content identity, not authority or successful
+execution.
 
 Successful replay produces
 `ti_v3_counterfactual_simulation_replay_receipt_v1`. It binds the envelope and

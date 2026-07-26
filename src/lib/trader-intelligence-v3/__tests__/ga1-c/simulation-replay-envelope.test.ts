@@ -177,6 +177,7 @@ function generic(prepared: ReturnType<typeof source>) {
   const plan = buildCounterfactualSimulationPlan({
     schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
     semanticVersion: "v2",
+    planOrigin: "generic_plan",
     sourceQueryPlan: prepared.sourceQueryPlan,
     rules: [{
       ruleId: "generic_long_only",
@@ -227,11 +228,32 @@ function issueGeneric(prepared: ReturnType<typeof source>) {
     sourceQueryResult: prepared.sourceQueryResult,
     simulationPlan: executed.plan,
     persistedResult: executed.result,
+    planOrigin: "generic_plan",
   });
   if (!envelope.ok) {
     throw new Error(`${envelope.error.code}:${envelope.error.path}`);
   }
   return { ...executed, envelope: envelope.value };
+}
+
+function issueGoverned(
+  prepared: ReturnType<typeof source>,
+  compiled: CompiledRepresentativeSimulationPreset,
+) {
+  const result = presetExecution(prepared, compiled);
+  const envelope = issueCounterfactualSimulationReplayEnvelope({
+    source: prepared.fixture.source,
+    partitionReceipt: prepared.partition,
+    sourceQueryResult: prepared.sourceQueryResult,
+    simulationPlan: compiled.plan,
+    persistedResult: result,
+    planOrigin: "governed_preset",
+    compiledPreset: compiled,
+  });
+  if (!envelope.ok) {
+    throw new Error(`${envelope.error.code}:${envelope.error.path}`);
+  }
+  return { result, envelope: envelope.value };
 }
 
 function redigestEnvelope(input: Record<string, unknown>) {
@@ -268,6 +290,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
       persistedSimulationResultDigest: issued.result.resultDigest,
       requiredSimulationAuthorityScope:
         "verified_ga1_a_query_result_and_execution_rows_v1",
+      planOrigin: "generic_plan",
       governedPresetReference: null,
       artifactReferences: expect.arrayContaining([
         expect.objectContaining({ artifactKind: "simulation_result" }),
@@ -279,6 +302,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
         receiptCollectionLimit: "1",
       },
     });
+    expect(issued.envelope.artifactReferences).toHaveLength(7);
     const replay = () => replayCounterfactualSimulationEnvelope({
       source: prepared.fixture.source,
       partitionReceipt: prepared.partition,
@@ -318,6 +342,205 @@ describe("GA1-C persisted simulation replay envelope", () => {
       ok: true,
       value: { receiptDigest: first.value.receipt.receiptDigest },
     });
+  });
+
+  it("requires an explicit, plan-bound origin for issuance and replay", () => {
+    const prepared = source();
+    const direct = generic(prepared);
+    const compiled = compileDirectionOnlyPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      { allowedDirection: "long" },
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    const governedResult = presetExecution(prepared, compiled.value);
+    const common = {
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: direct.plan,
+      persistedResult: direct.result,
+    };
+
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      ...common,
+      planOrigin: "generic_plan",
+      compiledPreset: compiled.value,
+    } as never)).toMatchObject({ ok: false, error: { path: "$.compiledPreset" } });
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      planOrigin: "governed_preset",
+    } as never)).toMatchObject({ ok: false, error: { path: "$.compiledPreset" } });
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      planOrigin: "generic_plan",
+    } as never)).toMatchObject({ ok: false, error: { path: "$.planOrigin" } });
+    expect(issueCounterfactualSimulationReplayEnvelope(
+      common as never,
+    )).toMatchObject({ ok: false, error: { path: "$.planOrigin" } });
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      ...common,
+      planOrigin: "inferred_plan",
+    } as never)).toMatchObject({ ok: false, error: { path: "$.planOrigin" } });
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      ...common,
+      planOrigin: "generic_plan",
+      planOriginAuthority: "extra",
+    } as never)).toMatchObject({ ok: false });
+
+    const governed = issueGoverned(prepared, compiled.value);
+    expect(governed.envelope).toMatchObject({
+      planOrigin: "governed_preset",
+      governedPresetReference: { presetDigest: compiled.value.preset.presetDigest },
+      artifactReferences: { length: 8 },
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      envelope: governed.envelope,
+    })).toMatchObject({ ok: false, error: { stage: "preset_reconstruction" } });
+
+    const alternate = compileDirectionOnlyPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      { allowedDirection: "short" },
+    );
+    if (!alternate.ok) throw new Error(alternate.error.code);
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      planOrigin: "governed_preset",
+      compiledPreset: alternate.value,
+    })).toMatchObject({ ok: false, error: { path: "$.compiledPreset.plan" } });
+    const foreign = source(replayRows.map((item) => ({
+      ...item,
+      owner: "owner_ga1_c_foreign_preset",
+    })));
+    const foreignPreset = compileDirectionOnlyPreset(
+      foreign.sourceQueryPlan,
+      foreign.fixture.authority,
+      { allowedDirection: "long" },
+    );
+    if (!foreignPreset.ok) throw new Error(foreignPreset.error.code);
+    expect(issueCounterfactualSimulationReplayEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      planOrigin: "governed_preset",
+      compiledPreset: foreignPreset.value,
+    })).toMatchObject({ ok: false });
+
+    const body = clone(governed.envelope) as unknown as Record<string, unknown>;
+    delete body.envelopeDigest;
+    const downgraded = redigestEnvelope({
+      ...body,
+      planOrigin: "generic_plan",
+      governedPresetReference: null,
+      artifactReferences: governed.envelope.artifactReferences.slice(0, 7),
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      envelope: downgraded,
+    })).toMatchObject({ ok: false, error: { stage: "simulation_plan_reconstruction" } });
+
+    const removedReference = redigestEnvelope({
+      ...body,
+      governedPresetReference: null,
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      compiledPreset: compiled.value,
+      envelope: removedReference,
+    })).toMatchObject({
+      ok: false,
+      error: { stage: "replay_envelope_contract", path: "$.planOrigin" },
+    });
+    const reducedReferences = redigestEnvelope({
+      ...body,
+      artifactReferences: governed.envelope.artifactReferences.slice(0, 7),
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: governedResult,
+      compiledPreset: compiled.value,
+      envelope: reducedReferences,
+    })).toMatchObject({
+      ok: false,
+      error: {
+        stage: "replay_envelope_contract",
+        path: "$.artifactReferences",
+      },
+    });
+
+    const genericIssued = issueGeneric(prepared);
+    const genericBody = clone(genericIssued.envelope) as unknown as
+      Record<string, unknown>;
+    delete genericBody.envelopeDigest;
+    const upgraded = redigestEnvelope({
+      ...genericBody,
+      planOrigin: "governed_preset",
+      governedPresetReference: {
+        schemaVersion: compiled.value.preset.schemaVersion,
+        presetKey: compiled.value.preset.presetKey,
+        presetVersion: compiled.value.preset.presetVersion,
+        presetDigest: compiled.value.preset.presetDigest,
+      },
+      artifactReferences: [
+        ...genericIssued.envelope.artifactReferences,
+        {
+          artifactKind: "governed_preset",
+          artifactDigest: compiled.value.preset.presetDigest,
+        },
+      ],
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: genericIssued.plan,
+      persistedResult: genericIssued.result,
+      compiledPreset: compiled.value,
+      envelope: upgraded,
+    })).toMatchObject({
+      ok: false,
+      error: { stage: "simulation_plan_reconstruction" },
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: direct.plan,
+      persistedResult: direct.result,
+      compiledPreset: compiled.value,
+      envelope: genericIssued.envelope,
+    })).toMatchObject({ ok: false, error: { stage: "preset_reconstruction" } });
   });
 
   it("reconstructs every accepted governed execution-only preset", () => {
@@ -399,6 +622,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
         sourceQueryResult: prepared.sourceQueryResult,
         simulationPlan: compiled.value.plan,
         persistedResult: result,
+        planOrigin: "governed_preset",
         compiledPreset: compiled.value,
       });
       if (!envelope.ok) throw new Error(envelope.error.code);
@@ -504,6 +728,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
     const otherSimulation = buildCounterfactualSimulationPlan({
       schemaVersion: COUNTERFACTUAL_SIMULATION_PLAN_VERSION,
       semanticVersion: "v2",
+      planOrigin: "generic_plan",
       sourceQueryPlan: otherPlan,
       rules: [{
         ruleId: "other_plan",
@@ -603,6 +828,7 @@ describe("GA1-C persisted simulation replay envelope", () => {
       sourceQueryResult: prepared.sourceQueryResult,
       simulationPlan: compiled.value.plan,
       persistedResult: presetResult,
+      planOrigin: "governed_preset",
       compiledPreset: compiled.value,
     });
     if (!presetEnvelope.ok) throw new Error(presetEnvelope.error.code);
@@ -693,12 +919,23 @@ describe("GA1-C persisted simulation replay envelope", () => {
       error: { stage: "expected_result_digest" },
     });
 
+    const missingOriginBody = { ...envelopeBody };
+    delete missingOriginBody.planOrigin;
     const malformed = [
       { ...clone(issued.envelope), extra: true },
       Object.fromEntries(
         Object.entries(clone(issued.envelope))
           .filter(([key]) => key !== "sourceQueryPlanDigest"),
       ),
+      redigestEnvelope(missingOriginBody),
+      redigestEnvelope({
+        ...envelopeBody,
+        planOrigin: "inferred_plan",
+      }),
+      redigestEnvelope({
+        ...envelopeBody,
+        planOriginAuthority: "extra",
+      }),
       {
         ...envelopeBody,
         schemaVersion: "ti_v3_counterfactual_simulation_replay_envelope_v99",

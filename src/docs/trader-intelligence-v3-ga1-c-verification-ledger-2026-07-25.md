@@ -124,3 +124,30 @@ because a commit cannot include its own content-addressed identity.
 | `git diff --check` | passed |
 | GitHub CI | observe after push |
 | final 10,000-row / browser / E2E / deployment | deliberately not run |
+
+## Governed-preset origin downgrade remediation
+
+Required starting head:
+`a97ce351ae13f9168e9a0dc3d4a7c218bd34fc2d`
+
+The independent audit found that omitting optional `compiledPreset` could issue
+a generic envelope for a governed execution. The correction binds explicit
+`generic_plan` or `governed_preset` origin into the simulation plan and replay
+envelope. Generic issuance/replay permits no preset and requires seven ordered
+references. Governed issuance/replay requires the reconstructed preset and
+eight ordered references.
+
+| Check | Result |
+| --- | --- |
+| focused replay-envelope suite | development run: 1 file / 8 tests passed |
+| explicit generic and governed issuance/replay | passed |
+| all 13 governed presets and direct generic replay | passed |
+| origin omission/unknown/extra and preset mismatch/foreign authority | passed |
+| correctly re-digested origin/reference downgrade and upgrade | passed |
+| full GA1-C and affected GA0-B3 / GA1-A / GA1-B regressions | 7 files / 83 tests passed |
+| TypeScript | `npx --no-install tsc --noEmit --pretty false` passed |
+| targeted ESLint | changed simulation contracts, preset, replay, and focused tests passed |
+| architecture guard | passed: 487 architecture files, 43 API routes, 82 classified Trader Intelligence routes |
+| `git diff --check` | passed |
+| GitHub CI | observe after push |
+| final 10,000-row / browser / E2E / build / deployment | deliberately not run |

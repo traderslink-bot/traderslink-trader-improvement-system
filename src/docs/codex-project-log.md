@@ -1,3 +1,32 @@
+# 2026-07-25 - GA1-C governed-preset origin downgrade remediation active
+
+- Recovered interrupted Codex task
+  `019f9b36-2fc2-76c1-8b2b-c989cc9e6b16` and its preserved worktree at
+  `C:\Users\jerac\.codex\worktrees\473e\trader-intelligence-v2`.
+- Continued draft PR #162 from required head
+  `a97ce351ae13f9168e9a0dc3d4a7c218bd34fc2d`.
+- Independent audit found that optional `compiledPreset` allowed governed
+  preset authority and arguments to be discarded by issuing a generic envelope.
+- Added explicit, content-addressed `generic_plan` / `governed_preset` origin to
+  the simulation plan and replay envelope.
+- Generic issuance/replay rejects any preset and requires seven exact ordered
+  artifact references. Governed issuance/replay requires the fully reconstructed
+  preset and eight exact ordered references.
+- Correctly re-digested origin substitution, preset-reference removal, and
+  reference reduction fail semantically because origin is reconstructed from
+  the plan rather than inferred from rule shape.
+- Focused replay development suite passes 1 file / 8 tests. Final verification
+  passes 7 files / 83 tests, TypeScript, targeted ESLint, the architecture guard
+  (487 architecture files, 43 API routes, 82 classified routes), and
+  `git diff --check`. The final 10,000-row proof is deliberately not part of
+  this focused remediation.
+
+Current best next step:
+
+- Publish one focused remediation commit to existing draft PR #162, observe CI,
+  and stop for independent re-audit. Do not mark ready, merge, deploy, begin
+  GA1-D/GA1-E, or run the final 10,000-row proof.
+
 # 2026-07-25 - GA1-C persisted replay envelope checkpoint active
 
 - Continued draft PR #162 from accepted clean synchronized checkpoint-two head
