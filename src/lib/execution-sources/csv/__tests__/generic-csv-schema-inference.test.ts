@@ -9,7 +9,7 @@ import {
 describe("generic CSV schema inference", () => {
   it("infers a conventional execution ledger without manual mapping", () => {
     const csvText = [
-      "Trading Symbol,Executed At,Instruction,Filled Shares,Average Fill,Commission Paid,Other Fees",
+      "Trading Symbol,Executed At,Instruction,Filled Shares,Average Price,Commission Paid,Other Fees",
       "AAPL,2026-07-24 09:35:00,BOT,100,182.10,1.00,0.05",
       "AAPL,2026-07-24 10:05:00,SLD,100,184.25,1.00,0.05",
     ].join("\n");
@@ -19,7 +19,7 @@ describe("generic CSV schema inference", () => {
       timestamp: "Executed At",
       side: "Instruction",
       quantity: "Filled Shares",
-      price: "Average Fill",
+      price: "Average Price",
       commission: "Commission Paid",
       fees: "Other Fees",
     });
