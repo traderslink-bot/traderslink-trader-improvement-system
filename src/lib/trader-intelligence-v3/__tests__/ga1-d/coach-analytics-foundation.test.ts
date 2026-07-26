@@ -3,7 +3,11 @@ import {
   executeCoachCapability,
   executeCoachIntent,
 } from "../../analytics/coach";
-import { buildSyntheticQueryFixture } from "../../analytics/query/testing";
+import {
+  buildSyntheticQueryFixture,
+  compileGa1BPreset,
+  openReadOnlyTradeQueryGateway,
+} from "../../analytics/query";
 
 describe("GA1-D Coach Trading Intelligence Foundation", () => {
   it("routes the first flexible-question inventory through approved deterministic capabilities", () => {
@@ -17,10 +21,12 @@ describe("GA1-D Coach Trading Intelligence Foundation", () => {
     if (!result.ok) return;
     expect(result.value.map((item) => item.capabilityKey)).toEqual([
       "time_window_performance",
+      "session_performance",
       "price_range_performance",
-      "ticker_performance",
-      "trade_sequence_performance",
       "position_size_performance",
+      "hold_time_performance",
+      "profit_giveback_analysis",
+      "intraday_drawdown_analysis",
     ]);
     for (const item of result.value) {
       expect(item.authorityStatus).not.toBe("unsupported");
@@ -55,6 +61,110 @@ describe("GA1-D Coach Trading Intelligence Foundation", () => {
     expect(session.value[0].metricTables[0].rows.map((row) => row.groupIdentity)).toEqual(
       expect.arrayContaining(["session:not_applicable"]),
     );
+  });
+
+  it("routes the Time, Price, Size, Hold-Time, and Giveback pack through existing query and preset authority", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const result = executeCoachIntent({
+      intentKey: "rank_positive_performance_drivers",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.value.map((item) => item.capabilityKey)).toEqual([
+      "time_window_performance",
+      "session_performance",
+      "price_range_performance",
+      "position_size_performance",
+      "hold_time_performance",
+    ]);
+    for (const item of result.value) {
+      expect(item.authorityStatus).not.toBe("unsupported");
+      expect(item.primaryFinding).not.toBeNull();
+      expect(item.metricTables).toHaveLength(1);
+      expect(item.evidenceTradeReferences.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses $1, $2, $5, and $10 boundaries from the existing price-bucket authority", () => {
+    const fixture = buildSyntheticQueryFixture(12);
+    const gateway = openReadOnlyTradeQueryGateway(fixture.source, fixture.partition);
+    expect(gateway).toMatchObject({ ok: true });
+    if (!gateway.ok) return;
+    const preset = compileGa1BPreset({
+      presetKey: "analyze_performance_by_price_range",
+      authority: gateway.value.authority,
+    });
+    expect(preset).toMatchObject({ ok: true });
+    if (!preset.ok) return;
+    expect(preset.value.primaryPlan.grouping).toEqual({
+      kind: "entry_price_range",
+      boundaries: ["1", "2", "5", "10"],
+    });
+  });
+
+  it("uses exact daily giveback, drawdown, and day-outcome metrics without claiming a new calculator", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const giveback = executeCoachIntent({
+      intentKey: "profit_giveback_analysis",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const drawdown = executeCoachIntent({
+      intentKey: "intraday_drawdown_analysis",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const consistency = executeCoachIntent({
+      intentKey: "day_outcome_consistency",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(giveback).toMatchObject({ ok: true });
+    expect(drawdown).toMatchObject({ ok: true });
+    expect(consistency).toMatchObject({ ok: true });
+    if (!giveback.ok || !drawdown.ok || !consistency.ok) return;
+    expect(giveback.value[0].primaryFinding).toMatchObject({
+      findingCode: "giveback_detected",
+      metric: { metricKey: "maximum_peak_profit_giveback" },
+      ruleCandidateKey: "stop_after_profit_giveback",
+    });
+    expect(drawdown.value[0].primaryFinding).toMatchObject({
+      findingCode: "intraday_drawdown_detected",
+      metric: { metricKey: "maximum_intraday_drawdown" },
+    });
+    expect(consistency.value[0].primaryFinding).toMatchObject({
+      findingCode: "day_outcome_consistency",
+      metric: { metricKey: "profitable_day_percentage" },
+    });
+    expect(consistency.value[0].metricTables[0].rows[0].metrics.map((metric) => metric.metricKey)).toEqual(
+      expect.arrayContaining(["profitable_day_percentage", "losing_day_percentage"]),
+    );
+  });
+
+  it("returns explicit unsupported responses rather than calling realised hold-time exit quality", () => {
+    const fixture = buildSyntheticQueryFixture(12);
+    const losers = executeCoachIntent({
+      intentKey: "losers_held_too_long",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const winners = executeCoachIntent({
+      intentKey: "winners_cut_too_early",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(losers).toMatchObject({ ok: true });
+    expect(winners).toMatchObject({ ok: true });
+    if (!losers.ok || !winners.ok) return;
+    for (const result of [losers.value[0], winners.value[0]]) {
+      expect(result).toMatchObject({
+        authorityStatus: "unsupported",
+        primaryFinding: null,
+        unsupportedData: { code: "exit_quality_or_alternative_outcome_authority_required" },
+      });
+    }
   });
 
   it("maps rule candidates to GA1-C presets as rules to test, never claimed improvements", () => {

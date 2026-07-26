@@ -50,6 +50,29 @@ Checkpoint three exposes only the following verified Coach behaviour paths throu
 - [blocked_by_missing_data] trading while green (requires a verified pre-entry daily realised-state filter)
 - [blocked_by_missing_data] trading while red (requires a verified pre-entry daily realised-state filter)
 
+## Checkpoint Four Exact Status Update
+
+Checkpoint four composes only existing GA1-A/GA1-B query and preset authority
+for the Time, Price, Size, Hold-Time, and Giveback Analytics Pack. It adds
+Coach routing and uses the existing `$1`, `$2`, `$5`, and `$10` price
+boundaries; rule suggestions remain `rule_to_test` only. No other inventory
+status moves are made by this checkpoint-four handoff update.
+
+- [implemented_now] best time window
+- [implemented_now] worst time window
+- [implemented_now] time-of-day buckets
+- [implemented_now] session performance
+- [implemented_now] price-bucket performance
+- [implemented_now] position-size performance
+- [implemented_now] hold-time performance
+- [implemented_now] profit giveback
+- [implemented_now] maximum intraday drawdown
+- [implemented_now] green/red day consistency
+- [implemented_now] top leak routing across time, session, price, size, hold-time, giveback, and drawdown results
+- [implemented_now] top strength routing across time, session, price, size, and hold-time results
+- [blocked_by_missing_data] held-too-long proxy (requires exit-quality or alternative-outcome authority)
+- [blocked_by_missing_data] exited-too-soon proxy (requires exit-quality or alternative-outcome authority)
+
 ## Complete controlling inventory
 ## Engine 1 - Analytics Engine
 ### Already available foundation
@@ -193,8 +216,8 @@ Checkpoint three exposes only the following verified Coach behaviour paths throu
 - [deferred_checkpoint] Friday performance
 - [deferred_checkpoint] week-over-week comparison
 - [deferred_checkpoint] month-over-month comparison
-- [deferred_checkpoint] best time window
-- [deferred_checkpoint] worst time window
+- [implemented_now] best time window
+- [implemented_now] worst time window
 - [deferred_checkpoint] most active time window
 - [deferred_checkpoint] least active time window
 ### Hold-time stats
@@ -213,8 +236,8 @@ Checkpoint three exposes only the following verified Coach behaviour paths throu
 - [implemented_now] overnight hold performance if supported
 - [implemented_now] winning hold-time range
 - [implemented_now] losing hold-time range
-- [deferred_checkpoint] held-too-long proxy
-- [deferred_checkpoint] exited-too-soon proxy
+- [blocked_by_missing_data] held-too-long proxy
+- [blocked_by_missing_data] exited-too-soon proxy
 ### Price-range stats
 - [implemented_now] under $0.50
 - [implemented_now] $0.50 to $1

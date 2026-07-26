@@ -45,8 +45,11 @@ export interface CoachIntentRequest {
   readonly baselineFilters?: readonly TradeQueryFilter[];
 }
 
-function netPnl(row: TradeQueryResult["rows"][number]): ExactMetricValue | null {
-  return row.metrics.find((metric) => metric.metricKey === "net_pnl") ?? null;
+function rowMetric(
+  row: TradeQueryResult["rows"][number],
+  metricKey: TradeQueryMetricKey,
+): ExactMetricValue | null {
+  return row.metrics.find((metric) => metric.metricKey === metricKey) ?? null;
 }
 
 function comparePnl(left: ExactMetricValue | null, right: ExactMetricValue | null): number {
@@ -62,16 +65,20 @@ function resultFindings(
   result: TradeQueryResult,
   findingCode: CoachFinding["findingCode"],
   ruleCandidateKey: string | null,
+  findingMetricKey: TradeQueryMetricKey,
+  findingSort: "ascending" | "descending",
 ): readonly CoachFinding[] {
   const evidenceByDigest = new Map(result.evidence.map((item) => [item.evidenceDigest, item]));
-  const ranked = [...result.rows].sort((left, right) =>
-    comparePnl(netPnl(left), netPnl(right)) || compareUnicodeCodePoints(left.groupIdentity, right.groupIdentity));
+  const ranked = [...result.rows].sort((left, right) => {
+    const compared = comparePnl(rowMetric(left, findingMetricKey), rowMetric(right, findingMetricKey));
+    return (findingSort === "ascending" ? compared : -compared) || compareUnicodeCodePoints(left.groupIdentity, right.groupIdentity);
+  });
   return Object.freeze(ranked.map((row, index) => Object.freeze({
     findingCode: index === 0 ? findingCode : "biggest_positive_strength",
     capabilityKey,
     groupIdentity: row.groupIdentity,
     groupLabel: row.groupLabel,
-    metric: netPnl(row),
+    metric: rowMetric(row, findingMetricKey),
     sampleSize: row.includedCount,
     evidence: evidenceByDigest.get(row.evidenceDigest)?.candidates ?? Object.freeze([]),
     limitationCodes: row.limitationCodes,
@@ -163,7 +170,14 @@ function buildResult(
       ? trendFinding(request.capabilityKey, result, comparison, baseline)
       : Object.freeze([] as CoachFinding[])
     : meetsMinimumSample
-      ? resultFindings(request.capabilityKey, result, capability.findingCode, capability.ruleCandidateKey)
+      ? resultFindings(
+        request.capabilityKey,
+        result,
+        capability.findingCode,
+        capability.ruleCandidateKey,
+        capability.findingMetricKey,
+        capability.findingSort,
+      )
       : Object.freeze([] as CoachFinding[]);
   const primary = findings[0] ?? null;
   const evidence = Object.freeze(result.evidence.flatMap((item) => item.candidates));

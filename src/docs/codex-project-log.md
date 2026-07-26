@@ -19413,3 +19413,10 @@ Current best next step:
 - Commit and push only this verified remediation to draft PR #162, then retain
   the draft/open/unmerged/undeployed stop boundary for independent acceptance.
   Do not begin the remaining preset pack.
+# 2026-07-26 - GA1-D checkpoint four: Coach Time, Price, Size, Hold-Time, and Giveback Analytics Pack started
+
+**Branch:** `agent/trader-intelligence-v3-ga1-d-coach-time-price-size-giveback-pack`, created clean from merged `main` at `0ff79487bf5b62c6f7ddeea527411b4c0014154b` after accepted checkpoint three.
+
+**Current project focus:** complete the Analytics Engine and one user-facing Coach intelligence path first. Prioritize verified current trade-data analytics, behaviour findings, trends, evidence, limitations, unsupported-data responses, and Coach-ready structured findings. Build only in data-authority order and keep missing-data work deferred or blocked. Simulations are near-term support only for `rules_to_test` or accepted GA1-C functionality. Notifications, market context, candle setup detection, memory/profile, dashboards, and extra agent surfaces remain lower priority until Analytics and Coach intelligence are strong.
+
+Checkpoint four is limited to the deterministic Time, Price, Size, Hold-Time, and Giveback Analytics Pack. It reuses existing GA1-A/GA1-B authority for time/session, price, size, hold-time, daily giveback/drawdown, day metrics, and top leak/strength routing. Realised hold-time and P/L do not prove holding losers too long or cutting winners early, so those requests must be explicit unsupported responses. No UI, LLM/chat, notifications, market/candle work, memory/profile, simulation expansion, GA1-E, deployment, or merge is in scope.

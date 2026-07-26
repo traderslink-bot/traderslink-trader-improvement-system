@@ -17,6 +17,8 @@ export interface CoachCapabilityDefinition {
   readonly presetKey: string | null;
   readonly unsupportedData: readonly string[];
   readonly findingCode: CoachFindingCode;
+  readonly findingMetricKey: TradeQueryMetricKey;
+  readonly findingSort: "ascending" | "descending";
   readonly ruleCandidateKey: string | null;
 }
 
@@ -25,7 +27,8 @@ const CORE_METRICS = Object.freeze([
   "signed_charges", "average_pnl", "median_pnl", "win_count", "loss_count",
   "flat_count", "win_rate", "loss_rate", "flat_rate", "average_winning_trade",
   "average_losing_trade", "profit_factor", "expectancy", "trading_day_count",
-  "profitable_trading_day_count", "losing_trading_day_count", "average_daily_pnl",
+  "profitable_trading_day_count", "losing_trading_day_count", "profitable_day_percentage",
+  "losing_day_percentage", "average_daily_pnl",
   "median_daily_pnl", "average_trades_per_trading_day",
   "median_trades_per_trading_day", "maximum_trades_per_trading_day",
   "longest_winning_trade_streak", "longest_losing_trade_streak",
@@ -41,6 +44,8 @@ function direct(
   findingCode: CoachFindingCode,
   comparisonType: CoachComparisonType = "group_vs_baseline",
   ruleCandidateKey: string | null = null,
+  findingMetricKey: TradeQueryMetricKey = "net_pnl",
+  findingSort: "ascending" | "descending" = "ascending",
 ): CoachCapabilityDefinition {
   return Object.freeze({
     capabilityKey,
@@ -53,6 +58,8 @@ function direct(
     presetKey: null,
     unsupportedData: Object.freeze([]),
     findingCode,
+    findingMetricKey,
+    findingSort,
     ruleCandidateKey,
   });
 }
@@ -64,6 +71,8 @@ function preset(
   findingCode: CoachFindingCode,
   comparisonType: CoachComparisonType = "group_vs_baseline",
   ruleCandidateKey: string | null = null,
+  findingMetricKey: TradeQueryMetricKey = "net_pnl",
+  findingSort: "ascending" | "descending" = "ascending",
 ): CoachCapabilityDefinition {
   return Object.freeze({
     capabilityKey,
@@ -76,6 +85,8 @@ function preset(
     presetKey,
     unsupportedData: Object.freeze([]),
     findingCode,
+    findingMetricKey,
+    findingSort,
     ruleCandidateKey,
   });
 }
@@ -95,6 +106,8 @@ function unsupported(
     presetKey: null,
     unsupportedData: Object.freeze(requiredData),
     findingCode: "unsupported_data",
+    findingMetricKey: "net_pnl",
+    findingSort: "ascending",
     ruleCandidateKey: null,
   });
 }
@@ -118,10 +131,14 @@ export const COACH_CAPABILITY_REGISTRY = Object.freeze([
   preset("first_vs_later_trade_performance", "analyze_trade_sequence_performance", ["trade_sequence_number"], "late_trade_weakness", "first_n_vs_later"),
   preset("fourth_and_later_trade_performance", "analyze_trade_sequence_performance", ["trade_sequence_number"], "late_trade_weakness", "first_n_vs_later", "skip_fourth_and_later_trades"),
   preset("repeat_ticker_attempts", "analyze_ticker_repeat_attempts", ["ticker", "repeat_ticker_attempt"], "repeat_ticker_weakness", "repeat_ticker_vs_first_attempt", "skip_repeat_attempts"),
-  preset("hold_time_performance", "analyze_holding_time", ["hold_time_bucket"], "biggest_negative_leak"),
+  preset("hold_time_performance", "analyze_holding_time", ["hold_time_bucket"], "weak_hold_time"),
   preset("direction_performance", "analyze_long_vs_short", ["direction"], "biggest_negative_leak"),
   preset("position_size_performance", "analyze_position_size_performance", ["position_size_bucket"], "large_size_weakness", "best_vs_worst_group", "reduce_size_after_loss"),
-  direct("profit_giveback_analysis", { kind: "day" }, ["date"], "giveback_detected", "green_day_vs_red_day", "stop_after_profit_giveback"),
+  direct("profit_giveback_analysis", { kind: "day" }, ["date"], "giveback_detected", "green_day_vs_red_day", "stop_after_profit_giveback", "maximum_peak_profit_giveback", "descending"),
+  direct("intraday_drawdown_analysis", { kind: "day" }, ["date"], "intraday_drawdown_detected", "group_vs_baseline", null, "maximum_intraday_drawdown"),
+  direct("day_outcome_consistency", { kind: "aggregate" }, ["trading_day"], "day_outcome_consistency", "green_day_vs_red_day", null, "profitable_day_percentage", "descending"),
+  unsupported("losers_held_too_long", ["exit_quality_or_alternative_outcome_authority_required"]),
+  unsupported("winners_cut_too_early", ["exit_quality_or_alternative_outcome_authority_required"]),
   direct("overtrading_analysis", { kind: "trade_sequence_bucket" }, ["trade_sequence_number"], "overtrading_detected", "first_n_vs_later", "maximum_trades_per_day"),
   direct("rule_candidate_ranking", { kind: "trade_sequence_bucket" }, ["trade_sequence_number", "prior_trade_outcome"], "best_rule_candidate", "first_n_vs_later", "stop_after_consecutive_losses"),
   unsupported("setup_tag_performance", ["setup_tags_required"]),
@@ -138,10 +155,15 @@ export function getCoachCapability(key: CoachCapabilityKey): CoachCapabilityDefi
 }
 
 export const COACH_INTENT_CAPABILITY_MAP: Readonly<Record<CoachIntentKey, readonly CoachCapabilityKey[]>> = Object.freeze({
-  rank_negative_performance_drivers: ["time_window_performance", "price_range_performance", "ticker_performance", "trade_sequence_performance", "position_size_performance"],
-  rank_positive_performance_drivers: ["time_window_performance", "price_range_performance", "ticker_performance", "direction_performance"],
+  rank_negative_performance_drivers: ["time_window_performance", "session_performance", "price_range_performance", "position_size_performance", "hold_time_performance", "profit_giveback_analysis", "intraday_drawdown_analysis"],
+  rank_positive_performance_drivers: ["time_window_performance", "session_performance", "price_range_performance", "position_size_performance", "hold_time_performance"],
   time_window_performance: ["time_window_performance"],
   session_performance: ["session_performance"],
+  hold_time_performance: ["hold_time_performance"],
+  intraday_drawdown_analysis: ["intraday_drawdown_analysis"],
+  day_outcome_consistency: ["day_outcome_consistency"],
+  losers_held_too_long: ["losers_held_too_long"],
+  winners_cut_too_early: ["winners_cut_too_early"],
   prior_outcome_performance: ["prior_outcome_performance"],
   after_win_performance: ["after_win_performance"],
   after_two_losses_performance: ["after_two_losses_performance"],
@@ -167,6 +189,13 @@ export const COACH_INTENT_CAPABILITY_MAP: Readonly<Record<CoachIntentKey, readon
 export const COACH_INTENT_SYNONYMS: Readonly<Record<string, CoachIntentKey>> = Object.freeze({
   "what_is_hurting_me_most": "rank_negative_performance_drivers",
   "when_do_i_trade_worst": "time_window_performance",
+  "which_session_hurts_me": "session_performance",
+  "do_i_hold_losers_too_long": "losers_held_too_long",
+  "do_i_cut_winners_too_early": "winners_cut_too_early",
+  "do_i_hold_quick_scalps_or_longer": "hold_time_performance",
+  "which_days_have_the_worst_giveback": "profit_giveback_analysis",
+  "which_days_have_the_worst_drawdown": "intraday_drawdown_analysis",
+  "how_consistent_are_my_green_and_red_days": "day_outcome_consistency",
   "do_i_trade_worse_after_losses": "prior_outcome_performance",
   "do_i_trade_worse_after_wins": "after_win_performance",
   "what_happens_after_two_losses": "after_two_losses_performance",
