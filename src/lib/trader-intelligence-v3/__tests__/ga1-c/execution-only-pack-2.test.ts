@@ -1176,6 +1176,81 @@ describe("GA1-C preserve-or-exclude governed presets", () => {
     });
   });
 
+  it("derives exact resized authority only from decomposed scalable fees", () => {
+    const exactAuthorities = [
+      {
+        state: "broker_reported_complete",
+        components: [
+          { kind: "fixed", signedAmount: "-1" },
+          { kind: "quantity_variable", signedAmount: "-1" },
+        ],
+        signedCharges: "-2",
+        expectedCharges: { numerator: "-3", denominator: "2" },
+        expectedNet: { numerator: "7", denominator: "2" },
+      },
+      {
+        state: "account_policy_calculated",
+        components: [
+          { kind: "fixed", signedAmount: "-1" },
+          { kind: "notional_variable", signedAmount: "-1" },
+        ],
+        signedCharges: "-2",
+        expectedCharges: { numerator: "-3", denominator: "2" },
+        expectedNet: { numerator: "7", denominator: "2" },
+      },
+      {
+        state: "explicitly_zero",
+        signedCharges: "0",
+        expectedCharges: { numerator: "0", denominator: "1" },
+        expectedNet: { numerator: "5", denominator: "1" },
+      },
+    ] as const;
+    for (const authority of exactAuthorities) {
+      const { signedCharges, expectedCharges, expectedNet, ...feeAuthority } =
+        authority;
+      const prepared = source([
+        {
+          entryAt: "2026-07-01T13:30:00.000000000Z",
+          exitAt: "2026-07-01T13:31:00.000000000Z",
+          netPnl: "-10",
+        },
+        {
+          entryAt: "2026-07-01T13:32:00.000000000Z",
+          exitAt: "2026-07-01T13:33:00.000000000Z",
+          grossPnl: "10",
+          signedCharges,
+          netPnl: signedCharges === "0" ? "10" : "8",
+          quantity: "4",
+          feeAuthority,
+        },
+      ]);
+      const compiled = compileReduceSizeAfterLossPreset(
+        prepared.sourceQueryPlan,
+        prepared.fixture.authority,
+        {},
+      );
+      if (!compiled.ok) throw new Error(compiled.error.code);
+      const result = run(prepared, compiled.value);
+      if (!result.ok) throw new Error(`${result.error.code}:${result.error.path}`);
+      expect(result.value.tradeOutcomes[1]).toMatchObject({
+        classification: "executed_resized",
+        resizeEconomics: {
+          state: "evaluated",
+          value: {
+            simulatedCharges: expectedCharges,
+            simulatedChargesAuthority: "exact",
+            simulatedNetPnl: expectedNet,
+            simulatedNetPnlAuthority: "exact",
+          },
+        },
+      });
+      expect(result.value.resizeSummary).toMatchObject({
+        exactNetComparisonCount: "1",
+        unavailableNetComparisonCount: "0",
+      });
+    }
+  });
+
   it("uses strict completion, ignores gain and flat, and consumes a zero-share resize once", () => {
     const equal = source([
       {
@@ -1387,6 +1462,91 @@ describe("GA1-C preserve-or-exclude governed presets", () => {
       expect(result.value.simulatedNetPnl).toBeNull();
       expect(result.value.netPnlDifference).toBeNull();
       expect(result.value.effect).toBe("not_comparable");
+      if (index === 4) {
+        expect(result.value.tradeOutcomes[1]).toMatchObject({
+          classification: "executed_resized_net_unavailable",
+          reasonCode: "ti_v3_simulation_resize_net_unavailable",
+          resizeEconomics: {
+            state: "evaluated",
+            value: {
+              simulatedCharges: null,
+              simulatedChargesAuthority: "unavailable",
+              simulatedNetPnl: null,
+              simulatedNetPnlAuthority: "unavailable",
+              limitationCodes: expect.arrayContaining([
+                "ti_v3_simulation_legacy_undecomposed_fee",
+              ]),
+            },
+          },
+        });
+        expect(result.value.resizeSummary).toMatchObject({
+          exactNetComparisonCount: "0",
+          unavailableNetComparisonCount: "1",
+        });
+        expect(result.value.evidence.find((bucket) =>
+          bucket.category === "exact_net_resized_trades")).toMatchObject({
+          totalQualifyingCount: "0",
+        });
+        expect(result.value.evidence.find((bucket) =>
+          bucket.category === "fee_authority_limited_resized_trades"))
+          .toMatchObject({
+            totalQualifyingCount: "1",
+            emittedCount: "1",
+          });
+
+        const { resultDigest: _digest, ...resultBody } = result.value;
+        void _digest;
+        const originalOutcome = result.value.tradeOutcomes[1];
+        const originalEconomics = originalOutcome.resizeEconomics;
+        if (
+          originalEconomics.state !== "evaluated" ||
+          originalEconomics.value === null
+        ) {
+          throw new Error("expected evaluated resize economics");
+        }
+        const tamperedBody = {
+          ...resultBody,
+          tradeOutcomes: result.value.tradeOutcomes.map((outcome, outcomeIndex) =>
+            outcomeIndex === 1
+              ? {
+                  ...originalOutcome,
+                  classification: "executed_resized",
+                  reasonCode: "ti_v3_simulation_resize_executed_exact_net",
+                  resizeEconomics: {
+                    state: "evaluated",
+                    value: {
+                      ...originalEconomics.value,
+                      simulatedCharges: {
+                        numerator: "-1",
+                        denominator: "1",
+                        currency: "USD",
+                      },
+                      simulatedChargesAuthority: "exact",
+                      simulatedNetPnl: {
+                        numerator: "4",
+                        denominator: "1",
+                        currency: "USD",
+                      },
+                      simulatedNetPnlAuthority: "exact",
+                    },
+                  },
+                }
+              : outcome
+          ),
+        };
+        const tampered = finalizeContentAddressedAuthority(
+          "counterfactual_simulation_result",
+          tamperedBody,
+          "resultDigest",
+        );
+        if (!tampered.ok) throw new Error(tampered.error.code);
+        expect(verifyAndReplayCounterfactualSimulationResult({
+          source: prepared.fixture.source,
+          partitionReceipt: prepared.fixture.partition,
+          sourceQueryResult: prepared.sourceQueryResult,
+          persistedResult: tampered.value,
+        })).toMatchObject({ ok: false });
+      }
     }
   });
 

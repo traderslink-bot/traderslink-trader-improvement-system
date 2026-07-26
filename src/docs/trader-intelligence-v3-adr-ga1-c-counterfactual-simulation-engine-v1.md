@@ -5,6 +5,15 @@
 **Base:** `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`
 **Branch:** `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`
 
+## Fee-authority audit correction
+
+Row-level `broker_reported_complete` or `account_policy_calculated` authority is
+exact for resizing only when every required component is decomposed and governed
+by an exact resizing policy. Any `unknown_undecomposed` component derives
+resized charge/net authority as `unavailable`, even under those row-level
+states. Exact gross remains available, while simulated charges and net remain
+null and the outcome cannot enter the exact-net comparison population.
+
 ## Decision
 
 GA1-C introduces one deterministic, execution-only counterfactual engine. Named

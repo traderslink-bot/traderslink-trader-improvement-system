@@ -1,5 +1,15 @@
 # Independent Re-Audit Handoff: GA1-C Checkpoint Two
 
+## Focused correction to verify
+
+Verify that resized charge/net authority is derived from both the fee state and
+component decomposability. In particular, `broker_reported_complete` and
+`account_policy_calculated` are exact only with fully decomposed, exactly
+resizable components. Any unknown/undecomposed component must produce null
+simulated charges/net with unavailable authority, retain exact gross and the
+legacy limitation code, enter fee-limited evidence, remain outside exact-net
+summaries/evidence, and fail correctly re-digested result/replay substitution.
+
 ## Current audit target: fee-aware resizing checkpoint
 
 Audit the continuation from committed head

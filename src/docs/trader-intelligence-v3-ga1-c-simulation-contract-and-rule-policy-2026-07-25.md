@@ -1,5 +1,16 @@
 # GA1-C Simulation Contract and Rule Policy
 
+## Derived resized fee authority
+
+The resizing executor derives one authoritative charge/net status from both the
+row-level fee state and its components. Fully decomposed complete broker or
+account-policy components and explicit zero are exact; partial is incomplete;
+estimated remains estimated; not-included, unavailable, legacy aggregate-only,
+or any unknown/undecomposed component is unavailable. The same derived value
+controls disposition, reason, charge/net values and authorities, limitations,
+summaries, and evidence. A null simulated amount is never admitted to an exact
+comparison. Gross remains exact independently when its sizing inputs are exact.
+
 ## Plan contract
 
 `ti_v3_counterfactual_simulation_plan_v3` is strict plain data and binds:

@@ -139,9 +139,17 @@ function unavailableQuantity(
   });
 }
 
-function feeStatus(
+function deriveResizedFeeAuthority(
   authority: SimulationFeeAuthority,
 ): ResizeNetAuthority {
+  if (
+    "components" in authority &&
+    authority.components.some(
+      (component) => component.kind === "unknown_undecomposed",
+    )
+  ) {
+    return "unavailable";
+  }
   switch (authority.state) {
     case "broker_reported_complete":
     case "account_policy_calculated":
@@ -219,17 +227,14 @@ export function calculateResizeEconomics(row: AnalyticalRow): ResizeEconomics {
     });
   }
 
-  const feeAuthority = feeStatus(row.feeAuthority);
+  const resizedFeeAuthority = deriveResizedFeeAuthority(row.feeAuthority);
   let fixed = ratio("0");
   let variable = ratio("0");
-  let exactFees = feeAuthority === "exact";
+  const exactFees = resizedFeeAuthority === "exact";
   if (row.feeAuthority.state !== "explicitly_zero") {
-    if (!("components" in row.feeAuthority)) {
-      exactFees = false;
-    } else {
+    if ("components" in row.feeAuthority) {
       for (const component of row.feeAuthority.components) {
         if (component.kind === "unknown_undecomposed") {
-          exactFees = false;
           continue;
         }
         const componentAmount = ratio(component.signedAmount);
@@ -260,16 +265,16 @@ export function calculateResizeEconomics(row: AnalyticalRow): ResizeEconomics {
     : null;
   const disposition = exactFees
     ? "executed_resized"
-    : feeAuthority === "incomplete"
+    : resizedFeeAuthority === "incomplete"
       ? "executed_resized_net_incomplete"
-      : feeAuthority === "estimated"
+      : resizedFeeAuthority === "estimated"
         ? "executed_resized_net_estimated"
         : "executed_resized_net_unavailable";
   const reasonCode = exactFees
     ? "ti_v3_simulation_resize_executed_exact_net"
-    : feeAuthority === "incomplete"
+    : resizedFeeAuthority === "incomplete"
       ? "ti_v3_simulation_resize_net_incomplete"
-      : feeAuthority === "estimated"
+      : resizedFeeAuthority === "estimated"
         ? "ti_v3_simulation_resize_net_estimated"
         : "ti_v3_simulation_resize_net_unavailable";
   return Object.freeze({
@@ -285,9 +290,9 @@ export function calculateResizeEconomics(row: AnalyticalRow): ResizeEconomics {
     simulatedGrossPnl: gross,
     simulatedGrossPnlAuthority: "exact",
     simulatedCharges: exactFees ? simulatedCharges : null,
-    simulatedChargesAuthority: exactFees ? "exact" : feeAuthority,
+    simulatedChargesAuthority: resizedFeeAuthority,
     simulatedNetPnl: simulatedNet,
-    simulatedNetPnlAuthority: exactFees ? "exact" : feeAuthority,
+    simulatedNetPnlAuthority: resizedFeeAuthority,
     fixedChargesRetained: amount(fixed, row.currency),
     variableChargesRecalculated: amount(variable, row.currency),
     limitationCodes: Object.freeze(

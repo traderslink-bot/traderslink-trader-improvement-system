@@ -1,5 +1,26 @@
 # GA1-C Verification Ledger
 
+## Focused fee-authority remediation
+
+Independent audit identified that a complete row-level authority containing an
+unknown/undecomposed component could retain an `exact` authority label while
+simulated charges and net were null. The executor now derives unavailable
+resized authority for that case. Focused assertions cover complete broker,
+account-policy, explicit-zero, partial, estimated, not-included, unavailable,
+and legacy undecomposed authority; exact/unavailable summary populations,
+evidence routing, and correctly re-digested result rejection are semantic rather
+than snapshot-only.
+
+| Remediation check | Result |
+| --- | --- |
+| focused fee-authority and replay tests | passed: 2 files / 35 tests |
+| all GA1-C | passed: 3 files / 47 tests |
+| affected GA0-B3 / GA1-A / GA1-B | passed: 4 files / 47 tests |
+| combined required semantic population | 7 files / 94 tests |
+| isolated GA1-B rerun after one load-sensitive timeout | passed: 1 file / 15 tests |
+| TypeScript and targeted ESLint | passed |
+| architecture and `git diff --check` | passed |
+
 ## Fee-aware resizing checkpoint
 
 Committed starting head:

@@ -1,5 +1,15 @@
 # GA1-C Checkpoint-Two Implementation and Audit Handoff
 
+## Focused fee-authority remediation
+
+The audit inconsistency is corrected by deriving resized charge/net authority
+once from fee state plus component decomposability. A complete broker/account
+label is not sufficient when an unknown/undecomposed component exists: the
+resized outcome is net-unavailable, charges/net are null, the legacy limitation
+is retained, exact gross remains available, and exact-net summaries/evidence
+exclude the row. Re-execution rejects a correctly re-digested result that
+promotes this limited outcome to exact.
+
 ## Fee-aware resizing checkpoint
 
 Starting head:

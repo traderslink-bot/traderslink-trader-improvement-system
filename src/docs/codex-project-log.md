@@ -1,3 +1,26 @@
+# 2026-07-25 - GA1-C fee-authority audit remediation active
+
+- Continued draft PR #162 from synchronized head `636e58b5`.
+- Independent audit found that an unknown/undecomposed fee component could
+  leave resized charge/net authority labeled exact despite null amounts.
+- Resized fee authority is now derived once from row state plus component
+  decomposability. Unknown/legacy undecomposed components force unavailable
+  resized charges/net while preserving exact gross.
+- Summary and exact-net evidence selection also require a non-null exact amount.
+- Added semantic exact broker/account/zero, legacy limitation, reconciliation,
+  evidence, and correctly re-digested result-tamper coverage.
+- Focused remediation verification passes 2 files / 35 tests. The complete
+  required population is 7 files / 94 tests; one unchanged GA1-B test exceeded
+  its fixed five-second timeout under concurrent load and its isolated 15-test
+  file rerun passed. TypeScript, targeted ESLint, architecture, and diff checks
+  pass.
+
+Current best next step:
+
+- Complete focused and affected regression verification, publish one remediation
+  commit to draft PR #162, observe CI, and stop for independent re-audit. Do not
+  merge, deploy, run the final 10,000-row proof, or begin GA1-D/GA1-E.
+
 # 2026-07-25 - GA1-C fee-aware post-loss resize checkpoint active
 
 - Continued draft PR #162 at accepted origin checkpoint `d2fb09c`.

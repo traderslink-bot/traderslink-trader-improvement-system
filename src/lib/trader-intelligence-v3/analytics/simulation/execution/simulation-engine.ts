@@ -891,7 +891,8 @@ function buildResizeSummary(
       outcome.resizeEconomics.value!.simulatedGrossPnlAuthority === "exact"
     ).length),
     exactNetComparisonCount: countString(resizing.filter((outcome) =>
-      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact"
+      outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact" &&
+      outcome.resizeEconomics.value!.simulatedNetPnl !== null
     ).length),
     incompleteNetComparisonCount: countString(resizing.filter((outcome) =>
       outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "incomplete"
@@ -1511,7 +1512,8 @@ export function executeCounterfactualSimulation(
   const zeroSizeOutcomes = finalOutcomes.filter((outcome) =>
     outcome.classification === "excluded_zero_simulated_size");
   const exactNetResizeOutcomes = resizedOutcomes.filter((outcome) =>
-    outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact");
+    outcome.resizeEconomics.value!.simulatedNetPnlAuthority === "exact" &&
+    outcome.resizeEconomics.value!.simulatedNetPnl !== null);
   const feeLimitedResizeOutcomes = resizedOutcomes.filter((outcome) =>
     outcome.resizeEconomics.value!.simulatedNetPnlAuthority !== "exact");
   const grossHelpedResizeOutcomes = resizedOutcomes.filter((outcome) => {

@@ -48,6 +48,10 @@ type RowInput = Readonly<{
   currency?: "USD" | "EUR";
   instrument?: string;
   entryPrice?: string | null;
+  quantity?: string;
+  grossPnl?: string;
+  signedCharges?: string;
+  feeAuthority?: unknown;
 }>;
 
 function clone<T>(value: T): T {
@@ -76,8 +80,8 @@ function row(template: AnalyticalRow, index: number, input: RowInput) {
     weekday: "wednesday",
     session: "regular",
     sequenceInPartition: String(index),
-    grossPnl: input.netPnl,
-    signedCharges: "0",
+    grossPnl: input.grossPnl ?? input.netPnl,
+    signedCharges: input.signedCharges ?? "0",
     netPnl: input.netPnl,
     entryNotional: input.entryPrice === null
       ? {
@@ -94,7 +98,10 @@ function row(template: AnalyticalRow, index: number, input: RowInput) {
           state: "unavailable",
           reasonCode: "ti_v3_test_entry_price_unavailable",
         }
-      : { state: "available", quantity: "1" },
+      : { state: "available", quantity: input.quantity ?? "1" },
+    ...(input.feeAuthority === undefined
+      ? {}
+      : { feeAuthority: input.feeAuthority }),
   });
   if (!built.ok) throw new Error(`${built.error.code}:${built.error.path}`);
   return built.value;
@@ -650,6 +657,77 @@ describe("GA1-C persisted simulation replay envelope", () => {
         value: { result: { resultDigest: result.resultDigest } },
       });
     }
+  });
+
+  it("rejects a re-digested envelope that promotes undecomposed resized fees to exact", () => {
+    const prepared = source([
+      {
+        entryAt: "2026-07-01T13:30:00.000000000Z",
+        exitAt: "2026-07-01T13:31:00.000000000Z",
+        netPnl: "-10",
+      },
+      {
+        entryAt: "2026-07-01T13:32:00.000000000Z",
+        exitAt: "2026-07-01T13:33:00.000000000Z",
+        grossPnl: "10",
+        signedCharges: "-2",
+        netPnl: "8",
+        quantity: "4",
+        feeAuthority: {
+          state: "broker_reported_complete",
+          components: [{
+            kind: "unknown_undecomposed",
+            signedAmount: "-2",
+          }],
+        },
+      },
+    ]);
+    const compiled = compileReduceSizeAfterLossPreset(
+      prepared.sourceQueryPlan,
+      prepared.fixture.authority,
+      {},
+    );
+    if (!compiled.ok) throw new Error(compiled.error.code);
+    const issued = issueGoverned(prepared, compiled.value);
+    expect(issued.result.resizeSummary).toMatchObject({
+      exactNetComparisonCount: "0",
+      unavailableNetComparisonCount: "1",
+    });
+
+    const { resultDigest: _resultDigest, ...resultBody } = issued.result;
+    void _resultDigest;
+    const tamperedResult = redigestResult({
+      ...resultBody,
+      resizeSummary: {
+        ...issued.result.resizeSummary,
+        exactNetComparisonCount: "1",
+        unavailableNetComparisonCount: "0",
+      },
+    });
+    const { envelopeDigest: _envelopeDigest, ...envelopeBody } =
+      issued.envelope;
+    void _envelopeDigest;
+    const tamperedEnvelope = redigestEnvelope({
+      ...envelopeBody,
+      persistedSimulationResultDigest: tamperedResult.resultDigest,
+      artifactReferences: issued.envelope.artifactReferences.map((reference) =>
+        reference.artifactKind === "simulation_result"
+          ? {
+              ...reference,
+              artifactDigest: tamperedResult.resultDigest,
+            }
+          : reference
+      ),
+    });
+    expect(replayCounterfactualSimulationEnvelope({
+      source: prepared.fixture.source,
+      partitionReceipt: prepared.partition,
+      sourceQueryResult: prepared.sourceQueryResult,
+      simulationPlan: compiled.value.plan,
+      persistedResult: tamperedResult,
+      compiledPreset: compiled.value,
+      envelope: tamperedEnvelope,
+    })).toMatchObject({ ok: false });
   });
 
   it("rejects substituted source, partition, query-result, and plan authority", () => {
