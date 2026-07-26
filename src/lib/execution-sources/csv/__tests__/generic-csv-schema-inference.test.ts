@@ -15,13 +15,13 @@ describe("generic CSV schema inference", () => {
     ].join("\n");
     const inference = inferGenericCsvSchema(csvText);
     expect(inference.proposedMapping).toMatchObject({
-      symbol: ["Trading Symbol"],
-      timestamp: ["Executed At"],
-      side: ["Instruction"],
-      quantity: ["Filled Shares"],
-      price: ["Average Fill"],
-      commission: ["Commission Paid"],
-      fees: ["Other Fees"],
+      symbol: "Trading Symbol",
+      timestamp: "Executed At",
+      side: "Instruction",
+      quantity: "Filled Shares",
+      price: "Average Fill",
+      commission: "Commission Paid",
+      fees: "Other Fees",
     });
     expect(inference.status).not.toBe("blocked");
   });
