@@ -134,6 +134,144 @@ describe("GA1-D Coach Trading Intelligence Foundation", () => {
     });
   });
 
+  it("routes after-win and after-loss behaviour through their distinct accepted GA1-B presets", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const afterWin = executeCoachIntent({
+      intentKey: "after_win_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const afterLoss = executeCoachIntent({
+      intentKey: "prior_outcome_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(afterWin).toMatchObject({ ok: true });
+    expect(afterLoss).toMatchObject({ ok: true });
+    if (!afterWin.ok || !afterLoss.ok) return;
+    expect(afterWin.value[0]).toMatchObject({
+      capabilityKey: "after_win_performance",
+      normalizedFilters: [{ kind: "previous_completed_outcome", values: ["gain"] }],
+    });
+    expect(afterLoss.value[0]).toMatchObject({
+      capabilityKey: "prior_outcome_performance",
+      normalizedFilters: [{ kind: "previous_completed_outcome", values: ["loss"] }],
+    });
+  });
+
+  it("returns explicit unsupported results for consecutive-loss and daily-state behaviour that verified authority cannot filter", () => {
+    const fixture = buildSyntheticQueryFixture(12);
+    const result = executeCoachIntent({
+      intentKey: "after_two_losses_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const dailyState = executeCoachIntent({
+      intentKey: "trades_after_daily_green",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(dailyState).toMatchObject({ ok: true });
+    if (!result.ok || !dailyState.ok) return;
+    expect(result.value[0]).toMatchObject({
+      authorityStatus: "unsupported",
+      unsupportedData: { code: "consecutive_loss_streak_filter_required" },
+      primaryFinding: null,
+    });
+    expect(dailyState.value[0]).toMatchObject({
+      authorityStatus: "unsupported",
+      unsupportedData: { code: "pre_entry_daily_realized_state_filter_required" },
+      primaryFinding: null,
+    });
+  });
+
+  it("composes the behaviour-leak route from bounded sequence, prior-outcome, and repeat-attempt evidence", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const result = executeCoachIntent({
+      intentKey: "behaviour_leak_ranking",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.value.map((item) => item.capabilityKey)).toEqual([
+      "prior_outcome_performance",
+      "after_win_performance",
+      "trade_sequence_performance",
+      "repeat_ticker_attempts",
+      "overtrading_analysis",
+    ]);
+    for (const item of result.value) {
+      expect(item.sampleSizeStatus).toBe("meets_minimum_sample");
+      expect(item.metricTables).toHaveLength(1);
+      expect(item.evidenceTradeReferences.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("exposes first-versus-later and fourth-and-later through the verified sequence preset", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const firstVsLater = executeCoachIntent({
+      intentKey: "first_vs_later_trade_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    const fourthAndLater = executeCoachIntent({
+      intentKey: "fourth_and_later_trade_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(firstVsLater).toMatchObject({ ok: true });
+    expect(fourthAndLater).toMatchObject({ ok: true });
+    if (!firstVsLater.ok || !fourthAndLater.ok) return;
+    expect(firstVsLater.value[0]).toMatchObject({
+      capabilityKey: "first_vs_later_trade_performance",
+      comparisonType: "first_n_vs_later",
+    });
+    expect(fourthAndLater.value[0]).toMatchObject({
+      capabilityKey: "fourth_and_later_trade_performance",
+      primaryFinding: { ruleCandidateKey: "skip_fourth_and_later_trades" },
+    });
+  });
+
+  it("makes behaviour-rule candidates only from existing deterministic rule keys", () => {
+    const fixture = buildSyntheticQueryFixture(30);
+    const result = executeCoachIntent({
+      intentKey: "behaviour_rule_candidate_ranking",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    const candidates = result.value.flatMap((item) => item.rankedFindingList)
+      .filter((finding) => finding.ruleCandidateStatus === "rule_to_test")
+      .map((finding) => finding.ruleCandidateKey);
+    expect(candidates).toEqual(expect.arrayContaining([
+      "wait_after_loss",
+      "maximum_trades_per_day",
+      "stop_after_profit_giveback",
+      "skip_repeat_attempts",
+    ]));
+  });
+
+  it("withholds behaviour findings below the capability minimum while retaining the query result and limitation", () => {
+    const fixture = buildSyntheticQueryFixture(2);
+    const result = executeCoachIntent({
+      intentKey: "trade_sequence_performance",
+      source: fixture.source,
+      partitionReceipt: fixture.partition,
+    });
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) return;
+    expect(result.value[0]).toMatchObject({
+      sampleSizeStatus: "insufficient_sample_size",
+      primaryFinding: null,
+      rankedFindingList: [],
+      unsupportedData: { code: "insufficient_sample_size" },
+    });
+    expect(result.value[0].metricTables).toHaveLength(1);
+  });
+
   it("withholds a trend finding when either verified period is below the minimum sample", () => {
     const fixture = buildSyntheticQueryFixture(5);
     const result = executeCoachIntent({

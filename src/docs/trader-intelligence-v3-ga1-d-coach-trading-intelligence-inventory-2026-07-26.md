@@ -33,6 +33,23 @@ handoff update.
 - [implemented_now] this month vs last month
 - [implemented_now] current period vs baseline
 
+## Checkpoint Three Exact Status Update
+
+Checkpoint three exposes only the following verified Coach behaviour paths through existing GA1-A query authority and GA1-B presets. Findings retain query/evidence identity and are withheld below the capability minimum; rule candidates remain `rule_to_test` only. No other inventory status moves are made by this checkpoint-three handoff update.
+
+- [implemented_now] after-win performance
+- [implemented_now] after-loss performance
+- [implemented_now] first trade performance
+- [implemented_now] fourth-and-later trade performance
+- [implemented_now] overtrading detection (bounded trade-sequence proxy only)
+- [implemented_now] repeat ticker behaviour
+- [implemented_now] behaviour leak ranking
+- [implemented_now] behaviour-rule candidates using existing `wait_after_loss`, `maximum_trades_per_day`, `stop_after_profit_giveback`, and `skip_repeat_attempts` keys
+- [blocked_by_missing_data] after-two-losses performance (requires a verified consecutive-loss-streak filter)
+- [blocked_by_missing_data] after-three-losses performance (requires a verified consecutive-loss-streak filter)
+- [blocked_by_missing_data] trading while green (requires a verified pre-entry daily realised-state filter)
+- [blocked_by_missing_data] trading while red (requires a verified pre-entry daily realised-state filter)
+
 ## Complete controlling inventory
 ## Engine 1 - Analytics Engine
 ### Already available foundation
@@ -130,11 +147,11 @@ handoff update.
 - [deferred_checkpoint] high-volume trading days
 ### Sequence stats
 - [implemented_now] trade sequence number
-- [deferred_checkpoint] after-win performance
-- [deferred_checkpoint] after-loss performance
+- [implemented_now] after-win performance
+- [implemented_now] after-loss performance
 - [implemented_now] after-breakeven performance
-- [deferred_checkpoint] after-two-losses performance
-- [deferred_checkpoint] after-three-losses performance
+- [blocked_by_missing_data] after-two-losses performance
+- [blocked_by_missing_data] after-three-losses performance
 - [deferred_checkpoint] after-big-win performance
 - [deferred_checkpoint] after-big-loss performance
 - [implemented_now] loss streaks
@@ -289,8 +306,8 @@ handoff update.
 - [deferred_checkpoint] chasing proxy
 - [implemented_now] trading after loss
 - [implemented_now] trading after win
-- [deferred_checkpoint] trading while red
-- [implemented_now] trading while green
+- [blocked_by_missing_data] trading while red
+- [blocked_by_missing_data] trading while green
 - [implemented_now] giving back profits
 - [implemented_now] repeat ticker attempts
 - [implemented_now] cutting winners too early
@@ -610,7 +627,7 @@ handoff update.
 - [implemented_now] after-loss behaviour
 - [implemented_now] after-win behaviour
 - [implemented_now] after-breakeven behaviour
-- [implemented_now] loss-streak behaviour
+- [blocked_by_missing_data] loss-streak behaviour
 - [implemented_now] win-streak behaviour
 - [implemented_now] giveback behaviour
 - [implemented_now] green-to-red behaviour
@@ -625,8 +642,8 @@ handoff update.
 - [implemented_now] oversized loss behaviour
 - [implemented_now] size-up-after-loss behaviour
 - [implemented_now] size-up-after-win behaviour
-- [implemented_now] trading while red
-- [implemented_now] trading while green
+- [blocked_by_missing_data] trading while red
+- [blocked_by_missing_data] trading while green
 - [implemented_now] trading after daily target
 - [implemented_now] trading after max loss
 - [implemented_now] trading outside best window

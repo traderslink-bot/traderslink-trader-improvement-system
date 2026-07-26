@@ -162,7 +162,9 @@ function buildResult(
     ? comparisonMeetsMinimumSample
       ? trendFinding(request.capabilityKey, result, comparison, baseline)
       : Object.freeze([] as CoachFinding[])
-    : resultFindings(request.capabilityKey, result, capability.findingCode, capability.ruleCandidateKey);
+    : meetsMinimumSample
+      ? resultFindings(request.capabilityKey, result, capability.findingCode, capability.ruleCandidateKey)
+      : Object.freeze([] as CoachFinding[]);
   const primary = findings[0] ?? null;
   const evidence = Object.freeze(result.evidence.flatMap((item) => item.candidates));
   const content = {
