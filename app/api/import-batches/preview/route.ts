@@ -7,6 +7,7 @@ import {
   readJsonRequest,
 } from "../../../../src/lib/trader-analytics/server/import-commit-service";
 import { SqliteImportCommitRepository } from "../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../src/lib/trader-analytics/server/owner-workspace-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,8 @@ async function POSTHandler(request: Request): Promise<Response> {
   }
 
   const repository = new SqliteImportCommitRepository();
-  const plan = buildDurableImportCommitPlan({ input, repository });
+  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const plan = buildDurableImportCommitPlan({ input, repository, context });
   repository.savePreviewPlan(plan);
 
   return Response.json({

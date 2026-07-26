@@ -17,6 +17,7 @@ import {
   userFacingTradeSymbol,
 } from "@/src/lib/trader-analytics";
 import { buildSavedOrSampleTraderAnalyticsViewModel } from "@/src/lib/trader-analytics/server/saved-trader-analytics-data";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "@/src/lib/trader-analytics/server/owner-workspace-context";
 import { buildTradeImportSourceCautionReadModel } from "@/src/lib/trader-analytics/server/saved-import-source-caution";
 import { buildSavedTradeThreadReadModel } from "@/src/lib/trader-analytics/server/saved-trade-threads";
 import {
@@ -856,8 +857,10 @@ export default async function TradeReviewPage({
   const query = await searchParams;
   const demoParam = Array.isArray(query?.demo) ? query?.demo[0] : query?.demo;
   const tradeId = decodeURIComponent(routeParams.tradeId);
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({});
   const data = buildSavedOrSampleTraderAnalyticsViewModel({
     preferSample: demoParam === "sample",
+    userId: ownerContext.ownerId,
   });
   const activeTier = readTraderIntelligenceTierFromEnv();
   const chartContextAllowed = canUseChartContext(activeTier);

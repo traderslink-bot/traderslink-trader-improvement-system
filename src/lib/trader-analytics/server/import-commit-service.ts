@@ -15,6 +15,7 @@ import type {
   BrokerExecutionCsvColumnMapping,
   BrokerExecutionCsvFormat,
 } from "../../execution-sources/csv";
+import type { OwnerWorkspaceImportContext } from "./owner-workspace-context";
 
 const VALID_BROKERS = new Set<BrokerExecutionCsvFormat>([
   "auto",
@@ -33,6 +34,8 @@ export interface ImportCommitRequestInput {
   columnMapping?: BrokerExecutionCsvColumnMapping;
   acknowledgements?: ImportCommitPlannerAcknowledgements;
   repairSource?: ImportCommitRepairSource;
+  timestampTimezone?: string;
+  optionsHandling?: "reject" | "skip" | "allow";
 }
 
 export interface ImportCommitApiPlanResponse {
@@ -113,34 +116,56 @@ export function parseImportCommitRequestInput(
     columnMapping: parseColumnMapping(document.columnMapping),
     acknowledgements: parseAcknowledgements(document.acknowledgements),
     repairSource: parseRepairSource(document.repairSource),
+    timestampTimezone: typeof document.timestampTimezone === "string" ? document.timestampTimezone : undefined,
+    optionsHandling: document.optionsHandling === "reject" || document.optionsHandling === "skip" || document.optionsHandling === "allow" ? document.optionsHandling : undefined,
   };
 }
 
 export function buildDurableImportCommitPlan(args: {
   input: ImportCommitRequestInput;
   repository: SqliteImportCommitRepository;
+  context?: OwnerWorkspaceImportContext;
   batchId?: string;
   generatedAt?: string;
 }): ImportCommitPlanResult {
+  const account = args.context?.account;
+  const accountId = account?.id ?? DEMO_ACCOUNT_ID;
+  // Do not replace broker defaults with an otherwise-empty account policy:
+  // generic CSV needs its default sell-starting-trade allowance, while IBKR
+  // keeps its own long-gap grouping behavior. Account settings only override
+  // those defaults when the owner has changed one.
+  const tradeGroupingRules =
+    account &&
+    (account.importDefaults.maxTradeGroupingGapMinutes !== null ||
+      !account.importDefaults.splitTradesAtSessionBoundary)
+      ? {
+          maxGapMinutes:
+            account.importDefaults.maxTradeGroupingGapMinutes ?? undefined,
+          splitAtSessionBoundary:
+            account.importDefaults.splitTradesAtSessionBoundary,
+        }
+      : undefined;
   const experience = buildCsvDryRunImportExperience({
     csvText: args.input.csvText,
     broker: args.input.broker,
-    accountTimezone: args.input.accountTimezone,
+    accountTimezone: args.input.timestampTimezone ?? account?.importDefaults.timestampTimezone ?? args.input.accountTimezone,
     columnMapping: args.input.columnMapping,
+    optionsHandling: args.input.optionsHandling ?? account?.importDefaults.optionsHandling,
+    tradeGroupingRules,
   });
 
   return buildImportCommitPlan({
-    workspaceId: DEMO_WORKSPACE_ID,
-    userId: DEMO_USER_ID,
-    accountId: DEMO_ACCOUNT_ID,
+    workspaceId: args.context?.workspaceId ?? DEMO_WORKSPACE_ID,
+    userId: args.context?.ownerId ?? DEMO_USER_ID,
+    accountId,
     batchId: args.batchId,
     experience,
     generatedAt: args.generatedAt,
     existingFileFingerprints: args.repository.listCommittedFileFingerprints(
-      DEMO_ACCOUNT_ID,
+      accountId,
     ),
     existingTradeFingerprints: args.repository.listCommittedTradeFingerprints(
-      DEMO_ACCOUNT_ID,
+      accountId,
     ),
     acknowledgements: args.input.acknowledgements,
     repairSource: args.input.repairSource,

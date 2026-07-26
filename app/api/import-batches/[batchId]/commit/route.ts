@@ -10,6 +10,7 @@ import {
 import { readLevelsSystemRuntimeConfigFromEnv } from "../../../../../src/lib/support-resistance/levels-system-runtime-options";
 import { runPersistedDecisionReviewJobs } from "../../../../../src/lib/trader-analytics/server/saved-decision-review-service";
 import { SqliteImportCommitRepository } from "../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../../src/lib/trader-analytics/server/owner-workspace-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ async function POSTHandler(
   const routeParams = await context.params;
   const batchId = decodeURIComponent(routeParams.batchId);
   const repository = new SqliteImportCommitRepository();
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   let plan = repository.getPreviewPlan(batchId);
 
   if (!plan) {
@@ -62,6 +64,9 @@ async function POSTHandler(
       "not_found",
       `Import batch ${batchId} was not found.`,
     );
+  }
+  if (plan.batch.userId !== ownerContext.ownerId || plan.batch.accountId !== ownerContext.account.id) {
+    return importCommitErrorResponse(404, "not_found", `Import batch ${batchId} was not found.`);
   }
 
   let document: unknown = {};
@@ -82,6 +87,7 @@ async function POSTHandler(
       plan = buildDurableImportCommitPlan({
         input,
         repository,
+        context: ownerContext,
         batchId,
         generatedAt: plan.generatedAt,
       });

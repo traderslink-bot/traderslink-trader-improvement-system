@@ -134,8 +134,9 @@ export async function runPersistedDecisionReviewJobs(args: {
   savedTradeIds?: string[];
   runBatch?: typeof runBatchTradeAnalysis;
 }): Promise<PersistedDecisionReviewRunResult> {
-  const accountId = args.accountId ?? DEMO_ACCOUNT_ID;
-  const userId = args.userId ?? DEMO_USER_ID;
+  const importBatch = args.repository.getImportBatch(args.importBatchId);
+  const accountId = args.accountId ?? importBatch?.accountId ?? DEMO_ACCOUNT_ID;
+  const userId = args.userId ?? importBatch?.userId ?? DEMO_USER_ID;
   const generatedAt = args.generatedAt ?? new Date().toISOString();
   const jobs = args.repository.listDecisionReviewJobs(args.importBatchId);
   const snapshotsByTradeId = new Map(

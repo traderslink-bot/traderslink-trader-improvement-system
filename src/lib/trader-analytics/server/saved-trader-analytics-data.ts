@@ -14,19 +14,21 @@ export function getSavedTraderAnalyticsRepository(): SqliteImportCommitRepositor
 
 export function buildSavedOrSampleTraderAnalyticsViewModel(options?: {
   preferSample?: boolean;
+  userId?: string;
 }) {
   const repository = getSavedTraderAnalyticsRepository();
-  const reports = filterCustomerSavedReports(repository.listReports(DEMO_USER_ID));
+  const userId = options?.userId ?? DEMO_USER_ID;
+  const reports = filterCustomerSavedReports(repository.listReports(userId));
 
   if (reports.length > 0 && !options?.preferSample) {
     return {
       mode: "saved" as const,
       repository,
-      userId: DEMO_USER_ID,
+      userId,
       importRequests: [],
       viewModel: buildProductTraderAnalyticsViewModel({
         repository,
-        userId: DEMO_USER_ID,
+        userId,
         importRequests: [],
         storageMode: "local_sqlite_single_user",
       }),

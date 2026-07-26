@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { resolveTraderIntelligenceLocalPersistence } from "../../../trader-intelligence-v3/deployment";
 import { buildTraderAnalyticsReport } from "../../build-trader-analytics-report";
@@ -32,10 +33,44 @@ import type {
   ImportCommitSavedTradeRecord,
   ImportCommitTradeGroupingDiagnosticRecord,
 } from "./import-commit-planner";
+import type { CsvMappingTemplateInput } from "../../server/csv-mapping-template-service";
 
 export const DEMO_WORKSPACE_ID = "local-demo-workspace";
 export const DEMO_USER_ID = "local-demo-user";
 export const DEMO_ACCOUNT_ID = "local-demo-account";
+
+export interface PersistedOwnerWorkspaceAccount {
+  ownerId: string;
+  workspaceId: string;
+  id: string;
+  label: string;
+  brokerLabel: string;
+  timezone: string;
+  baseCurrency: string;
+  importDefaults: {
+    timestampTimezone: string;
+    optionsHandling: "reject" | "skip" | "allow";
+    maxTradeGroupingGapMinutes: number | null;
+    splitTradesAtSessionBoundary: boolean;
+  };
+}
+
+export interface PersistedCsvMappingTemplate {
+  contractVersion: "owner_csv_mapping_template_v1";
+  id: string;
+  ownerId: string;
+  accountId: string;
+  name: string;
+  normalizedHeaders: string[];
+  delimiter: string;
+  columnMapping: import("../../../execution-sources/csv").BrokerExecutionCsvColumnMapping;
+  sideValueMapping: Record<string, "buy" | "sell">;
+  timestampTimezone?: string;
+  optionsHandling?: "reject" | "skip" | "allow";
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt?: string;
+}
 
 type SqliteDatabase = Database.Database;
 
@@ -362,6 +397,32 @@ export function runTraderIntelligenceMigrations(db: SqliteDatabase): void {
       created_at TEXT NOT NULL,
       json TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS owner_workspace_accounts (
+      owner_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      account_id TEXT NOT NULL UNIQUE,
+      json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS csv_mapping_templates (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      version TEXT NOT NULL,
+      name TEXT NOT NULL,
+      header_signature TEXT NOT NULL,
+      delimiter TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_used_at TEXT,
+      json TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS csv_mapping_templates_owner_account_updated
+      ON csv_mapping_templates(owner_id, account_id, updated_at DESC);
   `);
 
   db.prepare(
@@ -373,6 +434,9 @@ export function runTraderIntelligenceMigrations(db: SqliteDatabase): void {
   db.prepare(
     "INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)",
   ).run("003_persisted_decision_review_snapshots", new Date().toISOString());
+  db.prepare(
+    "INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES (?, ?)",
+  ).run("004_owner_workspace_and_csv_mapping_templates", new Date().toISOString());
 }
 
 function json<T>(value: T): string {
@@ -475,6 +539,81 @@ export class SqliteImportCommitRepository
     runTraderIntelligenceMigrations(this.db);
   }
 
+  getOrCreateOwnerWorkspaceAccount(ownerId: string): PersistedOwnerWorkspaceAccount {
+    const existing = this.db.prepare("SELECT json FROM owner_workspace_accounts WHERE owner_id = ?").get(ownerId) as { json: string } | undefined;
+    if (existing) return parseJson<PersistedOwnerWorkspaceAccount>(existing.json);
+    const now = new Date().toISOString();
+    const safeOwner = ownerId.replace(/[^a-zA-Z0-9_-]/gu, "-").slice(0, 80) || "owner";
+    const account: PersistedOwnerWorkspaceAccount = {
+      ownerId,
+      workspaceId: `workspace:${safeOwner}`,
+      id: `account:${safeOwner}`,
+      label: "Active trading account",
+      brokerLabel: "Generic CSV",
+      timezone: "America/New_York",
+      baseCurrency: "USD",
+      importDefaults: {
+        timestampTimezone: "America/New_York",
+        optionsHandling: "reject",
+        maxTradeGroupingGapMinutes: null,
+        splitTradesAtSessionBoundary: true,
+      },
+    };
+    this.db.prepare("INSERT INTO owner_workspace_accounts (owner_id, workspace_id, account_id, json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(ownerId, account.workspaceId, account.id, json(account), now, now);
+    return account;
+  }
+
+  listCsvMappingTemplates(ownerId: string, accountId: string): PersistedCsvMappingTemplate[] {
+    const rows = this.db.prepare("SELECT json FROM csv_mapping_templates WHERE owner_id = ? AND account_id = ? AND version = ? ORDER BY updated_at DESC, id ASC")
+      .all(ownerId, accountId, "owner_csv_mapping_template_v1") as Array<{ json: string }>;
+    return rows.map((row) => parseJson<PersistedCsvMappingTemplate>(row.json));
+  }
+
+  saveCsvMappingTemplate(args: { ownerId: string; accountId: string; templateId?: string; input: CsvMappingTemplateInput }): PersistedCsvMappingTemplate {
+    const now = new Date().toISOString();
+    let existing: PersistedCsvMappingTemplate | null = null;
+    if (args.templateId) {
+      const row = this.db.prepare("SELECT json FROM csv_mapping_templates WHERE id = ? AND owner_id = ? AND account_id = ?").get(args.templateId, args.ownerId, args.accountId) as { json: string } | undefined;
+      if (!row) throw new Error("Mapping template was not found for the active account.");
+      existing = parseJson<PersistedCsvMappingTemplate>(row.json);
+      if (existing.contractVersion !== "owner_csv_mapping_template_v1") throw new Error("Mapping template version is unsupported.");
+    }
+    const template: PersistedCsvMappingTemplate = {
+      contractVersion: "owner_csv_mapping_template_v1",
+      id: existing?.id ?? `csv-template:${randomUUID()}`,
+      ownerId: args.ownerId,
+      accountId: args.accountId,
+      name: args.input.name,
+      normalizedHeaders: args.input.normalizedHeaders,
+      delimiter: args.input.delimiter,
+      columnMapping: args.input.columnMapping,
+      sideValueMapping: args.input.sideValueMapping,
+      timestampTimezone: args.input.timestampTimezone,
+      optionsHandling: args.input.optionsHandling,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      lastUsedAt: existing?.lastUsedAt,
+    };
+    this.db.prepare(`INSERT INTO csv_mapping_templates (id, owner_id, account_id, version, name, header_signature, delimiter, created_at, updated_at, last_used_at, json)
+      VALUES (@id, @ownerId, @accountId, @version, @name, @headerSignature, @delimiter, @createdAt, @updatedAt, @lastUsedAt, @json)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, header_signature = excluded.header_signature, delimiter = excluded.delimiter, updated_at = excluded.updated_at, json = excluded.json`)
+      .run({ id: template.id, ownerId: template.ownerId, accountId: template.accountId, version: template.contractVersion, name: template.name, headerSignature: template.normalizedHeaders.join("|"), delimiter: template.delimiter, createdAt: template.createdAt, updatedAt: template.updatedAt, lastUsedAt: template.lastUsedAt ?? null, json: json(template) });
+    return template;
+  }
+
+  deleteCsvMappingTemplate(ownerId: string, accountId: string, templateId: string): boolean {
+    return this.db.prepare("DELETE FROM csv_mapping_templates WHERE id = ? AND owner_id = ? AND account_id = ?").run(templateId, ownerId, accountId).changes === 1;
+  }
+
+  markCsvMappingTemplateUsed(ownerId: string, accountId: string, templateId: string): void {
+    const row = this.db.prepare("SELECT json FROM csv_mapping_templates WHERE id = ? AND owner_id = ? AND account_id = ?").get(templateId, ownerId, accountId) as { json: string } | undefined;
+    if (!row) return;
+    const template = parseJson<PersistedCsvMappingTemplate>(row.json);
+    const updated = { ...template, lastUsedAt: new Date().toISOString(), updatedAt: template.updatedAt };
+    this.db.prepare("UPDATE csv_mapping_templates SET last_used_at = ?, json = ? WHERE id = ? AND owner_id = ? AND account_id = ?").run(updated.lastUsedAt, json(updated), templateId, ownerId, accountId);
+  }
+
   savePreviewPlan(plan: ImportCommitPlanResult): void {
     const transaction = this.db.transaction(() => {
       this.savePreviewPlanUnsafe(plan);
@@ -520,6 +659,21 @@ export class SqliteImportCommitRepository
         executionCount: 0,
         decisionReviewJobCount: 0,
         message: plan.readModel.nextAction,
+      };
+    }
+
+    if (
+      this.listCommittedFileFingerprints(plan.batch.accountId).includes(
+        plan.batch.fileFingerprint,
+      )
+    ) {
+      return {
+        status: "rejected",
+        batch: plan.batch,
+        savedTradeCount: 0,
+        executionCount: 0,
+        decisionReviewJobCount: 0,
+        message: "This file has already been committed for the active account.",
       };
     }
 

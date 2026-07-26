@@ -1,9 +1,7 @@
 import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
 
-import {
-  DEMO_USER_ID,
-  SqliteImportCommitRepository,
-} from "../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { SqliteImportCommitRepository } from "../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../src/lib/trader-analytics/server/owner-workspace-context";
 import { buildTradeImportSourceCautionReadModel } from "../../../../src/lib/trader-analytics/server/saved-import-source-caution";
 
 export const runtime = "nodejs";
@@ -16,7 +14,8 @@ async function GETHandler(
   const routeParams = await context.params;
   const tradeId = decodeURIComponent(routeParams.tradeId);
   const repository = new SqliteImportCommitRepository();
-  const trade = repository.getTrade(DEMO_USER_ID, tradeId);
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const trade = repository.getTrade(ownerContext.ownerId, tradeId);
 
   if (!trade) {
     return Response.json(

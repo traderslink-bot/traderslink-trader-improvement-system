@@ -2658,6 +2658,8 @@ export function buildCsvDryRunImportExperience(args: {
   broker: BrokerExecutionCsvFormat;
   accountTimezone?: string;
   columnMapping?: BrokerExecutionCsvColumnMapping;
+  optionsHandling?: PreviewBrokerExecutionCsvImportArgs["optionsHandling"];
+  tradeGroupingRules?: PreviewBrokerExecutionCsvImportArgs["tradeGroupingRules"];
   repairImpactBaseline?: CsvDryRunRepairImpactSnapshot | null;
   setupTagSelections?: Record<number, CsvDryRunSetupTagKind>;
   analytics?: DryRunAnalyticsContext;
@@ -2668,8 +2670,9 @@ export function buildCsvDryRunImportExperience(args: {
     broker: args.broker,
     accountTimezone: args.accountTimezone ?? "America/New_York",
     columnMapping,
-    optionsHandling: "reject",
-    tradeGroupingRules: dryRunTradeGroupingRulesForBroker(args.broker),
+    optionsHandling: args.optionsHandling ?? "reject",
+    tradeGroupingRules:
+      args.tradeGroupingRules ?? dryRunTradeGroupingRulesForBroker(args.broker),
   };
   const preview = previewBrokerExecutionCsvImportWithResolvedGrouping(previewArgs);
   const effectiveBroker = preview.importResult.broker;

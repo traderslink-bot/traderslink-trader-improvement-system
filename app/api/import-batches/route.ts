@@ -1,9 +1,7 @@
 import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
 
-import {
-  DEMO_ACCOUNT_ID,
-  SqliteImportCommitRepository,
-} from "../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { SqliteImportCommitRepository } from "../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../src/lib/trader-analytics/server/owner-workspace-context";
 import { buildImportRecoveryReadModel } from "../../../src/lib/trader-analytics/server/import-recovery-read-model";
 
 export const runtime = "nodejs";
@@ -11,7 +9,8 @@ export const dynamic = "force-dynamic";
 
 async function GETHandler(): Promise<Response> {
   const repository = new SqliteImportCommitRepository();
-  const history = repository.listImportBatchHistory(DEMO_ACCOUNT_ID);
+  const context = resolveConfiguredOwnerWorkspaceImportContext({ repository });
+  const history = repository.listImportBatchHistory(context.account.id);
   const recoveryQueue = history
     .flatMap((item) => {
       const plan = repository.getPreviewPlan(item.batch.id);
@@ -35,7 +34,7 @@ async function GETHandler(): Promise<Response> {
     source: history.length > 0 ? "saved_sqlite" : "empty",
     history,
     recoveryQueue,
-    unresolvedRepairs: repository.listUnresolvedImportRepairInbox(DEMO_ACCOUNT_ID),
+    unresolvedRepairs: repository.listUnresolvedImportRepairInbox(context.account.id),
   });
 }
 

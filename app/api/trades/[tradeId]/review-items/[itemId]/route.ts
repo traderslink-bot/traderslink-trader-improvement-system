@@ -4,10 +4,8 @@ import type {
   TradeReviewChecklistItemId,
   TradeReviewChecklistItemStatus,
 } from "../../../../../../src/lib/trader-analytics/product/types";
-import {
-  DEMO_USER_ID,
-  SqliteImportCommitRepository,
-} from "../../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { SqliteImportCommitRepository } from "../../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../../../src/lib/trader-analytics/server/owner-workspace-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,8 +69,9 @@ async function POSTHandler(
   }
 
   const repository = new SqliteImportCommitRepository();
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const state = repository.setTradeReviewItemStatus({
-    userId: DEMO_USER_ID,
+    userId: ownerContext.ownerId,
     tradeId,
     itemId: itemId as TradeReviewChecklistItemId,
     status: body.status as TradeReviewChecklistItemStatus,

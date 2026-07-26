@@ -4,11 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { buildProductWorkflowShellViewModel } from "@/src/lib/trader-analytics";
 import { buildImportRecoveryReadModel } from "@/src/lib/trader-analytics/server/import-recovery-read-model";
-import {
-  DEMO_ACCOUNT_ID,
-  type ImportBatchHistoryItem,
-  SqliteImportCommitRepository,
-} from "@/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { type ImportBatchHistoryItem, SqliteImportCommitRepository } from "@/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveOwnerWorkspaceImportContext } from "@/src/lib/trader-analytics/server/owner-workspace-context";
 import { AdvancedDisclosure } from "@/app/app-ui";
 import {
   importCountLabel,
@@ -130,11 +127,12 @@ function historyState(item: ImportBatchHistoryItem): {
 }
 
 export default async function ImportsPage() {
-  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/page.tsx");
+  const owner = await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/page.tsx");
   const repository = new SqliteImportCommitRepository();
-  const importHistory = repository.listImportBatchHistory(DEMO_ACCOUNT_ID);
+  const context = resolveOwnerWorkspaceImportContext({ owner, repository });
+  const importHistory = repository.listImportBatchHistory(context.account.id);
   const unresolvedRepairs =
-    repository.listUnresolvedImportRepairInbox(DEMO_ACCOUNT_ID);
+    repository.listUnresolvedImportRepairInbox(context.account.id);
   const committedCount = importHistory.filter(
     (item) => item.summaryStatus === "committed",
   ).length;

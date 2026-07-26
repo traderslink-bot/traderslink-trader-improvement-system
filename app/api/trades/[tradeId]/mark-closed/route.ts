@@ -1,9 +1,7 @@
 import { withTraderIntelligenceOwnerRoute } from "@/src/lib/trader-intelligence-v3/auth";
 
-import {
-  DEMO_USER_ID,
-  SqliteImportCommitRepository,
-} from "../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { SqliteImportCommitRepository } from "../../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../../src/lib/trader-analytics/server/owner-workspace-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +13,9 @@ async function POSTHandler(
   const routeParams = await context.params;
   const tradeId = decodeURIComponent(routeParams.tradeId);
   const repository = new SqliteImportCommitRepository();
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const trade = repository.markTradeClosedByUser({
-    userId: DEMO_USER_ID,
+    userId: ownerContext.ownerId,
     tradeId,
   });
 
