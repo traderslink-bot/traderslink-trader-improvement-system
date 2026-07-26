@@ -129,6 +129,7 @@ export function buildDurableImportCommitPlan(args: {
   generatedAt?: string;
 }): ImportCommitPlanResult {
   const account = args.context?.account;
+  const accountId = account?.id ?? DEMO_ACCOUNT_ID;
   const experience = buildCsvDryRunImportExperience({
     csvText: args.input.csvText,
     broker: args.input.broker,
@@ -146,15 +147,15 @@ export function buildDurableImportCommitPlan(args: {
   return buildImportCommitPlan({
     workspaceId: args.context?.workspaceId ?? DEMO_WORKSPACE_ID,
     userId: args.context?.ownerId ?? DEMO_USER_ID,
-    accountId: account?.id ?? DEMO_ACCOUNT_ID,
+    accountId,
     batchId: args.batchId,
     experience,
     generatedAt: args.generatedAt,
     existingFileFingerprints: args.repository.listCommittedFileFingerprints(
-      DEMO_ACCOUNT_ID,
+      accountId,
     ),
     existingTradeFingerprints: args.repository.listCommittedTradeFingerprints(
-      DEMO_ACCOUNT_ID,
+      accountId,
     ),
     acknowledgements: args.input.acknowledgements,
     repairSource: args.input.repairSource,

@@ -93,7 +93,18 @@ describe("owner CSV mapping persistence and controlled continuation", () => {
     const plan = buildDurableImportCommitPlan({
       repository,
       context: ownerContext,
-      input: { csvText: normalizedCsv, broker: "generic_execution_csv", columnMapping: inference.proposedMapping },
+      input: {
+        csvText: normalizedCsv,
+        broker: "generic_execution_csv",
+        columnMapping: inference.proposedMapping,
+        acknowledgements: {
+          mappingReview: true,
+          groupingReview: true,
+          pnlReview: true,
+          openPositions: true,
+          rejectedRows: true,
+        },
+      },
     });
 
     expect(plan.batch.userId).toBe("owner-commit");
@@ -105,5 +116,16 @@ describe("owner CSV mapping persistence and controlled continuation", () => {
     repository.savePreviewPlan(plan);
     expect(repository.getPreviewPlan(plan.batch.id)?.executions).toHaveLength(2);
     expect(repository.listSavedTrades(ownerContext.account.id)).toHaveLength(0);
+
+    expect(plan.canCommitNow).toBe(true);
+    const committed = repository.commitImportPlan(plan);
+    expect(committed.status).toBe("committed");
+    expect(repository.listSavedTrades(ownerContext.account.id)).toHaveLength(1);
+
+    const replay = repository.commitImportPlan(plan);
+    expect(replay).toMatchObject({
+      status: "rejected",
+      message: "This file has already been committed for the active account.",
+    });
   });
 });

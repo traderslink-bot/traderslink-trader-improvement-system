@@ -16,17 +16,20 @@ export function buildSavedOrSampleTraderAnalyticsViewModel(options?: {
   preferSample?: boolean;
 }) {
   const repository = getSavedTraderAnalyticsRepository();
-  const reports = filterCustomerSavedReports(repository.listReports(DEMO_USER_ID));
+  // Imports are owned by the configured private-owner identity.  Preserve the
+  // demo fallback for local sample/test environments that do not configure one.
+  const userId = process.env.TRADER_INTELLIGENCE_OWNER_ID?.trim() || DEMO_USER_ID;
+  const reports = filterCustomerSavedReports(repository.listReports(userId));
 
   if (reports.length > 0 && !options?.preferSample) {
     return {
       mode: "saved" as const,
       repository,
-      userId: DEMO_USER_ID,
+      userId,
       importRequests: [],
       viewModel: buildProductTraderAnalyticsViewModel({
         repository,
-        userId: DEMO_USER_ID,
+        userId,
         importRequests: [],
         storageMode: "local_sqlite_single_user",
       }),

@@ -662,6 +662,21 @@ export class SqliteImportCommitRepository
       };
     }
 
+    if (
+      this.listCommittedFileFingerprints(plan.batch.accountId).includes(
+        plan.batch.fileFingerprint,
+      )
+    ) {
+      return {
+        status: "rejected",
+        batch: plan.batch,
+        savedTradeCount: 0,
+        executionCount: 0,
+        decisionReviewJobCount: 0,
+        message: "This file has already been committed for the active account.",
+      };
+    }
+
     const committedBatch: ImportCommitBatchRecord = {
       ...plan.batch,
       status: "committed",
