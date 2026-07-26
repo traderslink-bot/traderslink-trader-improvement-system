@@ -611,6 +611,28 @@ function rewriteSideValues(
   return rows.map((row) => row.map(quote).join(inference.delimiter)).join("\n");
 }
 
+/** Server-side continuation helper. It intentionally returns only a normalized
+ * transient CSV string; callers must not persist it outside the established
+ * import-batch retention path. */
+export function normalizeGenericCsvMappingReviewCsv(args: {
+  csvText: string;
+  inference: CsvSchemaInferenceResult;
+  columnMapping: BrokerExecutionCsvColumnMapping;
+  sideValueMapping?: Record<string, "buy" | "sell">;
+}): string {
+  return rewriteSideValues(
+    args.csvText,
+    args.inference,
+    args.columnMapping,
+    Object.fromEntries(
+      Object.entries(args.sideValueMapping ?? {}).map(([key, value]) => [
+        normalizeValue(key),
+        value,
+      ]),
+    ),
+  );
+}
+
 export function applyGenericCsvMappingReview(args: ApplyCsvMappingReviewArgs): CsvMappingReviewResult {
   const inference = args.inference ?? inferGenericCsvSchema(args.csvText);
   const effectiveMapping = mergeMappings(inference.proposedMapping, args.corrections, args.ignoredHeaders ?? []);

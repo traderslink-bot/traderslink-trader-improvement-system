@@ -1,3 +1,10 @@
+# 2026-07-25 - CSV mapping persistence and controlled continuation active
+
+- Started from merged CSV inference PR #164 (`e47b9a1f20394109f7ab61cc44d3e01d9ecc6ee7`) on branch `agent/csv-mapping-persistence-and-commit`.
+- Replaced the mapping-review page's sample workspace with a server-derived owner workspace/account persisted in the existing local SQLite authority. Mapping templates are now versioned, owner/account-scoped rows in that database; browser localStorage is no longer the persistence authority.
+- The review page now creates a controlled import preview only after the server re-infers, validates the reviewed mappings, resolves timezone precedence, normalizes side values, and delegates to the existing import planner. No client execution arrays, fingerprints, counts, or account IDs are accepted as authority.
+- Focused CSV persistence, generic inference, and route-containment tests passed (24/24); TypeScript and changed-path ESLint passed. Broader suite/browser verification remains before any PR is opened.
+
 # 2026-07-25 - GA1-B final closure checkpoint
 
 - Independent audit accepted final executable checkpoint

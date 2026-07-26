@@ -99,6 +99,10 @@ const LOCAL_PAGE_MODULES = [
 const OWNER_API_ROUTES = [
   ["app/api/analytics/latest/route.ts", ["GET"], "owner_read"],
   ["app/api/coach/latest/route.ts", ["GET"], "owner_read"],
+  ["app/api/csv-mapping-review/continue/route.ts", ["POST"], "owner_mutation"],
+  ["app/api/csv-mapping-templates/[templateId]/route.ts", ["PATCH", "DELETE"], "owner_mutation"],
+  ["app/api/csv-mapping-templates/list/route.ts", ["GET"], "owner_read"],
+  ["app/api/csv-mapping-templates/route.ts", ["POST"], "owner_mutation"],
   ["app/api/import-batches/[batchId]/commit/route.ts", ["POST"], "owner_mutation"],
   ["app/api/import-batches/[batchId]/decision-review/resume/route.ts", ["POST"], "owner_mutation"],
   ["app/api/import-batches/[batchId]/decision-review/status/route.ts", ["GET"], "owner_read"],
@@ -197,6 +201,9 @@ function apiEntry(
     methods,
     realOwnerDataMethods:
       modulePath === "app/api/import-batches/preview/route.ts" ||
+      modulePath === "app/api/csv-mapping-review/continue/route.ts" ||
+      modulePath === "app/api/csv-mapping-templates/route.ts" ||
+      modulePath === "app/api/csv-mapping-templates/[templateId]/route.ts" ||
       modulePath === "app/api/import-dry-run/decision-review/route.ts"
         ? ["POST"]
         : [],

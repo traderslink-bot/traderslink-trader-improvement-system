@@ -13,6 +13,7 @@ import {
 } from "@/src/lib/trader-analytics/product/import-user-copy";
 import { buildImportRecoveryReadModel } from "@/src/lib/trader-analytics/server/import-recovery-read-model";
 import { SqliteImportCommitRepository } from "@/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveOwnerWorkspaceImportContext } from "@/src/lib/trader-analytics/server/owner-workspace-context";
 import { ImportWorkflowStrip } from "@/app/import-workflow-strip";
 import { ImportRepairActions } from "./import-repair-actions";
 import { ImportRecoveryActions } from "./import-recovery-actions";
@@ -156,10 +157,11 @@ export default async function ImportBatchPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/[batchId]/page.tsx");
+  const owner = await requireTraderIntelligenceOwnerPageAccess("app/intelligence/imports/[batchId]/page.tsx");
   const routeParams = await params;
   const batchId = decodeURIComponent(routeParams.batchId);
   const repository = new SqliteImportCommitRepository();
+  const ownerContext = resolveOwnerWorkspaceImportContext({ owner, repository });
   const chartTierEnabled = canUseChartContext(readTraderIntelligenceTierFromEnv());
   const plan = repository.getPreviewPlan(batchId);
   const batch = repository.getImportBatch(batchId);
@@ -195,7 +197,7 @@ export default async function ImportBatchPage({
     "skipped_limit",
   ];
 
-  if (!plan || !batch) {
+  if (!plan || !batch || batch.userId !== ownerContext.ownerId || batch.accountId !== ownerContext.account.id) {
     notFound();
   }
 

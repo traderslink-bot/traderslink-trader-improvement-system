@@ -4,6 +4,7 @@ import {
   importCommitErrorResponse,
 } from "../../../../src/lib/trader-analytics/server/import-commit-service";
 import { SqliteImportCommitRepository } from "../../../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { resolveConfiguredOwnerWorkspaceImportContext } from "../../../../src/lib/trader-analytics/server/owner-workspace-context";
 import { buildSavedDecisionReviewReadModel } from "../../../../src/lib/trader-analytics/server/saved-decision-review-service";
 import { buildImportRecoveryReadModel } from "../../../../src/lib/trader-analytics/server/import-recovery-read-model";
 
@@ -17,10 +18,11 @@ async function GETHandler(
   const routeParams = await context.params;
   const batchId = decodeURIComponent(routeParams.batchId);
   const repository = new SqliteImportCommitRepository();
+  const ownerContext = resolveConfiguredOwnerWorkspaceImportContext({ repository });
   const plan = repository.getPreviewPlan(batchId);
   const batch = repository.getImportBatch(batchId);
 
-  if (!plan || !batch) {
+  if (!plan || !batch || batch.userId !== ownerContext.ownerId || batch.accountId !== ownerContext.account.id) {
     return importCommitErrorResponse(
       404,
       "not_found",

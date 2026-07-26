@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   applyGenericCsvMappingReview,
   createCsvSavedMappingTemplate,
@@ -9,7 +9,6 @@ import {
   resolveCsvMappingTimestampTimezone,
   type BrokerExecutionCsvCanonicalField,
   type BrokerExecutionCsvColumnMapping,
-  type CsvSavedMappingTemplate,
   type CsvSchemaInferenceResult,
 } from "@/src/lib/execution-sources/csv";
 
@@ -50,23 +49,41 @@ interface CsvMappingReviewClientProps {
   accountLabel: string;
   accountTimezone: string;
   importDefaultTimezone: string;
+  accountId: string;
 }
 
-function parseStoredTemplates(value: string | null): CsvSavedMappingTemplate[] {
+interface PersistentTemplate {
+  contractVersion: "owner_csv_mapping_template_v1";
+  id: string;
+  accountId: string;
+  name: string;
+  normalizedHeaders: string[];
+  delimiter: string;
+  columnMapping: BrokerExecutionCsvColumnMapping;
+  sideValueMapping: Record<string, "buy" | "sell">;
+  timestampTimezone?: string;
+  optionsHandling?: "reject" | "skip" | "allow";
+}
+
+function parseStoredTemplates(value: string | null): PersistentTemplate[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
-      (item): item is CsvSavedMappingTemplate =>
+      (item): item is PersistentTemplate =>
         typeof item === "object" &&
         item !== null &&
-        (item as CsvSavedMappingTemplate).contractVersion ===
+        (item as { contractVersion?: string }).contractVersion ===
           "generic_csv_mapping_template_v1",
     );
   } catch {
     return [];
   }
+}
+
+function templateForMatching(template: PersistentTemplate) {
+  return { ...template, delimiter: template.delimiter as "," | ";" | "\t", contractVersion: "generic_csv_mapping_template_v1" as const, createdAt: "", updatedAt: "" };
 }
 
 function mappingByHeader(
@@ -125,6 +142,7 @@ export default function CsvMappingReviewClient({
   accountLabel,
   accountTimezone,
   importDefaultTimezone,
+  accountId,
 }: CsvMappingReviewClientProps) {
   const accountImportTimezone = importDefaultTimezone || accountTimezone;
   const [csvText, setCsvText] = useState("");
@@ -141,12 +159,30 @@ export default function CsvMappingReviewClient({
   const [timezoneOverride, setTimezoneOverride] = useState(accountImportTimezone);
   const [customTimezone, setCustomTimezone] = useState("");
   const [templateName, setTemplateName] = useState("");
-  const [templates, setTemplates] = useState<CsvSavedMappingTemplate[]>(() =>
+  const [templates, setTemplates] = useState<PersistentTemplate[]>(() =>
     typeof window === "undefined"
       ? []
       : parseStoredTemplates(window.localStorage.getItem(STORAGE_KEY)),
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/csv-mapping-templates/list", { cache: "no-store" })
+      .then(async (response) => {
+        const document = await response.json() as { templates?: PersistentTemplate[]; error?: { message?: string } };
+        if (!response.ok || !Array.isArray(document.templates)) throw new Error(document.error?.message ?? "Could not load saved CSV formats.");
+        if (!cancelled) setTemplates(document.templates);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setServerError(error instanceof Error ? error.message : "Could not load saved CSV formats.");
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const importTimezoneOverride = useTimezoneOverride
     ? timezoneOverride === "custom"
@@ -178,7 +214,7 @@ export default function CsvMappingReviewClient({
   async function loadFile(file: File) {
     const text = await file.text();
     const nextInference = inferGenericCsvSchema(text);
-    const savedMatch = matchCsvSavedMappingTemplate(nextInference, templates);
+    const savedMatch = matchCsvSavedMappingTemplate(nextInference, templates.map(templateForMatching));
     const initialMapping =
       savedMatch?.columnMapping ?? nextInference.proposedMapping;
     const byHeader = mappingByHeader(initialMapping);
@@ -203,6 +239,7 @@ export default function CsvMappingReviewClient({
     setSelections(initialSelections);
     setSideMappings(initialSideMappings);
     setSavedTemplateTimezone(savedTimezone);
+    setSelectedTemplateId(savedMatch?.template.id);
     setUseTimezoneOverride(false);
     if (savedTimezone) {
       if ((COMMON_TIMEZONES as readonly string[]).includes(savedTimezone)) {
@@ -240,7 +277,7 @@ export default function CsvMappingReviewClient({
     });
   }
 
-  function saveTemplate() {
+  async function saveTemplate() {
     if (!inference || !review) return;
     const template = createCsvSavedMappingTemplate({
       name: templateName,
@@ -250,10 +287,59 @@ export default function CsvMappingReviewClient({
       timestampTimezone:
         importTimezoneOverride ?? savedTemplateTimezone,
     });
-    const next = [template, ...templates.filter((item) => item.id !== template.id)];
-    setTemplates(next);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setSavingTemplate(true);
+    setServerError(null);
+    try {
+      const response = await fetch(selectedTemplateId ? `/api/csv-mapping-templates/${encodeURIComponent(selectedTemplateId)}` : "/api/csv-mapping-templates", {
+        method: selectedTemplateId ? "PATCH" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ template }),
+      });
+      const document = await response.json() as { template?: PersistentTemplate; error?: { message?: string } };
+      if (!response.ok || !document.template) throw new Error(document.error?.message ?? "Could not save the CSV format.");
+      setTemplates((current) => [document.template!, ...current.filter((item) => item.id !== document.template!.id)]);
+      setSelectedTemplateId(document.template.id);
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "Could not save the CSV format.");
+      return;
+    } finally {
+      setSavingTemplate(false);
+    }
     setNotice(`Saved mapping format “${template.name}”.`);
+  }
+
+  async function deleteTemplate() {
+    if (!selectedTemplateId) return;
+    const response = await fetch(`/api/csv-mapping-templates/${encodeURIComponent(selectedTemplateId)}`, { method: "DELETE" });
+    if (!response.ok && response.status !== 204) {
+      setServerError("Could not delete the saved CSV format.");
+      return;
+    }
+    setTemplates((current) => current.filter((item) => item.id !== selectedTemplateId));
+    setSelectedTemplateId(undefined);
+    setSavedTemplateTimezone(undefined);
+    setNotice("Deleted saved CSV format.");
+  }
+
+  async function continueImport() {
+    if (!review || !inference || review.status === "blocked" || duplicateDestinationFields.length > 0) return;
+    setContinuing(true);
+    setServerError(null);
+    try {
+      const response = await fetch("/api/csv-mapping-review/continue", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ csvText, columnMapping: review.effectiveMapping, sideValueMapping: sideMappings, ignoredHeaders: Object.entries(selections).filter(([, field]) => field === "ignore").map(([header]) => header), timezoneOverride: importTimezoneOverride, templateId: selectedTemplateId }),
+      });
+      const document = await response.json() as { href?: string; error?: { message?: string }; message?: string };
+      if (!response.ok || !document.href) throw new Error(document.error?.message ?? document.message ?? "Import continuation was rejected.");
+      window.location.assign(document.href);
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "Import continuation was rejected.");
+    } finally {
+      setContinuing(false);
+    }
   }
 
   const duplicateDestinationFields = useMemo(() => {
@@ -277,7 +363,10 @@ export default function CsvMappingReviewClient({
           accepted execution fields, highlights uncertainty, and previews the trades
           before anything is saved.
         </p>
+        <p className="text-sm text-zinc-400">Active account: <span className="text-zinc-100">{accountLabel}</span> ({accountId}) · inherited timezone {accountImportTimezone}</p>
       </header>
+
+      {serverError ? <p className="rounded-lg border border-rose-900 bg-rose-950/40 p-3 text-sm text-rose-200">{serverError}</p> : null}
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
         <label className="block text-sm font-medium text-zinc-200" htmlFor="csv-file">
@@ -449,6 +538,22 @@ export default function CsvMappingReviewClient({
               </div>
 
               <label className="mt-4 block text-sm text-zinc-300">
+                Saved format
+                <select
+                  value={selectedTemplateId ?? ""}
+                  onChange={(event) => {
+                    const template = templates.find((item) => item.id === event.target.value);
+                    setSelectedTemplateId(template?.id);
+                    setSavedTemplateTimezone(template?.timestampTimezone);
+                    if (template) setTemplateName(template.name);
+                  }}
+                  className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                >
+                  <option value="">No saved format selected</option>
+                  {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                </select>
+              </label>
+              <label className="mt-4 block text-sm text-zinc-300">
                 Saved format name
                 <input
                   value={templateName}
@@ -459,11 +564,12 @@ export default function CsvMappingReviewClient({
               <button
                 type="button"
                 onClick={saveTemplate}
-                disabled={!review || review.status === "blocked" || duplicateDestinationFields.length > 0}
+                disabled={!review || review.status === "blocked" || duplicateDestinationFields.length > 0 || savingTemplate}
                 className="mt-4 w-full rounded-lg bg-sky-500 px-4 py-2.5 font-medium text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Remember this CSV format
+                {savingTemplate ? "Saving format…" : selectedTemplateId ? "Update saved CSV format" : "Remember this CSV format"}
               </button>
+              {selectedTemplateId ? <button type="button" onClick={() => void deleteTemplate()} className="mt-2 w-full rounded-lg border border-rose-900 px-4 py-2 text-sm text-rose-300">Delete selected format</button> : null}
             </div>
 
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
@@ -533,6 +639,14 @@ export default function CsvMappingReviewClient({
                       </tbody>
                     </table>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => void continueImport()}
+                    disabled={review.status === "blocked" || review.importResult.rejectedRowCount > 0 || duplicateDestinationFields.length > 0 || continuing}
+                    className="w-full rounded-lg bg-emerald-400 px-4 py-3 font-medium text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {continuing ? "Creating controlled import…" : "Continue Import"}
+                  </button>
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-zinc-400">

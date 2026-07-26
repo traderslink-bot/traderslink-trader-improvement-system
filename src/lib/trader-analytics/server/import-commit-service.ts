@@ -15,6 +15,7 @@ import type {
   BrokerExecutionCsvColumnMapping,
   BrokerExecutionCsvFormat,
 } from "../../execution-sources/csv";
+import type { OwnerWorkspaceImportContext } from "./owner-workspace-context";
 
 const VALID_BROKERS = new Set<BrokerExecutionCsvFormat>([
   "auto",
@@ -33,6 +34,8 @@ export interface ImportCommitRequestInput {
   columnMapping?: BrokerExecutionCsvColumnMapping;
   acknowledgements?: ImportCommitPlannerAcknowledgements;
   repairSource?: ImportCommitRepairSource;
+  timestampTimezone?: string;
+  optionsHandling?: "reject" | "skip" | "allow";
 }
 
 export interface ImportCommitApiPlanResponse {
@@ -113,26 +116,37 @@ export function parseImportCommitRequestInput(
     columnMapping: parseColumnMapping(document.columnMapping),
     acknowledgements: parseAcknowledgements(document.acknowledgements),
     repairSource: parseRepairSource(document.repairSource),
+    timestampTimezone: typeof document.timestampTimezone === "string" ? document.timestampTimezone : undefined,
+    optionsHandling: document.optionsHandling === "reject" || document.optionsHandling === "skip" || document.optionsHandling === "allow" ? document.optionsHandling : undefined,
   };
 }
 
 export function buildDurableImportCommitPlan(args: {
   input: ImportCommitRequestInput;
   repository: SqliteImportCommitRepository;
+  context?: OwnerWorkspaceImportContext;
   batchId?: string;
   generatedAt?: string;
 }): ImportCommitPlanResult {
+  const account = args.context?.account;
   const experience = buildCsvDryRunImportExperience({
     csvText: args.input.csvText,
     broker: args.input.broker,
-    accountTimezone: args.input.accountTimezone,
+    accountTimezone: args.input.timestampTimezone ?? account?.importDefaults.timestampTimezone ?? args.input.accountTimezone,
     columnMapping: args.input.columnMapping,
+    optionsHandling: args.input.optionsHandling ?? account?.importDefaults.optionsHandling,
+    tradeGroupingRules: account
+      ? {
+          maxGapMinutes: account.importDefaults.maxTradeGroupingGapMinutes ?? undefined,
+          splitAtSessionBoundary: account.importDefaults.splitTradesAtSessionBoundary,
+        }
+      : undefined,
   });
 
   return buildImportCommitPlan({
-    workspaceId: DEMO_WORKSPACE_ID,
-    userId: DEMO_USER_ID,
-    accountId: DEMO_ACCOUNT_ID,
+    workspaceId: args.context?.workspaceId ?? DEMO_WORKSPACE_ID,
+    userId: args.context?.ownerId ?? DEMO_USER_ID,
+    accountId: account?.id ?? DEMO_ACCOUNT_ID,
     batchId: args.batchId,
     experience,
     generatedAt: args.generatedAt,
