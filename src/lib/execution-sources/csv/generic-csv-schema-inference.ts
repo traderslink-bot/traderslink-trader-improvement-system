@@ -108,6 +108,13 @@ export interface CsvMappingReviewResult {
   importResult: BrokerExecutionCsvImportResult | null;
 }
 
+export interface ResolveCsvMappingTimestampTimezoneArgs {
+  importOverride?: string;
+  savedTemplateOverride?: string;
+  accountImportDefault?: string;
+  accountTimezone?: string;
+}
+
 const REQUIRED_EXECUTION_FIELDS: BrokerExecutionCsvCanonicalField[] = [
   "symbol",
   "quantity",
@@ -359,13 +366,36 @@ function chooseHeaderRow(rows: string[][]): number {
 function buildConflicts(
   columns: CsvColumnInference[],
   mapping: BrokerExecutionCsvColumnMapping,
+  confirmedHeaders: ReadonlySet<string> = new Set(),
 ): CsvMappingConflict[] {
   const conflicts: CsvMappingConflict[] = [];
   const mappedHeaders = new Map<BrokerExecutionCsvCanonicalField, string[]>();
+  const fieldsByHeader = new Map<string, BrokerExecutionCsvCanonicalField[]>();
   for (const field of Object.keys(mapping) as BrokerExecutionCsvCanonicalField[]) {
     const value = mapping[field];
     const headers = Array.isArray(value) ? value : value ? [value] : [];
-    if (headers.length > 0) mappedHeaders.set(field, headers);
+    if (headers.length > 0) {
+      mappedHeaders.set(field, headers);
+      for (const header of headers) {
+        const normalized = normalizeHeader(header);
+        const fields = fieldsByHeader.get(normalized) ?? [];
+        if (!fields.includes(field)) fields.push(field);
+        fieldsByHeader.set(normalized, fields);
+      }
+    }
+  }
+
+  for (const [normalizedHeader, fields] of fieldsByHeader) {
+    if (fields.length < 2) continue;
+    const header =
+      columns.find(
+        (column) => normalizeHeader(column.header) === normalizedHeader,
+      )?.header ?? normalizedHeader;
+    conflicts.push({
+      code: "duplicate_destination_field",
+      headers: [header],
+      message: `${header} cannot map to more than one destination (${fields.join(", ")}).`,
+    });
   }
 
   for (const field of REQUIRED_EXECUTION_FIELDS) {
@@ -400,7 +430,18 @@ function buildConflicts(
   }
 
   for (const column of columns) {
-    if (column.requiresReview && column.suggestedField && REQUIRED_EXECUTION_FIELDS.includes(column.suggestedField)) {
+    const mappedToSuggestion = column.suggestedField
+      ? (mappedHeaders.get(column.suggestedField) ?? []).some(
+          (header) => normalizeHeader(header) === normalizeHeader(column.header),
+        )
+      : false;
+    if (
+      column.requiresReview &&
+      column.suggestedField &&
+      REQUIRED_EXECUTION_FIELDS.includes(column.suggestedField) &&
+      mappedToSuggestion &&
+      !confirmedHeaders.has(normalizeHeader(column.header))
+    ) {
       conflicts.push({
         code: "ambiguous_required_field",
         field: column.suggestedField,
@@ -413,9 +454,32 @@ function buildConflicts(
   return conflicts;
 }
 
-function statusFromConflicts(conflicts: CsvMappingConflict[], columns: CsvColumnInference[]): CsvMappingReviewStatus {
-  if (conflicts.some((conflict) => conflict.code === "required_field_unmapped" || conflict.code === "timestamp_unresolved" || conflict.code === "side_unresolved")) return "blocked";
-  if (conflicts.length > 0 || columns.some((column) => column.requiresReview)) return "needs_review";
+function statusFromConflicts(
+  conflicts: CsvMappingConflict[],
+  columns: CsvColumnInference[],
+  confirmedHeaders: ReadonlySet<string> = new Set(),
+): CsvMappingReviewStatus {
+  if (
+    conflicts.some(
+      (conflict) =>
+        conflict.code === "required_field_unmapped" ||
+        conflict.code === "duplicate_destination_field" ||
+        conflict.code === "timestamp_unresolved" ||
+        conflict.code === "side_unresolved",
+    )
+  ) {
+    return "blocked";
+  }
+  if (
+    conflicts.length > 0 ||
+    columns.some(
+      (column) =>
+        column.requiresReview &&
+        !confirmedHeaders.has(normalizeHeader(column.header)),
+    )
+  ) {
+    return "needs_review";
+  }
   return "ready";
 }
 
@@ -432,7 +496,10 @@ export function inferGenericCsvSchema(csvText: string): CsvSchemaInferenceResult
       .map((field) => scoreCandidate(profile, field))
       .filter((candidate) => candidate.score > 0)
       .sort((left, right) => right.score - left.score || left.field.localeCompare(right.field));
-    let selected = candidates.find((candidate) => !usedFields.has(candidate.field)) ?? candidates[0] ?? null;
+    let selected: CsvFieldCandidate | null =
+      candidates.find((candidate) => !usedFields.has(candidate.field)) ??
+      candidates[0] ??
+      null;
     if (selected && selected.score >= 40) usedFields.add(selected.field);
     else selected = null;
     const runnerUp = candidates[1];
@@ -491,10 +558,31 @@ function mergeMappings(
   ignoredHeaders: string[],
 ): BrokerExecutionCsvColumnMapping {
   const ignored = new Set(ignoredHeaders.map(normalizeHeader));
-  const merged = { ...proposed, ...(corrections ?? {}) };
+  const correctedHeaders = new Set(
+    Object.values(corrections ?? {})
+      .flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []))
+      .map(normalizeHeader),
+  );
+  const merged: BrokerExecutionCsvColumnMapping = {};
+  for (const field of Object.keys(proposed) as BrokerExecutionCsvCanonicalField[]) {
+    const value = proposed[field];
+    const headers = (Array.isArray(value) ? value : value ? [value] : []).filter(
+      (header) => !correctedHeaders.has(normalizeHeader(header)),
+    );
+    if (headers.length > 0) merged[field] = headers;
+  }
+  Object.assign(merged, corrections ?? {});
   for (const field of Object.keys(merged) as BrokerExecutionCsvCanonicalField[]) {
     const value = merged[field];
-    const headers = (Array.isArray(value) ? value : value ? [value] : []).filter((header) => !ignored.has(normalizeHeader(header)));
+    const seen = new Set<string>();
+    const headers = (Array.isArray(value) ? value : value ? [value] : []).filter(
+      (header) => {
+        const normalized = normalizeHeader(header);
+        if (ignored.has(normalized) || seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      },
+    );
     if (headers.length === 0) delete merged[field];
     else merged[field] = headers;
   }
@@ -526,8 +614,24 @@ function rewriteSideValues(
 export function applyGenericCsvMappingReview(args: ApplyCsvMappingReviewArgs): CsvMappingReviewResult {
   const inference = args.inference ?? inferGenericCsvSchema(args.csvText);
   const effectiveMapping = mergeMappings(inference.proposedMapping, args.corrections, args.ignoredHeaders ?? []);
-  const conflicts = buildConflicts(inference.columns, effectiveMapping);
-  const status = statusFromConflicts(conflicts, inference.columns);
+  const confirmedHeaders = new Set(
+    [
+      ...Object.values(args.corrections ?? {}).flatMap((value) =>
+        Array.isArray(value) ? value : value ? [value] : [],
+      ),
+      ...(args.ignoredHeaders ?? []),
+    ].map(normalizeHeader),
+  );
+  const conflicts = buildConflicts(
+    inference.columns,
+    effectiveMapping,
+    confirmedHeaders,
+  );
+  const status = statusFromConflicts(
+    conflicts,
+    inference.columns,
+    confirmedHeaders,
+  );
   const sideValueMapping = Object.fromEntries(
     Object.entries(args.sideValueMapping ?? {}).map(([key, value]) => [normalizeValue(key), value]),
   );
@@ -596,7 +700,11 @@ export function createCsvSavedMappingTemplate(args: {
 export function matchCsvSavedMappingTemplate(
   inference: CsvSchemaInferenceResult,
   templates: readonly CsvSavedMappingTemplate[],
-): { template: CsvSavedMappingTemplate; score: number } | null {
+): {
+  template: CsvSavedMappingTemplate;
+  columnMapping: BrokerExecutionCsvColumnMapping;
+  score: number;
+} | null {
   const incoming = new Set(inference.headers.map(normalizeHeader));
   const ranked = templates.map((template) => {
     const expected = new Set(template.normalizedHeaders);
@@ -605,5 +713,33 @@ export function matchCsvSavedMappingTemplate(
     const score = union === 0 ? 0 : intersection / union;
     return { template, score };
   }).sort((left, right) => right.score - left.score || left.template.id.localeCompare(right.template.id));
-  return ranked[0] && ranked[0].score >= 0.75 ? ranked[0] : null;
+  const match = ranked[0];
+  if (!match || match.score < 0.75) return null;
+  const incomingHeaderByNormalized = new Map(
+    inference.headers.map((header) => [normalizeHeader(header), header]),
+  );
+  const columnMapping: BrokerExecutionCsvColumnMapping = {};
+  for (const field of Object.keys(
+    match.template.columnMapping,
+  ) as BrokerExecutionCsvCanonicalField[]) {
+    const value = match.template.columnMapping[field];
+    const headers = (Array.isArray(value) ? value : value ? [value] : [])
+      .map((header) => incomingHeaderByNormalized.get(normalizeHeader(header)))
+      .filter((header): header is string => header !== undefined);
+    if (headers.length > 0) columnMapping[field] = headers;
+  }
+  return { ...match, columnMapping };
+}
+
+export function resolveCsvMappingTimestampTimezone(
+  args: ResolveCsvMappingTimestampTimezoneArgs,
+): string | undefined {
+  return [
+    args.importOverride,
+    args.savedTemplateOverride,
+    args.accountImportDefault,
+    args.accountTimezone,
+  ]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value));
 }

@@ -59,6 +59,7 @@ const OWNER_PAGE_MODULES = [
   "app/intelligence/coach/session-stories/page.tsx",
   "app/intelligence/coach/ticker-stories/page.tsx",
   "app/intelligence/compare-trades/page.tsx",
+  "app/intelligence/csv-mapping-review/page.tsx",
   "app/intelligence/first-run/page.tsx",
   "app/intelligence/import-dry-run/page.tsx",
   "app/intelligence/imports/[batchId]/page.tsx",

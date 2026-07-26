@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   applyGenericCsvMappingReview,
   createCsvSavedMappingTemplate,
   inferGenericCsvSchema,
   matchCsvSavedMappingTemplate,
+  resolveCsvMappingTimestampTimezone,
   type BrokerExecutionCsvCanonicalField,
   type BrokerExecutionCsvColumnMapping,
   type CsvSavedMappingTemplate,
@@ -114,6 +115,12 @@ function formatInTimezone(timestamp: string, timezone: string): string {
   }
 }
 
+function timestampToUtcString(value: unknown): string {
+  if (typeof value === "string") return value;
+  const date = value instanceof Date ? value : new Date(value as number);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+
 export default function CsvMappingReviewClient({
   accountLabel,
   accountTimezone,
@@ -128,21 +135,31 @@ export default function CsvMappingReviewClient({
   >({});
   const [sideMappings, setSideMappings] = useState<Record<string, "buy" | "sell">>({});
   const [useTimezoneOverride, setUseTimezoneOverride] = useState(false);
+  const [savedTemplateTimezone, setSavedTemplateTimezone] = useState<
+    string | undefined
+  >();
   const [timezoneOverride, setTimezoneOverride] = useState(accountImportTimezone);
   const [customTimezone, setCustomTimezone] = useState("");
   const [templateName, setTemplateName] = useState("");
-  const [templates, setTemplates] = useState<CsvSavedMappingTemplate[]>([]);
+  const [templates, setTemplates] = useState<CsvSavedMappingTemplate[]>(() =>
+    typeof window === "undefined"
+      ? []
+      : parseStoredTemplates(window.localStorage.getItem(STORAGE_KEY)),
+  );
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    setTemplates(parseStoredTemplates(window.localStorage.getItem(STORAGE_KEY)));
-  }, []);
-
-  const effectiveTimezone = useTimezoneOverride
+  const importTimezoneOverride = useTimezoneOverride
     ? timezoneOverride === "custom"
-      ? customTimezone.trim() || accountImportTimezone
+      ? customTimezone.trim()
       : timezoneOverride
-    : accountImportTimezone;
+    : undefined;
+  const effectiveTimezone =
+    resolveCsvMappingTimestampTimezone({
+      importOverride: importTimezoneOverride,
+      savedTemplateOverride: savedTemplateTimezone,
+      accountImportDefault: importDefaultTimezone,
+      accountTimezone,
+    }) ?? "America/New_York";
 
   const review = useMemo(() => {
     if (!inference || !csvText) return null;
@@ -162,7 +179,8 @@ export default function CsvMappingReviewClient({
     const text = await file.text();
     const nextInference = inferGenericCsvSchema(text);
     const savedMatch = matchCsvSavedMappingTemplate(nextInference, templates);
-    const initialMapping = savedMatch?.template.columnMapping ?? nextInference.proposedMapping;
+    const initialMapping =
+      savedMatch?.columnMapping ?? nextInference.proposedMapping;
     const byHeader = mappingByHeader(initialMapping);
     const initialSelections: Record<
       string,
@@ -184,7 +202,8 @@ export default function CsvMappingReviewClient({
     setInference(nextInference);
     setSelections(initialSelections);
     setSideMappings(initialSideMappings);
-    setUseTimezoneOverride(Boolean(savedTimezone));
+    setSavedTemplateTimezone(savedTimezone);
+    setUseTimezoneOverride(false);
     if (savedTimezone) {
       if ((COMMON_TIMEZONES as readonly string[]).includes(savedTimezone)) {
         setTimezoneOverride(savedTimezone);
@@ -228,7 +247,8 @@ export default function CsvMappingReviewClient({
       inference,
       effectiveMapping: review.effectiveMapping,
       sideValueMapping: sideMappings,
-      timestampTimezone: useTimezoneOverride ? effectiveTimezone : undefined,
+      timestampTimezone:
+        importTimezoneOverride ?? savedTemplateTimezone,
     });
     const next = [template, ...templates.filter((item) => item.id !== template.id)];
     setTemplates(next);
@@ -388,6 +408,11 @@ export default function CsvMappingReviewClient({
                 <p className="mt-1 text-sm text-zinc-400">
                   Using {accountImportTimezone} from {accountLabel}. Timezone-less broker timestamps are converted to UTC for storage.
                 </p>
+                {savedTemplateTimezone && !useTimezoneOverride ? (
+                  <p className="mt-2 text-xs text-sky-300">
+                    This saved CSV format uses {savedTemplateTimezone}.
+                  </p>
+                ) : null}
                 <label className="mt-3 flex items-center gap-2 text-sm text-zinc-300">
                   <input
                     type="checkbox"
@@ -490,18 +515,21 @@ export default function CsvMappingReviewClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {review.importResult.executions.slice(0, 20).map((execution, index) => (
-                          <tr key={`${execution.timestamp}-${execution.symbol}-${index}`} className="border-t border-zinc-800">
-                            <td className="py-2 pr-3 text-zinc-200">{formatInTimezone(execution.timestamp, accountTimezone)}</td>
-                            <td className="py-2 pr-3 text-xs text-zinc-500">{execution.timestamp}</td>
-                            <td className="py-2 pr-3 font-medium">{execution.symbol}</td>
-                            <td className="py-2 pr-3 capitalize">{execution.side}</td>
-                            <td className="py-2 pr-3">{execution.shares}</td>
-                            <td className="py-2 pr-3">{execution.price}</td>
-                            <td className="py-2 pr-3">{execution.commission ?? "—"}</td>
-                            <td className="py-2">{execution.fees ?? "—"}</td>
-                          </tr>
-                        ))}
+                        {review.importResult.executions.slice(0, 20).map((execution, index) => {
+                          const timestamp = timestampToUtcString(execution.timestamp);
+                          return (
+                            <tr key={`${timestamp}-${execution.symbol}-${index}`} className="border-t border-zinc-800">
+                              <td className="py-2 pr-3 text-zinc-200">{formatInTimezone(timestamp, accountTimezone)}</td>
+                              <td className="py-2 pr-3 text-xs text-zinc-500">{timestamp}</td>
+                              <td className="py-2 pr-3 font-medium">{execution.symbol}</td>
+                              <td className="py-2 pr-3 capitalize">{execution.side}</td>
+                              <td className="py-2 pr-3">{execution.shares}</td>
+                              <td className="py-2 pr-3">{execution.price}</td>
+                              <td className="py-2 pr-3">{execution.commission ?? "—"}</td>
+                              <td className="py-2">{execution.fees ?? "—"}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
