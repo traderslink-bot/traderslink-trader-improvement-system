@@ -16,13 +16,15 @@ import {
   type CsvDryRunSamplePreset,
   type CsvDryRunSetupTagKind,
 } from "@/src/lib/trader-analytics";
-import type {
+import {
+  IMPORTABLE_BROKER_PRESETS,
+  resolveBrokerExecutionCsvSelection,
   BrokerExecutionCsvCanonicalField,
   BrokerExecutionCsvColumnMapping,
-  BrokerExecutionCsvFormat,
+  type BrokerExecutionCsvSelection,
 } from "@/src/lib/execution-sources/csv";
 
-const BROKER_OPTIONS: Array<{ value: BrokerExecutionCsvFormat; label: string }> = [
+const BROKER_OPTIONS: Array<{ value: BrokerExecutionCsvSelection; label: string }> = [
   { value: "auto", label: "Auto detect" },
   { value: "ibkr_activity_statement", label: "IBKR activity statement" },
   { value: "moomoo_trade_history", label: "Moomoo trade history" },
@@ -30,6 +32,10 @@ const BROKER_OPTIONS: Array<{ value: BrokerExecutionCsvFormat; label: string }> 
   { value: "robinhood_transaction_history", label: "Robinhood transaction history" },
   { value: "schwab_transactions", label: "Schwab transactions" },
   { value: "generic_execution_csv", label: "Generic execution CSV" },
+  ...Object.values(IMPORTABLE_BROKER_PRESETS).map((preset) => ({
+    value: preset.id,
+    label: preset.label,
+  })),
 ];
 
 const MAPPING_FIELDS: BrokerExecutionCsvCanonicalField[] = [
@@ -3157,7 +3163,7 @@ export function ImportDryRunClient({
   sampleMistakes: CsvDryRunEvidenceRecord[];
 }) {
   const [selectedPresetId, setSelectedPresetId] = useState("");
-  const [broker, setBroker] = useState<BrokerExecutionCsvFormat>("auto");
+  const [broker, setBroker] = useState<BrokerExecutionCsvSelection>("auto");
   const [timezone, setTimezone] = useState("America/New_York");
   const [csvText, setCsvText] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -3190,22 +3196,31 @@ export function ImportDryRunClient({
     message: null,
   });
 
+  const userColumnMapping = useMemo(
+    () => toColumnMapping(mappingValues),
+    [mappingValues],
+  );
+  const resolvedBrokerSelection = useMemo(
+    () =>
+      resolveBrokerExecutionCsvSelection({
+        broker,
+        columnMapping: userColumnMapping,
+      }),
+    [broker, userColumnMapping],
+  );
   const experience = useMemo(
     () =>
       buildCsvDryRunImportExperience({
         csvText,
-        broker,
+        broker: resolvedBrokerSelection.broker,
         accountTimezone: timezone,
-        columnMapping: toColumnMapping(mappingValues),
+        columnMapping: resolvedBrokerSelection.columnMapping,
         repairImpactBaseline,
         setupTagSelections: setupTags,
       }),
-    [broker, csvText, mappingValues, repairImpactBaseline, setupTags, timezone],
+    [csvText, repairImpactBaseline, resolvedBrokerSelection, setupTags, timezone],
   );
-  const currentColumnMapping = useMemo(
-    () => toColumnMapping(mappingValues),
-    [mappingValues],
-  );
+  const currentColumnMapping = resolvedBrokerSelection.columnMapping;
   const decisionReviewRequestKey = useMemo(
     () =>
       [
@@ -3562,7 +3577,7 @@ export function ImportDryRunClient({
                   className="mt-2 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500"
                   value={broker}
                   onChange={(event) => {
-                    setBroker(event.target.value as BrokerExecutionCsvFormat);
+                    setBroker(event.target.value as BrokerExecutionCsvSelection);
                     setRepairImpactBaseline(null);
                     setRepairCarryForward({ editCount: 0, lastEdit: null });
                     setFeedbackApproved(false);

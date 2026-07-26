@@ -12,8 +12,13 @@ import {
   SqliteImportCommitRepository,
 } from "../product/import-commit/sqlite-import-commit-repository";
 import type {
+  BrokerExecutionCsvSelection,
   BrokerExecutionCsvColumnMapping,
   BrokerExecutionCsvFormat,
+} from "../../execution-sources/csv";
+import {
+  isImportableBrokerPresetId,
+  resolveBrokerExecutionCsvSelection,
 } from "../../execution-sources/csv";
 import type { OwnerWorkspaceImportContext } from "./owner-workspace-context";
 
@@ -98,7 +103,8 @@ export function parseImportCommitRequestInput(
   }
   if (
     typeof document.broker !== "string" ||
-    !VALID_BROKERS.has(document.broker as BrokerExecutionCsvFormat)
+    (!VALID_BROKERS.has(document.broker as BrokerExecutionCsvFormat) &&
+      !isImportableBrokerPresetId(document.broker))
   ) {
     throw new Error("broker must be a supported CSV broker id.");
   }
@@ -109,11 +115,16 @@ export function parseImportCommitRequestInput(
     throw new Error("accountTimezone must be a string.");
   }
 
+  const resolvedSelection = resolveBrokerExecutionCsvSelection({
+    broker: document.broker as BrokerExecutionCsvSelection,
+    columnMapping: parseColumnMapping(document.columnMapping),
+  });
+
   return {
     csvText: document.csvText,
-    broker: document.broker as BrokerExecutionCsvFormat,
+    broker: resolvedSelection.broker,
     accountTimezone: document.accountTimezone as string | undefined,
-    columnMapping: parseColumnMapping(document.columnMapping),
+    columnMapping: resolvedSelection.columnMapping,
     acknowledgements: parseAcknowledgements(document.acknowledgements),
     repairSource: parseRepairSource(document.repairSource),
     timestampTimezone: typeof document.timestampTimezone === "string" ? document.timestampTimezone : undefined,

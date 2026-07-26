@@ -51,12 +51,14 @@ The existing `BrokerExecutionCsvFormat` union was not enlarged. The new presets 
 
 The underlying result still reports `generic_execution_csv` as the resolved parser because that is the parser actually used. `brokerLabel`, `stableHeaderConfidence`, `sourceLabel`, and diagnostic broker notes identify the selected preset.
 
+The import selector and server-side save/decision-review boundaries accept the preset IDs, resolve them to `generic_execution_csv`, and merge their explicit mappings with any user correction. This keeps the durable import contract on the existing hardened parser while allowing the added brokers to be selected in the product.
+
 ## Known limitations
 
 1. Broker exports can change without notice and may vary by region, account type, language, desktop/web route, or user-selected columns.
 2. Transaction-history exports may contain dividends, deposits, withdrawals, transfers, interest, or corporate actions. These rows depend on action filtering and should not be treated as executions.
 3. DAS exports that contain only a time and no date cannot produce a trustworthy execution timestamp.
-4. TradeZero canceled records should be excluded by the source or filtered before import.
+4. Alpaca activity rows are accepted only when the activity type represents a fill, and TradeZero `canceled=true` records are skipped. Other broker-specific status variants still need real-export calibration.
 5. Options are rejected by default unless the caller deliberately selects another `optionsHandling` policy.
 6. Real broker samples should be added to the private calibration fixture process as they become available.
 

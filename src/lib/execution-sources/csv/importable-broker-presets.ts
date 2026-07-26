@@ -1,6 +1,7 @@
 import {
   parseBrokerExecutionCsv,
   type BrokerExecutionCsvColumnMapping,
+  type BrokerExecutionCsvFormat,
   type BrokerExecutionCsvImportResult,
   type BrokerExecutionCsvOptionsHandling,
   type BrokerExecutionCsvTradeGroupingRules,
@@ -37,6 +38,10 @@ export interface ParseImportableBrokerCsvArgs {
   optionsHandling?: BrokerExecutionCsvOptionsHandling;
   tradeGroupingRules?: BrokerExecutionCsvTradeGroupingRules;
 }
+
+export type BrokerExecutionCsvSelection =
+  | BrokerExecutionCsvFormat
+  | ImportableBrokerPresetId;
 
 export const IMPORTABLE_BROKER_PRESETS: Record<
   ImportableBrokerPresetId,
@@ -119,6 +124,7 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
       quantity: ["qty"],
       symbol: ["symbol"],
       price: ["price"],
+      status: ["activity_type"],
       executionId: ["id"],
       orderId: ["order_id"],
     },
@@ -145,6 +151,7 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
       currency: ["currency"],
       date: ["tradeDate"],
       time: ["execTime"],
+      status: ["canceled"],
       description: ["notes"],
     },
     notes: ["Canceled records are expected to be excluded by the source or filtered before import."],
@@ -247,6 +254,35 @@ export const IMPORTABLE_BROKER_PRESETS: Record<
     notes: ["Swissquote examples commonly use semicolon-delimited CSV files."],
   },
 };
+
+export function isImportableBrokerPresetId(
+  value: string,
+): value is ImportableBrokerPresetId {
+  return Object.hasOwn(IMPORTABLE_BROKER_PRESETS, value);
+}
+
+export function resolveBrokerExecutionCsvSelection(args: {
+  broker: BrokerExecutionCsvSelection;
+  columnMapping?: BrokerExecutionCsvColumnMapping;
+}): {
+  broker: BrokerExecutionCsvFormat;
+  columnMapping: BrokerExecutionCsvColumnMapping | undefined;
+} {
+  if (!isImportableBrokerPresetId(args.broker)) {
+    return {
+      broker: args.broker,
+      columnMapping: args.columnMapping,
+    };
+  }
+
+  return {
+    broker: "generic_execution_csv",
+    columnMapping: {
+      ...IMPORTABLE_BROKER_PRESETS[args.broker].columnMapping,
+      ...args.columnMapping,
+    },
+  };
+}
 
 export function parseImportableBrokerCsv(
   args: ParseImportableBrokerCsvArgs,

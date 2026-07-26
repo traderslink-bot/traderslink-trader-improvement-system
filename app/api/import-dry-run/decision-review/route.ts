@@ -6,8 +6,13 @@ import {
   type BuildCsvDryRunDecisionReviewBridgeArgs,
 } from "../../../../src/lib/trader-analytics/server/build-csv-dry-run-decision-review-bridge";
 import type {
+  BrokerExecutionCsvSelection,
   BrokerExecutionCsvColumnMapping,
   BrokerExecutionCsvFormat,
+} from "../../../../src/lib/execution-sources/csv";
+import {
+  isImportableBrokerPresetId,
+  resolveBrokerExecutionCsvSelection,
 } from "../../../../src/lib/execution-sources/csv";
 
 export const runtime = "nodejs";
@@ -96,7 +101,8 @@ function parseBody(document: unknown): Omit<
 
   if (
     typeof document.broker !== "string" ||
-    !VALID_BROKERS.has(document.broker as BrokerExecutionCsvFormat)
+    (!VALID_BROKERS.has(document.broker as BrokerExecutionCsvFormat) &&
+      !isImportableBrokerPresetId(document.broker))
   ) {
     throw new Error("broker must be a supported CSV broker id.");
   }
@@ -109,6 +115,10 @@ function parseBody(document: unknown): Omit<
   }
 
   const columnMapping = parseColumnMapping(document.columnMapping);
+  const resolvedSelection = resolveBrokerExecutionCsvSelection({
+    broker: document.broker as BrokerExecutionCsvSelection,
+    columnMapping,
+  });
 
   const maxTrades = document.maxTrades;
 
@@ -123,9 +133,9 @@ function parseBody(document: unknown): Omit<
 
   return {
     csvText: document.csvText,
-    broker: document.broker as BrokerExecutionCsvFormat,
+    broker: resolvedSelection.broker,
     accountTimezone: document.accountTimezone as string | undefined,
-    columnMapping,
+    columnMapping: resolvedSelection.columnMapping,
     maxTrades,
   };
 }

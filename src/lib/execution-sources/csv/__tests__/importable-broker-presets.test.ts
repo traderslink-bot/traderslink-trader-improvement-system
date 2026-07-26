@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   IMPORTABLE_BROKER_PRESETS,
   parseImportableBrokerCsv,
+  resolveBrokerExecutionCsvSelection,
   type ImportableBrokerPresetId,
 } from "../importable-broker-presets";
 
@@ -136,5 +137,54 @@ describe("importable broker presets", () => {
       "buy",
       "sell",
     ]);
+  });
+
+  it("resolves a selected preset to the generic parser with user corrections preserved", () => {
+    const resolved = resolveBrokerExecutionCsvSelection({
+      broker: "alpaca_trade_activities",
+      columnMapping: {
+        symbol: "custom_symbol",
+      },
+    });
+
+    expect(resolved.broker).toBe("generic_execution_csv");
+    expect(resolved.columnMapping).toMatchObject({
+      status: ["activity_type"],
+      symbol: "custom_symbol",
+      timestamp: ["transaction_time"],
+    });
+  });
+
+  it.each([
+    {
+      broker: "alpaca_trade_activities" as const,
+      csvText: [
+        "activity_type,id,price,qty,side,symbol,transaction_time,order_id",
+        "FILL,ALP-1,700.00,10,buy,META,2026-07-24T13:39:00Z,ORDER-1",
+        "CANCELED,ALP-2,702.00,10,sell,META,2026-07-24T14:09:00Z,ORDER-2",
+      ].join("\n"),
+    },
+    {
+      broker: "tradezero_historical_fills" as const,
+      csvText: [
+        "tradeId,symbol,securityType,side,qty,price,tradeDate,execTime,canceled",
+        "TZ-1,TSLA,STOCK,BUY,5,320.00,2026-07-24,09:40:00,false",
+        "TZ-2,TSLA,STOCK,SELL,5,323.00,2026-07-24,10:10:00,true",
+      ].join("\n"),
+    },
+  ])("skips cancellation records for $broker", ({ broker, csvText }) => {
+    const result = parseImportableBrokerCsv({
+      broker,
+      csvText,
+      timestampTimezone: "America/New_York",
+    });
+
+    expect(result.acceptedExecutionCount).toBe(1);
+    expect(result.skippedRowCount).toBe(1);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "non_filled_order_skipped" }),
+      ]),
+    );
   });
 });
