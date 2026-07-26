@@ -45,6 +45,7 @@
     "verify:ti-v3:ga0-b": "tsx src/scripts/verify-trader-intelligence-v3-ga0-b.ts",
     "verify:ti-v3:ga1-a": "tsx src/scripts/verify-trader-intelligence-v3-ga1-a.ts",
     "verify:ti-v3:ga1-b": "tsx src/scripts/verify-trader-intelligence-v3-ga1-b.ts",
+    "verify:ti-v3:ga1-c": "tsx src/scripts/verify-trader-intelligence-v3-ga1-c.ts",
     "verify:all": "npm test && npm run verify:levels-system && npm run verify:layer2 && npm run verify:layer3",
     "check": "tsc --noEmit && npm run build"
   },

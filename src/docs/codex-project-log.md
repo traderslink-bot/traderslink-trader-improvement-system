@@ -1,3 +1,25 @@
+# 2026-07-26 - GA1-C final executable proof complete
+
+- Continued accepted GA1-C semantics from `109d134c`.
+- Added the offline fixed proof harness and serial verifier command for fixture
+  `ti_v3_ga1_c_fixed_seed_20260726_v1`.
+- The proof processes exactly 10,000 rows through generic and all 14 governed
+  simulations, reconstruction, envelope/receipt replay, bounded evidence,
+  max-plus-one rejection, and reversed-storage identity.
+- The proof exposed canonical and runtime-validation graph budgets that stopped
+  declared-valid 10,000-outcome results. Both remain hard bounded and were
+  aligned to the existing contract; no simulation semantics changed.
+- Final proof passed 1 file / 2 tests in 1,003.63 seconds test time.
+- The first CI run found a GA0-B2 hostile-input test still fixed to the former
+  aggregate-string ceiling. It now derives max-plus-one from the exported
+  limit; the CI-equivalent local suite passed 208 files / 2,144 tests.
+
+Current best next step:
+
+- Publish the verified final proof checkpoint to draft PR #162, observe CI, and
+  stop for independent final acceptance. Do not merge, deploy, or begin
+  GA1-D/GA1-E.
+
 # 2026-07-25 - GA1-C fee-authority audit remediation active
 
 - Continued draft PR #162 from synchronized head `636e58b5`.

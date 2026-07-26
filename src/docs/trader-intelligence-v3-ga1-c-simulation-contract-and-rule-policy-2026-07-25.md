@@ -1,5 +1,14 @@
 # GA1-C Simulation Contract and Rule Policy
 
+## Final proof contract
+
+`npm run verify:ti-v3:ga1-c -- --scale-only` runs the offline fixed fixture
+`ti_v3_ga1_c_fixed_seed_20260726_v1`: 10,000 explicit-zero-fee, whole-share
+analytical rows, one outcome per row, generic and all governed origins,
+re-execution, envelopes/receipts, bounded evidence, max-plus-one failure, and
+source-storage permutation identity. No wall clock, network, market data,
+private data, SQL, browser, provider, candle, or alternate calculator is used.
+
 ## Derived resized fee authority
 
 The resizing executor derives one authoritative charge/net status from both the

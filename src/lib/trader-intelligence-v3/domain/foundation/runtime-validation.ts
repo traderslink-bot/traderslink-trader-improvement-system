@@ -11,9 +11,12 @@ export const FOUNDATION_PAYLOAD_LIMITS = Object.freeze({
   maxPropertyKeyLength: 4_096,
   maxReasonCodes: 128,
   maxDepth: 64,
-  maxNodes: 2_000_000,
-  maxAggregateStringLength: 16_777_216,
-  maxTotalKeys: 500_000,
+  // GA1-C replay issuance revalidates a complete bounded 10,000-outcome
+  // simulation result. Keep these aligned with canonical serialization's hard
+  // graph budgets so a valid digestible result is also runtime-validatable.
+  maxNodes: 4_000_000,
+  maxAggregateStringLength: 67_108_864,
+  maxTotalKeys: 1_250_000,
 });
 
 export type FoundationValidationFailureCode =

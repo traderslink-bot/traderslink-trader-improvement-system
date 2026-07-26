@@ -4,14 +4,15 @@ export const CANONICAL_SERIALIZATION_VERSION = "ti_v3_canonical_json_v1" as cons
 
 export const CANONICAL_SERIALIZATION_LIMITS = Object.freeze({
   maxDepth: 64,
-  // GA0-B analytical receipts admit up to 64 exact rows. A verified row and
-  // its nested exact facts require more than the original 1,024-key envelope
-  // budget once the accepted 10-target/20-baseline sample is represented.
-  maxNodeCount: 2_000_000,
-  maxKeyCount: 500_000,
+  // GA1-C emits one bounded, deeply nested outcome for each of up to 10,000
+  // accepted analytical rows. The prior 500,000-key envelope stopped a valid
+  // result at outcome 5,349. These remain hard global graph budgets, sized for
+  // the declared 10,000-row result rather than an unbounded payload.
+  maxNodeCount: 4_000_000,
+  maxKeyCount: 1_250_000,
   maxPropertyKeyCodeUnits: 4_096,
   maxStringCodeUnits: 262_144,
-  maxAggregateCodeUnits: 16_777_216,
+  maxAggregateCodeUnits: 67_108_864,
 });
 
 export type CanonicalValue =

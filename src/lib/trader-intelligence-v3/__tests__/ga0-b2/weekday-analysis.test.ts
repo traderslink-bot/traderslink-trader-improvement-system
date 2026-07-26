@@ -663,10 +663,17 @@ describe("GA0-B2 exact decomposition and hostile-key budgets", () => {
       [overBoundary],
       [],
     ).ok).toBe(false);
-    const aggregateAttack = Array.from({ length: 4_100 }, (_, index) => ({
-      [`${String(index).padStart(4, "0")}${"k".repeat(4092)}`]: "",
-    }));
-    expect(validateArray(aggregateAttack, "$", 4_100).ok).toBe(false);
+    const aggregateKey = "k".repeat(
+      FOUNDATION_PAYLOAD_LIMITS.maxPropertyKeyLength,
+    );
+    const aggregateKeyCount = Math.floor(
+      FOUNDATION_PAYLOAD_LIMITS.maxAggregateStringLength / aggregateKey.length,
+    ) + 1;
+    const aggregateAttack = Array.from(
+      { length: aggregateKeyCount },
+      () => ({ [aggregateKey]: "" }),
+    );
+    expect(validateArray(aggregateAttack, "$", aggregateKeyCount).ok).toBe(false);
     expect(serializeCanonicalValue({ [atBoundary]: "v" }).ok).toBe(true);
     expect(serializeCanonicalValue({ [overBoundary]: "v" })).toMatchObject({
       ok: false,

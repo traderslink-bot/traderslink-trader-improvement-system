@@ -1,5 +1,15 @@
 # Independent Re-Audit Handoff: GA1-C Checkpoint Two
 
+## Final proof audit target
+
+Audit the committed fixed proof harness, fixture identity
+`ti_v3_ga1_c_fixed_seed_20260726_v1`, its 10,000-row/max-plus-one boundary,
+generic and 14 governed executions, reconstruction, replay receipts, evidence
+bounds, repeated digests, and reversed-storage identity. Confirm that raising
+canonical/runtime graph ceilings remains a hard bounded structural correction
+for 10,000 outcomes and does not relax simulation, authority, or financial
+semantics.
+
 ## Focused correction to verify
 
 Verify that resized charge/net authority is derived from both the fee state and

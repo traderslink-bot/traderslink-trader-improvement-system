@@ -1,5 +1,30 @@
 # GA1-C Verification Ledger
 
+## Final 10,000-row executable proof
+
+| Proof item | Result |
+| --- | --- |
+| command | `npm run verify:ti-v3:ga1-c -- --scale-only` |
+| fixture | `ti_v3_ga1_c_fixed_seed_20260726_v1` |
+| accepted rows / outcomes | 10,000 / 10,000 |
+| generic and governed presets | generic plus all 14 governed presets passed |
+| replay / reconstruction | result, envelope, and receipt replay passed |
+| bounds | evidence bounded; 10,001 source rows fail closed |
+| permutation | reversed source storage preserved plan/result identity |
+| final proof | 1 file / 2 tests; 1,003.63 seconds test time |
+
+The first proof exposed the canonical key ceiling at outcome 5,349. After that
+bounded correction, replay issuance exposed the matching runtime validator
+ceiling. A subsequent assertion-complete run exceeded its 10-minute harness
+timeout after 901 seconds; raising only the proof timeout to 20 minutes produced
+the final clean run without changing rows, assertions, or seeds.
+
+The first GitHub run then exposed one GA0-B2 hostile-input fixture that encoded
+the former aggregate-string ceiling as a fixed attack size. The fixture now
+derives one property key beyond the exported ceiling. The CI-equivalent local
+suite passed 208 files / 2,144 tests, with 2 files / 4 tests intentionally
+skipped.
+
 ## Focused fee-authority remediation
 
 Independent audit identified that a complete row-level authority containing an

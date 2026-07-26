@@ -1,5 +1,16 @@
 # GA1-C Checkpoint-Two Implementation and Audit Handoff
 
+## Final executable proof handoff
+
+Starting head `109d134c8c5bb50bd4f24003b1858b56537e9673` is the accepted semantic
+checkpoint. The new offline proof command is
+`npm run verify:ti-v3:ga1-c -- --scale-only`, using fixture
+`ti_v3_ga1_c_fixed_seed_20260726_v1` and exactly 10,000 rows. It covers generic
+and all 14 governed plans, reconstruction, envelope/receipt replay, bounded
+evidence, max-plus-one rejection, and storage permutation. The only executable
+correction is alignment of canonical/runtime graph budgets with the pre-existing
+10,000-outcome contract; simulation semantics are unchanged.
+
 ## Focused fee-authority remediation
 
 The audit inconsistency is corrected by deriving resized charge/net authority

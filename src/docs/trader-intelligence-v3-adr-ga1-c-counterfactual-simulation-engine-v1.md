@@ -5,6 +5,16 @@
 **Base:** `183f6d44e1289a646d22fefb82f1d8c589b5e1b4`
 **Branch:** `agent/trader-intelligence-v3-ga1-c-counterfactual-simulation`
 
+## Final executable proof
+
+The fixed fixture `ti_v3_ga1_c_fixed_seed_20260726_v1` proves exactly 10,000
+rows through generic execution/replay and all 14 governed presets, including
+fee-aware resizing, result reconstruction, bounded evidence, replay receipts,
+max-plus-one rejection, and reversed-storage identity. The proof exposed that
+the prior canonical and runtime-validation 500,000-key graph budgets stopped a
+declared-valid result at outcome 5,349. Both remain hard bounded limits and are
+now sized to the declared 10,000-outcome contract.
+
 ## Fee-authority audit correction
 
 Row-level `broker_reported_complete` or `account_policy_calculated` authority is
