@@ -14,11 +14,10 @@ export function getSavedTraderAnalyticsRepository(): SqliteImportCommitRepositor
 
 export function buildSavedOrSampleTraderAnalyticsViewModel(options?: {
   preferSample?: boolean;
+  userId?: string;
 }) {
   const repository = getSavedTraderAnalyticsRepository();
-  // Imports are owned by the configured private-owner identity.  Preserve the
-  // demo fallback for local sample/test environments that do not configure one.
-  const userId = process.env.TRADER_INTELLIGENCE_OWNER_ID?.trim() || DEMO_USER_ID;
+  const userId = options?.userId ?? DEMO_USER_ID;
   const reports = filterCustomerSavedReports(repository.listReports(userId));
 
   if (reports.length > 0 && !options?.preferSample) {

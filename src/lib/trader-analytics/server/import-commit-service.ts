@@ -130,18 +130,28 @@ export function buildDurableImportCommitPlan(args: {
 }): ImportCommitPlanResult {
   const account = args.context?.account;
   const accountId = account?.id ?? DEMO_ACCOUNT_ID;
+  // Do not replace broker defaults with an otherwise-empty account policy:
+  // generic CSV needs its default sell-starting-trade allowance, while IBKR
+  // keeps its own long-gap grouping behavior. Account settings only override
+  // those defaults when the owner has changed one.
+  const tradeGroupingRules =
+    account &&
+    (account.importDefaults.maxTradeGroupingGapMinutes !== null ||
+      !account.importDefaults.splitTradesAtSessionBoundary)
+      ? {
+          maxGapMinutes:
+            account.importDefaults.maxTradeGroupingGapMinutes ?? undefined,
+          splitAtSessionBoundary:
+            account.importDefaults.splitTradesAtSessionBoundary,
+        }
+      : undefined;
   const experience = buildCsvDryRunImportExperience({
     csvText: args.input.csvText,
     broker: args.input.broker,
     accountTimezone: args.input.timestampTimezone ?? account?.importDefaults.timestampTimezone ?? args.input.accountTimezone,
     columnMapping: args.input.columnMapping,
     optionsHandling: args.input.optionsHandling ?? account?.importDefaults.optionsHandling,
-    tradeGroupingRules: account
-      ? {
-          maxGapMinutes: account.importDefaults.maxTradeGroupingGapMinutes ?? undefined,
-          splitAtSessionBoundary: account.importDefaults.splitTradesAtSessionBoundary,
-        }
-      : undefined,
+    tradeGroupingRules,
   });
 
   return buildImportCommitPlan({
