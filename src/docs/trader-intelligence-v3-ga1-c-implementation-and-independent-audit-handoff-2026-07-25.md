@@ -100,8 +100,8 @@ Reviewers should concentrate on:
 
 - `simulate_reduce_size_after_loss` remains deliberately deferred pending
   proportional P/L, rounding, minimum-size, fee, and charge authority;
-- a standalone persisted replay envelope/receipt is not yet issued, although
-  the complete result is re-executed and digest-verified;
+- a standalone persisted replay envelope/receipt is delivered by the replay
+  checkpoint described below;
 - final proportional-resizing integration and its focused tests remain;
 - the fixed-seed 10,000-row proof remains reserved for the final executable
   checkpoint after all presets and sizing decisions are complete.
@@ -111,3 +111,38 @@ These are checkpoint boundaries, not claims of completed GA1-C acceptance.
 ## Stop boundary
 
 Keep the PR draft, open, unmerged, and undeployed. Do not begin GA1-D or GA1-E.
+
+## Persisted replay-envelope checkpoint
+
+Starting head: `ad3a8597df9fccd60d8eca69d63e082bc755c9b9`
+
+Final executable commit: the single checkpoint commit containing this handoff;
+resolve its external SHA from draft PR #162 or the final execution report.
+
+This checkpoint adds a portable content-addressed envelope containing strict
+references to accepted source, query, simulation, policy, bound, result, and
+optional preset identities. It does not embed or replace the authoritative
+artifacts. Replay requires those external artifacts, reopens read-only source
+authority, verifies the executor capability, reconstructs query/plan/preset
+authority, and delegates to the generic simulation executor plus accepted
+complete result re-execution.
+
+Only successful replay issues a deterministic content-addressed receipt.
+Failure returns a bounded stage-specific code and no receipt. A receipt digest
+does not independently grant authority; the persisted receipt is accepted only
+when authoritative replay reconstructs the same receipt.
+
+Independent audit should review:
+
+- strict envelope/receipt fields and both new identity domains;
+- exact seven/eight artifact references and diagnostic/output bounds;
+- cloned capability and foreign owner/account/currency/partition rejection;
+- cross-query and cross-simulation authority rejection;
+- dependency, execution-policy, bound, preset-argument, result, envelope, and
+  receipt tamper rejection, including correctly re-digested artifacts;
+- generic and all thirteen governed preset reconstruction;
+- repeated replay and source-storage permutation identity; and
+- the ten deterministic mismatch stages.
+
+Deferred work remains proportional resizing, share rounding, charges and fees,
+the final 10,000-row proof, GA1-D, GA1-E, merge, and deployment.

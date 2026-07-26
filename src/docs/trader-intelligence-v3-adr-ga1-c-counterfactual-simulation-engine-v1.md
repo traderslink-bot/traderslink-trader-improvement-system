@@ -141,8 +141,38 @@ counts use the same exclusion predicate and cannot count conservative retention.
 Preset reconstruction verifies governed arguments, the rebuilt generic plan,
 derived dependencies, and both digests. Result replay reopens accepted
 authority, reruns the engine, and requires the rebuilt result digest. Correctly
-re-digested field tampering cannot self-authorize. A separate persisted replay
-receipt/envelope remains deferred.
+re-digested field tampering cannot self-authorize. The persisted replay
+envelope and receipt layered over that path are specified below.
+
+## Persisted replay envelope and receipt
+
+The standalone replay checkpoint adds two distinct content-addressed artifacts.
+The envelope identifies the dataset and derivation receipts, analytical
+partition, executor-issued source query result, query plan, simulation plan,
+persisted result, execution policies, state-dependency policy, output bounds,
+and optional governed preset. It stores strict digest references rather than
+duplicating the full query result, plan, result, or preset.
+
+The envelope is not execution authority. Replay still requires the externally
+retained read-only source capability, partition receipt, executor-issued GA1-A
+query-result object, simulation plan, persisted simulation result, and governed
+preset artifact when named. The replay path reopens the source, reconstructs
+the query and simulation plans, reconstructs a named preset, calls the generic
+simulation executor, and calls complete result re-execution.
+
+A receipt is issued only after those checks succeed. It binds the envelope,
+supplied source identities, reconstructed query/plan/result digests, expected
+persisted result digest, verified status, empty successful diagnostics, and its
+own digest. Failed replay returns a bounded deterministic stage-specific
+failure and no receipt. Receipt shape/digest verification alone is not replay
+authority; authoritative attestation requires replay against the retained
+external artifacts.
+
+Envelope references are bounded to eight, diagnostics to the plan's declared
+limit and the global maximum of 128, reconstruction evidence to zero, and the
+receipt collection to one. The historical in-sample limitation is unchanged.
+Proportional sizing, rounding, charges/fees, and the final 10,000-row proof
+remain outside this checkpoint.
 
 ## Content identity and bounds
 

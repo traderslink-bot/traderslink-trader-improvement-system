@@ -1,3 +1,29 @@
+# 2026-07-25 - GA1-C persisted replay envelope checkpoint active
+
+- Continued draft PR #162 from accepted clean synchronized checkpoint-two head
+  `ad3a8597df9fccd60d8eca69d63e082bc755c9b9`.
+- Added versioned content-addressed replay envelope and success receipt
+  contracts. The envelope binds source/query/simulation/result/policy/bound and
+  optional preset identities without granting or replacing execution
+  authority.
+- Replay reopens the accepted read-only source, requires the executor-issued
+  GA1-A query-result capability, reconstructs direct or governed plans, calls
+  the accepted generic simulator and complete result re-execution, and issues a
+  receipt only after success.
+- Added ten bounded deterministic failure stages, seven/eight exact artifact
+  references, max-plus-one rejection, and focused generic/all-thirteen-preset,
+  authority, tamper, receipt, repeat, and permutation coverage.
+- Focused development verification passed 1 file / 7 tests, TypeScript, and
+  targeted ESLint.
+- Final local verification passed 7 files / 82 tests, TypeScript, targeted
+  ESLint, the architecture guard, and `git diff --check`.
+
+Current best next step:
+
+- Commit/push one executable checkpoint, observe PR #162 CI, and stop for
+  independent audit. Do not run the final 10,000-row proof, merge, deploy, or
+  begin sizing/fee work, GA1-D, or GA1-E.
+
 # 2026-07-25 - GA1-C checkpoint-two affected-population correction active
 
 - Continued draft PR #162 from required clean synchronized head

@@ -102,3 +102,25 @@ counted, classified, reasoned, and limited.
 | `git diff --check` | passed |
 | GitHub CI | observe after push |
 | 10,000-row / browser / E2E / deployment | deliberately not run |
+
+## Standalone persisted replay envelope and receipt checkpoint
+
+Starting head: `ad3a8597df9fccd60d8eca69d63e082bc755c9b9`
+
+Final executable commit: the single checkpoint commit containing this ledger;
+its external SHA is recorded on draft PR #162 and in the final execution report
+because a commit cannot include its own content-addressed identity.
+
+| Check | Result |
+| --- | --- |
+| focused replay-envelope suite | development run: 1 file / 7 tests passed |
+| generic and all 13 preset replay | passed |
+| authority/plan/preset/result/envelope/receipt rejection | passed |
+| deterministic stages, max-plus-one, and permutation | passed |
+| all GA1-C plus affected GA0-B3 / GA1-A / GA1-B | 7 files / 82 tests passed |
+| TypeScript | `npx --no-install tsc --noEmit --pretty false` passed |
+| targeted ESLint | replay, identity, exports, and focused test passed |
+| architecture guard | passed: 487 architecture files, 43 API routes, 82 classified Trader Intelligence routes |
+| `git diff --check` | passed |
+| GitHub CI | observe after push |
+| final 10,000-row / browser / E2E / deployment | deliberately not run |

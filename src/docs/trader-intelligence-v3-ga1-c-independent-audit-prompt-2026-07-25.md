@@ -49,3 +49,27 @@ exists.
 
 Report blocking findings with exact file/line evidence. Do not merge, deploy,
 mark ready, or broaden scope.
+
+## Focused replay-envelope audit handoff
+
+Audit the executable replay-envelope checkpoint from starting head
+`ad3a8597df9fccd60d8eca69d63e082bc755c9b9`. Resolve the final checkpoint SHA
+from the current draft PR #162 head because the commit cannot embed its own
+identity.
+
+Confirm the persisted envelope identifies but never substitutes for the
+read-only source, partition, executor-issued query result, simulation plan,
+persisted result, and optional governed preset. Confirm successful replay calls
+the accepted generic executor and complete result re-execution, and only then
+issues the receipt. Receipt digest/shape verification alone must not be treated
+as execution authority.
+
+Attempt cloned capability, foreign owner/account/currency/partition, cross-plan
+and cross-result substitution, dependency/policy/bound/preset/result tampering,
+correctly re-digested envelope/result/receipt tampering, unsupported versions,
+unknown/missing/extra fields, and max-plus-one references/diagnostics. Verify
+all thirteen preset keys, direct generic plans, exact stage codes, repeat
+identity, and source-storage permutation identity.
+
+Keep resizing, fees, final scale proof, GA1-D, GA1-E, merge, and deployment out
+of scope.

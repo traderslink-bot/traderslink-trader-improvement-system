@@ -185,6 +185,51 @@ the result digest; it returns only the rebuilt result. Unknown fields,
 accessors, class/polluted objects, foreign authority, altered compiled plans,
 and correctly re-digested result/preset tampering fail closed.
 
-A separate persisted envelope and content-addressed replay receipt remain for a
-later final checkpoint. Proportional sizing remains excluded from both execution
-and replay.
+The persisted envelope and content-addressed replay receipt are specified
+below. Proportional sizing remains excluded from both execution and replay.
+
+## Persisted replay contract
+
+Replay envelope version
+`ti_v3_counterfactual_simulation_replay_envelope_v1` binds:
+
+- source key/version plus snapshot, dataset-receipt, derivation, partition,
+  owner, account, and currency identities;
+- source query-plan and executor-issued result digests;
+- simulation plan and persisted result digests plus result schema version;
+- state-dependency, chronological-order, timestamp-tie, sizing, charge,
+  missing-data, and all other accepted execution policies;
+- declared simulation output bounds and required GA1-A authority scope;
+- either no governed preset or the exact preset schema/key/version/digest;
+- seven generic artifact references or eight when a preset is present; and
+- explicit artifact, diagnostic, reconstruction-evidence, and receipt bounds.
+
+The envelope is stored with, not instead of, the authoritative source,
+partition receipt, executor-issued query result, simulation plan, persisted
+result, and optional compiled preset. A digest establishes content identity,
+not authority or successful execution.
+
+Successful replay produces
+`ti_v3_counterfactual_simulation_replay_receipt_v1`. It binds the envelope and
+supplied authority identities, reconstructed query-plan, simulation-plan, and
+simulation-result digests, the expected persisted result digest, verified
+status, null mismatch stage, bounded empty success diagnostics, and its receipt
+digest. Failures produce no receipt; they return one deterministic bounded
+diagnostic at the exact stage:
+
+1. `replay_envelope_contract`;
+2. `dataset_partition_authority`;
+3. `source_query_result_authority`;
+4. `source_query_plan_reconstruction`;
+5. `simulation_plan_reconstruction`;
+6. `preset_reconstruction`;
+7. `simulation_execution`;
+8. `result_reconstruction`;
+9. `expected_result_digest`;
+10. `replay_receipt_verification`.
+
+The replay path supports direct generic plans and all thirteen accepted
+execution-only presets. Max-plus-one artifact references or diagnostics fail
+closed. Unknown, missing, extra, unsupported-version, foreign-authority, and
+correctly re-digested tampering also fail closed. Historical in-sample results
+still do not establish future edge.
