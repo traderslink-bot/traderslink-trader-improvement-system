@@ -15,7 +15,10 @@ import {
   listOwnerCsvMappingTemplates,
   saveOwnerCsvMappingTemplate,
 } from "../server/csv-mapping-template-service";
-import { buildDurableImportCommitPlan } from "../server/import-commit-service";
+import {
+  buildDurableImportCommitPlan,
+  parseImportCommitRequestInput,
+} from "../server/import-commit-service";
 import { resolveOwnerWorkspaceImportContext } from "../server/owner-workspace-context";
 
 let tempDir = "";
@@ -53,6 +56,21 @@ describe("owner CSV mapping persistence and controlled continuation", () => {
     "AAPL,2026-07-24 09:35:00,BUY,10,182.10,1.00,0.05",
     "AAPL,2026-07-24 10:05:00,SELL,10,184.25,1.00,0.05",
   ].join("\n");
+
+  it("accepts expanded broker selections and resolves their preset mappings", () => {
+    const input = parseImportCommitRequestInput({
+      broker: "alpaca_trade_activities",
+      csvText: "activity_type,transaction_time,side,qty,symbol,price",
+    });
+
+    expect(input).toMatchObject({
+      broker: "generic_execution_csv",
+      columnMapping: {
+        status: ["activity_type"],
+        timestamp: ["transaction_time"],
+      },
+    });
+  });
 
   it("isolates versioned templates by owner and account and rejects foreign updates", () => {
     const repository = new SqliteImportCommitRepository();
