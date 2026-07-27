@@ -19563,3 +19563,24 @@ Current best next step:
 
 - Let the fresh draft PR #173 CI run complete. Do not migrate dashboard
   consumers, change Coach behavior, deploy, or merge.
+
+# 2026-07-27 Trade Execution Analytics v3 dashboard operationalization — Milestone 0 complete
+
+- Verified that PR #173 merge commit `599436a435fefcad322ebaec7293a19d7d8d3ab0`
+  is an ancestor of current `origin/main` (`4c76178c`). Work continues from a
+  clean linked worktree so the dirty primary checkout remains untouched.
+- Added the controlling v3 dashboard operationalization plan and a focused
+  inventory of the temporary legacy SQLite execution/import/analytics runtime.
+  The inventory records the v3 parser, read-only authority bridge, and query
+  gateway as the current boundary: v3 has no durable broker-import authority
+  yet, and no legacy data may be converted or used as its fallback.
+- Recorded the reversible, owner-confirmed procedure for resetting disposable
+  legacy SQLite test data. No route, database, import, dashboard, or runtime
+  behavior changed; no data was reset or deleted.
+
+Current best next step:
+
+- Milestone 1: implement one durable v3 source-document/execution persistence
+  boundary plus a focused restart-identity proof. Do not migrate legacy SQLite
+  rows, switch dashboard consumers, build Coach/AI chat, deploy, or begin
+  market-data work.

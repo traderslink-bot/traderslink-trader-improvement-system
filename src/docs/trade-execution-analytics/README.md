@@ -5,6 +5,8 @@ Trade Execution Analytics Engine. Read both before planning or extending it.
 
 1. [Trade Execution Analytics Engine Plan](./trade_execution_analytics_engine_plan.md)
 2. [Future Agent Compatibility Appendix](./trade_execution_analytics_engine_future_agent_compatibility_appendix.md)
+3. [v3 Dashboard Operationalization Plan](./v3-dashboard-operationalization-plan.md)
+4. [Milestone 0 Legacy Execution Runtime Inventory](./v3-legacy-execution-runtime-inventory.md)
 
 The plan defines the deterministic execution-analytics scope. The appendix
 updates that plan with the architecture required for a future agent layer; it
@@ -28,6 +30,11 @@ trade executions. The older application analytics surface remains a consumer
 boundary outside this PR. A later, separately reviewed migration PR must move
 dashboard consumption to this engine and retire duplicated legacy calculations.
 No dashboard migration is included here.
+
+The operationalization plan records the separate, local-only path that will
+replace this temporary legacy consumer boundary. It prohibits SQLite conversion,
+fallback, or parallel execution analytics; legacy retirement occurs only after
+v3 import-to-dashboard proof.
 
 ## Supported scope
 

@@ -1,13 +1,16 @@
 # Trade Execution Analytics Engine Implementation Progress
 
-Read the [plan](./trade_execution_analytics_engine_plan.md) and its [future-agent appendix](./trade_execution_analytics_engine_future_agent_compatibility_appendix.md) together before changing this tracker.
+Read the [engine plan](./trade_execution_analytics_engine_plan.md), its
+[future-agent appendix](./trade_execution_analytics_engine_future_agent_compatibility_appendix.md),
+and the [dashboard operationalization plan](./v3-dashboard-operationalization-plan.md)
+together before changing this tracker.
 
 ## Current work
 
-- Status: review-ready engine boundary
-- Work item: Trade Execution Analytics Engine v1 completion
+- Status: dashboard operationalization Milestone 0 complete
+- Work item: Trade Execution Analytics Engine v3 operationalization
 - Goal: keep one shared, deterministic source of truth for execution analytics;
-  dashboard migration is explicitly deferred to a later PR.
+  build durable v3 import/persistence before any dashboard migration.
 - Constraint: do not route financial values through the legacy number-based CSV
   importer or make migration data look broker-authoritative. The raw parser
   accepts only explicit UTC timestamps; local-time broker exports remain
@@ -33,13 +36,18 @@ Read the [plan](./trade_execution_analytics_engine_plan.md) and its [future-agen
 - Completed catalog-lock checkpoint: the machine-readable plan catalog assigns every registered metric to an implemented plan family and records the non-execution boundaries. Its focused test prevents a registry metric from silently losing plan coverage.
 - Completed output-level audit remediation: source-kind and charge-coverage filters/grouping, trough-to-recovery magnitude, verified deterministic finding/sample packets, and FIFO charge-kind allocation are now shared-engine primitives. Commission-only metrics are available only with complete per-kind charge allocation and otherwise fail closed.
 - Completed agent-discovery checkpoint: the public execution capability catalog now advertises deterministic, evidence-linked finding/sample packets, source-kind selection, trough recovery, and the explicit authority needed for named commission analytics. Agents consume the result contract rather than calculate or narrate their own financial results.
+- Completed operationalization Milestone 0: documented the one-path v3 runtime,
+  inventoried the temporary legacy SQLite execution/import/analytics surface,
+  and recorded the disposable-data reset procedure. The legacy store remains
+  untouched until v3 import-to-dashboard proof; it has no conversion or
+  fallback role.
 
 ## Next queue
 
-1. Review and accept this engine contract before migrating any dashboard consumer.
-2. Add named charge-kind metrics only when the source provides complete
-   per-kind allocation; do not manufacture exchange/regulatory/borrow labels
-   from combined charges.
+1. Implement the smallest Milestone 1 batch: durable v3 source-document and
+   canonical-execution persistence plus a focused restart-identity proof.
+2. Preserve complete charge-kind authority requirements; do not manufacture
+   exchange/regulatory/borrow labels from combined charges.
 3. When the original May 2026 IBKR export is available, import its raw bytes
-   through the v3 parser; do not relabel a legacy SQLite conversion as raw
-   broker evidence.
+   through the v3 parser and the new v3 persistence boundary; do not relabel a
+   legacy SQLite conversion as raw broker evidence.
