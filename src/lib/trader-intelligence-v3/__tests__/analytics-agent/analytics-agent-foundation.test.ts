@@ -25,6 +25,11 @@ function request(question: string, count = 12) {
 describe("Analytics Agent v1 Foundation", () => {
   it("routes its initial plain-English inventory deterministically without a model", () => {
     expect(resolveAnalyticsAgentIntent("What times of day am I least profitable?").intent).toBe("time_of_day_performance");
+    expect(resolveAnalyticsAgentIntent("What market session am I most profitable?")).toMatchObject({ intent: "session_performance", session: null, ranking: "descending" });
+    expect(resolveAnalyticsAgentIntent("What market session am I least profitable?")).toMatchObject({ intent: "session_performance", session: null, ranking: "ascending" });
+    expect(resolveAnalyticsAgentIntent("How do I perform in pre market?")).toMatchObject({ intent: "session_performance", session: "premarket" });
+    expect(resolveAnalyticsAgentIntent("How do I perform during regular market hours?")).toMatchObject({ intent: "session_performance", session: "regular" });
+    expect(resolveAnalyticsAgentIntent("How do I perform post market?")).toMatchObject({ intent: "session_performance", session: "after_hours" });
     expect(resolveAnalyticsAgentIntent("How do I trade after a loss?")).toMatchObject({ intent: "prior_outcome_behavior", previousOutcome: "loss" });
     expect(resolveAnalyticsAgentIntent("Show my results in stocks under $5.")).toMatchObject({
       intent: "price_range_performance",
@@ -162,6 +167,34 @@ describe("Analytics Agent v1 Foundation", () => {
       expect(result.value.enginePlanDigest).toMatch(/^ti_v3:trade_query_plan:v1:sha256:/);
       expect(result.value.resultDigest).toMatch(/^ti_v3:trade_query_result:v1:sha256:/);
       expect(result.value.rankedRows.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("builds exact session comparison and specific-session plans using the existing engine authority", () => {
+    const planFor = (question: string) => {
+      const input = request(question);
+      const planned = buildAnalyticsAgentPlan(input.request, resolveAnalyticsAgentIntent(question));
+      expect(planned).toMatchObject({ ok: true });
+      if (!planned.ok || planned.value.plan === null) throw new Error(`missing direct plan for ${question}`);
+      return planned.value.plan;
+    };
+    const allSessions = planFor("What market session am I most profitable?");
+    expect(allSessions.grouping).toEqual({ kind: "session" });
+    expect(allSessions.filters.some((filter) => filter.kind === "session")).toBe(false);
+    expect(allSessions.ordering).toEqual([{ by: "metric", metricKey: "net_pnl", direction: "descending" }]);
+    for (const [question, session] of [
+      ["How do I perform in pre market?", "premarket"],
+      ["How do I perform during regular market hours?", "regular"],
+      ["How do I perform after hours?", "after_hours"],
+      ["How do I perform post market?", "after_hours"],
+    ] as const) {
+      const plan = planFor(question);
+      expect(plan.grouping).toEqual({ kind: "aggregate" });
+      expect(plan.filters).toContainEqual({ kind: "session", values: [session] });
+      const input = request(question);
+      const executed = executeAnalyticsAgent(input.request);
+      expect(executed.ok, question).toBe(true);
+      if (executed.ok) expect(executed.value.enginePlanDigest).toMatch(/^ti_v3:trade_query_plan:v1:sha256:/);
     }
   });
 

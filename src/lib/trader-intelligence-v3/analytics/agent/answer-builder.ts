@@ -47,7 +47,8 @@ function evidenceOmitted(result: TradeQueryResult): string {
 
 function followUps(intent: AnalyticsAgentIntentResolution["intent"]): readonly string[] {
   switch (intent) {
-    case "time_of_day_performance": return Object.freeze(["Show the evidence trades.", "Break this down by ticker."]);
+    case "time_of_day_performance":
+    case "session_performance": return Object.freeze(["Show the evidence trades.", "Break this down by ticker."]);
     case "ticker_performance": return Object.freeze(["Show repeat attempts on this ticker.", "Show the evidence trades."]);
     case "fee_impact": return Object.freeze(["Show gross versus net for this period.", "Check the data-quality limitations."]);
     case "giveback_drawdown": return Object.freeze(["Show the evidence trades for this day.", "Compare this period with another period."]);
@@ -60,6 +61,7 @@ function drillDowns(intent: AnalyticsAgentIntentResolution["intent"]): readonly 
   const dataQuality: AnalyticsAgentDrillDown = Object.freeze({ question: "Check the data-quality limitations.", supportedIntent: "data_quality", purpose: "data_quality" });
   switch (intent) {
     case "time_of_day_performance":
+    case "session_performance":
       return Object.freeze([evidence, Object.freeze({ question: "Break this down by ticker.", supportedIntent: "ticker_performance", purpose: "segmentation" }), dataQuality]);
     case "ticker_performance":
     case "limited_category_summary":
@@ -72,7 +74,7 @@ function drillDowns(intent: AnalyticsAgentIntentResolution["intent"]): readonly 
 }
 
 function renderHints(intent: AnalyticsAgentIntentResolution["intent"]): AnalyticsAgentAnswerPacket["renderHints"] {
-  if (intent === "time_of_day_performance" || intent === "ticker_performance" || intent === "trade_sequence_behavior" || intent === "repeat_attempt_behavior") {
+  if (intent === "time_of_day_performance" || intent === "session_performance" || intent === "ticker_performance" || intent === "trade_sequence_behavior" || intent === "repeat_attempt_behavior") {
     return Object.freeze(["metric_cards", "bar_chart", "table", "evidence_list"]);
   }
   return Object.freeze(["metric_cards", "table", "evidence_list"]);

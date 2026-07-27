@@ -16,6 +16,7 @@ export const ANALYTICS_AGENT_ANSWER_VERSION =
 export type AnalyticsAgentIntent =
   | "core_performance"
   | "time_of_day_performance"
+  | "session_performance"
   | "ticker_performance"
   | "price_range_performance"
   | "prior_outcome_behavior"
@@ -99,6 +100,7 @@ export interface AnalyticsAgentIntentResolution {
   readonly preEntryDailyState: "green" | "red" | null;
   readonly preEntryDailyPath: "after_first_win" | "after_first_loss" | "after_peak_profit_giveback" | null;
   readonly ranking: "ascending" | "descending" | null;
+  readonly session: "premarket" | "regular" | "after_hours" | null;
 }
 
 export interface AnalyticsAgentQuestionRequest {
