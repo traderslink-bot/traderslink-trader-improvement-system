@@ -15,6 +15,11 @@ descending and “least profitable” ascending. Premarket, regular-market, and
 after-hours/post-market requests each issue one aggregate query with the exact
 engine session filter. The focused Analytics Agent suite passes 23 tests.
 
+**Follow-up correction:** explicit best/worst ticker language now carries a
+ranking direction into the existing ticker grouping plan. “Made the most,”
+“best ticker,” and equivalent strength wording rank net P/L descending; loss
+and weakness wording rank ascending.
+
 # 2026-07-27 - Analytics Agent v1 full deterministic completion started
 
 **Branch:** `agent/analytics-agent-v1-completion`, created clean from merged

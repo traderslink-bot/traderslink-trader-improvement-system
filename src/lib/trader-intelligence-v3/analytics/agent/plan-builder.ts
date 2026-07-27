@@ -89,7 +89,7 @@ function definition(resolution: AnalyticsAgentIntentResolution): PlanDefinition 
         ? { capabilityKey: "time_and_session_performance", execution: "direct", grouping: { kind: "session" }, metrics: CORE_METRICS, filters: [], ranking: resolution.ranking ?? "descending" }
         : { capabilityKey: "time_and_session_performance", execution: "direct", grouping: { kind: "aggregate" }, metrics: CORE_METRICS, filters: [{ kind: "session", values: [resolution.session] }] };
     case "ticker_performance":
-      return { capabilityKey: "ticker_price_size_hold_direction", execution: "direct", grouping: { kind: "symbol" }, metrics: CORE_METRICS, filters: [] };
+      return { capabilityKey: "ticker_price_size_hold_direction", execution: "direct", grouping: { kind: "symbol" }, metrics: CORE_METRICS, filters: [], ranking: resolution.ranking ?? "ascending" };
     case "price_range_performance":
       return resolution.priceRange === null
         ? { capabilityKey: "ticker_price_size_hold_direction", execution: "direct", grouping: { kind: "entry_price_range", boundaries: ["1", "5", "10"] }, metrics: CORE_METRICS, filters: [] }

@@ -100,7 +100,16 @@ export function resolveAnalyticsAgentIntent(
   if (hasAny(normalized, ["repeat attempt", "same ticker", "same symbol", "overtrade"])) return result("repeat_attempt_behavior");
   const range = priceRange(normalized);
   if (range !== null || hasAny(normalized, ["price range", "low priced", "penny stock"])) return result("price_range_performance", null, range);
-  if (hasAny(normalized, ["ticker", "tickers", "symbol", "stocks hurt", "stocks help"])) return result("ticker_performance");
+  if (hasAny(normalized, ["ticker", "tickers", "symbol", "stocks hurt", "stocks help"])) {
+    const tickerRanking: AnalyticsAgentIntentResolution["ranking"] = hasAny(normalized, [
+      "lost the most money", "biggest loser", "worst ticker", "tickers hurt", "stocks hurt",
+    ])
+      ? "ascending"
+      : hasAny(normalized, ["made the most money", "make the most money", "most money on", "best ticker", "strongest ticker", "top winner", "tickers help", "stocks help"])
+        ? "descending"
+        : null;
+    return result("ticker_performance", null, null, null, null, null, tickerRanking);
+  }
   if (hasAny(normalized, ["time of day", "times of day", "time do i", "market open", "late day", "opening"])) return result("time_of_day_performance");
   if (hasAny(normalized, ["data quality", "missing data", "can this result be trusted", "manual trades incomplete"])) return result("data_quality");
   if (hasAny(normalized, ["p l", "p/l", "profit factor", "expectancy", "win rate", "how am i doing", "overall", "net pnl", "net p l"])) return result("core_performance");

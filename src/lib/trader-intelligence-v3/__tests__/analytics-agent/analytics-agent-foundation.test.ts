@@ -30,6 +30,8 @@ describe("Analytics Agent v1 Foundation", () => {
     expect(resolveAnalyticsAgentIntent("How do I perform in pre market?")).toMatchObject({ intent: "session_performance", session: "premarket" });
     expect(resolveAnalyticsAgentIntent("How do I perform during regular market hours?")).toMatchObject({ intent: "session_performance", session: "regular" });
     expect(resolveAnalyticsAgentIntent("How do I perform post market?")).toMatchObject({ intent: "session_performance", session: "after_hours" });
+    expect(resolveAnalyticsAgentIntent("What ticker have I lost the most money on?")).toMatchObject({ intent: "ticker_performance", ranking: "ascending" });
+    expect(resolveAnalyticsAgentIntent("What ticker have I made the most money on?")).toMatchObject({ intent: "ticker_performance", ranking: "descending" });
     expect(resolveAnalyticsAgentIntent("How do I trade after a loss?")).toMatchObject({ intent: "prior_outcome_behavior", previousOutcome: "loss" });
     expect(resolveAnalyticsAgentIntent("Show my results in stocks under $5.")).toMatchObject({
       intent: "price_range_performance",
@@ -195,6 +197,22 @@ describe("Analytics Agent v1 Foundation", () => {
       const executed = executeAnalyticsAgent(input.request);
       expect(executed.ok, question).toBe(true);
       if (executed.ok) expect(executed.value.enginePlanDigest).toMatch(/^ti_v3:trade_query_plan:v1:sha256:/);
+    }
+  });
+
+  it("ranks explicit best and worst ticker questions by the correct net P/L direction", () => {
+    for (const [question, direction] of [
+      ["What ticker have I lost the most money on?", "ascending"],
+      ["What ticker have I made the most money on?", "descending"],
+      ["What is my best ticker?", "descending"],
+      ["What is my worst ticker?", "ascending"],
+    ] as const) {
+      const input = request(question);
+      const planned = buildAnalyticsAgentPlan(input.request, resolveAnalyticsAgentIntent(question));
+      expect(planned).toMatchObject({ ok: true });
+      if (!planned.ok || planned.value.plan === null) continue;
+      expect(planned.value.plan.grouping).toEqual({ kind: "symbol" });
+      expect(planned.value.plan.ordering).toEqual([{ by: "metric", metricKey: "net_pnl", direction }]);
     }
   });
 
