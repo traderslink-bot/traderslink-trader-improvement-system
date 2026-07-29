@@ -181,11 +181,11 @@ export function validateTraderIntelligenceDeployment(
     return { ok: false, code: "ti_v3_hosting_mode_invalid" };
   }
   const previewSourceRef =
-    environment.VERCEL_GIT_COMMIT_REF ??
-    environment.TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF;
+    readValue(environment, "VERCEL_GIT_COMMIT_REF") ??
+    readValue(environment, "TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF");
   const previewTarget =
-    environment.VERCEL_ENV ??
-    environment.TRADER_INTELLIGENCE_V3_PREVIEW_TARGET;
+    readValue(environment, "VERCEL_ENV") ??
+    readValue(environment, "TRADER_INTELLIGENCE_V3_PREVIEW_TARGET");
   const vercelRuntime =
     environment.VERCEL === "1" ||
     environment.TRADER_INTELLIGENCE_V3_PREVIEW_RUNTIME === "vercel" ||
