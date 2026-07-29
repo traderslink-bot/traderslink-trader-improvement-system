@@ -48,7 +48,9 @@ this work.
   the native Vercel Git ref is absent; both must equal the isolated branch.
   The same rule applies to
   `TRADER_INTELLIGENCE_V3_PREVIEW_TARGET=preview` when the CLI deployment does
-  not expose `VERCEL_ENV` at runtime.
+  not expose `VERCEL_ENV` at runtime, and to
+  `TRADER_INTELLIGENCE_V3_PREVIEW_RUNTIME=vercel` when Vercel's CLI runtime
+  omits its native runtime-identification variables.
 
 ## Required Preview Variables
 

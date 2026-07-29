@@ -188,6 +188,7 @@ export function validateTraderIntelligenceDeployment(
     environment.TRADER_INTELLIGENCE_V3_PREVIEW_TARGET;
   const vercelRuntime =
     environment.VERCEL === "1" ||
+    environment.TRADER_INTELLIGENCE_V3_PREVIEW_RUNTIME === "vercel" ||
     Boolean(
       environment.VERCEL_REGION &&
         environment.VERCEL_URL?.endsWith(".vercel.app"),
