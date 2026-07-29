@@ -147,6 +147,7 @@ export const DASHBOARD_ROUTE_TITLES: Readonly<Record<string, string>> =
     "/workspace": "Workspace",
     "/trades/roundtrips": "Round Trips",
     "/trades/day-sessions": "Day Sessions",
+    "/trades/day-session": "Trading Day",
     "/trades/ticker": "Trades by Ticker",
     "/trades/open": "Open Positions",
     "/analytics": "Analytics Overview",

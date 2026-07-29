@@ -1,3 +1,31 @@
+# 2026-07-29 - Isolated V3 Day Session Manual Entry Preview
+
+Started the approved post-session Day Session workflow on the isolated
+`codex/v3-journal-preview` branch.
+
+- Fast-forwarded the clean preview worktree through the committed V3
+  persistence/analytics milestones and the committed light Material dashboard
+  foundation.
+- Added `/trades/day-session/[sessionDate]` with the approved execution-entry
+  card above the future day review.
+- Added Buy/Sell rows for symbol, time, quantity, price, and optional fees,
+  plus the approved full-width `Add execution` action.
+- Added a preview-only V3 manual-execution API and canonical Neon
+  source-document store.
+- The Neon store fails closed unless the Vercel environment, exact Git branch,
+  database purpose, Neon host, and database name all prove the isolated test
+  target.
+- No database write or deployment was attempted because the separate Neon
+  preview variables are not configured in the worktree.
+
+Focused ESLint, TypeScript, and `git diff --check` passed. No Vitest, browser,
+build, or deployment verification was run.
+
+Resume point: configure the separate Neon variables only for the
+`codex/v3-journal-preview` Vercel Preview branch, smoke-test one reversible
+manual import, then connect the saved persistence digest to the Day Session
+read/reconstruction packet.
+
 # 2026-07-28 - Execution Analytics Dashboard Milestone 4 foundation verified
 
 **Branch:** `codex/trade-execution-v3-m4-dashboard-panels`.

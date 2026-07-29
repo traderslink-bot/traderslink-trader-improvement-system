@@ -1,0 +1,56 @@
+# V3 Day Session Manual Entry Preview Progress
+
+## Status
+
+Checkpoint 0 implementation complete locally on `codex/v3-journal-preview`.
+Hosted database verification and Vercel Preview deployment are pending the
+separate Neon test configuration.
+
+The execution-entry UI direction was approved on 2026-07-29. The hosted
+functional slice must use only a branch-scoped Neon test database and Vercel
+Preview. Production data and the homepage, Watchlist, and Academy are outside
+this work.
+
+## Approved Flow
+
+1. Enter every Buy and Sell execution for the selected trading day.
+2. Add another row with the full-width `Add execution` action.
+3. Save executions without manually entering P/L or round-trip groupings.
+4. Reconstruct the Day Session through governed V3 authority.
+5. Review completed trades, tags, notes, screenshots, and rule check-ins.
+
+## Current Boundary
+
+- The preview branch now includes the committed V3 persistence, analytics, and
+  Material dashboard foundation.
+- Added `/trades/day-session/[sessionDate]` under the shared V3 dashboard
+  layout.
+- Added the approved buy/sell execution-entry card with removable rows and a
+  full-width `Add execution` action.
+- Added a narrowly scoped V3 manual-execution endpoint.
+- Added an async Neon preview source-document store that preserves the existing
+  canonical persisted-record format.
+- The store refuses to initialize unless the Vercel environment, exact Git
+  branch, database purpose, Neon host, and database name all prove the isolated
+  test target.
+- No database connection or write was attempted because the separate Neon test
+  variables are not configured in this worktree.
+
+## Required Preview Variables
+
+- `TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_URL`
+- `TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME`
+- `TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE=v3_journal_preview_test`
+- Existing authenticated V3 owner/account and instrument declarations.
+
+These variables must be scoped only to the
+`codex/v3-journal-preview` Vercel Preview branch.
+
+## Verification
+
+- Focused ESLint passed for the new page, client form, API route, and Neon
+  store.
+- Repository TypeScript passed with `--noEmit --incremental false`.
+- `git diff --check` passed.
+- No Vitest, browser/E2E, production build, database smoke test, or deployment
+  was run.
