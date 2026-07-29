@@ -3,8 +3,9 @@
 ## Status
 
 Checkpoint 0 implementation complete locally on `codex/v3-journal-preview`.
-Hosted database verification and Vercel Preview deployment are pending the
-separate Neon test configuration.
+The separate Neon project and the Vercel Preview-only database secret have
+been verified. Hosted authorization configuration and Vercel Preview
+deployment are still pending.
 
 The execution-entry UI direction was approved on 2026-07-29. The hosted
 functional slice must use only a branch-scoped Neon test database and Vercel
@@ -33,14 +34,18 @@ this work.
 - The store refuses to initialize unless the Vercel environment, exact Git
   branch, database purpose, Neon host, and database name all prove the isolated
   test target.
-- No database connection or write was attempted because the separate Neon test
-  variables are not configured in this worktree.
+- Vercel already contains `V3_JOURNAL_DATABASE_URL` as a sensitive Preview
+  variable linked only to `vercel-landing`; the store accepts that established
+  name while retaining the exact branch, Neon host, and `neondb` identity
+  checks.
 
 ## Required Preview Variables
 
-- `TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_URL`
-- `TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME`
-- `TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE=v3_journal_preview_test`
+- `V3_JOURNAL_DATABASE_URL` (sensitive, Preview, linked only to
+  `vercel-landing`)
+- Optional explicit overrides:
+  `TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME=neondb` and
+  `TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE=v3_journal_preview_test`
 - Existing authenticated V3 owner/account and instrument declarations.
 
 These variables must be scoped only to the

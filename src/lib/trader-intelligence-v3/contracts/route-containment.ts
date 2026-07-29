@@ -51,6 +51,7 @@ const OWNER_PAGE_MODULES = [
   "app/(dashboard)/reflection-loop/page.tsx",
   "app/(dashboard)/rules/page.tsx",
   "app/(dashboard)/trades/day-sessions/page.tsx",
+  "app/(dashboard)/trades/day-session/[sessionDate]/page.tsx",
   "app/(dashboard)/trades/open/page.tsx",
   "app/(dashboard)/trades/page.tsx",
   "app/(dashboard)/trades/roundtrips/page.tsx",
@@ -121,6 +122,7 @@ const OWNER_API_ROUTES = [
   ["app/api/intelligence/broker-csv-import/v1/history/route.ts", ["GET"], "owner_read"],
   ["app/api/intelligence/broker-csv-import/v1/route.ts", ["POST"], "owner_mutation"],
   ["app/api/intelligence/execution-import/v1/route.ts", ["POST"], "owner_mutation"],
+  ["app/api/intelligence/day-session-executions/v1/route.ts", ["POST"], "owner_mutation"],
   ["app/api/intelligence/rules/route.ts", ["POST"], "owner_mutation"],
   ["app/api/csv-mapping-templates/[templateId]/route.ts", ["PATCH", "DELETE"], "owner_mutation"],
   ["app/api/csv-mapping-templates/list/route.ts", ["GET"], "owner_read"],
@@ -227,6 +229,7 @@ function apiEntry(
       modulePath === "app/api/csv-mapping-review/continue/route.ts" ||
       modulePath === "app/api/intelligence/broker-csv-import/v1/route.ts" ||
       modulePath === "app/api/intelligence/execution-import/v1/route.ts" ||
+      modulePath === "app/api/intelligence/day-session-executions/v1/route.ts" ||
       modulePath === "app/api/csv-mapping-templates/route.ts" ||
       modulePath === "app/api/csv-mapping-templates/[templateId]/route.ts" ||
       modulePath === "app/api/import-dry-run/decision-review/route.ts"

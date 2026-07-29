@@ -23,6 +23,7 @@ type PreviewEnvironment = Readonly<Record<string, string | undefined>>;
 
 const EXPECTED_BRANCH = "codex/v3-journal-preview";
 const EXPECTED_PURPOSE = "v3_journal_preview_test";
+const EXPECTED_DATABASE_NAME = "neondb";
 
 function failure(
   code: NeonPreviewExecutionStoreFailure["code"],
@@ -37,12 +38,16 @@ function previewDatabaseConfig(environment: PreviewEnvironment):
       databaseUrl: string;
     }
   | null {
-  const databaseUrl =
-    environment.TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_URL?.trim();
+  const databaseUrl = (
+    environment.V3_JOURNAL_DATABASE_URL ??
+    environment.TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_URL
+  )?.trim();
   const databaseName =
-    environment.TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME?.trim();
+    environment.TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME?.trim() ??
+    EXPECTED_DATABASE_NAME;
   const purpose =
-    environment.TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE?.trim();
+    environment.TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE?.trim() ??
+    (environment.VERCEL_ENV === "preview" ? EXPECTED_PURPOSE : undefined);
   const hostedPreview =
     environment.VERCEL_ENV === "preview" &&
     environment.VERCEL_GIT_COMMIT_REF === EXPECTED_BRANCH;
