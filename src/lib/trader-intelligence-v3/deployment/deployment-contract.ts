@@ -183,9 +183,18 @@ export function validateTraderIntelligenceDeployment(
   const previewSourceRef =
     environment.VERCEL_GIT_COMMIT_REF ??
     environment.TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF;
+  const previewTarget =
+    environment.VERCEL_ENV ??
+    environment.TRADER_INTELLIGENCE_V3_PREVIEW_TARGET;
+  const vercelRuntime =
+    environment.VERCEL === "1" ||
+    Boolean(
+      environment.VERCEL_REGION &&
+        environment.VERCEL_URL?.endsWith(".vercel.app"),
+    );
   const exactHostedPreview =
-    environment.VERCEL === "1" &&
-    environment.VERCEL_ENV === "preview" &&
+    vercelRuntime &&
+    previewTarget === "preview" &&
     previewSourceRef === "codex/v3-journal-preview" &&
     readValue(environment, "TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE") ===
       "v3_journal_preview_test";

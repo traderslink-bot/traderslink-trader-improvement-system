@@ -46,6 +46,9 @@ this work.
   not receive `VERCEL_GIT_COMMIT_REF`. The boundary accepts the deployment-
   specific `TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF` only as a fallback when
   the native Vercel Git ref is absent; both must equal the isolated branch.
+  The same rule applies to
+  `TRADER_INTELLIGENCE_V3_PREVIEW_TARGET=preview` when the CLI deployment does
+  not expose `VERCEL_ENV` at runtime.
 
 ## Required Preview Variables
 
