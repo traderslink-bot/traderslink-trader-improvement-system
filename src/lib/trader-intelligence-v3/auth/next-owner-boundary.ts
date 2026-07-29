@@ -46,6 +46,8 @@ function isConfigurationReason(
     code.includes("approved_origin") ||
     code.includes("db_path") ||
     code.includes("private_data_root") ||
+    code.includes("preview_evidence") ||
+    code.includes("preview_auth") ||
     code.includes("sample_data_db_path") ||
     code === "ti_v3_route_unclassified"
   );

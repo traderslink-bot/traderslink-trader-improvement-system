@@ -46,8 +46,7 @@ function previewDatabaseConfig(environment: PreviewEnvironment):
     environment.TRADER_INTELLIGENCE_V3_PREVIEW_DATABASE_NAME?.trim() ??
     EXPECTED_DATABASE_NAME;
   const purpose =
-    environment.TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE?.trim() ??
-    (environment.VERCEL_ENV === "preview" ? EXPECTED_PURPOSE : undefined);
+    environment.TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE?.trim();
   const hostedPreview =
     environment.VERCEL_ENV === "preview" &&
     environment.VERCEL_GIT_COMMIT_REF === EXPECTED_BRANCH;

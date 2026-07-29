@@ -20043,3 +20043,27 @@ Current best next step:
 
 - Re-import the owner's real broker CSV through `/imports`, then verify the
   resulting workspace and analytics packets against that execution dataset.
+
+# 2026-07-29 isolated V3 journal hosted-preview boundary
+
+- Confirmed Vercel Authentication Standard Protection is enabled for
+  `vercel-landing`; preview access requires a signed-in Vercel team member.
+- Added an isolated `vercel_preview_owner_adapter` that does not read Academy
+  or production identity data.
+- Hosted authorization now fails closed unless Vercel reports Preview, the Git
+  ref is exactly `codex/v3-journal-preview`, the database purpose is exactly
+  `v3_journal_preview_test`, and private Neon storage is declared.
+- Added the eight non-secret runtime declarations to Vercel Preview only.
+  The existing sensitive `V3_JOURNAL_DATABASE_URL` remains linked only to
+  `vercel-landing`.
+- The Vercel project is not Git-connected, so its UI cannot branch-scope
+  environment variables. Exact branch containment therefore remains enforced
+  by the application before owner access or database initialization.
+- Focused lint, repository TypeScript, and diff validation passed. Vitest,
+  browser/E2E, production build, database write, and deployment were not run.
+
+Current best next step:
+
+- Commit and push `codex/v3-journal-preview`, create only a Vercel Preview
+  deployment, then verify protected page access and a test execution write
+  against the isolated Neon project.

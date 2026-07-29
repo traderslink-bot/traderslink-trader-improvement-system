@@ -3,9 +3,9 @@
 ## Status
 
 Checkpoint 0 implementation complete locally on `codex/v3-journal-preview`.
-The separate Neon project and the Vercel Preview-only database secret have
-been verified. Hosted authorization configuration and Vercel Preview
-deployment are still pending.
+The separate Neon project, Vercel Preview-only database secret, and Vercel
+Authentication protection have been verified. Preview environment
+configuration and deployment are still pending.
 
 The execution-entry UI direction was approved on 2026-07-29. The hosted
 functional slice must use only a branch-scoped Neon test database and Vercel
@@ -38,6 +38,10 @@ this work.
   variable linked only to `vercel-landing`; the store accepts that established
   name while retaining the exact branch, Neon host, and `neondb` identity
   checks.
+- Vercel Authentication is enabled with Standard Protection. The hosted
+  preview owner adapter is permitted only for the exact preview branch and
+  explicit `vercel_authentication` mode; it does not read Academy or
+  production identity data.
 
 ## Required Preview Variables
 

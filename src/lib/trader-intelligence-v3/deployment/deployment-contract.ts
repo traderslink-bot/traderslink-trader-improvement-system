@@ -49,6 +49,8 @@ export type TraderIntelligenceDeploymentReasonCode =
   | "ti_v3_data_mode_missing"
   | "ti_v3_data_mode_invalid"
   | "ti_v3_private_hosted_local_bypass_forbidden"
+  | "ti_v3_private_hosted_preview_evidence_invalid"
+  | "ti_v3_private_hosted_preview_auth_invalid"
   | "ti_v3_approved_origin_invalid"
   | import("./local-persistence-path").TraderIntelligencePersistenceReasonCode;
 
@@ -60,9 +62,11 @@ export interface TraderIntelligenceDeploymentConfig {
   ownerId: string;
   ownerSubject: string | null;
   approvedOrigins: readonly string[];
-  persistence: import("./local-persistence-path").TraderIntelligenceLocalPersistenceResolution & {
-    ok: true;
-  };
+  persistence:
+    | (import("./local-persistence-path").TraderIntelligenceLocalPersistenceResolution & {
+        ok: true;
+      })
+    | { ok: true; kind: "private_database"; databaseTarget: "neon_preview" };
 }
 
 export type TraderIntelligenceDeploymentValidation =
@@ -105,7 +109,27 @@ export function hasHostedEnvironmentSignal(
 
 function parseApprovedOrigins(
   value: string | null,
+  hostedPreviewOrigin: string | null,
 ): { ok: true; origins: readonly string[] } | { ok: false } {
+  if (hostedPreviewOrigin) {
+    try {
+      const parsed = new URL(hostedPreviewOrigin);
+      if (
+        parsed.protocol !== "https:" ||
+        !parsed.hostname.endsWith(".vercel.app") ||
+        parsed.username ||
+        parsed.password ||
+        parsed.pathname !== "/" ||
+        parsed.search ||
+        parsed.hash
+      ) {
+        return { ok: false };
+      }
+      return { ok: true, origins: [parsed.origin] };
+    } catch {
+      return { ok: false };
+    }
+  }
   if (!value) {
     return { ok: true, origins: [] };
   }
@@ -156,8 +180,17 @@ export function validateTraderIntelligenceDeployment(
   if (!includesValue(TRADER_INTELLIGENCE_HOSTING_MODES, hostingModeValue)) {
     return { ok: false, code: "ti_v3_hosting_mode_invalid" };
   }
-  if (hostingModeValue === "private_hosted") {
-    return { ok: false, code: "ti_v3_hosting_mode_not_operational" };
+  const exactHostedPreview =
+    environment.VERCEL === "1" &&
+    environment.VERCEL_ENV === "preview" &&
+    environment.VERCEL_GIT_COMMIT_REF === "codex/v3-journal-preview" &&
+    readValue(environment, "TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE") ===
+      "v3_journal_preview_test";
+  if (hostingModeValue === "private_hosted" && !exactHostedPreview) {
+    return {
+      ok: false,
+      code: "ti_v3_private_hosted_preview_evidence_invalid",
+    };
   }
   if (
     hostingModeValue === "local_only" &&
@@ -178,6 +211,16 @@ export function validateTraderIntelligenceDeployment(
     environment,
     "TRADER_INTELLIGENCE_OWNER_DISCORD_SUBJECT",
   );
+  if (
+    hostingModeValue === "private_hosted" &&
+    readValue(environment, "TRADER_INTELLIGENCE_V3_PREVIEW_AUTH") !==
+      "vercel_authentication"
+  ) {
+    return {
+      ok: false,
+      code: "ti_v3_private_hosted_preview_auth_invalid",
+    };
+  }
 
   const storageModeValue = readValue(
     environment,
@@ -189,8 +232,17 @@ export function validateTraderIntelligenceDeployment(
   if (!includesValue(TRADER_INTELLIGENCE_STORAGE_MODES, storageModeValue)) {
     return { ok: false, code: "ti_v3_storage_mode_invalid" };
   }
-  if (storageModeValue === "private_database") {
+  if (
+    storageModeValue === "private_database" &&
+    hostingModeValue !== "private_hosted"
+  ) {
     return { ok: false, code: "ti_v3_storage_mode_not_operational" };
+  }
+  if (
+    hostingModeValue === "private_hosted" &&
+    storageModeValue !== "private_database"
+  ) {
+    return { ok: false, code: "ti_v3_storage_mode_unsafe" };
   }
 
   const dataModeValue = readValue(
@@ -204,16 +256,33 @@ export function validateTraderIntelligenceDeployment(
     return { ok: false, code: "ti_v3_data_mode_invalid" };
   }
 
-  const persistence = resolveTraderIntelligenceLocalPersistence({
-    environment,
-    dataMode: dataModeValue,
-  });
+  if (
+    hostingModeValue === "private_hosted" &&
+    dataModeValue !== "real_owner_data"
+  ) {
+    return { ok: false, code: "ti_v3_storage_mode_unsafe" };
+  }
+
+  const persistence =
+    hostingModeValue === "private_hosted"
+      ? ({
+          ok: true,
+          kind: "private_database",
+          databaseTarget: "neon_preview",
+        } as const)
+      : resolveTraderIntelligenceLocalPersistence({
+          environment,
+          dataMode: dataModeValue,
+        });
   if (!persistence.ok) {
     return persistence;
   }
 
   const approvedOrigins = parseApprovedOrigins(
     readValue(environment, "TRADER_INTELLIGENCE_APPROVED_ORIGINS"),
+    hostingModeValue === "private_hosted" && environment.VERCEL_URL
+      ? `https://${environment.VERCEL_URL}`
+      : null,
   );
   if (!approvedOrigins.ok) {
     return { ok: false, code: "ti_v3_approved_origin_invalid" };

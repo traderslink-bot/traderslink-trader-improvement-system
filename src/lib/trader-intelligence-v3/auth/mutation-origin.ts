@@ -34,6 +34,17 @@ export function validateTraderIntelligenceMutationOrigin(args: {
   if (!suppliedOrigin) {
     return { ok: false, code: "ti_v3_mutation_origin_missing" };
   }
+  if (args.config.hostingMode === "private_hosted") {
+    try {
+      const parsed = new URL(suppliedOrigin);
+      return parsed.origin === suppliedOrigin &&
+        args.config.approvedOrigins.includes(parsed.origin)
+        ? { ok: true }
+        : { ok: false, code: "ti_v3_mutation_origin_invalid" };
+    } catch {
+      return { ok: false, code: "ti_v3_mutation_origin_invalid" };
+    }
+  }
   const normalizedSuppliedOrigin =
     normalizeTraderIntelligenceLoopbackOrigin(suppliedOrigin);
   if (!normalizedSuppliedOrigin.ok) {

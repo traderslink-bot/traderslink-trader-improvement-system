@@ -82,6 +82,21 @@ export async function authorizeTraderIntelligenceOwner(args: {
     };
   }
 
+  if (
+    deployment.config.hostingMode === "private_hosted" &&
+    args.environment.TRADER_INTELLIGENCE_V3_PREVIEW_AUTH ===
+      "vercel_authentication"
+  ) {
+    return {
+      ok: true,
+      config: deployment.config,
+      owner: {
+        identity: { ownerId: deployment.config.ownerId },
+        authorizationMode: "vercel_preview_owner_adapter",
+      },
+    };
+  }
+
   if (!args.sessionResolver) {
     return { ok: false, code: "ti_v3_owner_session_resolver_missing" };
   }

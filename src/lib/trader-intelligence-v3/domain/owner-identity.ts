@@ -6,5 +6,6 @@ export interface TraderIntelligenceOwnerContext {
   identity: TraderIntelligenceOwnerIdentity;
   authorizationMode:
     | "local_owner_adapter"
-    | "provisional_discord_session_adapter";
+    | "provisional_discord_session_adapter"
+    | "vercel_preview_owner_adapter";
 }
