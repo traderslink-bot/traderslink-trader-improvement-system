@@ -42,6 +42,10 @@ this work.
   preview owner adapter is permitted only for the exact preview branch and
   explicit `vercel_authentication` mode; it does not read Academy or
   production identity data.
+- Because `vercel-landing` is not Git-connected, CLI Preview deployments do
+  not receive `VERCEL_GIT_COMMIT_REF`. The boundary accepts the deployment-
+  specific `TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF` only as a fallback when
+  the native Vercel Git ref is absent; both must equal the isolated branch.
 
 ## Required Preview Variables
 

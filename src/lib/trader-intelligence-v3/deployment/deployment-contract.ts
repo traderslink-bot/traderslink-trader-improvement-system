@@ -180,10 +180,13 @@ export function validateTraderIntelligenceDeployment(
   if (!includesValue(TRADER_INTELLIGENCE_HOSTING_MODES, hostingModeValue)) {
     return { ok: false, code: "ti_v3_hosting_mode_invalid" };
   }
+  const previewSourceRef =
+    environment.VERCEL_GIT_COMMIT_REF ??
+    environment.TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF;
   const exactHostedPreview =
     environment.VERCEL === "1" &&
     environment.VERCEL_ENV === "preview" &&
-    environment.VERCEL_GIT_COMMIT_REF === "codex/v3-journal-preview" &&
+    previewSourceRef === "codex/v3-journal-preview" &&
     readValue(environment, "TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE") ===
       "v3_journal_preview_test";
   if (hostingModeValue === "private_hosted" && !exactHostedPreview) {

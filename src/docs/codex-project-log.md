@@ -20058,7 +20058,9 @@ Current best next step:
   `vercel-landing`.
 - The Vercel project is not Git-connected, so its UI cannot branch-scope
   environment variables. Exact branch containment therefore remains enforced
-  by the application before owner access or database initialization.
+  by the application before owner access or database initialization. CLI
+  deployments pass a deployment-specific source ref because Vercel does not
+  populate its native Git-ref variable for an unconnected project.
 - Focused lint, repository TypeScript, and diff validation passed. Vitest,
   browser/E2E, production build, database write, and deployment were not run.
 

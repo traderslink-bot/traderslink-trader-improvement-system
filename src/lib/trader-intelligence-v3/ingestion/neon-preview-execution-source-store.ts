@@ -49,7 +49,9 @@ function previewDatabaseConfig(environment: PreviewEnvironment):
     environment.TRADER_INTELLIGENCE_V3_DATABASE_PURPOSE?.trim();
   const hostedPreview =
     environment.VERCEL_ENV === "preview" &&
-    environment.VERCEL_GIT_COMMIT_REF === EXPECTED_BRANCH;
+    (environment.VERCEL_GIT_COMMIT_REF ??
+      environment.TRADER_INTELLIGENCE_V3_PREVIEW_SOURCE_REF) ===
+      EXPECTED_BRANCH;
   const localPreview =
     environment.NODE_ENV !== "production" &&
     environment.TRADER_INTELLIGENCE_V3_ALLOW_LOCAL_PREVIEW_DATABASE === "true";
