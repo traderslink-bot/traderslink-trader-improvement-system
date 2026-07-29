@@ -20066,6 +20066,33 @@ Current best next step:
 
 Current best next step:
 
-- Commit and push `codex/v3-journal-preview`, create only a Vercel Preview
-  deployment, then verify protected page access and a test execution write
-  against the isolated Neon project.
+- Complete owner visual review of the protected Day Session Preview, then
+  continue the approved completed-trades, tags, notes, and tomorrow-focus
+  flow without promoting or writing to production.
+
+# 2026-07-29 isolated V3 journal Preview verified
+
+- Saved all hosted identity declarations directly on `vercel-landing` as
+  Preview-only variables so CLI deployments inherit the exact branch,
+  Preview target, Vercel runtime, owner/account, authentication, and database
+  purpose boundaries.
+- Confirmed the linked shared `V3_JOURNAL_DATABASE_URL` was not injected into
+  CLI Preview deployments. Attached the same separate Neon test connection
+  directly as a sensitive Preview-only project variable; no production
+  database value was read or changed.
+- Converted manual New York session times to canonical UTC and assigned
+  deterministic manual instrument keys when an explicit symbol map is absent.
+- Vercel Preview build, focused lint, repository TypeScript, and diff
+  validation passed. The authenticated Neon smoke persisted and read back two
+  executions with zero rejected rows.
+- Verified protected Preview:
+  `https://vercel-landing-ees8v1g7y-jeremylgk20-1197s-projects.vercel.app/trades/day-session/2026-07-29`.
+- Did not run Vitest or a broad browser/E2E suite. No production deployment,
+  domain promotion, production-data write, homepage change, Watchlist change,
+  or Academy change was performed.
+
+Current best next step:
+
+- Owner visually reviews the execution-entry card in the protected Preview.
+  After approval, continue the Day Session debrief flow and replace the
+  synthetic Preview-only smoke records with ordinary owner-entered executions.

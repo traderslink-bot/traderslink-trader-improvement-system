@@ -18,6 +18,16 @@ export const dynamic = "force-dynamic";
 const ROUTE_PATH =
   "app/api/intelligence/day-session-executions/v1/route.ts";
 const MAX_EXECUTIONS = 200;
+const NEW_YORK_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  day: "2-digit",
+  hour: "2-digit",
+  hour12: false,
+  minute: "2-digit",
+  month: "2-digit",
+  second: "2-digit",
+  timeZone: "America/New_York",
+  year: "numeric",
+});
 
 type ExecutionInput = {
   fees: string;
@@ -69,10 +79,33 @@ function csvCell(value: string): string {
     : value;
 }
 
+function newYorkExecutionTimestamp(date: string, time: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute, second = 0] = time.split(":").map(Number);
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+  const localAtGuess = Object.fromEntries(
+    NEW_YORK_TIMESTAMP_FORMATTER.formatToParts(new Date(localAsUtc))
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, Number(part.value)]),
+  );
+  const offsetAtGuess =
+    Date.UTC(
+      localAtGuess.year,
+      localAtGuess.month - 1,
+      localAtGuess.day,
+      localAtGuess.hour,
+      localAtGuess.minute,
+      localAtGuess.second,
+    ) - localAsUtc;
+  return new Date(localAsUtc - offsetAtGuess)
+    .toISOString()
+    .replace(".000Z", "Z");
+}
+
 function executionCsv(date: string, executions: readonly ExecutionInput[]) {
   const rows = executions.map((execution) =>
     [
-      `${date} ${execution.time}`,
+      newYorkExecutionTimestamp(date, execution.time),
       execution.symbol,
       execution.side,
       execution.quantity,
@@ -88,6 +121,10 @@ function executionCsv(date: string, executions: readonly ExecutionInput[]) {
     "ExecutedAt,Symbol,Side,Quantity,Price,Commission,Fees,Currency",
     ...rows,
   ].join("\n");
+}
+
+function manualEntryInstrumentKey(symbol: string): string {
+  return `instrument_manual_${symbol.toLowerCase().replaceAll(/[._-]/g, "_")}`;
 }
 
 function errorResponse(status: number, code: string): Response {
@@ -166,10 +203,10 @@ async function POSTHandler(request: Request): Promise<Response> {
     defaultCurrency: "USD",
     resolveInstrument: (symbol) =>
       instrumentMap.value.get(symbol) ?? {
-        basisContinuityState: "symbol_change_unresolved",
+        basisContinuityState: "resolved",
         securityType: "unclassified_security",
-        stableInstrumentKey: null,
-        state: "unresolved",
+        stableInstrumentKey: manualEntryInstrumentKey(symbol),
+        state: "resolved",
       },
     sourceIdentity: `source_manual_${sourceHash}`,
     sourceSystem: "manual_entry",
