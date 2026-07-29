@@ -6,6 +6,8 @@ import {
   withTraderIntelligenceOwnerRoute,
 } from "@/src/lib/trader-intelligence-v3/auth";
 import {
+  canonicalOwnerKeyForServerImport,
+  createNeonPreviewExecutionSourceStore,
   parsePersistedRawBrokerCsvImport,
   resolveConfiguredServerRawBrokerCsvImportService,
 } from "@/src/lib/trader-intelligence-v3/ingestion";
@@ -22,10 +24,48 @@ async function GETHandler(request: Request): Promise<Response> {
     modulePath: ROUTE_PATH,
     localRequest: { headers: request.headers, requestUrl: request.url },
   });
-  if (
-    !authorization.ok ||
-    authorization.config.persistence.kind !== "file"
-  ) {
+  if (!authorization.ok) {
+    return Response.json(
+      {
+        contractVersion: "ti_v3_broker_csv_import_history_v1",
+        error: { code: "ti_v3_broker_csv_import_history_unavailable" },
+      },
+      { status: 503 },
+    );
+  }
+  if (authorization.config.persistence.kind === "private_database") {
+    const accountKey = process.env.TRADER_INTELLIGENCE_V3_EXECUTION_ACCOUNT_KEY?.trim();
+    if (!accountKey || !/^account_[a-z0-9][a-z0-9_-]{0,87}$/.test(accountKey)) {
+      return Response.json({ contractVersion: "ti_v3_broker_csv_import_history_v1", error: { code: "ti_v3_server_import_account_key_missing" } }, { status: 503 });
+    }
+    const store = await createNeonPreviewExecutionSourceStore(process.env);
+    if (!store.ok) {
+      return Response.json({ contractVersion: "ti_v3_broker_csv_import_history_v1", error: { code: store.error.code } }, { status: 503 });
+    }
+    const records = await store.value.list({
+      canonicalOwnerKey: canonicalOwnerKeyForServerImport(authorization.owner),
+      canonicalAccountKey: accountKey,
+    });
+    if (!records.ok) {
+      return Response.json({ contractVersion: "ti_v3_broker_csv_import_history_v1", error: { code: records.error.code } }, { status: 503 });
+    }
+    return Response.json({
+      contractVersion: "ti_v3_broker_csv_import_history_v1",
+      imports: records.value.map(({ record, importedAt }) => {
+        const timestamps = record.acceptedExecutions.map((execution) => execution.content.executedAt).sort();
+        return Object.freeze({
+          persistenceDigest: record.persistenceDigest,
+          importedAt,
+          broker: record.brokerCode,
+          acceptedRows: record.acceptedExecutionCount,
+          rowsNeedingAttention: record.rejectedRowCount,
+          firstExecutionAt: timestamps[0] ?? null,
+          lastExecutionAt: timestamps[timestamps.length - 1] ?? null,
+        });
+      }),
+    });
+  }
+  if (authorization.config.persistence.kind !== "file") {
     return Response.json(
       {
         contractVersion: "ti_v3_broker_csv_import_history_v1",
@@ -106,8 +146,16 @@ async function GETHandler(request: Request): Promise<Response> {
         seenSourceDocuments.add(record.sourceDocumentDigest);
         return true;
       })
-      .map(({ sourceDocumentDigest: _sourceDocumentDigest, ...record }) =>
-        Object.freeze(record),
+      .map((record) =>
+        Object.freeze({
+          persistenceDigest: record.persistenceDigest,
+          importedAt: record.importedAt,
+          broker: record.broker,
+          acceptedRows: record.acceptedRows,
+          rowsNeedingAttention: record.rowsNeedingAttention,
+          firstExecutionAt: record.firstExecutionAt,
+          lastExecutionAt: record.lastExecutionAt,
+        }),
       );
   } catch {
     imports = [];

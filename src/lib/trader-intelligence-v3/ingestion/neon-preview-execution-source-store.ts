@@ -89,6 +89,20 @@ function previewDatabaseConfig(environment: PreviewEnvironment):
 }
 
 export interface NeonPreviewExecutionSourceStore {
+  list(
+    scope: Readonly<{
+      canonicalAccountKey: string;
+      canonicalOwnerKey: string;
+    }>,
+  ): Promise<
+    ExactResult<
+      readonly Readonly<{
+        importedAt: string;
+        record: PersistedRawBrokerCsvImport;
+      }>[],
+      NeonPreviewExecutionStoreFailure
+    >
+  >;
   persist(
     record: PersistedRawBrokerCsvImport,
   ): Promise<
@@ -195,9 +209,54 @@ export async function createNeonPreviewExecutionSourceStore(
     }
   };
 
+  const list: NeonPreviewExecutionSourceStore["list"] = async (scope) => {
+    try {
+      const rows = await sql`
+        select source_payload, created_at
+        from ti_v3_preview_execution_sources
+        where canonical_owner_key = ${scope.canonicalOwnerKey}
+          and canonical_account_key = ${scope.canonicalAccountKey}
+        order by created_at desc
+      `;
+      const seenSourceDocuments = new Set<string>();
+      const records: Array<Readonly<{
+        importedAt: string;
+        record: PersistedRawBrokerCsvImport;
+      }>> = [];
+      for (const row of rows) {
+        const payload =
+          typeof row.source_payload === "string"
+            ? row.source_payload
+            : JSON.stringify(row.source_payload);
+        const parsed = parsePersistedRawBrokerCsvImport(payload);
+        const importedAt =
+          row.created_at instanceof Date
+            ? row.created_at.toISOString()
+            : typeof row.created_at === "string"
+              ? new Date(row.created_at).toISOString()
+              : null;
+        if (
+          !parsed.ok ||
+          importedAt === null ||
+          parsed.value.canonicalOwnerKey !== scope.canonicalOwnerKey ||
+          parsed.value.canonicalAccountKey !== scope.canonicalAccountKey ||
+          seenSourceDocuments.has(parsed.value.sourceDocumentDigest)
+        ) {
+          continue;
+        }
+        seenSourceDocuments.add(parsed.value.sourceDocumentDigest);
+        records.push(Object.freeze({ importedAt, record: parsed.value }));
+      }
+      return { ok: true, value: Object.freeze(records) };
+    } catch {
+      return failure("ti_v3_preview_database_read_failed", "$.connection");
+    }
+  };
+
   return {
     ok: true,
     value: Object.freeze({
+      list,
       read,
       persist: async (record: PersistedRawBrokerCsvImport) => {
         const serialized = serializePersistedRawBrokerCsvImport(record);

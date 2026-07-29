@@ -10,6 +10,10 @@ import type {
   TraderIntelligenceEnvironment,
 } from "../../deployment";
 import {
+  buildObservedPeriodAnalyticsAuthorityAttachment,
+  canonicalOwnerKeyForServerImport,
+  createNeonPreviewExecutionSourceStore,
+  createPersistedExecutionAnalyticsAuthoritySource,
   resolveConfiguredServerRawBrokerCsvImportService,
   type PersistedExecutionAnalyticsAuthorityAttachment,
 } from "../../ingestion";
@@ -111,14 +115,64 @@ function readBinding(path: string): BindingDocument | null {
  * Resolves one fixed local execution authority. Owner/account scope and the
  * binding path remain server-held; the browser can never select either.
  */
-export function resolveConfiguredDashboardAnalytics(args: {
+export async function resolveConfiguredDashboardAnalytics(args: {
   readonly owner: TraderIntelligenceOwnerContext;
   readonly config: TraderIntelligenceDeploymentConfig;
   readonly environment: TraderIntelligenceEnvironment;
-}): { readonly ok: true; readonly value: ConfiguredDashboardAnalytics } | {
+}): Promise<{ readonly ok: true; readonly value: ConfiguredDashboardAnalytics } | {
   readonly ok: false;
   readonly error: ConfiguredDashboardAnalyticsFailure;
-} {
+}> {
+  if (args.config.persistence.kind === "private_database") {
+    const accountKey = args.environment.TRADER_INTELLIGENCE_V3_EXECUTION_ACCOUNT_KEY?.trim();
+    if (
+      args.owner.identity.ownerId !== args.config.ownerId ||
+      args.config.dataMode !== "real_owner_data" ||
+      !accountKey ||
+      !/^account_[a-z0-9][a-z0-9_-]{0,87}$/.test(accountKey)
+    ) {
+      return failure("ti_v3_dashboard_analytics_source_unavailable", "$.authorization");
+    }
+    const store = await createNeonPreviewExecutionSourceStore(args.environment);
+    if (!store.ok) {
+      return failure("ti_v3_dashboard_analytics_source_unavailable", store.error.path);
+    }
+    const records = await store.value.list({
+      canonicalOwnerKey: canonicalOwnerKeyForServerImport(args.owner),
+      canonicalAccountKey: accountKey,
+    });
+    if (!records.ok || records.value.length === 0) {
+      return failure("ti_v3_dashboard_analytics_source_unavailable", "$.source");
+    }
+    const attachment = buildObservedPeriodAnalyticsAuthorityAttachment(
+      records.value.map(({ record }) => record),
+    );
+    if (!attachment.ok) {
+      return failure("ti_v3_dashboard_analytics_source_unavailable", attachment.error.path);
+    }
+    const source = createSnapshotTradeQueryDatasetSource(
+      createPersistedExecutionAnalyticsAuthoritySource({
+        records: records.value.map(({ record }) => record),
+        attachment: attachment.value,
+      }),
+    );
+    const verified = source.readVerifiedDataset();
+    if (!verified.ok) return failure("ti_v3_dashboard_analytics_source_unavailable", "$.source");
+    const currencies = Object.freeze(
+      [...new Set(verified.value.datasetReceipt.rows.map((row) => row.currency))].sort(),
+    );
+    if (currencies.length === 0) {
+      return failure("ti_v3_dashboard_analytics_source_unavailable", "$.currencies");
+    }
+    return {
+      ok: true,
+      value: Object.freeze({
+        source,
+        adapter: createServerExecutionAnalyticsDashboardAdapter(source),
+        currencies,
+      }),
+    };
+  }
   const path = bindingPath(args.environment, args.config);
   if (path === null) return failure("ti_v3_dashboard_analytics_binding_invalid", "$.bindingPath");
   const binding = readBinding(path);

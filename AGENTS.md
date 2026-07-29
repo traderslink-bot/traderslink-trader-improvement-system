@@ -58,3 +58,18 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - The shared top navigation lives in `src/components/site/site-shell.tsx` and is re-exported by `app/site-shell.tsx`. Do not create separate Academy, News, or Intelligence topbars.
 - Canonical feature roots are `app/academy`, `app/news`, and `app/intelligence`. Former workspace routes should redirect in `next.config.ts`; do not recreate duplicate top-level app pages for them.
 - Read `docs/site-architecture.md`, `docs/routes.md`, `docs/deployment.md`, and `docs/auth.md` before structural, deployment, route, or auth changes.
+
+## V3 Journal Approval And Test-Site Workflow
+
+- The Day Session execution-entry card design is approved. Preserve the
+  Buy/Sell entry flow, removable execution rows, and full-width `Add execution`
+  action unless the user requests a design change.
+- There must be only one server location for the V3 test website. Do not
+  create, deploy to, or maintain a second test-site project, alternate server
+  copy, or parallel preview version.
+- This computer's main V3 version is the sole source that may update the server
+  test site. Codex builds pages and features locally, and the user approves
+  them before they go to that one final test site.
+- After approval, a change may remain on the final test site or return to the
+  computer for revision. Do not treat a server-side copy as an independent
+  development source.

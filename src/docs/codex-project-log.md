@@ -1,3 +1,17 @@
+# 2026-07-29 - Isolated V3 Preview Broker Import And Analytics Repair
+
+The isolated `codex/v3-journal-preview` Preview now has one intended V3 data
+path: broker CSV imports, Day Session manual entries, import history, Workspace
+overview, and Analytics pages read the dedicated Neon test database. The
+file-backed local importer remains unchanged for local work; it is not used by
+the hosted Preview. The detailed implementation tracker is
+`src/docs/v3-preview-broker-import-progress-2026-07-29.md`.
+
+Resume point: deploy this Preview-only repair, submit one synthetic CSV, then
+verify the import history and V3 analytics pages against that same Neon record.
+No production environment, production database, live homepage, Watchlist, or
+Academy route is in scope.
+
 # 2026-07-29 - Isolated V3 Day Session Manual Entry Preview
 
 Started the approved post-session Day Session workflow on the isolated

@@ -123,7 +123,7 @@ export async function AnalyticsServerPage({
   const definition = DEFINITIONS[page];
   const owner = await requireTraderIntelligenceOwnerPageAccess();
   const deployment = validateTraderIntelligenceDeployment(process.env);
-  const analytics = deployment.ok ? resolveConfiguredDashboardAnalytics({
+  const analytics = deployment.ok ? await resolveConfiguredDashboardAnalytics({
         owner,
         config: deployment.config,
         environment: process.env,
@@ -356,7 +356,7 @@ export async function AnalyticsLabServerPage({
   const owner = await requireTraderIntelligenceOwnerPageAccess();
   const deployment = validateTraderIntelligenceDeployment(process.env);
   const analytics = deployment.ok
-    ? resolveConfiguredDashboardAnalytics({
+    ? await resolveConfiguredDashboardAnalytics({
         owner,
         config: deployment.config,
         environment: process.env,

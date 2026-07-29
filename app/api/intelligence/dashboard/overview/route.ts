@@ -33,7 +33,7 @@ async function GETHandler(request: Request): Promise<Response> {
   if (!authorization.ok || !deployment.ok) {
     return Response.json({ status: "unavailable" });
   }
-  const analytics = resolveConfiguredDashboardAnalytics({
+  const analytics = await resolveConfiguredDashboardAnalytics({
     owner: authorization.owner,
     config: deployment.config,
     environment: process.env,
