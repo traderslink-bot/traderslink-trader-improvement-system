@@ -374,7 +374,10 @@ export function buildImportRepairReplacement(args: Readonly<{
       currentValues: values,
       decision,
       status: analyticallyIncluded ? "accepted" as const : row.status,
-      issues: decision === "corrected" ? Object.freeze([]) : row.issues,
+      // Issue evidence describes the immutable broker-source row. Keep it
+      // available after a decision so reset_to_source can restore the row to
+      // needs_attention without losing the original explanation.
+      issues: row.issues,
     });
   });
   const header = [

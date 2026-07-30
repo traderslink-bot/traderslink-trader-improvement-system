@@ -1,3 +1,21 @@
+# 2026-07-30 - Import Repair connected interface approved
+
+**Branch:** `codex/import-repair-main-integration`.
+
+The connected Data Decisions Import Repair table and Imported statements
+selector are owner-approved. Every retained statement is visible, statements
+with review rows appear first, and repair/delete operations remain scoped to
+the explicitly selected statement. Parser-only `custom` wording is hidden
+behind the neutral `Imported statement` label.
+
+Correction, reset, shared-authority replacement, one-of-two deletion, and
+final-statement deletion passed isolated V3 runtime proof. The Analytics
+presentation now translates internal limitation codes into plain language and
+links fee limitations to Data Decisions without changing the shared analytics
+authority or adapters. Next: commit the complete 15-file slice, publish the PR,
+use CI as the final safety gate, then verify the merged clean `main` app alone
+on port 3010.
+
 # 2026-07-28 - Execution Analytics Dashboard Milestone 4 foundation verified
 
 **Branch:** `codex/trade-execution-v3-m4-dashboard-panels`.

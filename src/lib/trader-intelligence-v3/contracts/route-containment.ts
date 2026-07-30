@@ -120,6 +120,7 @@ const OWNER_API_ROUTES = [
   ["app/api/csv-mapping-review/continue/route.ts", ["POST"], "owner_mutation"],
   ["app/api/intelligence/broker-csv-import/v1/history/route.ts", ["GET"], "owner_read"],
   ["app/api/intelligence/broker-csv-import/v1/route.ts", ["POST"], "owner_mutation"],
+  ["app/api/intelligence/import-repair/v1/route.ts", ["GET", "POST", "DELETE"], "owner_mutation"],
   ["app/api/intelligence/execution-import/v1/route.ts", ["POST"], "owner_mutation"],
   ["app/api/intelligence/rules/route.ts", ["POST"], "owner_mutation"],
   ["app/api/csv-mapping-templates/[templateId]/route.ts", ["PATCH", "DELETE"], "owner_mutation"],
@@ -226,11 +227,14 @@ function apiEntry(
       modulePath === "app/api/import-batches/preview/route.ts" ||
       modulePath === "app/api/csv-mapping-review/continue/route.ts" ||
       modulePath === "app/api/intelligence/broker-csv-import/v1/route.ts" ||
+      modulePath === "app/api/intelligence/import-repair/v1/route.ts" ||
       modulePath === "app/api/intelligence/execution-import/v1/route.ts" ||
       modulePath === "app/api/csv-mapping-templates/route.ts" ||
       modulePath === "app/api/csv-mapping-templates/[templateId]/route.ts" ||
       modulePath === "app/api/import-dry-run/decision-review/route.ts"
-        ? ["POST"]
+        ? modulePath === "app/api/intelligence/import-repair/v1/route.ts"
+          ? ["POST", "DELETE"]
+          : ["POST"]
         : [],
     classification,
     authenticationRequirement: "v3 server-side owner guard",

@@ -57,7 +57,7 @@ function source(): PersistedRawBrokerCsvImport {
         executionId: "execution-1",
       },
     }],
-  } as PersistedRawBrokerCsvImport;
+  } as unknown as PersistedRawBrokerCsvImport;
 }
 
 describe("Import Repair mutation", () => {

@@ -1,6 +1,6 @@
 # Data Decisions Import Repair Beta Progress — 2026-07-29
 
-Status: steps 1-4 implemented; isolated verification pending
+Status: steps 1-4 implemented and isolated-runtime verified; connected UI approval pending
 
 ## Completed
 
@@ -140,6 +140,70 @@ Integration blocker:
   until a clean canonical `main` integration workspace is available or the
   user directs how the existing Day Session work should be handled.
 
+## 2026-07-30 clean main integration and runtime checkpoint
+
+Completed:
+
+- Created a clean main-based integration worktree on
+  `codex/import-repair-main-integration` without modifying or stashing the
+  dirty Day Session workspace.
+- Brought the complete Import Repair commit into that worktree and resolved
+  only the Data Decisions add/add conflict.
+- Focused ESLint, repository TypeScript, the three focused mutation checks,
+  and the production build passed in the clean integration worktree.
+- Added the Import Repair GET/POST/DELETE route to the V3 owner-containment
+  inventory after runtime verification exposed the missing classification.
+- Verified the connected Data Decisions page in a browser with HTTP 200, the
+  expected navigation/table, exact broker row 1, and no console error after
+  the isolated account binding was configured.
+- Imported an isolated statement with missing fees and confirmed its exact row
+  and plain-language fee limitation appeared in Data Decisions.
+- Saved an exact fee correction into a new verified source digest and confirmed
+  the immutable original broker values remained available.
+- Fixed and verified reset so original issue evidence is retained after a
+  correction, corrected rows leave the active table, and reset restores both
+  the original broker values and the original explanation.
+- Verified deletion with two isolated statements: deleting the selected
+  statement retained the other statement and rebuilt the binding; deleting the
+  final statement returned an empty verified selection.
+- Reverted the temporary local-listener compatibility adjustment used only to
+  run the review; it is not part of the Import Repair slice.
+- Added the approved Imported statements selector. It shows every retained
+  statement, puts statements with review rows first, discloses the statement
+  date range and exact review count, and marks the selected statement.
+- Browser verification with two isolated statements confirmed that selecting a
+  statement changes only the selected card and the repair rows below. The
+  flagged statement showed one row needing review, the clean statement showed
+  zero, and the browser reported no console errors.
+- Replaced parser-only `custom` statement wording with the neutral
+  `Imported statement`.
+- Completed the Analytics language handoff without changing its authority or
+  adapters. Analytics now translates limitation codes into trader-facing
+  explanations, sends fee limitations to Data Decisions, and no longer shows
+  internal reason codes in unavailable metric captions.
+
+Still active:
+
+1. [Complete] Trader approved the connected table and Imported statements
+   selector. Parser-only `custom` labels are presented as the neutral
+   `Imported statement`; known broker names remain visible.
+2. [Complete] Analytics limitation-language handoff.
+3. [Complete] Focused ESLint, repository TypeScript, `git diff --check`, and
+   the final production build passed. The complete integration slice was
+   committed on `codex/import-repair-main-integration`.
+4. Open the pull request, allow GitHub CI to be the final safety gate, and
+   integrate only this reviewed feature into `main`.
+5. Start only clean `main` on port 3010 and verify Data Decisions, importing,
+   Trades, Analytics, and Analytics Lab from that one app.
+6. Remove the temporary workspaces only after integrated confirmation and
+   explicit approval.
+
+Current external blocker:
+
+- `gh auth status` reports that the saved `traderslink-bot` token is invalid.
+  Re-authenticate GitHub CLI before pushing the branch or opening the pull
+  request.
+
 ## Later slices
 
 1. [Backend and UI connected; verification pending] Connect
@@ -151,18 +215,19 @@ Integration blocker:
 
 ## Main integration status
 
-- Row correction, keep, exclude, and persisted reset: implemented; focused
-  type/runtime verification pending.
+- Row correction, keep, exclude, and persisted reset: implemented; correction
+  and reset verified with isolated runtime data.
 - Shared-authority rebuild after a repair: connected through the one shared
   catalog/binding writer; focused type/runtime verification pending.
-- Confirmed statement deletion: backend and UI connected with scoped
-  owner/account/digest checks and binding rollback; isolated-data verification
-  not complete.
-- Connected loading/success/validation/failure states: not complete.
-- Analytics limitation-language handoff: not complete.
-- Fully connected table review: not complete.
-- Isolated-data action verification: not complete.
-- Complete required-file inventory: not complete.
+- Confirmed statement deletion: backend and UI connected; two-statement and
+  final-statement isolated runtime behavior verified.
+- Connected loading/success/validation/failure states: complete for the
+  reviewed slice.
+- Analytics limitation-language handoff: complete.
+- Fully connected table review: approved.
+- Isolated-data action verification: correction, reset, statement selection,
+  and deletion complete; forced-failure rollback remains for final acceptance.
+- Complete required-file inventory: complete; listed below.
 - Integrated verification from `main` on port 3010: not started.
 - Temporary-workspace removal: blocked until integration is confirmed and the
   user approves removal.
@@ -174,6 +239,24 @@ Integration blocker:
   analytics are restricted there with their exact reason; metric-specific
   limitations stay disclosed in the relevant dashboard view. Do not silently
   drop a row.
+
+## Complete Import Repair integration inventory
+
+1. `app/(dashboard)/data-decisions/data-decisions-repair-preview.tsx`
+2. `app/analytics-server-page.tsx`
+3. `app/api/intelligence/broker-csv-import/v1/route.ts`
+4. `app/api/intelligence/import-repair/v1/route.ts`
+5. `src/docs/data-decisions-import-repair-beta-plan-2026-07-29.md`
+6. `src/docs/data-decisions-import-repair-beta-progress-2026-07-29.md`
+7. `src/lib/trader-intelligence-v3/__tests__/import-repair-mutation.test.ts`
+8. `src/lib/trader-intelligence-v3/contracts/route-containment.ts`
+9. `src/lib/trader-intelligence-v3/ingestion/configured-import-catalog.ts`
+10. `src/lib/trader-intelligence-v3/ingestion/import-repair-mutation.ts`
+11. `src/lib/trader-intelligence-v3/ingestion/import-repair-record.ts`
+12. `src/lib/trader-intelligence-v3/ingestion/index.ts`
+13. `src/lib/trader-intelligence-v3/ingestion/local-execution-source-document-store.ts`
+14. `src/lib/trader-intelligence-v3/ingestion/server-raw-broker-csv-import.ts`
+15. `src/docs/codex-project-log.md`
 
 ## Verification boundary
 

@@ -93,7 +93,11 @@ export function createLocalExecutionSourceDocumentStore(
       storeKey: "ti_v3_local_execution_source_document_store",
       storeVersion: LOCAL_EXECUTION_SOURCE_DOCUMENT_STORE_VERSION,
       read,
-      remove: (scope) => {
+      remove: (scope: Readonly<{
+        canonicalOwnerKey: string;
+        canonicalAccountKey: string;
+        persistenceDigest: CanonicalContentDigest;
+      }>) => {
         const current = read(scope);
         if (!current.ok) return current;
         const file = fileFor(root, scope.persistenceDigest);

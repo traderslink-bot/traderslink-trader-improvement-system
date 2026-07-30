@@ -170,6 +170,12 @@ implemented next; they do not reduce or replace this full scope.
 
 ### 4. Connected interface
 
+- Show every retained statement in an Imported statements selector, with
+  statements needing attention first.
+- Show each statement's broker/source name, date range, rows-needing-review
+  count, review status, and selected state.
+- Keep repair and Delete statement actions scoped to the explicitly selected
+  statement while loading only that statement's rows in the table.
 - Remove preview-only and not-connected messaging once each action is real.
 - Show saving, validation, success, and failure states.
 - Refresh the statement and repair rows after every completed action.
@@ -178,9 +184,9 @@ implemented next; they do not reduce or replace this full scope.
 
 ### 5. Language handoff
 
-- Replace raw internal limitation labels in affected analytics surfaces with
+- [Complete] Replace raw internal limitation labels in affected analytics surfaces with
   concise trader-facing language.
-- Link the affected result to the relevant Data Decisions item.
+- [Complete] Link the affected result to the relevant Data Decisions item.
 
 ### 6. Review and isolated verification
 
@@ -212,3 +218,10 @@ approved the Import Repair table design. No broad tests are run at this gate.
 
 Progress is tracked in
 `src/docs/data-decisions-import-repair-beta-progress-2026-07-29.md`.
+
+Current gate: the clean main-based integration branch has passed focused
+lint/type/mutation/build checks and isolated browser/runtime proof for
+correction, reset, shared-authority rebuild, and deletion. The connected table
+now requires trader approval before the pull request and final `main`/3010
+acceptance. The analytics language handoff, final inventory, PR/CI, and
+post-merge verification remain active.

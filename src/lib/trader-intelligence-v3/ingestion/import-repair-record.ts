@@ -304,10 +304,12 @@ export function readImportRepairRecord(args: Readonly<{
     if (
       typeof parsed !== "object" ||
       parsed === null ||
-      ![
-        IMPORT_REPAIR_RECORD_VERSION,
-        LEGACY_IMPORT_REPAIR_RECORD_VERSION,
-      ].includes((parsed as { schemaVersion?: never }).schemaVersion)
+      (
+        (parsed as { schemaVersion?: unknown }).schemaVersion !==
+          IMPORT_REPAIR_RECORD_VERSION &&
+        (parsed as { schemaVersion?: unknown }).schemaVersion !==
+          LEGACY_IMPORT_REPAIR_RECORD_VERSION
+      )
     ) return null;
     return upgradeImportRepairRecord(parsed as PersistedImportRepairRecord);
   } catch {
@@ -352,8 +354,12 @@ export function listImportRepairRecords(args: Readonly<{
           if (
             typeof parsed !== "object" ||
             parsed === null ||
-            ![IMPORT_REPAIR_RECORD_VERSION, LEGACY_IMPORT_REPAIR_RECORD_VERSION]
-              .includes((parsed as { schemaVersion?: never }).schemaVersion) ||
+            (
+              (parsed as { schemaVersion?: unknown }).schemaVersion !==
+                IMPORT_REPAIR_RECORD_VERSION &&
+              (parsed as { schemaVersion?: unknown }).schemaVersion !==
+                LEGACY_IMPORT_REPAIR_RECORD_VERSION
+            ) ||
             (parsed as PersistedImportRepairRecord).canonicalOwnerKey !== args.canonicalOwnerKey ||
             (parsed as PersistedImportRepairRecord).canonicalAccountKey !== args.canonicalAccountKey
           ) return [];

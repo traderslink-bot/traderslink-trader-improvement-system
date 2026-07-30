@@ -97,6 +97,29 @@ function titleCase(value: string): string {
   ).join(" ");
 }
 
+function traderFacingLimitation(code: string): string {
+  if (
+    code.includes("charge_coverage_unknown") ||
+    code.includes("fee_authority")
+  ) {
+    return "Some imported rows have no verified commission or fee amount. Fee-based results omit those rows until you review them in Data Decisions.";
+  }
+  if (code.includes("rows_bounded")) {
+    return "This view is limited to the verified result rows available for this request.";
+  }
+  return "Some verified records cannot support every result in this view. Review the affected imports in Data Decisions.";
+}
+
+function unavailableMetricCaption(reasonCode: string | null): string {
+  if (
+    reasonCode?.includes("charge") ||
+    reasonCode?.includes("fee")
+  ) {
+    return "Fees need review";
+  }
+  return "Unavailable for verified data";
+}
+
 function metricByKey(
   metrics: readonly DashboardMetricViewModel[],
   key: string,
@@ -104,12 +127,12 @@ function metricByKey(
   return metrics.find((metric) => metric.metricKey === key) ?? null;
 }
 
-function AnalyticsUnavailable({ code }: { code: string }) {
+function AnalyticsUnavailable() {
   return (
     <DashboardUnavailableState
       actionHref="/imports"
       actionLabel="Attach execution history"
-      description={`The dashboard adapter is ready, but no fixed local v3 execution authority is currently attached (${code}). No legacy or synthetic values are substituted.`}
+      description="No verified V3 execution history is currently attached. No legacy or synthetic values are substituted."
       title="Verified execution analytics unavailable"
     />
   );
@@ -131,9 +154,6 @@ export async function AnalyticsServerPage({
     : null;
 
   if (analytics === null || !analytics.ok) {
-    const code = analytics === null
-      ? (deployment.ok ? "ti_v3_dashboard_analytics_source_unavailable" : deployment.code)
-      : analytics.error.code;
     return (
       <DashboardPage>
         <Box>
@@ -148,7 +168,7 @@ export async function AnalyticsServerPage({
           </Typography>
         </Box>
         <DashboardPanel title="Execution analytics">
-          <AnalyticsUnavailable code={code} />
+          <AnalyticsUnavailable />
         </DashboardPanel>
       </DashboardPage>
     );
@@ -173,14 +193,10 @@ export async function AnalyticsServerPage({
     : breakdownPlan;
 
   if (!aggregate.ok || !breakdown.ok) {
-    let code: string;
-    if (!aggregate.ok) code = aggregate.error.code;
-    else if (!breakdown.ok) code = breakdown.error.code;
-    else code = "ti_v3_dashboard_analytics_source_unavailable";
     return (
       <DashboardPage>
         <DashboardPanel title={definition.title}>
-          <AnalyticsUnavailable code={code} />
+          <AnalyticsUnavailable />
         </DashboardPanel>
       </DashboardPage>
     );
@@ -213,8 +229,15 @@ export async function AnalyticsServerPage({
         <Chip label={`${aggregate.value.includedCount} completed trades`} size="small" variant="outlined" />
       </Stack>
       {limitations.length > 0 ? (
-        <Alert severity="warning">
-          {limitations.map(titleCase).join(" · ")}
+        <Alert
+          action={
+            <Button color="inherit" href="/data-decisions" size="small">
+              Review Data Decisions
+            </Button>
+          }
+          severity="warning"
+        >
+          {[...new Set(limitations.map(traderFacingLimitation))].join(" ")}
         </Alert>
       ) : null}
       <Box sx={{
@@ -231,7 +254,7 @@ export async function AnalyticsServerPage({
           return (
             <DashboardMetricCard
               caption={metric?.availability === "unavailable"
-                ? titleCase(metric.reasonCode ?? "unavailable")
+                ? unavailableMetricCaption(metric.reasonCode)
                 : metric?.unit ?? "Exact v3 result"}
               key={key}
               label={titleCase(key)}
@@ -465,7 +488,7 @@ export async function AnalyticsLabServerPage({
       </DashboardPanel>
       {errorCode ? (
         <DashboardPanel title="Analysis result">
-          <AnalyticsUnavailable code={errorCode} />
+          <AnalyticsUnavailable />
         </DashboardPanel>
       ) : null}
       {comparison ? (

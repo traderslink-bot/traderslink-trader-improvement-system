@@ -6,7 +6,9 @@ import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -55,6 +57,7 @@ type RepairStatement = Readonly<{
   rows: readonly Readonly<{
     sourceRowNumber: string;
     status: "accepted" | "rejected" | "skipped";
+    decision: "needs_attention" | "corrected" | "kept_as_imported" | "excluded";
     symbol: string | null;
     timestamp: string | null;
     side: string | null;
@@ -72,7 +75,11 @@ type RepairStatement = Readonly<{
 function repairRows(statement: RepairStatement | null): readonly PreviewRow[] {
   if (statement === null) return [];
   return statement.rows
-    .filter((row) => row.status === "rejected" || row.issues.length > 0)
+    .filter(
+      (row) =>
+        row.decision === "needs_attention" &&
+        (row.status === "rejected" || row.issues.length > 0),
+    )
     .map((row) => ({
       id: `${statement.persistenceDigest}:${row.sourceRowNumber}`,
       row: row.sourceRowNumber,
@@ -89,6 +96,48 @@ function repairRows(statement: RepairStatement | null): readonly PreviewRow[] {
       action: row.status === "rejected" ? "Exclude row" : "Save correction",
       message: row.issues.map((issue) => issue.message).join(" ") || "This statement row needs attention.",
     }));
+}
+
+function rowsToReview(statement: RepairStatement): number {
+  return statement.rows.filter(
+    (row) =>
+      row.decision === "needs_attention" &&
+      (row.status === "rejected" || row.issues.length > 0),
+  ).length;
+}
+
+function statementDateRange(statement: RepairStatement): string {
+  const timestamps = statement.rows
+    .map((row) => row.timestamp)
+    .filter((value): value is string => value !== null)
+    .map((value) => new Date(value))
+    .filter((value) => Number.isFinite(value.getTime()))
+    .sort((left, right) => left.getTime() - right.getTime());
+  if (timestamps.length === 0) return "Statement dates unavailable";
+  const format = new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const first = format.format(timestamps[0]);
+  const last = format.format(timestamps[timestamps.length - 1]);
+  return first === last ? first : `${first} – ${last}`;
+}
+
+function statementName(statement: RepairStatement): string {
+  return statement.broker === "custom"
+    ? "Imported statement"
+    : `${statement.broker} statement`;
+}
+
+function orderedStatements(
+  statements: readonly RepairStatement[],
+): readonly RepairStatement[] {
+  return [...statements].sort((left, right) => {
+    const reviewDifference = rowsToReview(right) - rowsToReview(left);
+    if (reviewDifference !== 0) return reviewDifference;
+    return statementDateRange(right).localeCompare(statementDateRange(left));
+  });
 }
 
 const ACTIONS: readonly RepairAction[] = [
@@ -110,6 +159,7 @@ function updateRowField<K extends keyof PreviewRow>(
 }
 
 export function DataDecisionsRepairPreview() {
+  const [statements, setStatements] = useState<readonly RepairStatement[]>([]);
   const [statement, setStatement] = useState<RepairStatement | null>(null);
   const [rows, setRows] = useState<readonly PreviewRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +175,9 @@ export function DataDecisionsRepairPreview() {
       .then(async (response) => response.ok ? response.json() : Promise.reject())
       .then((packet: { statements?: readonly RepairStatement[] }) => {
         if (!active) return;
-        const selected = packet.statements?.[0] ?? null;
+        const available = orderedStatements(packet.statements ?? []);
+        const selected = available[0] ?? null;
+        setStatements(available);
         setStatement(selected);
         setRows(repairRows(selected));
       })
@@ -151,7 +203,9 @@ export function DataDecisionsRepairPreview() {
       const packet = refreshed.ok
         ? await refreshed.json() as { statements?: readonly RepairStatement[] }
         : {};
-      const selected = packet.statements?.[0] ?? null;
+      const available = orderedStatements(packet.statements ?? []);
+      const selected = available[0] ?? null;
+      setStatements(available);
       setStatement(selected);
       setRows(repairRows(selected));
       setDeleteOpen(false);
@@ -202,8 +256,17 @@ export function DataDecisionsRepairPreview() {
       if (!response.ok || !packet.statement) {
         throw new Error(packet.error?.message ?? "save failed");
       }
-      setStatement(packet.statement);
-      setRows(repairRows(packet.statement));
+      const replacement = packet.statement as RepairStatement;
+      const available = orderedStatements([
+        ...statements.filter(
+          (candidate) =>
+            candidate.persistenceDigest !== statement.persistenceDigest,
+        ),
+        replacement,
+      ]);
+      setStatements(available);
+      setStatement(replacement);
+      setRows(repairRows(replacement));
       setNotice("Import Repair saved the decisions and rebuilt V3.");
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Import Repair could not save the changes.");
@@ -229,16 +292,120 @@ export function DataDecisionsRepairPreview() {
         {loadError ? <Alert severity="warning">{loadError}</Alert> : null}
         {notice ? <Alert severity="success">{notice}</Alert> : null}
 
+        <DashboardPanel title="Imported statements">
+          <Stack spacing={1.5}>
+            <Typography color="text.secondary" variant="body2">
+              Every statement remains visible here. Choose one statement to
+              review, repair, or delete.
+            </Typography>
+            {loading ? (
+              <Typography color="text.secondary" variant="body2">
+                Loading imported statements...
+              </Typography>
+            ) : statements.length === 0 ? (
+              <DashboardUnavailableState
+                compact
+                description="Import a statement to see it here and review any rows that need attention."
+                title="No imported statements"
+              />
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gap: 1.25,
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                    xl: "repeat(3, minmax(0, 1fr))",
+                  },
+                }}
+              >
+                {statements.map((candidate) => {
+                  const reviewCount = rowsToReview(candidate);
+                  const selected =
+                    candidate.persistenceDigest === statement?.persistenceDigest;
+                  return (
+                    <ButtonBase
+                      aria-label={`Review ${statementName(candidate)}, ${reviewCount} rows need review`}
+                      key={candidate.persistenceDigest}
+                      onClick={() => {
+                        setStatement(candidate);
+                        setRows(repairRows(candidate));
+                        setLoadError(null);
+                        setNotice(null);
+                      }}
+                      sx={{
+                        alignItems: "stretch",
+                        border: 1,
+                        borderColor: selected ? "primary.main" : "divider",
+                        borderRadius: 1.5,
+                        justifyContent: "stretch",
+                        overflow: "hidden",
+                        textAlign: "left",
+                      }}
+                    >
+                      <Stack
+                        spacing={1}
+                        sx={{
+                          bgcolor: selected ? "action.selected" : "background.paper",
+                          p: 1.75,
+                          width: "100%",
+                        }}
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: "flex-start", justifyContent: "space-between" }}
+                        >
+                          <Typography sx={{ fontWeight: 700 }} variant="subtitle2">
+                            {statementName(candidate)}
+                          </Typography>
+                          {selected ? (
+                            <Chip color="primary" label="Selected" size="small" />
+                          ) : null}
+                        </Stack>
+                        <Typography color="text.secondary" variant="body2">
+                          {statementDateRange(candidate)}
+                        </Typography>
+                        <Chip
+                          color={reviewCount > 0 ? "warning" : "success"}
+                          label={
+                            reviewCount === 1
+                              ? "1 row needs review"
+                              : `${reviewCount} rows need review`
+                          }
+                          size="small"
+                          sx={{ alignSelf: "flex-start" }}
+                          variant="outlined"
+                        />
+                      </Stack>
+                    </ButtonBase>
+                  );
+                })}
+              </Box>
+            )}
+          </Stack>
+        </DashboardPanel>
+
         <DashboardPanel
-          action={<Button color="error" onClick={() => setDeleteOpen(true)} startIcon={<DeleteOutlineRoundedIcon />} variant="outlined">Delete statement</Button>}
-          title={statement ? `${statement.broker} statement` : "Imported statement"}
+          action={<Button color="error" disabled={statement === null || deleting || saving} onClick={() => setDeleteOpen(true)} startIcon={<DeleteOutlineRoundedIcon />} variant="outlined">Delete statement</Button>}
+          title={statement ? statementName(statement) : "Selected statement"}
         >
           <Stack spacing={1.5}>
             <Typography color="text.secondary" variant="body2">
               {loading ? "Loading statement rows..." : statement ? "Import Repair shows the exact broker statement rows that need attention." : "Import a new statement to see its exact broker rows here."}
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Chip color={rows.length > 0 ? "warning" : "default"} label={`${rows.length} rows to review`} size="small" variant="outlined" />
+              <Chip
+                color={rows.length > 0 ? "warning" : "default"}
+                label={
+                  rows.length === 1
+                    ? "1 row to review"
+                    : `${rows.length} rows to review`
+                }
+                size="small"
+                variant="outlined"
+              />
               <Chip label={statement ? "Original broker rows saved" : "No repair record yet"} size="small" variant="outlined" />
               <Chip label="No changes saved" size="small" variant="outlined" />
             </Stack>
@@ -271,7 +438,7 @@ export function DataDecisionsRepairPreview() {
                   <EditableCell align="right" label={`Price for statement row ${row.row}`} onChange={(value) => setRows((current) => updateRowField(current, row.id, "price", value))} value={row.price} width={100} />
                   <EditableCell align="right" label={`Fees for statement row ${row.row}`} onChange={(value) => setRows((current) => updateRowField(current, row.id, "fees", value))} value={row.fees} width={100} />
                   <TableCell sx={{ minWidth: 180 }}><TextField aria-label={`Action for statement row ${row.row}`} fullWidth onChange={(event) => setRows((current) => updateRowField(current, row.id, "action", event.target.value as RepairAction))} select size="small" value={row.action}>{ACTIONS.map((action) => <MenuItem key={action} value={action}>{action}</MenuItem>)}</TextField></TableCell>
-                </TableRow>)}{!loading && rows.length === 0 ? <TableRow><TableCell colSpan={9}><Typography color="text.secondary" variant="body2">No repair rows are available. Older imports need to be imported again once to retain their original broker-row details.</Typography></TableCell></TableRow> : null}</TableBody>
+                </TableRow>)}{!loading && rows.length === 0 ? <TableRow><TableCell colSpan={9}><Typography color="text.secondary" variant="body2">{statement ? "No rows need review in this statement." : "No repair rows are available. Older imports need to be imported again once to retain their original broker-row details."}</Typography></TableCell></TableRow> : null}</TableBody>
               </Table>
             </TableContainer>
             <Divider />
