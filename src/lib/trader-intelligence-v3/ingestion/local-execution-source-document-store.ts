@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve, sep } from "node:path";
 
@@ -14,7 +14,7 @@ export const LOCAL_EXECUTION_SOURCE_DOCUMENT_STORE_VERSION =
   "ti_v3_local_execution_source_document_store_v1" as const;
 
 export type LocalExecutionSourceDocumentStoreFailure = Readonly<{
-  code: "ti_v3_execution_source_store_path_invalid" | "ti_v3_execution_source_store_write_failed" | "ti_v3_execution_source_store_not_found";
+  code: "ti_v3_execution_source_store_path_invalid" | "ti_v3_execution_source_store_write_failed" | "ti_v3_execution_source_store_not_found" | "ti_v3_execution_source_store_delete_failed";
   path: string;
 }>;
 
@@ -23,6 +23,7 @@ export interface LocalExecutionSourceDocumentStore {
   readonly storeVersion: typeof LOCAL_EXECUTION_SOURCE_DOCUMENT_STORE_VERSION;
   readonly persist: (record: PersistedRawBrokerCsvImport) => ExactResult<PersistedRawBrokerCsvImport, LocalExecutionSourceDocumentStoreFailure>;
   readonly read: (scope: Readonly<{ canonicalOwnerKey: string; canonicalAccountKey: string; persistenceDigest: CanonicalContentDigest }>) => ExactResult<PersistedRawBrokerCsvImport, LocalExecutionSourceDocumentStoreFailure>;
+  readonly remove: (scope: Readonly<{ canonicalOwnerKey: string; canonicalAccountKey: string; persistenceDigest: CanonicalContentDigest }>) => ExactResult<Readonly<{ persistenceDigest: CanonicalContentDigest }>, LocalExecutionSourceDocumentStoreFailure>;
 }
 
 export interface LocalExecutionSourceDocumentStoreOptions {
@@ -92,6 +93,18 @@ export function createLocalExecutionSourceDocumentStore(
       storeKey: "ti_v3_local_execution_source_document_store",
       storeVersion: LOCAL_EXECUTION_SOURCE_DOCUMENT_STORE_VERSION,
       read,
+      remove: (scope) => {
+        const current = read(scope);
+        if (!current.ok) return current;
+        const file = fileFor(root, scope.persistenceDigest);
+        if (file === null) return failure("ti_v3_execution_source_store_path_invalid", "$.persistenceDigest");
+        try {
+          unlinkSync(file);
+          return { ok: true as const, value: Object.freeze({ persistenceDigest: scope.persistenceDigest }) };
+        } catch {
+          return failure("ti_v3_execution_source_store_delete_failed", "$.persistenceDigest");
+        }
+      },
       persist: (record: PersistedRawBrokerCsvImport) => {
         const file = fileFor(root, record.persistenceDigest);
         const serialized = serializePersistedRawBrokerCsvImport(record);

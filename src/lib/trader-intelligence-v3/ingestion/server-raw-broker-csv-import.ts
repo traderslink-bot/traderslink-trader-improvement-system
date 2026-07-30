@@ -85,6 +85,12 @@ export interface ServerRawBrokerCsvImportService {
     readonly PersistedRawBrokerCsvImport[],
     ServerRawBrokerCsvImportFailure
   >;
+  readonly remove: (
+    persistenceDigest: CanonicalContentDigest,
+  ) => ExactResult<
+    Readonly<{ persistenceDigest: CanonicalContentDigest }>,
+    ServerRawBrokerCsvImportFailure
+  >;
   readonly projectLifecycles: (
     persistenceDigests: readonly CanonicalContentDigest[],
   ) => ExactResult<
@@ -226,6 +232,16 @@ export function createServerRawBrokerCsvImportService(
           persistenceDigest,
         });
         return record.ok ? record : failure(record.error.code, record.error.path);
+      },
+      remove: (persistenceDigest: CanonicalContentDigest) => {
+        const removed = authority.sourceStore.remove({
+          canonicalOwnerKey,
+          canonicalAccountKey: authority.canonicalAccountKey,
+          persistenceDigest,
+        });
+        return removed.ok
+          ? removed
+          : failure(removed.error.code, removed.error.path);
       },
       readMany: (persistenceDigests: readonly CanonicalContentDigest[]) => {
         if (persistenceDigests.length === 0) {

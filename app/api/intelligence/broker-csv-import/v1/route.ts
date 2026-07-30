@@ -1,13 +1,4 @@
 import { createHash } from "node:crypto";
-import {
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { join } from "node:path";
 
 import {
   authorizeTraderIntelligenceOwner,
@@ -23,11 +14,13 @@ import {
   type BrokerExecutionCsvFormat,
 } from "@/src/lib/execution-sources/csv";
 import {
-  buildObservedPeriodAnalyticsAuthorityAttachment,
-  parsePersistedRawBrokerCsvImport,
+  buildImportRepairRecord,
+  readConfiguredImportCatalog,
   resolveConfiguredServerRawBrokerCsvImportService,
   type PersistedRawBrokerCsvImport,
   type RawBrokerCsvColumnMapping,
+  writeImportRepairRecord,
+  writeConfiguredImportAuthorityBinding,
 } from "@/src/lib/trader-intelligence-v3/ingestion";
 
 export const runtime = "nodejs";
@@ -35,7 +28,6 @@ export const dynamic = "force-dynamic";
 
 const ROUTE_PATH = "app/api/intelligence/broker-csv-import/v1/route.ts";
 const MAX_CSV_CHARS = 12_000_000;
-const BINDING_VERSION = "ti_v3_configured_dashboard_analytics_binding_v1";
 const CUSTOM_FIELDS = [
   "timestamp",
   "date",
@@ -141,86 +133,8 @@ function normalizedTimestamp(value: string | number | Date): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
-function sourceRecords(
-  parentPath: string,
-  canonicalOwnerKey: string,
-  canonicalAccountKey: string,
-): ReadonlyArray<
-  Readonly<{ record: PersistedRawBrokerCsvImport; importedAt: string }>
-> {
-  const directory = join(
-    parentPath,
-    "trader-intelligence-v3-execution-source-documents",
-  );
-  try {
-    const records = readdirSync(directory)
-      .filter((name) => name.endsWith(".json"))
-      .flatMap((name) => {
-        const path = join(directory, name);
-        try {
-          const parsed = parsePersistedRawBrokerCsvImport(
-            readFileSync(path, "utf8"),
-          );
-          return parsed.ok &&
-            parsed.value.canonicalOwnerKey === canonicalOwnerKey &&
-            parsed.value.canonicalAccountKey === canonicalAccountKey
-            ? [
-                {
-                  record: parsed.value,
-                  importedAt: statSync(path).mtime.toISOString(),
-                },
-              ]
-            : [];
-        } catch {
-          return [];
-        }
-      })
-      .sort((left, right) => right.importedAt.localeCompare(left.importedAt));
-    const seenSourceDocuments = new Set<string>();
-    return records.filter(({ record }) => {
-      if (seenSourceDocuments.has(record.sourceDocumentDigest)) return false;
-      seenSourceDocuments.add(record.sourceDocumentDigest);
-      return true;
-    });
-  } catch {
-    return [];
-  }
-}
-
-function writeCurrentBinding(
-  parentPath: string,
-  records: readonly PersistedRawBrokerCsvImport[],
-): boolean {
-  const attachment = buildObservedPeriodAnalyticsAuthorityAttachment(records);
-  if (!attachment.ok) return false;
-  const directory = join(
-    parentPath,
-    "trader-intelligence-v3-execution-analytics",
-  );
-  const path = join(directory, "current-authority.json");
-  const temporary = join(directory, ".current-authority.pending");
-  try {
-    mkdirSync(directory, { recursive: true });
-    writeFileSync(
-      temporary,
-      JSON.stringify({
-        schemaVersion: BINDING_VERSION,
-        persistenceDigests: records
-          .map((record) => record.persistenceDigest)
-          .sort(),
-        attachment: attachment.value,
-      }),
-      "utf8",
-    );
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function historyPacket(
-  items: ReturnType<typeof sourceRecords>,
+  items: ReturnType<typeof readConfiguredImportCatalog>,
 ): readonly Readonly<{
   persistenceDigest: string;
   importedAt: string;
@@ -368,6 +282,14 @@ async function POSTHandler(request: Request): Promise<Response> {
     .map((row) => row.map(csvCell).join(","))
     .join("\r\n");
   const symbols = [...new Set(rows.map((row) => String(row[0])))].sort();
+  const chargeCoverageState = parsed.executions.every(
+    (execution) =>
+      (execution.commission !== null &&
+        execution.commission !== undefined) ||
+      (execution.fees !== null && execution.fees !== undefined),
+  )
+    ? "complete"
+    : "unknown";
   const instrumentMap = Object.fromEntries(
     symbols.map((symbol) => [
       symbol,
@@ -415,11 +337,11 @@ async function POSTHandler(request: Request): Promise<Response> {
     orderId: "orderId",
     executionId: "executionId",
   };
-  const previouslyStored = sourceRecords(
-    authorization.config.persistence.parentPath,
-    service.value.canonicalOwnerKey,
-    service.value.canonicalAccountKey,
-  );
+  const previouslyStored = readConfiguredImportCatalog({
+    parentPath: authorization.config.persistence.parentPath,
+    canonicalOwnerKey: service.value.canonicalOwnerKey,
+    canonicalAccountKey: service.value.canonicalAccountKey,
+  });
   const persisted = service.value.persist({
     csvUtf8: new TextEncoder().encode(normalizedCsv),
     sourceIdentity: `source_${sourceDigest}`,
@@ -432,7 +354,7 @@ async function POSTHandler(request: Request): Promise<Response> {
       /[^A-Za-z0-9]+/g,
       "_",
     )}`,
-    chargeCoverageState: "unknown",
+    chargeCoverageState,
   });
   if (!persisted.ok) {
     return errorResponse(422, persisted.error.code, "The CSV could not be persisted.");
@@ -442,15 +364,26 @@ async function POSTHandler(request: Request): Promise<Response> {
     ({ record }) =>
       record.persistenceDigest === persisted.value.persistenceDigest,
   );
-  const stored = sourceRecords(
-    authorization.config.persistence.parentPath,
-    service.value.canonicalOwnerKey,
-    service.value.canonicalAccountKey,
-  );
-  const analyticsReady = writeCurrentBinding(
-    authorization.config.persistence.parentPath,
-    stored.map(({ record }) => record),
-  );
+  const stored = readConfiguredImportCatalog({
+    parentPath: authorization.config.persistence.parentPath,
+    canonicalOwnerKey: service.value.canonicalOwnerKey,
+    canonicalAccountKey: service.value.canonicalAccountKey,
+  });
+  const repairRecordReady = writeImportRepairRecord({
+    parentPath: authorization.config.persistence.parentPath,
+    record: buildImportRepairRecord({
+      persistenceDigest: persisted.value.persistenceDigest,
+      canonicalOwnerKey: service.value.canonicalOwnerKey,
+      canonicalAccountKey: service.value.canonicalAccountKey,
+      brokerCode,
+      originalCsvText: document.csvText,
+      parsed,
+    }),
+  });
+  const analyticsReady = writeConfiguredImportAuthorityBinding({
+    parentPath: authorization.config.persistence.parentPath,
+    records: stored.map(({ record }) => record),
+  });
   return Response.json(
     {
       contractVersion: "ti_v3_broker_csv_import_response_v1",
@@ -469,6 +402,7 @@ async function POSTHandler(request: Request): Promise<Response> {
       rowsNeedingAttention: persisted.value.rejectedRowCount,
       skippedNonTradeRows: String(parsed.skippedRowCount),
       analyticsReady,
+      repairRecordReady,
       persistenceDigest: persisted.value.persistenceDigest,
       imports: historyPacket(stored),
     },
