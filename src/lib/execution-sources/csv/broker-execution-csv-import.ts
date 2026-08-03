@@ -9,7 +9,10 @@ import {
 } from "../import-fingerprints";
 import { buildSessionTimeContextFromExecutions } from "../../raw-trade-timeline/session/classify-session-time";
 import type { ProviderExecution } from "../types/provider-execution";
-import { validateParserHardeningInput, type ParserHardeningResult } from "../../trader-intelligence-v3/ingestion";
+import {
+  validateParserHardeningInput,
+  type ParserHardeningResult,
+} from "../../trader-intelligence-v3/ingestion/parser-hardening";
 
 export type BrokerExecutionCsvFormat =
   | "auto"
