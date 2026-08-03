@@ -2,19 +2,19 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { LandingHeroCanvas } from "./landing-hero-canvas";
+import { FreeDiscordPrompt } from "./free-discord-prompt";
 import { HomeScrollReveal } from "./home-scroll-reveal";
 import { getAcademyCoursePage } from "@/src/lib/academy/academy-content";
 import { TRADERSLINK_TWITTER_HANDLE } from "@/src/lib/academy/academy-seo";
 
-const discordInviteUrl = "https://discord.gg/rrq73JGfFf";
-const whopPlanUrl =
-  "https://whop.com/traderslink-app/filtered-news-momentum-scanner-access/";
+const discordInviteUrl = "https://discord.gg/9dmGpfpRDD";
+const whopPlanUrl = "https://whop.com/traderslink-1049/premium-access-2026/";
 
 export const metadata: Metadata = {
   title:
-    "TradersLink | Small Cap Scanner, AI Press Releases, Academy, Trader Intelligence",
+    "TradersLink | Small Cap Scanner, AI Press Releases, Academy, Trade Tracker",
   description:
-    "TradersLink is a suite of trading tools with a small cap scanner, AI-summarized press releases and SEC filings, Discord alerts, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
+    "TradersLink is a suite of trading tools with a small cap scanner, AI-summarized press releases and SEC filings, Discord alerts, generated chart levels, TradersLink Academy, and Trade Tracker coming soon.",
   keywords: [
     "TradersLink",
     "small cap scanner",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "chart levels",
     "generated chart levels",
     "AI chart following",
-    "trader intelligence",
+    "trade tracker",
     "AI trading journal",
     "day trading analytics",
     "Discord trading tools",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "TradersLink",
     description:
-      "Small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
+      "Small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trade Tracker coming soon.",
     type: "website",
   },
   twitter: {
@@ -72,8 +72,8 @@ const featureBlocks = [
   },
   {
     eyebrow: "Coming Soon",
-    title: "Trader Intelligence will be the execution-review tool.",
-    body: "Trader Intelligence is the next tool in the TradersLink platform: broker execution imports, saved trade analytics, session timing, and trade review tied to saved evidence.",
+    title: "Trade Tracker will be the execution-review tool.",
+    body: "Trade Tracker is the next tool in the TradersLink platform: broker execution imports, saved trade analytics, session timing, and trade review tied to saved evidence.",
   },
 ];
 
@@ -86,7 +86,7 @@ const pressFeatures = [
   "Auto-generated support/resistance levels attached to scanner and press-release cards",
   "Press-release trading cards with float, market cap, short interest, and stock context",
   "AI chart-following system for breaks, weakening setups, and dip areas coming soon",
-  "Trader Intelligence execution-review system coming soon",
+  "Trade Tracker execution-review system coming soon",
 ];
 
 const seoTopics = [
@@ -98,14 +98,14 @@ const seoTopics = [
   "Day trading news scanner",
   "Support and resistance generation",
   "AI chart following for day traders",
-  "Trader Intelligence execution review",
+  "Trade Tracker execution review",
 ];
 
 const faqItems = [
   {
     question: "What is TradersLink?",
     answer:
-      "TradersLink is a suite of trading tools. The paid plan includes scanner and press-release/filing tools now, the free TradersLink Academy is open on the website, and Trader Intelligence is coming soon as another tool in the platform.",
+      "TradersLink is a suite of trading tools. The paid plan includes scanner and press-release/filing tools now, the free TradersLink Academy is open on the website, and Trade Tracker is coming soon as another tool in the platform.",
   },
   {
     question: "What does the $30 USD plan include?",
@@ -137,7 +137,7 @@ export default function Home() {
     applicationCategory: "FinanceApplication",
     operatingSystem: "Web",
     description:
-      "Trading-tools platform with small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trader Intelligence coming soon.",
+      "Trading-tools platform with small cap scanner alerts, AI-summarized press releases and SEC filings, generated chart levels, TradersLink Academy, and Trade Tracker coming soon.",
     offers: {
       "@type": "Offer",
       price: "30.00",
@@ -155,6 +155,7 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <HomeScrollReveal />
+      <FreeDiscordPrompt discordInviteUrl={discordInviteUrl} />
 
       <section className="tl-home-hero relative min-h-[82vh] overflow-hidden border-b border-cyan-400/20">
         <LandingHeroCanvas />
@@ -177,38 +178,6 @@ export default function Home() {
               />
             </span>
           </Link>
-          <div className="hidden items-center gap-2 md:flex">
-            <Link
-              className="rounded-md border border-cyan-300/20 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-              href="/academy"
-            >
-              Academy
-            </Link>
-            <Link
-              className="rounded-md border border-cyan-300/20 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-              href="/news"
-            >
-              News
-            </Link>
-            <Link
-              className="rounded-md border border-cyan-300/20 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-              href="/intelligence"
-            >
-              Intelligence
-            </Link>
-            <Link
-              className="rounded-md border border-cyan-300/20 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-              href="/account"
-            >
-              Account
-            </Link>
-            <Link
-              className="rounded-md border border-cyan-300/20 bg-slate-950/45 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/10"
-              href="/platform-readiness"
-            >
-              Readiness
-            </Link>
-          </div>
         </nav>
 
         <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-10 px-5 pb-12 pt-12 sm:px-8 lg:grid-cols-[minmax(0,0.62fr)_minmax(320px,0.38fr)] lg:pb-16 lg:pt-20">
@@ -225,7 +194,7 @@ export default function Home() {
             <p className="mt-5 max-w-3xl text-xl leading-8 text-slate-300 sm:text-2xl">
               Small-cap scanner alerts, AI-summarized press releases and SEC
               filings, generated chart levels, TradersLink Academy, and the
-              Trader Intelligence system coming soon for paid members.
+              Trade Tracker system coming soon for paid members.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
@@ -283,11 +252,7 @@ export default function Home() {
                 <span className="text-emerald-300">Free</span>
               </div>
               <div className="flex justify-between border-t border-slate-800 pt-2">
-                <span>Trader Intelligence</span>
-                <span className="text-amber-300">Coming soon</span>
-              </div>
-              <div className="flex justify-between gap-4 border-t border-slate-800 pt-2">
-                <span>AI chart-following system</span>
+                <span>Trade Tracker</span>
                 <span className="text-amber-300">Coming soon</span>
               </div>
             </div>
@@ -310,9 +275,9 @@ export default function Home() {
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-400">
             The website will bring the scanner, Press Release App v2, generated
-            chart levels, and Trader Intelligence into one member area. Paid
+            chart levels, and Trade Tracker into one member area. Paid
             Discord members get access to the website and the Trader
-            Intelligence system as they roll out.
+            Trade Tracker system as they roll out.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -518,7 +483,7 @@ export default function Home() {
               Review the trade soon
             </h3>
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              Trader Intelligence will add broker execution imports, saved trade
+              Trade Tracker will add broker execution imports, saved trade
               analytics, and saved-evidence review for paid members.
             </p>
           </div>
@@ -572,7 +537,7 @@ export default function Home() {
               "Paid Discord access at $30.00 USD",
               "Discord feedback loop while features are shipping",
               "Live scanner, press release, and SEC filing alerts",
-              "Website access as scanner, generated levels, AI chart following, and Trader Intelligence roll out",
+              "Website access as scanner, generated levels, AI chart following, and Trade Tracker roll out",
             ].map((item) => (
               <div
                 key={item}
@@ -643,3 +608,4 @@ export default function Home() {
     </main>
   );
 }
+
