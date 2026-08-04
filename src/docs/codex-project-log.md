@@ -19695,3 +19695,26 @@ Current best next step:
   packets only while preserving the local light Material `/workspace` baseline;
   no Coach, candle, market-data, AI, legacy SQLite, deployment, or browser-side
   analytics work is in scope.
+
+# 2026-07-29 Analytics Lab workspace
+
+- Added `/analytics/lab` as a route-scoped Material workspace for governed V3
+  analytics exploration. The Lab has server-executed filters, metrics,
+  groupings, comparisons, chart shapes, and owner/account-scoped saved views.
+- The workspace fills the available dashboard surface beside the navigation and
+  adapts to mobile with a filter drawer. It deliberately shows labeled sample
+  data when configured persisted authority is unavailable; it never promotes
+  ambiguous persisted executions as account results.
+- Added focused query coverage and a clean-checkout timeout that allows the
+  complete synthetic query projection to finish under normal CI variance.
+
+Verification:
+
+- focused ESLint passed;
+- 4 focused V3/Lab test files passed with 13 tests;
+- Analytics Lab type errors are zero.
+
+Current best next step:
+
+- review and merge the dedicated Analytics Lab draft PR, then attach explicit
+  correction authority before enabling persisted account results.
