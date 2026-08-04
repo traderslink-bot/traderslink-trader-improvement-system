@@ -1,0 +1,4830 @@
+diff --git a/app/api/trader-reflections/generate/route.ts b/app/api/trader-reflections/generate/route.ts
+new file mode 100644
+index 00000000..663574a0
+--- /dev/null
++++ b/app/api/trader-reflections/generate/route.ts
+@@ -0,0 +1,105 @@
++import {
++  parseTraderPeriodReflectionGenerationRequest,
++  runTraderPeriodReflectionGeneration,
++  TraderPeriodReflectionGenerationUnavailableError,
++} from "../../../../src/lib/trader-analytics/server/period-reflection-service";
++import {
++  canUseAiPeriodReflections,
++  readTraderIntelligenceTierFromEnv,
++} from "../../../../src/lib/trader-analytics/product/tier-config";
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++type ReflectionGenerationErrorCode =
++  | "invalid_json"
++  | "invalid_request"
++  | "no_saved_report"
++  | "tier_required"
++  | "period_not_ready"
++  | "generation_failed";
++
++function errorResponse(
++  status: number,
++  code: ReflectionGenerationErrorCode,
++  message: string,
++): Response {
++  return Response.json(
++    {
++      contractVersion: "trader_period_reflection_generation_error_v1",
++      error: { code, message },
++    },
++    { status },
++  );
++}
++
++async function readOptionalJson(request: Request): Promise<unknown> {
++  const text = await request.text();
++
++  if (!text.trim()) {
++    return {};
++  }
++
++  try {
++    return JSON.parse(text);
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error);
++    throw new Error(`Invalid JSON: ${message}`);
++  }
++}
++
++export async function POST(request: Request): Promise<Response> {
++  let input;
++
++  try {
++    input = parseTraderPeriodReflectionGenerationRequest(
++      await readOptionalJson(request),
++    );
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error);
++
++    return errorResponse(
++      400,
++      message.startsWith("Invalid JSON") ? "invalid_json" : "invalid_request",
++      message,
++    );
++  }
++
++  const activeTier = readTraderIntelligenceTierFromEnv();
++
++  if (!canUseAiPeriodReflections(activeTier)) {
++    return errorResponse(
++      403,
++      "tier_required",
++      "AI trading reviews are available on the chart-context paid tier.",
++    );
++  }
++
++  try {
++    const result = await runTraderPeriodReflectionGeneration(input);
++
++    return Response.json(result);
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error);
++
++    if (message.includes("No saved analytics report")) {
++      return errorResponse(409, "no_saved_report", message);
++    }
++
++    if (error instanceof TraderPeriodReflectionGenerationUnavailableError) {
++      return Response.json(
++        {
++          contractVersion: "trader_period_reflection_generation_error_v1",
++          error: {
++            code: "period_not_ready",
++            message,
++            unavailable: error.unavailable,
++          },
++        },
++        { status: 409 },
++      );
++    }
++
++    return errorResponse(500, "generation_failed", message);
++  }
++}
+diff --git a/app/admin/reflection-usage/page.tsx b/app/admin/reflection-usage/page.tsx
+new file mode 100644
+index 00000000..c7f4291d
+--- /dev/null
++++ b/app/admin/reflection-usage/page.tsx
+@@ -0,0 +1,327 @@
++import type { Metadata } from "next";
++import Link from "next/link";
++import {
++  readTraderPeriodReflectionUsageReport,
++  type TraderPeriodReflectionUsageKindRow,
++  type TraderPeriodReflectionUsageModelRow,
++} from "../../../src/lib/trader-analytics/server/period-reflection-usage-report";
++
++export const metadata: Metadata = {
++  title: "AI Reflection Usage | Trader Intelligence",
++};
++
++export const runtime = "nodejs";
++export const dynamic = "force-dynamic";
++
++function formatUsd(value: number | null): string {
++  if (value === null) {
++    return "unknown";
++  }
++
++  if (value < 0.01 && value > 0) {
++    return `$${value.toFixed(6)}`;
++  }
++
++  return new Intl.NumberFormat("en-US", {
++    currency: "USD",
++    maximumFractionDigits: 2,
++    minimumFractionDigits: 2,
++    style: "currency",
++  }).format(value);
++}
++
++function formatNumber(value: number): string {
++  return new Intl.NumberFormat("en-US").format(value);
++}
++
++function formatDateTime(value: string): string {
++  const date = new Date(value);
++
++  if (Number.isNaN(date.getTime())) {
++    return value;
++  }
++
++  return date.toLocaleString("en-US", {
++    dateStyle: "medium",
++    timeStyle: "short",
++  });
++}
++
++function summaryMetric(args: {
++  detail: string;
++  label: string;
++  value: string;
++}) {
++  return (
++    <div className="border border-zinc-800 bg-zinc-950 p-4">
++      <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++        {args.label}
++      </div>
++      <div className="mt-2 text-2xl font-semibold text-zinc-50">
++        {args.value}
++      </div>
++      <div className="mt-1 text-sm leading-6 text-zinc-500">{args.detail}</div>
++    </div>
++  );
++}
++
++function modelRowCost(
++  row: TraderPeriodReflectionUsageModelRow | TraderPeriodReflectionUsageKindRow,
++): string {
++  return formatUsd(row.estimatedCostUsd);
++}
++
++export default function AdminReflectionUsagePage() {
++  const report = readTraderPeriodReflectionUsageReport();
++
++  return (
++    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
++      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
++        <header className="border-b border-zinc-800 pb-6">
++          <div className="flex flex-wrap gap-3 text-sm">
++            <Link className="text-sky-300 hover:text-sky-200" href="/admin">
++              Back to admin tools
++            </Link>
++            <Link
++              className="text-zinc-500 hover:text-zinc-300"
++              href="/workspace"
++            >
++              Workspace
++            </Link>
++          </div>
++          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-300">
++            AI Operations
++          </p>
++          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
++            AI Reflection Usage
++          </h1>
++          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
++            Admin view of saved daily, weekly, and monthly AI reflection
++            generation events. Use this to watch model spend, failed attempts,
++            and generation volume before changing user-facing limits.
++          </p>
++        </header>
++
++        <section className="grid gap-4 border border-zinc-800 bg-zinc-950 p-5 lg:grid-cols-[1fr_1fr_1.2fr]">
++          <div>
++            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++              AI Service
++            </div>
++            <div className="mt-2 text-lg font-semibold text-zinc-50">
++              OpenAI Responses API
++            </div>
++            <div
++              className={
++                report.providerReadiness.status === "configured"
++                  ? "mt-1 text-sm text-emerald-300"
++                  : "mt-1 text-sm text-amber-300"
++              }
++            >
++              {report.providerReadiness.openaiApiKeyConfigured
++                ? "OPENAI_API_KEY configured"
++                : "OPENAI_API_KEY not configured"}
++            </div>
++          </div>
++          <div>
++            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++              Reflection Model
++            </div>
++            <div className="mt-2 text-lg font-semibold text-zinc-50">
++              {report.providerReadiness.configuredModel}
++            </div>
++            <div className="mt-1 text-sm text-zinc-500">
++              {report.providerReadiness.modelSource === "environment"
++                ? "Set by OPENAI_REFLECTION_MODEL"
++                : "Using default model"}
++            </div>
++          </div>
++          <div>
++            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++              Service Next Action
++            </div>
++            <p className="mt-2 text-sm leading-6 text-zinc-400">
++              {report.providerReadiness.nextAction}
++            </p>
++          </div>
++        </section>
++
++        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
++          {summaryMetric({
++            label: "Estimated cost",
++            value: formatUsd(report.summary.estimatedCostUsd),
++            detail: `${formatNumber(report.summary.knownCostEventCount)} known-cost event${report.summary.knownCostEventCount === 1 ? "" : "s"}.`,
++          })}
++          {summaryMetric({
++            label: "Events",
++            value: formatNumber(report.summary.eventCount),
++            detail: `${formatNumber(report.summary.meteredEventCount)} with OpenAI token usage.`,
++          })}
++          {summaryMetric({
++            label: "Tokens",
++            value: formatNumber(report.summary.totalTokens),
++            detail: `${formatNumber(report.summary.inputTokens)} input, ${formatNumber(report.summary.outputTokens)} output.`,
++          })}
++          {summaryMetric({
++            label: "Failures",
++            value: formatNumber(report.statusCounts.failed),
++            detail: `${formatNumber(report.statusCounts.generated)} generated and ${formatNumber(report.statusCounts.fallback)} fallback attempts.`,
++          })}
++        </section>
++
++        <section className="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
++          <div className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              Model Spend
++            </h2>
++            <div className="mt-5 overflow-x-auto">
++              <table className="w-full min-w-[680px] text-left text-sm">
++                <thead className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
++                  <tr>
++                    <th className="py-3 pr-4 font-semibold">Model</th>
++                    <th className="py-3 pr-4 font-semibold">Events</th>
++                    <th className="py-3 pr-4 font-semibold">Cost</th>
++                    <th className="py-3 pr-4 font-semibold">Input</th>
++                    <th className="py-3 pr-4 font-semibold">Output</th>
++                    <th className="py-3 font-semibold">Total</th>
++                  </tr>
++                </thead>
++                <tbody className="divide-y divide-zinc-900 text-zinc-300">
++                  {report.modelRows.length === 0 ? (
++                    <tr>
++                      <td className="py-4 text-zinc-500" colSpan={6}>
++                        No reflection generation events have been recorded yet.
++                      </td>
++                    </tr>
++                  ) : (
++                    report.modelRows.map((row) => (
++                      <tr key={row.model}>
++                        <td className="py-3 pr-4 font-medium text-zinc-100">
++                          {row.model}
++                        </td>
++                        <td className="py-3 pr-4">
++                          {formatNumber(row.eventCount)}
++                        </td>
++                        <td className="py-3 pr-4">{modelRowCost(row)}</td>
++                        <td className="py-3 pr-4">
++                          {formatNumber(row.inputTokens)}
++                        </td>
++                        <td className="py-3 pr-4">
++                          {formatNumber(row.outputTokens)}
++                        </td>
++                        <td className="py-3">
++                          {formatNumber(row.totalTokens)}
++                        </td>
++                      </tr>
++                    ))
++                  )}
++                </tbody>
++              </table>
++            </div>
++          </div>
++
++          <div className="border border-zinc-800 bg-zinc-950 p-5">
++            <h2 className="text-sm font-semibold text-zinc-100">
++              Period Mix
++            </h2>
++            <div className="mt-5 grid gap-3">
++              {report.kindRows.length === 0 ? (
++                <p className="text-sm leading-6 text-zinc-500">
++                  No period usage is available yet.
++                </p>
++              ) : (
++                report.kindRows.map((row) => (
++                  <div
++                    className="border border-zinc-900 p-4"
++                    key={row.kind}
++                  >
++                    <div className="flex items-center justify-between gap-4">
++                      <h3 className="text-sm font-semibold capitalize text-zinc-100">
++                        {row.kind}
++                      </h3>
++                      <span className="text-sm text-emerald-300">
++                        {modelRowCost(row)}
++                      </span>
++                    </div>
++                    <p className="mt-2 text-sm leading-6 text-zinc-500">
++                      {formatNumber(row.eventCount)} event
++                      {row.eventCount === 1 ? "" : "s"} using{" "}
++                      {formatNumber(row.totalTokens)} total token
++                      {row.totalTokens === 1 ? "" : "s"}.
++                    </p>
++                  </div>
++                ))
++              )}
++            </div>
++          </div>
++        </section>
++
++        <section className="border border-zinc-800 bg-zinc-950 p-5">
++          <h2 className="text-sm font-semibold text-zinc-100">
++            Recent Events
++          </h2>
++          <div className="mt-5 overflow-x-auto">
++            <table className="w-full min-w-[860px] text-left text-sm">
++              <thead className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
++                <tr>
++                  <th className="py-3 pr-4 font-semibold">Time</th>
++                  <th className="py-3 pr-4 font-semibold">Period</th>
++                  <th className="py-3 pr-4 font-semibold">Status</th>
++                  <th className="py-3 pr-4 font-semibold">Model</th>
++                  <th className="py-3 pr-4 font-semibold">Attempt</th>
++                  <th className="py-3 pr-4 font-semibold">Tokens</th>
++                  <th className="py-3 font-semibold">Cost</th>
++                </tr>
++              </thead>
++              <tbody className="divide-y divide-zinc-900 text-zinc-300">
++                {report.recentEvents.length === 0 ? (
++                  <tr>
++                    <td className="py-4 text-zinc-500" colSpan={7}>
++                      Generate a saved-data reflection to create the first usage
++                      event.
++                    </td>
++                  </tr>
++                ) : (
++                  report.recentEvents.map((event) => (
++                    <tr key={event.id}>
++                      <td className="py-3 pr-4">
++                        {formatDateTime(event.createdAt)}
++                      </td>
++                      <td className="py-3 pr-4 capitalize">
++                        {event.kind} {event.periodStartDate}
++                      </td>
++                      <td className="py-3 pr-4">{event.status}</td>
++                      <td className="py-3 pr-4">
++                        {event.model ?? event.provider}
++                      </td>
++                      <td className="py-3 pr-4">
++                        {formatNumber(event.generationAttemptCount)}
++                      </td>
++                      <td className="py-3 pr-4">
++                        {formatNumber(event.totalTokens)}
++                      </td>
++                      <td className="py-3">
++                        {formatUsd(event.estimatedCostUsd)}
++                      </td>
++                    </tr>
++                  ))
++                )}
++              </tbody>
++            </table>
++          </div>
++        </section>
++
++        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
++          <h2 className="text-sm font-semibold text-amber-200">
++            Tracking Boundary
++          </h2>
++          <p className="mt-2 text-sm leading-6 text-zinc-400">
++            {report.limitation}
++          </p>
++          <p className="mt-2 text-sm leading-6 text-zinc-400">
++            {report.nextAction}
++          </p>
++        </section>
++      </div>
++    </main>
++  );
++}
+diff --git a/app/period-reflection-panel.tsx b/app/period-reflection-panel.tsx
+new file mode 100644
+index 00000000..669cdb0a
+--- /dev/null
++++ b/app/period-reflection-panel.tsx
+@@ -0,0 +1,416 @@
++import Link from "next/link";
++import type {
++  TraderPeriodReflection,
++  TraderPeriodReflectionGenerationAvailability,
++  TraderPeriodReflectionKind,
++  TraderPeriodReflectionSystem,
++} from "../src/lib/trader-analytics/product/types";
++import { PeriodReflectionRegenerateButton } from "./period-reflection-regenerate-button";
++
++function signed(value: number): string {
++  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
++}
++
++function kindTone(kind: TraderPeriodReflectionKind): string {
++  switch (kind) {
++    case "daily":
++      return "border-sky-800/80 bg-sky-950/25 text-sky-200";
++    case "weekly":
++      return "border-emerald-900/80 bg-emerald-950/20 text-emerald-200";
++    case "monthly":
++      return "border-amber-900/80 bg-amber-950/20 text-amber-100";
++  }
++}
++
++function compactEvidenceDetail(detail: string): string {
++  const maxLength = 170;
++  const cleanDetail = detail
++    .replace(/\bimport:broker-csv-file-v1-[a-z0-9:-]+/gi, "a saved import")
++    .replace(/\bImport a saved import\b/g, "a saved import");
++
++  if (cleanDetail.length <= maxLength) {
++    return cleanDetail;
++  }
++
++  return `${cleanDetail.slice(0, maxLength - 1).trimEnd()}...`;
++}
++
++function dailySessionEvidence(
++  reflection: TraderPeriodReflection,
++): TraderPeriodReflection["evidence"] {
++  if (reflection.kind !== "daily") {
++    return [];
++  }
++
++  return reflection.evidence
++    .filter((item) => item.id === "daily:session-story" || item.id.startsWith("daily:session-"))
++    .slice(0, 3);
++}
++
++function reviewEvidence(
++  reflection: TraderPeriodReflection,
++): TraderPeriodReflection["evidence"] {
++  return reflection.evidence
++    .filter((item) =>
++      ["comparison", "note", "risk", "rule", "strength"].includes(item.kind),
++    )
++    .slice(0, 4);
++}
++
++function reviewTitle(kind: TraderPeriodReflectionKind): string {
++  switch (kind) {
++    case "daily":
++      return "Daily Journal Prompt";
++    case "weekly":
++      return "End Of Week Review";
++    case "monthly":
++      return "End Of Month Review";
++  }
++}
++
++function reviewIntro(kind: TraderPeriodReflectionKind): string {
++  switch (kind) {
++    case "daily":
++      return "Use the day replay and notes to name what changed during the session.";
++    case "weekly":
++      return "Evaluate the full trading week: what repeated, what improved, what got worse, and what rule should guide next week.";
++    case "monthly":
++      return "Look across the month and weekly memories to decide whether the trader improved or repeated the same behavior.";
++  }
++}
++
++function ReflectionCard({
++  availability,
++  canRegenerate,
++  reflection,
++}: {
++  availability: TraderPeriodReflectionGenerationAvailability;
++  canRegenerate: boolean;
++  reflection: TraderPeriodReflection;
++}) {
++  const firstTradeId = reflection.relatedTradeIds[0] ?? null;
++  const sessionEvidence = dailySessionEvidence(reflection);
++  const isDaily = reflection.kind === "daily";
++
++  return (
++    <article
++      className="ti-panel-soft flex min-h-[320px] flex-col justify-between p-4"
++      data-testid={`period-reflection-${reflection.kind}`}
++    >
++      <div>
++        <div className="flex items-start justify-between gap-3">
++          <div>
++            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++              {reflection.title}
++            </p>
++            <h3 className="mt-2 text-lg font-semibold text-zinc-50">
++              {reflection.label}
++            </h3>
++          </div>
++          <span
++            className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold ${kindTone(
++              reflection.kind,
++            )}`}
++          >
++            {signed(reflection.grossTotalRealizedPnl)}
++          </span>
++        </div>
++        {canRegenerate ? (
++          <div className="mt-4">
++            <PeriodReflectionRegenerateButton
++              availability={availability}
++              kind={reflection.kind}
++            />
++          </div>
++        ) : null}
++
++        <p className="mt-4 text-sm font-semibold leading-6 text-zinc-100">
++          {reflection.headline}
++        </p>
++        <p className="mt-3 text-sm leading-6 text-zinc-400">
++          {reflection.summary}
++        </p>
++
++        {sessionEvidence.length > 0 ? (
++          <div className="mt-4 rounded-md border border-amber-900/70 bg-amber-950/20 p-3">
++            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
++              Evidence checked
++            </div>
++            <div className="mt-2 grid gap-2">
++              {sessionEvidence.map((item) => (
++                <p className="text-xs leading-5 text-zinc-400" key={item.id}>
++                  <span className="font-semibold text-zinc-200">
++                    {item.label}
++                  </span>
++                  : {compactEvidenceDetail(item.detail)}
++                </p>
++              ))}
++            </div>
++          </div>
++        ) : null}
++
++        {isDaily ? null : (
++          <div className="mt-4 grid gap-3">
++            <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
++                Preserve
++              </div>
++              <p className="mt-1 text-xs leading-5 text-zinc-400">
++                {reflection.whatWentWell}
++              </p>
++            </div>
++            <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
++                Improve
++              </div>
++              <p className="mt-1 text-xs leading-5 text-zinc-400">
++                {reflection.whatNeedsWork}
++              </p>
++            </div>
++            <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">
++                Notes
++              </div>
++              <p className="mt-1 text-xs leading-5 text-zinc-400">
++                {reflection.noteInsight}
++              </p>
++            </div>
++          </div>
++        )}
++      </div>
++
++      <div className="mt-5 border-t border-zinc-900 pt-4">
++        <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++          {isDaily ? "Open the day" : "Next focus"}
++        </div>
++        <p className="mt-2 text-sm leading-6 text-zinc-300">
++          {reflection.nextFocus}
++        </p>
++        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
++          <span className="text-zinc-500">
++            {reflection.tradeCount} trade{reflection.tradeCount === 1 ? "" : "s"} /{" "}
++            {reflection.noteCount} note{reflection.noteCount === 1 ? "" : "s"}
++          </span>
++          {isDaily ? (
++            <Link
++              className="font-semibold text-sky-300 underline-offset-4 hover:underline"
++              href={`/trades/day-session/${encodeURIComponent(reflection.startDate)}#day-notes`}
++            >
++              Open day notes
++            </Link>
++          ) : firstTradeId ? (
++            <Link
++              className="font-semibold text-sky-300 underline-offset-4 hover:underline"
++              href={`/trades/${encodeURIComponent(firstTradeId)}#writing-flow`}
++            >
++              Open example trade
++            </Link>
++          ) : null}
++        </div>
++      </div>
++    </article>
++  );
++}
++
++function EndPeriodReview({
++  availability,
++  canRegenerate,
++  reflection,
++}: {
++  availability: TraderPeriodReflectionGenerationAvailability;
++  canRegenerate: boolean;
++  reflection: TraderPeriodReflection;
++}) {
++  const evidence = reviewEvidence(reflection);
++  const firstTradeId = reflection.relatedTradeIds[0] ?? null;
++
++  return (
++    <section
++      className="rounded-md border border-zinc-800 bg-zinc-950/30 p-4"
++      data-testid={`end-period-review-${reflection.kind}`}
++    >
++      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
++        <div>
++          <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
++            {reviewTitle(reflection.kind)}
++          </p>
++          <h3 className="mt-2 text-lg font-semibold text-zinc-50">
++            {reflection.label}
++          </h3>
++          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
++            {reviewIntro(reflection.kind)}
++          </p>
++        </div>
++        <div className="flex flex-col items-start gap-2 lg:items-end">
++          <span
++            className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${kindTone(
++              reflection.kind,
++            )}`}
++          >
++            {reflection.tradeCount} trade{reflection.tradeCount === 1 ? "" : "s"} /{" "}
++            {reflection.noteCount} note{reflection.noteCount === 1 ? "" : "s"}
++          </span>
++          {canRegenerate ? (
++            <PeriodReflectionRegenerateButton
++              availability={availability}
++              kind={reflection.kind}
++            />
++          ) : null}
++        </div>
++      </div>
++
++      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
++        <div className="grid gap-3">
++          <div>
++            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
++              What to understand
++            </div>
++            <p className="mt-2 text-sm font-semibold leading-6 text-zinc-100">
++              {reflection.headline}
++            </p>
++            <p className="mt-2 text-sm leading-6 text-zinc-400">
++              {reflection.summary}
++            </p>
++          </div>
++
++          <div className="grid gap-3 md:grid-cols-2">
++            <div className="rounded-md border border-emerald-900/70 bg-emerald-950/15 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
++                Keep doing
++              </div>
++              <p className="mt-2 text-xs leading-5 text-zinc-300">
++                {reflection.whatWentWell}
++              </p>
++            </div>
++            <div className="rounded-md border border-amber-900/70 bg-amber-950/15 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
++                Improve next
++              </div>
++              <p className="mt-2 text-xs leading-5 text-zinc-300">
++                {reflection.whatNeedsWork}
++              </p>
++            </div>
++          </div>
++
++          <div className="rounded-md border border-sky-900/70 bg-sky-950/15 p-3">
++            <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-300">
++              Notes and progress
++            </div>
++            <p className="mt-2 text-xs leading-5 text-zinc-300">
++              {reflection.noteInsight}
++            </p>
++            <p className="mt-2 text-xs leading-5 text-zinc-400">
++              {reflection.progressInsight}
++            </p>
++          </div>
++        </div>
++
++        <div className="grid content-start gap-3">
++          <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
++            <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
++              Next rule to test
++            </div>
++            <p className="mt-2 text-sm leading-6 text-zinc-200">
++              {reflection.nextFocus}
++            </p>
++            {firstTradeId ? (
++              <Link
++                className="mt-3 inline-flex text-xs font-semibold text-sky-300 underline-offset-4 hover:underline"
++                href={`/trades/${encodeURIComponent(firstTradeId)}#writing-flow`}
++            >
++                Open an example trade
++              </Link>
++            ) : null}
++          </div>
++
++          {evidence.length > 0 ? (
++            <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
++              <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
++                Evidence used
++              </div>
++              <div className="mt-2 grid gap-2">
++                {evidence.map((item) => (
++                  <p className="text-xs leading-5 text-zinc-400" key={item.id}>
++                    <span className="font-semibold text-zinc-200">
++                      {item.label}
++                    </span>
++                    : {compactEvidenceDetail(item.detail)}
++                  </p>
++                ))}
++              </div>
++            </div>
++          ) : null}
++        </div>
++      </div>
++    </section>
++  );
++}
++
++export function PeriodReflectionPanel({
++  canRegenerate = false,
++  reflections,
++  title = "Trading Reflections",
++}: {
++  canRegenerate?: boolean;
++  reflections: TraderPeriodReflectionSystem;
++  title?: string;
++}) {
++  return (
++    <section
++      className="ti-panel p-5"
++      data-testid="trader-period-reflection-system"
++      id="trading-reflections"
++    >
++      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
++        <div>
++          <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
++            Reflection Loop
++          </p>
++          <h2 className="mt-2 text-xl font-semibold text-zinc-50">{title}</h2>
++          <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
++            Daily notes, weekly coaching, and monthly progress from saved
++            executions and written trade notes.
++          </p>
++        </div>
++        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
++          <div className="rounded-md border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs leading-5 text-zinc-400">
++            {reflections.policy.evidenceFirst
++              ? "Evidence-first summaries"
++              : "Summary policy pending"}
++          </div>
++        </div>
++      </div>
++
++      <div className="mt-5 grid gap-4 2xl:grid-cols-3">
++        <ReflectionCard
++          availability={reflections.generation.daily}
++          canRegenerate={canRegenerate}
++          reflection={reflections.daily}
++        />
++        <ReflectionCard
++          availability={reflections.generation.weekly}
++          canRegenerate={canRegenerate}
++          reflection={reflections.weekly}
++        />
++        <ReflectionCard
++          availability={reflections.generation.monthly}
++          canRegenerate={canRegenerate}
++          reflection={reflections.monthly}
++        />
++      </div>
++
++      <div className="mt-5 grid gap-4">
++        <EndPeriodReview
++          availability={reflections.generation.weekly}
++          canRegenerate={canRegenerate}
++          reflection={reflections.weekly}
++        />
++        <EndPeriodReview
++          availability={reflections.generation.monthly}
++          canRegenerate={canRegenerate}
++          reflection={reflections.monthly}
++        />
++      </div>
++    </section>
++  );
++}
+diff --git a/app/period-reflection-regenerate-button.tsx b/app/period-reflection-regenerate-button.tsx
+new file mode 100644
+index 00000000..387f93b7
+--- /dev/null
++++ b/app/period-reflection-regenerate-button.tsx
+@@ -0,0 +1,135 @@
++"use client";
++
++import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
++import { useRouter } from "next/navigation";
++import { useState } from "react";
++import type {
++  TraderPeriodReflectionGenerationAvailability,
++  TraderPeriodReflectionKind,
++} from "../src/lib/trader-analytics/product/types";
++
++type ReflectionGenerationResponse = {
++  statusCounts?: {
++    fallback?: number;
++    failed?: number;
++    generated?: number;
++    stale?: number;
++  };
++  error?: {
++    message?: string;
++  };
++};
++
++function statusMessage(body: ReflectionGenerationResponse): string {
++  const generated = body.statusCounts?.generated ?? 0;
++  const fallback = body.statusCounts?.fallback ?? 0;
++  const failed = body.statusCounts?.failed ?? 0;
++
++  if (failed > 0) {
++    return "Fallback saved.";
++  }
++
++  if (generated > 0) {
++    return "Updated.";
++  }
++
++  if (fallback > 0) {
++    return "Fallback saved.";
++  }
++
++  return "Checked.";
++}
++
++function buttonLabel(args: {
++  availability: TraderPeriodReflectionGenerationAvailability;
++  pending: boolean;
++}): string {
++  if (args.pending) {
++    return "Updating...";
++  }
++
++  if (args.availability.action === "update") {
++    return args.availability.label;
++  }
++
++  if (args.availability.action === "generate") {
++    return args.availability.label;
++  }
++
++  return args.availability.label;
++}
++
++export function PeriodReflectionRegenerateButton({
++  availability,
++  kind,
++}: {
++  availability: TraderPeriodReflectionGenerationAvailability;
++  kind: TraderPeriodReflectionKind;
++}) {
++  const router = useRouter();
++  const [pending, setPending] = useState(false);
++  const [message, setMessage] = useState("");
++  const disabled = pending || !availability.canGenerate;
++
++  async function regenerate() {
++    if (!availability.canGenerate) {
++      return;
++    }
++
++    setPending(true);
++    setMessage("");
++
++    try {
++      const response = await fetch("/api/trader-reflections/generate", {
++        method: "POST",
++        headers: { "content-type": "application/json" },
++        body: JSON.stringify({ kinds: [kind] }),
++      });
++      const body = (await response.json().catch(() => ({}))) as
++        | ReflectionGenerationResponse
++        | Record<string, never>;
++
++      if (!response.ok) {
++        setMessage(
++          "error" in body && body.error?.message
++            ? body.error.message
++            : "Could not update.",
++        );
++        setPending(false);
++        return;
++      }
++
++      setMessage(statusMessage(body));
++      setPending(false);
++      router.refresh();
++    } catch {
++      setMessage("Could not update.");
++      setPending(false);
++    }
++  }
++
++  return (
++    <div
++      className="flex flex-col items-start gap-2 sm:items-end"
++      data-testid={`period-reflection-regenerate-control-${kind}`}
++    >
++      <button
++        className="inline-flex items-center gap-2 rounded-md border border-sky-800 bg-sky-950/40 px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
++        data-testid={`period-reflection-regenerate-button-${kind}`}
++        disabled={disabled}
++        onClick={regenerate}
++        title={availability.detail}
++        type="button"
++      >
++        <RefreshRoundedIcon fontSize="small" />
++        {buttonLabel({ availability, pending })}
++      </button>
++      <div
++        className="min-h-4 text-xs text-zinc-500"
++        data-testid={`period-reflection-regenerate-message-${kind}`}
++      >
++        {message || availability.detail}
++      </div>
++    </div>
++  );
++}
+diff --git a/src/docs/trader-reflection-ai-summary-plan.md b/src/docs/trader-reflection-ai-summary-plan.md
+new file mode 100644
+index 00000000..989e8be1
+--- /dev/null
++++ b/src/docs/trader-reflection-ai-summary-plan.md
+@@ -0,0 +1,589 @@
++# Trader Reflection AI Summary Plan
++
++## Product Goal
++
++Build a trader-level reflection loop that turns saved executions, deterministic
++trade feedback, and the user's own trade notes into plain-language daily,
++weekly, and monthly coaching summaries.
++
++The feature should help the trader answer:
++
++1. What did I do today?
++2. What behavior helped or hurt me this week?
++3. Did I improve compared with the prior period?
++4. Which mistake is repeating?
++5. What should I focus on next session, next week, and next month?
++
++## Core Product Principle
++
++AI writes the narrative, but deterministic Trader Intelligence evidence controls
++the conclusions.
++
++The model should not decide whether the trader chased, protected profit,
++averaged down, exited early, or improved. Those conclusions must come from the
++existing analysis, behavior, review, and coaching layers. AI receives a bounded
++evidence package and converts it into normal written language.
++
++## Existing System Pieces To Reuse
++
++- Saved trade notes already exist in `saved_trade_notes`.
++- Trade detail pages already let users write review notes.
++- The review checklist already marks reviewed work.
++- `DailyCoachReport` already identifies the latest session, best trade, worst
++  trade, fix-next-session text, preserve-next-session text, and related trades.
++- `TraderWeeklyReviewDashboard` already summarizes current-period P/L, primary
++  focus, top risk, top strength, rule violations, and streaks.
++- `TraderAnalyticsComparison` and behavior trend cards already compare current
++  and prior reports.
++- The product view model already centralizes the data that workspace, analytics,
++  coach, and progress routes consume.
++
++## New Product Object
++
++Add a `TraderPeriodReflectionSystem` to the product view model.
++
++It should contain:
++
++- `daily`: latest trading-day reflection
++- `weekly`: current period / week reflection
++- `monthly`: current month lookback
++- `policy`: evidence-first AI policy and provider status
++
++Each period reflection should include:
++
++- period kind: `daily`, `weekly`, or `monthly`
++- period label, start date, end date
++- generated timestamp
++- trade count
++- note count
++- P/L summary
++- title
++- headline
++- human-readable summary
++- what went well
++- what needs work
++- user-note insight
++- progress/comparison insight
++- next focus
++- related trade ids
++- evidence points
++- AI prompt seed / narrative input
++- narrative source
++
++## Daily Reflection
++
++Daily reflections should use:
++
++- latest session date
++- trades from that session
++- daily coach report
++- notes attached to trades from that session
++- best and worst trade refs
++- top same-day risk/strength
++- rule focus
++
++The daily user-facing card should answer:
++
++- "What happened today?"
++- "What should I fix tomorrow?"
++- "What should I preserve tomorrow?"
++- "Which trades should I reread?"
++
++## Weekly Reflection
++
++Weekly reflections should use:
++
++- current report period
++- weekly review dashboard
++- current focus queue
++- current top risk and strength
++- rule compliance
++- behavior streaks
++- notes across current-period trades
++- previous report comparison when available
++
++The weekly user-facing card should answer:
++
++- "What pattern dominated the week?"
++- "What improved or worsened compared with last week?"
++- "Which note theme kept showing up?"
++- "What is the next weekly focus?"
++
++## Monthly Reflection
++
++Monthly reflections should use:
++
++- current calendar month when available
++- current report period when calendar grouping is not available
++- weekly reflection summaries from available report snapshots
++- current vs prior report comparison
++- month-level top risks and strengths
++- month-level note themes
++
++The monthly user-facing card should answer:
++
++- "Did the trader improve this month?"
++- "Which mistake repeated?"
++- "Which strength became more consistent?"
++- "What should next month focus on?"
++
++## Notes And Voice
++
++Text notes are the MVP input because the app already persists them.
++
++Voice notes should come after the text-note loop is useful:
++
++1. Add a small "record note" control on trade review.
++2. Transcribe speech to text server-side.
++3. Save the transcript as a normal trade note with metadata.
++4. Feed the saved text into the same reflection builders.
++
++The reflection system should not care whether a note was typed or transcribed.
++
++## AI Narrative Contract
++
++Provider decision:
++
++- Use the OpenAI API.
++- Use the Responses API for text generation instead of the older Chat
++  Completions path.
++- Prefer structured outputs for the reflection writer so the app receives
++  separate fields for headline, summary, what went well, what needs work, note
++  insight, progress insight, and next focus.
++- Required server environment variable: `OPENAI_API_KEY`.
++- Optional server environment variable: `OPENAI_REFLECTION_MODEL`.
++- The model should remain configurable by environment so the app can upgrade
++  models without changing the reflection contract.
++
++The AI writer receives a compact JSON package:
++
++```json
++{
++  "periodKind": "weekly",
++  "periodLabel": "Week of 2026-06-08",
++  "tradeCount": 18,
++  "grossPnl": 1240.5,
++  "topRisks": ["Adding into weakness", "Premature final exit"],
++  "topStrengths": ["Trimmed into strength", "Protected profit earlier"],
++  "userNoteThemes": ["frustration after first loss", "hesitation before exit"],
++  "comparison": {
++    "previousPeriod": "Week of 2026-06-01",
++    "improved": ["fewer adverse adds"],
++    "repeated": ["late chase entries"]
++  },
++  "requiredNextFocus": "Wait for repair before adding size.",
++  "evidenceTradeIds": ["trade-1", "trade-4"]
++}
++```
++
++The prompt rules:
++
++- Write like a direct human coach.
++- Do not invent facts.
++- Do not mention unsupported indicators or market context.
++- Use "you" language.
++- Keep the response specific.
++- Include one next action.
++- If evidence is thin, say the sample is thin.
++
++The AI output should be stored with:
++
++- prompt input
++- model/provider metadata
++- generated text
++- generated time
++- evidence trade ids
++- status: generated, fallback, failed, or stale
++
++## Implementation Phases
++
++### Phase 1 - Deterministic reflection objects
++
++- Add reflection types.
++- Build daily, weekly, and monthly reflection objects from existing reports,
++  notes, coach data, and comparisons.
++- Add deterministic human-readable fallback narrative.
++- Add AI prompt seed data but do not require a live provider.
++- Add unit tests.
++
++### Phase 2 - Product UI
++
++- Add reflection cards to `/workspace`.
++- Add reflection cards to `/coach`.
++- Link reflection evidence to related trade reviews.
++- Keep the UI inside the existing dashboard design language.
++
++### Phase 3 - Persistence
++
++- Add a `period_reflections` table.
++- Store generated reflections by user, account, period kind, start date, and end
++  date.
++- Read prior weekly/monthly summaries when building the next reflection.
++- Mark summaries stale when notes or source report data change.
++
++### Phase 4 - AI provider
++
++- Add a server-only OpenAI Responses API reflection writer.
++- Gate live AI behind environment configuration.
++- Use deterministic fallback when the provider is not configured.
++- Store provider metadata and generated output.
++- Add provider failure handling.
++
++### Phase 5 - Voice notes
++
++- Add a client record control.
++- Add server transcription.
++- Save transcript as a normal trade note.
++- Include transcript source metadata in the note JSON later.
++
++## Initial Build Slice
++
++The first implementation slice should complete Phase 1 and most of Phase 2:
++
++1. Add `TraderPeriodReflectionSystem` types.
++2. Add deterministic daily, weekly, and monthly builders.
++3. Wire the reflection system into `ProductTraderAnalyticsViewModel`.
++4. Add workspace and coach cards that clearly show the latest daily, weekly,
++   and monthly summaries.
++5. Add tests proving notes, current evidence, and prior-period comparison are
++   included.
++
++## Persistence Slice
++
++The second implementation slice adds the durable storage needed before live AI
++generation:
++
++1. Add a `period_reflections` SQLite table keyed by user, account, period kind,
++   start date, and end date.
++2. Add repository methods to save, list, and read generated reflections.
++3. Add a persisted reflection wrapper that records provider, model, status,
++   source report timestamp, and any generation error.
++4. Add tests proving deterministic fallback records can be saved and later
++   upserted with OpenAI-generated metadata for the same period.
++
++## OpenAI Writer Slice
++
++The third implementation slice adds the server-only OpenAI adapter:
++
++1. Add `src/lib/trader-analytics/server/period-reflection-generation.ts`.
++2. Use the OpenAI Responses API endpoint directly from the server with
++   `fetch`, avoiding browser imports and package churn.
++3. Use structured JSON output for headline, summary, what went well, what needs
++   work, note insight, progress insight, and next focus.
++4. Save deterministic fallback records when `OPENAI_API_KEY` is missing.
++5. Save generated records when OpenAI returns valid structured output.
++6. Save failed records with bounded error metadata when the provider call fails.
++7. Include prior persisted weekly/monthly reflection memory in the prompt input
++   so future summaries can compare improvement and repeated mistakes.
++
++## Generation Trigger And Read Slice
++
++The fourth implementation slice connects the writer to the app:
++
++1. Add `POST /api/trader-reflections/generate`.
++2. Accept optional `kinds` (`daily`, `weekly`, `monthly`) and `generatedAt`.
++3. Generate and persist requested reflections from the current saved analytics
++   report.
++4. Return status counts for generated, fallback, failed, and stale records.
++5. Prefer persisted generated summaries in the product view model when they
++   match the current user, account, report timestamp, period kind, start date,
++   and end date.
++6. Keep deterministic reflections available with
++   `includePersistedPeriodReflections: false` so generation prompts do not
++   rewrite from a prior AI rewrite of the same period.
++
++## Stale Handling Slice
++
++The fifth implementation slice protects users from reading outdated AI
++summaries:
++
++1. Add `TraderPeriodReflectionStaleReason`.
++2. Mark matching saved reflections `stale` when a related trade note changes.
++3. Mark matching saved reflections `stale` when source report data is replaced.
++4. Keep stale records stored for history/audit.
++5. Keep stale records out of the product view overlay so the UI falls back to
++   current deterministic evidence until generation runs again.
++
++## Manual Regeneration Control Slice
++
++The sixth implementation slice gives saved-data users a visible way to refresh
++the summaries:
++
++1. Add a client-side regenerate button to the reflection panel.
++2. Call `POST /api/trader-reflections/generate` for daily, weekly, and monthly
++   reflections.
++3. Refresh the current dashboard after generation completes.
++4. Show the control only for saved-data views, not sample/demo views.
++5. Keep deterministic fallback behavior when `OPENAI_API_KEY` is not configured.
++
++## Period Eligibility Slice
++
++The seventh implementation slice makes generation intentional and period-bound:
++
++1. Daily reviews require at least one trade in the daily period and can be
++   generated before 4:00 PM Eastern as an in-progress "day so far" review.
++   After market close, unchanged evidence stays already generated; new trades,
++   notes, or source report changes unlock an update.
++2. Weekly reviews use the latest Monday-Friday market week and unlock after
++   4:00 PM Eastern on Friday.
++3. Monthly reviews use calendar months and unlock after 4:00 PM Eastern on the
++   final weekday of the month.
++4. Each period has one canonical saved review. Generated or fallback records
++   block another generation for the same current source period.
++5. Stale or failed records can be updated. For daily reviews, new trades,
++   regenerated source reports, or new trade notes are what unlock another
++   generation, which keeps API cost tied to evidence changes instead of repeat
++   clicks.
++6. The API rejects ineligible generation requests with period-level reasons.
++7. The UI shows one button per period card, with disabled/readiness messaging
++   when a period is too early, missing trades, or already generated.
++
++## Daily In-Progress Review Update Slice
++
++The eighth implementation slice adjusts the daily timing rule after product
++review:
++
++1. Daily summaries no longer force the trader to wait until 4:00 PM Eastern if
++   the saved report already has trades for that trading day.
++2. Before close, the button reads "Summarize day so far" and stores a normal
++   canonical daily reflection for the current evidence.
++3. If the user clicks again without new trades, a new report, or a new note, the
++   API still rejects the request as `already_generated`.
++4. If a note or source report changes, the existing stale/update path unlocks
++   another run. This allows a trader who stops at 11:00 AM to get value while
++   still protecting OpenAI spend from unlimited refreshes.
++5. Weekly and monthly close-time gates are unchanged.
++
++## Daily Cost Guard And Note Cap Slice
++
++The ninth implementation slice adds hard cost and input-size controls:
++
++1. Daily review generation is capped at three saved attempts per account and
++   trading day.
++2. The cap includes the first day-so-far review, evidence-change updates, and
++   failed provider attempts.
++3. A pre-close daily review does not require a separate finalization click
++   after market close. The same saved daily review is updated only when the
++   day's evidence changes.
++4. A fourth daily request is rejected with `generation_limit_reached`; later
++   same-day notes remain saved and still feed weekly/monthly reviews.
++5. Weekly and monthly reviews remain one canonical saved review, with update
++   allowed only when evidence changes.
++6. Trade review notes are capped at 2,000 characters across the UI, API route,
++   and repository persistence layer. Over-limit notes are rejected instead of
++   silently truncated.
++
++## Model Default And Usage Tracking Slice
++
++The tenth implementation slice adds basic OpenAI spend visibility:
++
++1. The default reflection model is `gpt-5.4-mini`, while
++   `OPENAI_REFLECTION_MODEL` can still override it.
++2. Successful OpenAI Responses API records store reported token usage:
++   input tokens, cached input tokens, output tokens, reasoning output tokens,
++   and total tokens.
++3. Known OpenAI reflection models store an estimated USD cost using the
++   published input, cached-input, and output token rates. Unknown override
++   models still store token usage, but the cost estimate remains `null`.
++4. `POST /api/trader-reflections/generate` returns an aggregate usage summary
++   for the generated records so future product or admin surfaces can show
++   request-level usage without reading each saved record manually.
++
++## Admin Usage Surface Slice
++
++The eleventh implementation slice makes spend tracking visible to operators:
++
++1. Add an append-only `period_reflection_generation_events` table so repeated
++   daily attempts are tracked even when the canonical period reflection row is
++   overwritten.
++2. Log one generation event for every saved reflection attempt: generated,
++   fallback, or failed.
++3. Build an internal usage report from generation events, grouped by model and
++   period kind.
++4. Add `/admin/reflection-usage` and link it from the internal admin dashboard.
++5. Show provider readiness on the admin page without exposing secrets:
++   `OPENAI_API_KEY` configured/not configured, selected model, and model source.
++6. Keep the page operator-facing; do not expose token/cost telemetry in the
++   normal trader workspace unless there is a product reason later.
++
++## Daily Session Evidence Slice
++
++The twelfth implementation slice feeds full-day session story evidence into
++daily AI-ready reflection prompts:
++
++1. Reuse the saved trade thread/session story model for daily reflection input.
++2. When the latest daily session has green-to-red, many same-symbol attempts,
++   high trade count, repeated losing attempts, or profit giveback evidence, add
++   that as daily reflection evidence.
++3. Keep language evidence-first: the prompt can say many attempts, high trade
++   count, green-to-red, or repeated losing attempts, but must not invent revenge
++   trading, emotions, or intent.
++4. Keep the daily review canonical. Session evidence changes the next generated
++   daily review text, but updates still overwrite the same saved daily review
++   row for that day.
++
++## Daily Evidence Visibility Slice
++
++The thirteenth implementation slice makes the daily review's reasoning visible
++in the trader workspace:
++
++1. The daily reflection card surfaces compact session evidence when the day was
++   flagged for repeated same-symbol attempts, green-to-red behavior, high trade
++   count, repeated losing attempts, or profit giveback.
++2. The evidence line is read-only and comes from the same evidence package sent
++   to the AI writer, so the UI does not add unsupported interpretations.
++3. The detail text is capped in the card to keep daily, weekly, and monthly
++   cards scannable.
++4. A live daily OpenAI generation against the saved `2026-05-01` data produced
++   an evidence-based review focused on 11 trades, +235 gross P/L, and repeated
++   AAPL attempts. Estimated cost was `0.00549075` USD.
++
++## Coaching Interpretation Pivot
++
++The fourteenth implementation slice moves the feature away from AI recap and
++toward AI coaching:
++
++1. Daily is now framed as a journal/replay prompt, not a full coaching verdict.
++   The day-session and trade-detail pages already show the day recap.
++2. Weekly is the primary AI coaching surface because it has enough trades to
++   detect repeated behavior, compare against prior memory, and use written notes.
++3. Monthly is a progress lookback that should compare weekly memories and
++   recurring note themes.
++4. A new narrative contract marker, `coach_interpretation_v2`, prevents old
++   recap-style generated records from overlaying the new cards.
++5. The OpenAI prompt now explicitly tells the model not to restate P/L totals,
++   trade counts, best trades, or worst trades as the main value.
++6. Saved trade notes remain the input path for user comments. On mobile, native
++   keyboard dictation can fill the same text note field, so custom audio
++   recording/transcription is deferred unless there is a stronger product need.
++7. A live weekly generation under the new contract produced behavior-first
++   coaching and explicitly stated that no written notes were available.
++
++## Rough Notes Capture Slice
++
++The fifteenth implementation slice makes user thought dumps a first-class input
++for AI coaching:
++
++1. Trade notes remain attached to individual round trips/ticker stories.
++2. Day notes are now attached to a full trading session, so users can dump the
++   overall day context after reviewing the day-session view.
++3. Day notes use the same 2,000-character cap as trade notes.
++4. Saving a day note marks matching daily, weekly, and monthly generated
++   reflections stale, so AI can re-run from the new user context.
++5. Daily reflections receive the note for that exact day; weekly/monthly
++   reflections receive notes inside their period.
++6. The day-session page now shows a `Day Notes` panel with a rough thought-dump
++   textarea and native mobile dictation can fill that textarea.
++7. The prompt seed combines trade notes and day notes into note themes for
++   weekly/monthly AI.
++
++## Weekly And Monthly Review Surface Slice
++
++The sixteenth implementation slice makes the week/month review a visible
++evaluation workflow instead of only a compact card:
++
++1. The workspace reflection section now includes an `End Of Week Review` panel.
++2. The weekly panel frames the review around what repeated, what improved, what
++   got worse, and what rule should guide the next week.
++3. The workspace reflection section now includes an `End Of Month Review` panel.
++4. The monthly panel frames the review around progress across weekly memories,
++   recurring notes, and repeated behavior.
++5. Each panel shows what to understand, keep doing, improve next, notes/progress,
++   the next rule to test, and the evidence AI reviewed.
++6. These panels use the same canonical weekly/monthly reflection records and
++   generation controls, so there is still one saved review per period.
++
++## Daily Card Cleanup Slice
++
++The seventeenth implementation slice keeps daily from pretending to be a full
++AI review:
++
++1. Removed `Daily replay prompts` wording from the workspace copy.
++2. Renamed the compact daily card from `Daily Journal Prompt` to `Daily Notes`.
++3. Removed the daily `Preserve`, `Improve`, and `Notes` blocks from the compact
++   card because they read like instructions, not a daily review.
++4. The daily card now stays lightweight: date, generation state, main journal
++   question, evidence checked, and a link to open the day notes.
++5. Weekly/monthly review panels remain the main AI evaluation surfaces.
++
++## Trade Rough Notes Slice
++
++The eighteenth implementation slice makes individual trade notes easier to use
++as raw coaching material:
++
++1. Renamed the trade-detail note section to `Trade Thoughts`.
++2. Reframed the copy around rough thought dumps instead of polished lessons.
++3. Added prompt chips for thinking, emotion, execution, repeat, and change.
++4. Changed the placeholder to a realistic rough note about chasing, execution,
++   and a next rule.
++5. Changed the action label to `Save Trade Note`.
++6. Kept the 2,000-character cap visible in the UI and enforced before save.
++7. These trade notes remain attached to each ticker/round trip and continue to
++   feed weekly/monthly AI review prompts.
++
++## Weekly Review Language Correction Slice
++
++The nineteenth implementation slice tightens weekly AI language after product
++review:
++
++1. Bumped the narrative contract to `coach_interpretation_v4` so older awkward
++   weekly outputs no longer count as current generated reviews.
++2. Removed weekly prompt language that asked AI to tell the user what to
++   journal.
++3. Added explicit OpenAI instructions to avoid phrases like `decision point to
++   inspect`, `not the week's result`, and `your journal should capture`.
++4. Changed weekly `nextFocus` generation into a direct trading rule instead of
++   an app/navigation task like opening or reviewing trades.
++5. Added regression coverage that weekly `nextFocus` does not start from
++   `open`, `inspect`, `review`, `journal`, or `write down`.
++6. Regenerated the local weekly review with the synthetic notes; the corrected
++   review speaks directly about the trades and uses the rule:
++   `Before reducing after an adverse move, decide whether the trade is actually
++   invalid; if it is not invalid, wait for repair before changing size.`
++
++## Monthly Review Language QA Slice
++
++The twentieth implementation slice applies the same language standard to the
++monthly review:
++
++1. Generated a local monthly review from the note-aware test data and inspected
++   the compact card plus expanded `End Of Month Review` panel.
++2. Tightened the OpenAI writer to avoid internal product terms such as
++   `snapshot`, `report`, `evidence package`, `source data`, and
++   `deterministic draft` in user-facing output.
++3. Replaced monthly evidence copy from `Available report snapshots` to
++   `Saved review context`.
++4. Cleaned the local synthetic note marker from note body/json payloads so the
++   browser QA data reads like normal user notes.
++5. Bumped the narrative contract to `coach_interpretation_v7` so old generated
++   reviews do not overlay the corrected copy.
++6. Regenerated weekly and monthly reviews together; both now use direct trading
++   behavior language, no app-instruction wording, and no test-note marker.
++
++## Local QA Cleanup And Mobile Check Slice
++
++The twenty-first implementation slice cleaned the local QA state without adding
++a throwaway cleanup script:
++
++1. Deleted the three synthetic trade notes and one synthetic day note that were
++   added for AI language testing.
++2. Marked weekly/monthly reflections stale and regenerated both reviews.
++3. Confirmed both regenerated reviews now have `noteCount: 0` and say the note
++   conclusion is behavior-only.
++4. Ran a 390px mobile-width browser check for `/workspace`, one trade note box,
++   and one day-note box.
++5. Confirmed the mobile views render the weekly/monthly expanded review panels,
++   trade note textarea, day note textarea, save buttons, and 2,000-character
++   caps without rejected AI language or test-note markers.
++
++## Open Items After Period Eligibility Slice
++
++- Configure `OPENAI_API_KEY` in the deployment environment.
++- Decide whether a scheduled job should call the same generation service at the
++  end of each trading day, week, and month, now that usage events can show the
++  cost impact.
++- Continue reviewing the weekly/monthly generated language in the browser and
++  tighten the contract whenever phrasing sounds like app instructions instead of
++  feedback on the user's trades.
++- Add voice note transcription only if native mobile dictation is not enough.
++- Add production data retention rules before storing transcript/audio artifacts.
+diff --git a/src/lib/trader-analytics/product/period-reflections.ts b/src/lib/trader-analytics/product/period-reflections.ts
+new file mode 100644
+index 00000000..ede2b893
+--- /dev/null
++++ b/src/lib/trader-analytics/product/period-reflections.ts
+@@ -0,0 +1,1775 @@
++import type {
++  DailyCoachReport,
++  PersistedTraderPeriodReflection,
++  ProductTraderAnalyticsTradeRow,
++  SavedExecutionTrade,
++  SavedExecutionTradeId,
++  SavedReportNote,
++  SavedSessionNote,
++  SavedTraderAnalyticsReport,
++  TraderAnalyticsComparison,
++  TraderFocusQueueItem,
++  TraderPeriodReflection,
++  TraderPeriodReflectionEvidence,
++  TraderPeriodReflectionGenerationAvailability,
++  TraderPeriodReflectionGenerationAvailabilitySet,
++  TraderPeriodReflectionGenerationStatus,
++  TraderPeriodReflectionKind,
++  TraderPeriodReflectionProvider,
++  TraderPeriodReflectionPromptSeed,
++  TraderPeriodReflectionStaleReason,
++  TraderPeriodReflectionSystem,
++  TraderPeriodReflectionUsage,
++  TraderRuleComplianceSummary,
++  TraderWeeklyReviewDashboard,
++} from "./types";
++
++export const DAILY_PERIOD_REFLECTION_GENERATION_LIMIT = 3;
++export const PERIOD_REFLECTION_NARRATIVE_CONTRACT =
++  "coach_interpretation_v7";
++
++interface DailySessionReflectionEvidenceItem {
++  id: string;
++  title: string;
++  detail: string;
++  reviewAction: string;
++  evidenceSource?: string;
++  tone: "danger" | "info" | "success" | "warning";
++}
++
++interface DailySessionReflectionThread {
++  roundTrips: Array<{
++    tradeId: SavedExecutionTradeId;
++  }>;
++}
++
++interface DailySessionReflectionStory {
++  sessionDate: string;
++  storyKind: string;
++  storyLabel: string;
++  storyDetail: string;
++  reviewPrompt: string;
++  fixFirstAction: string;
++  repeatedLossThreadCount: number;
++  profitGivebackThreadCount: number;
++  tradeCount: number;
++  symbolCount: number;
++  totalGrossRealizedPnl: number;
++  peakCumulativePnl: number;
++  givebackFromPeak: number;
++  priorityThread: DailySessionReflectionThread | null;
++  worstThread: DailySessionReflectionThread | null;
++  reviewEvidence: DailySessionReflectionEvidenceItem[];
++}
++
++function formatSigned(value: number): string {
++  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
++}
++
++function unique<T>(values: T[]): T[] {
++  return [...new Set(values)];
++}
++
++function sentenceCase(value: string): string {
++  const trimmed = value.trim();
++
++  if (!trimmed) {
++    return trimmed;
++  }
++
++  return `${trimmed[0]?.toUpperCase() ?? ""}${trimmed.slice(1)}`;
++}
++
++function lowerFirst(value: string): string {
++  const trimmed = value.trim();
++
++  if (!trimmed) {
++    return trimmed;
++  }
++
++  return `${trimmed[0]?.toLowerCase() ?? ""}${trimmed.slice(1)}`;
++}
++
++function periodKindLabel(kind: TraderPeriodReflectionKind): string {
++  switch (kind) {
++    case "daily":
++      return "Daily";
++    case "weekly":
++      return "Weekly";
++    case "monthly":
++      return "Monthly";
++  }
++}
++
++function compact(value: string, maxLength = 180): string {
++  const normalized = value.replace(/\s+/g, " ").trim();
++
++  if (normalized.length <= maxLength) {
++    return normalized;
++  }
++
++  return `${normalized.slice(0, maxLength - 1).trim()}...`;
++}
++
++function dateAtUtcNoon(date: string): Date {
++  return new Date(`${date}T12:00:00.000Z`);
++}
++
++function addDays(date: string, days: number): string {
++  const value = dateAtUtcNoon(date);
++  value.setUTCDate(value.getUTCDate() + days);
++  return value.toISOString().slice(0, 10);
++}
++
++function isoWeekday(date: string): number {
++  const day = dateAtUtcNoon(date).getUTCDay();
++  return day === 0 ? 7 : day;
++}
++
++function marketWeekStart(date: string): string {
++  return addDays(date, 1 - isoWeekday(date));
++}
++
++function marketWeekEnd(date: string): string {
++  return addDays(marketWeekStart(date), 4);
++}
++
++function lastWeekdayOfMonth(monthKey: string): string {
++  const [year, month] = monthKey.split("-").map(Number);
++  const date = new Date(Date.UTC(year, month, 0, 12, 0, 0));
++
++  while (date.getUTCDay() === 0 || date.getUTCDay() === 6) {
++    date.setUTCDate(date.getUTCDate() - 1);
++  }
++
++  return date.toISOString().slice(0, 10);
++}
++
++function latestSessionDate(rows: ProductTraderAnalyticsTradeRow[]): string | null {
++  return rows.map((row) => row.sessionDate).sort().at(-1) ?? null;
++}
++
++function reportRowsWithTradeIds(
++  report: SavedTraderAnalyticsReport,
++): ProductTraderAnalyticsTradeRow[] {
++  return report.report.trades.map((row) => ({
++    ...row,
++    tradeId:
++      report.sourceSummaries.find(
++        (summaryRef) => summaryRef.requestIndex === row.requestIndex,
++      )?.tradeId ??
++      report.sourceTradeIds[row.tradeIndex - 1] ??
++      `trade-${row.tradeIndex}`,
++  }));
++}
++
++function notesForTradeIds(args: {
++  trades: SavedExecutionTrade[];
++  tradeIds: SavedExecutionTradeId[];
++}): SavedReportNote[] {
++  const ids = new Set(args.tradeIds);
++
++  return args.trades
++    .filter((trade) => ids.has(trade.id))
++    .flatMap((trade) => trade.notes.map((note) => ({ ...note })))
++    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
++}
++
++function sessionNotesForPeriod(args: {
++  endDate: string;
++  sessionNotes?: SavedSessionNote[];
++  startDate: string;
++}): SavedSessionNote[] {
++  return (args.sessionNotes ?? [])
++    .filter(
++      (note) =>
++        note.sessionDate >= args.startDate && note.sessionDate <= args.endDate,
++    )
++    .sort((left, right) =>
++      left.sessionDate === right.sessionDate
++        ? left.createdAt.localeCompare(right.createdAt)
++        : left.sessionDate.localeCompare(right.sessionDate),
++    );
++}
++
++function topLabel(
++  rows: ProductTraderAnalyticsTradeRow[],
++  selector: (row: ProductTraderAnalyticsTradeRow) => string | null | undefined,
++): string | null {
++  const counts = new Map<string, number>();
++
++  for (const row of rows) {
++    const label = selector(row);
++
++    if (!label) {
++      continue;
++    }
++
++    counts.set(label, (counts.get(label) ?? 0) + 1);
++  }
++
++  return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
++}
++
++function noteThemes(notes: SavedReportNote[]): string[] {
++  return notes
++    .map((note) => compact(note.body, 96))
++    .filter(Boolean)
++    .slice(0, 3);
++}
++
++function noteInsight(notes: SavedReportNote[]): string {
++  const themes = noteThemes(notes);
++
++  if (themes.length === 0) {
++    return "No saved trade notes are attached to this period yet.";
++  }
++
++  return `Your saved notes point to ${themes.map((theme) => `"${theme}"`).join("; ")}.`;
++}
++
++function combinedNoteInsight(args: {
++  sessionNotes: SavedSessionNote[];
++  tradeNotes: SavedReportNote[];
++}): string {
++  const totalNotes = args.sessionNotes.length + args.tradeNotes.length;
++
++  if (totalNotes === 0) {
++    return "No saved trade or day notes are attached to this period yet.";
++  }
++
++  const sessionThemes = noteThemes(args.sessionNotes);
++  const tradeThemes = noteThemes(args.tradeNotes);
++  const parts = [
++    ...sessionThemes.map((theme) => `day note: "${theme}"`),
++    ...tradeThemes.map((theme) => `trade note: "${theme}"`),
++  ].slice(0, 4);
++
++  return `The saved rough notes include ${parts.join("; ")}.`;
++}
++
++function comparisonBuckets(comparison: TraderAnalyticsComparison | null): {
++  previousPeriodLabel: string | null;
++  improved: string[];
++  worsened: string[];
++  repeated: string[];
++} {
++  if (!comparison) {
++    return {
++      previousPeriodLabel: null,
++      improved: [],
++      worsened: [],
++      repeated: [],
++    };
++  }
++
++  return {
++    previousPeriodLabel: comparison.leftLabel,
++    improved: comparison.behaviorDeltas
++      .filter((trend) => trend.direction === "improving")
++      .map((trend) => trend.label),
++    worsened: comparison.behaviorDeltas
++      .filter((trend) => trend.direction === "worsening")
++      .map((trend) => trend.label),
++    repeated: comparison.behaviorDeltas
++      .filter((trend) => trend.direction === "flat")
++      .map((trend) => trend.label),
++  };
++}
++
++function progressInsight(
++  comparison: TraderAnalyticsComparison | null,
++  fallback: string,
++): string {
++  if (!comparison) {
++    return fallback;
++  }
++
++  const improving = comparison.behaviorDeltas.find(
++    (trend) => trend.direction === "improving",
++  );
++  const worsening = comparison.behaviorDeltas.find(
++    (trend) => trend.direction === "worsening",
++  );
++  const flat = comparison.behaviorDeltas.find((trend) => trend.direction === "flat");
++
++  if (improving) {
++    return `Compared with ${comparison.leftLabel}, ${lowerFirst(improving.copy)}`;
++  }
++
++  if (worsening) {
++    return `Compared with ${comparison.leftLabel}, ${lowerFirst(worsening.copy)}`;
++  }
++
++  if (flat) {
++    return `Compared with ${comparison.leftLabel}, ${lowerFirst(flat.copy)}`;
++  }
++
++  return `A prior report exists, but more reviewed trades are needed before calling improvement or regression. ${fallback}`;
++}
++
++function behaviorTrendEvidence(
++  comparison: TraderAnalyticsComparison | null,
++): TraderPeriodReflectionEvidence | null {
++  if (!comparison) {
++    return null;
++  }
++
++  const trend =
++    comparison.behaviorDeltas.find(
++      (candidate) => candidate.direction === "worsening",
++    ) ??
++    comparison.behaviorDeltas.find(
++      (candidate) => candidate.direction === "improving",
++    ) ??
++    comparison.behaviorDeltas.find((candidate) => candidate.direction === "flat");
++
++  if (!trend) {
++    return null;
++  }
++
++  return {
++    id: `comparison:${trend.behaviorId}`,
++    kind: "comparison",
++    label: trend.label,
++    detail: `${comparison.rightLabel} vs ${comparison.leftLabel}: ${trend.copy}`,
++    relatedTradeIds: [],
++  };
++}
++
++function promptSeed(args: {
++  kind: TraderPeriodReflectionKind;
++  label: string;
++  tradeCount: number;
++  grossTotalRealizedPnl: number;
++  topRisks: string[];
++  topStrengths: string[];
++  notes: Array<SavedReportNote | SavedSessionNote>;
++  comparison: TraderAnalyticsComparison | null;
++  nextFocus: string;
++  relatedTradeIds: SavedExecutionTradeId[];
++}): TraderPeriodReflectionPromptSeed {
++  const periodRole =
++    args.kind === "daily"
++      ? "Daily output is a replay and journal prompt, not a full coaching verdict. Do not pretend one day proves a habit."
++      : args.kind === "weekly"
++        ? "Weekly output is the main trading review. Synthesize repeated behaviors, saved notes, prior reflection memory, and whether the trader improved, repeated, or worsened. Talk about the trades and decisions themselves, not about what the user's journal should capture."
++        : "Monthly output is a progress lookback. Compare weekly memories, repeated note themes, and recurring behavior so the trader sees what changed and what still repeats.";
++
++  return {
++    systemInstruction:
++      [
++        `Narrative contract: ${PERIOD_REFLECTION_NARRATIVE_CONTRACT}.`,
++        "You are a direct trading coach. Write from the provided evidence only. Do not invent market context, indicators, emotions, intent, or unsupported conclusions.",
++        "Do not recap basic totals the interface already shows unless one short clause is needed for context.",
++        periodRole,
++      ].join(" "),
++    userInstruction:
++      args.kind === "daily"
++        ? "Turn this evidence package into a lightweight replay prompt, not a recap. Explain what the trader should learn from the trades and the one behavior to check next."
++        : "Turn this evidence package into direct trade feedback, not a recap. Explain what the trader did, what repeated, what improved or worsened, and the one trading behavior to work on next.",
++    input: {
++      periodKind: args.kind,
++      periodLabel: args.label,
++      tradeCount: args.tradeCount,
++      grossTotalRealizedPnl: args.grossTotalRealizedPnl,
++      topRisks: args.topRisks,
++      topStrengths: args.topStrengths,
++      userNoteThemes: noteThemes(args.notes),
++      comparison: comparisonBuckets(args.comparison),
++      requiredNextFocus: args.nextFocus,
++      evidenceTradeIds: args.relatedTradeIds,
++    },
++  };
++}
++
++function periodInterpretationSummary(args: {
++  kind: TraderPeriodReflectionKind;
++  primaryIssue: string | null;
++  noteCount: number;
++  nextFocus: string;
++}): string {
++  if (args.kind === "daily") {
++    if (args.primaryIssue) {
++      return `Use the day view as the replay. The review question is whether "${args.primaryIssue}" was a planned decision or a behavior that showed up after the day started moving.`;
++    }
++
++    return "Use the day view as the replay. The review question is what changed from the first trade to the last, and what rule should carry into the next session.";
++  }
++
++  if (args.kind === "weekly") {
++    const noteContext =
++      args.noteCount > 0
++        ? "Use the trader's written notes as evidence for the behavior."
++        : "Because there are no written notes yet, keep the conclusion behavior-based and leave room for the trader's reason.";
++
++    return `Look across the week for the repeated trade-management behavior. ${noteContext} The coaching target is: ${args.nextFocus}`;
++  }
++
++  const noteContext =
++    args.noteCount > 0
++      ? "Use the saved notes and weekly memories to judge whether the trader's self-review changed."
++      : "Without saved notes, focus on repeated behavior and progress signals rather than motive.";
++
++  return `Look across the month for what improved, what repeated, and what needs a rule next month. ${noteContext} The carry-forward target is: ${args.nextFocus}`;
++}
++
++function weeklyTradingRuleFocus(args: {
++  fallback: string;
++  topRisk: string | null;
++}): string {
++  const risk = args.topRisk?.trim();
++  const normalizedRisk = risk?.toLowerCase() ?? "";
++
++  if (normalizedRisk.includes("reduced after price was against")) {
++    return "Next week, before reducing after an adverse move, decide whether the trade is actually invalid; if it is not invalid, wait for repair before changing size.";
++  }
++
++  if (
++    normalizedRisk.includes("add") &&
++    (normalizedRisk.includes("adverse") ||
++      normalizedRisk.includes("against") ||
++      normalizedRisk.includes("weak"))
++  ) {
++    return "Next week, do not add after an adverse move unless price repairs and gives a fresh reason to add.";
++  }
++
++  if (
++    normalizedRisk.includes("fast execution") ||
++    normalizedRisk.includes("same ticker") ||
++    normalizedRisk.includes("attempt")
++  ) {
++    return "Next week, after two weak attempts on the same ticker, stop re-entering unless a fresh setup appears.";
++  }
++
++  if (risk) {
++    return `Next week, make ${lowerFirst(risk)} the rule focus and define the valid trigger before changing size or re-entering.`;
++  }
++
++  const fallback = args.fallback.trim();
++
++  if (
++    fallback &&
++    !/\b(open|inspect|review|journal|write down)\b/i.test(fallback)
++  ) {
++    return fallback;
++  }
++
++  return "Next week, define the valid trigger before adding, reducing, or re-entering a trade.";
++}
++
++function buildReflection(args: {
++  kind: TraderPeriodReflectionKind;
++  report: SavedTraderAnalyticsReport;
++  label: string;
++  startDate: string;
++  endDate: string;
++  tradeCount: number;
++  noteCount: number;
++  grossTotalRealizedPnl: number;
++  title: string;
++  headline: string;
++  summary: string;
++  whatWentWell: string;
++  whatNeedsWork: string;
++  noteInsight: string;
++  progressInsight: string;
++  nextFocus: string;
++  relatedTradeIds: SavedExecutionTradeId[];
++  evidence: TraderPeriodReflectionEvidence[];
++  notes: SavedReportNote[];
++  comparison: TraderAnalyticsComparison | null;
++  topRisks: string[];
++  topStrengths: string[];
++}): TraderPeriodReflection {
++  const relatedTradeIds = unique(args.relatedTradeIds);
++
++  return {
++    id: `reflection:${args.kind}:${args.report.id}:${args.startDate}:${args.endDate}`,
++    kind: args.kind,
++    reportId: args.report.id,
++    label: args.label,
++    startDate: args.startDate,
++    endDate: args.endDate,
++    generatedAt: args.report.generatedAt,
++    tradeCount: args.tradeCount,
++    noteCount: args.noteCount,
++    grossTotalRealizedPnl: args.grossTotalRealizedPnl,
++    title: args.title,
++    headline: args.headline,
++    summary: args.summary,
++    whatWentWell: args.whatWentWell,
++    whatNeedsWork: args.whatNeedsWork,
++    noteInsight: args.noteInsight,
++    progressInsight: args.progressInsight,
++    nextFocus: args.nextFocus,
++    relatedTradeIds,
++    evidence: args.evidence,
++    promptSeed: promptSeed({
++      kind: args.kind,
++      label: args.label,
++      tradeCount: args.tradeCount,
++      grossTotalRealizedPnl: args.grossTotalRealizedPnl,
++      topRisks: args.topRisks,
++      topStrengths: args.topStrengths,
++      notes: args.notes,
++      comparison: args.comparison,
++      nextFocus: args.nextFocus,
++      relatedTradeIds,
++    }),
++    narrativeSource: "ai_ready_prompt_v1",
++  };
++}
++
++function evidencePoint(args: TraderPeriodReflectionEvidence): TraderPeriodReflectionEvidence {
++  return args;
++}
++
++function dailySessionStoryForDate(args: {
++  sessionDate: string;
++  sessionStories?: DailySessionReflectionStory[];
++}): DailySessionReflectionStory | null {
++  return (
++    args.sessionStories?.find(
++      (story) => story.sessionDate === args.sessionDate,
++    ) ?? null
++  );
++}
++
++function dailySessionStoryIsReviewRisk(
++  story: DailySessionReflectionStory | null,
++): story is DailySessionReflectionStory {
++  if (!story) {
++    return false;
++  }
++
++  return (
++    story.storyKind === "green_to_red_session" ||
++    story.storyKind === "same_symbol_many_attempts" ||
++    story.storyKind === "session_high_trade_count" ||
++    story.repeatedLossThreadCount > 0 ||
++    story.profitGivebackThreadCount > 0
++  );
++}
++
++function tradeIdsFromDailySessionStory(
++  story: DailySessionReflectionStory | null,
++  fallbackTradeIds: SavedExecutionTradeId[],
++): SavedExecutionTradeId[] {
++  if (!story) {
++    return fallbackTradeIds;
++  }
++
++  const threadTradeIds = [
++    ...(story.priorityThread?.roundTrips ?? []),
++    ...(story.worstThread?.roundTrips ?? []),
++  ].map((roundTrip) => roundTrip.tradeId);
++
++  return unique(threadTradeIds.length > 0 ? threadTradeIds : fallbackTradeIds);
++}
++
++function dailySessionStoryRiskLabel(
++  story: DailySessionReflectionStory | null,
++): string | null {
++  if (!dailySessionStoryIsReviewRisk(story)) {
++    return null;
++  }
++
++  if (story.storyKind === "green_to_red_session") {
++    return "Green-to-red session";
++  }
++
++  if (story.storyKind === "same_symbol_many_attempts") {
++    return "Many attempts on one ticker";
++  }
++
++  if (story.storyKind === "session_high_trade_count") {
++    return "High trade-count session";
++  }
++
++  if (story.repeatedLossThreadCount > 0) {
++    return "Repeated losing attempts";
++  }
++
++  if (story.profitGivebackThreadCount > 0) {
++    return "Profit giveback after earlier gains";
++  }
++
++  return story.storyLabel;
++}
++
++function dailySessionStoryEvidence(args: {
++  fallbackTradeIds: SavedExecutionTradeId[];
++  story: DailySessionReflectionStory | null;
++}): TraderPeriodReflectionEvidence[] {
++  if (!dailySessionStoryIsReviewRisk(args.story)) {
++    return [];
++  }
++
++  const relatedTradeIds = tradeIdsFromDailySessionStory(
++    args.story,
++    args.fallbackTradeIds,
++  );
++  const priorityEvidence = args.story.reviewEvidence.filter((item) =>
++    [
++      "session-green-to-red",
++      "session-same-symbol-many-attempts",
++      "session-high-trade-count",
++      "session-worst-thread",
++    ].includes(item.id),
++  );
++  const evidenceItems =
++    priorityEvidence.length > 0
++      ? priorityEvidence
++      : args.story.reviewEvidence.slice(0, 2);
++
++  return [
++    evidencePoint({
++      id: "daily:session-story",
++      kind: "risk",
++      label: args.story.storyLabel,
++      detail: args.story.storyDetail,
++      relatedTradeIds,
++    }),
++    ...evidenceItems.slice(0, 3).map((item) =>
++      evidencePoint({
++        id: `daily:${item.id}`,
++        kind: item.tone === "success" ? "strength" : "risk",
++        label: item.title,
++        detail: `${item.detail} ${item.reviewAction}`,
++        relatedTradeIds,
++      }),
++    ),
++  ];
++}
++
++function buildDailyReflection(args: {
++  report: SavedTraderAnalyticsReport;
++  sessionStories?: DailySessionReflectionStory[];
++  sessionNotes?: SavedSessionNote[];
++  trades: SavedExecutionTrade[];
++  dailyCoach: DailyCoachReport;
++}): TraderPeriodReflection {
++  const rows = reportRowsWithTradeIds(args.report);
++  const sessionRows = rows.filter(
++    (row) => row.sessionDate === args.dailyCoach.sessionDate,
++  );
++  const relatedTradeIds =
++    args.dailyCoach.relatedTradeIds.length > 0
++      ? args.dailyCoach.relatedTradeIds
++      : sessionRows.map((row) => row.tradeId);
++  const notes = notesForTradeIds({
++    trades: args.trades,
++    tradeIds: sessionRows.map((row) => row.tradeId),
++  });
++  const dayNotes = sessionNotesForPeriod({
++    sessionNotes: args.sessionNotes,
++    startDate: args.dailyCoach.sessionDate,
++    endDate: args.dailyCoach.sessionDate,
++  });
++  const grossTotalRealizedPnl = sessionRows.reduce(
++    (total, row) => total + row.grossRealizedPnl,
++    0,
++  );
++  const sessionStory = dailySessionStoryForDate({
++    sessionDate: args.dailyCoach.sessionDate,
++    sessionStories: args.sessionStories,
++  });
++  const sessionStoryRiskLabel = dailySessionStoryRiskLabel(sessionStory);
++  const sessionStoryRelatedTradeIds = tradeIdsFromDailySessionStory(
++    sessionStory,
++    sessionRows.map((row) => row.tradeId),
++  );
++  const sessionStoryFocus =
++    sessionStoryRiskLabel && sessionStory
++      ? sessionStory.fixFirstAction || sessionStory.reviewPrompt
++      : null;
++  const topRisk =
++    sessionStoryRiskLabel ??
++    args.dailyCoach.biggestMistake?.label ??
++    topLabel(sessionRows, (row) => row.topRisk?.label);
++  const topStrength =
++    args.dailyCoach.bestRepeatableBehavior ??
++    topLabel(sessionRows, (row) => row.topStrength?.label);
++  const evidence = [
++    evidencePoint({
++      id: "daily:pnl",
++      kind: "pnl",
++      label: "Daily gross P/L",
++      detail: `${formatSigned(grossTotalRealizedPnl)} across ${sessionRows.length} trade${sessionRows.length === 1 ? "" : "s"}.`,
++      relatedTradeIds: sessionRows.map((row) => row.tradeId),
++    }),
++    ...(args.dailyCoach.bestTrade
++      ? [
++          evidencePoint({
++            id: "daily:best-trade",
++            kind: "trade",
++            label: "Best trade",
++            detail: `${args.dailyCoach.bestTrade.symbol} finished at ${formatSigned(args.dailyCoach.bestTrade.grossRealizedPnl)} gross execution P/L.`,
++            relatedTradeIds: [args.dailyCoach.bestTrade.tradeId],
++          }),
++        ]
++      : []),
++    ...(args.dailyCoach.worstTrade
++      ? [
++          evidencePoint({
++            id: "daily:worst-trade",
++            kind: "trade",
++            label: "Hardest trade",
++            detail: `${args.dailyCoach.worstTrade.symbol} finished at ${formatSigned(args.dailyCoach.worstTrade.grossRealizedPnl)} gross execution P/L.`,
++            relatedTradeIds: [args.dailyCoach.worstTrade.tradeId],
++          }),
++        ]
++      : []),
++    ...dailySessionStoryEvidence({
++      fallbackTradeIds: sessionRows.map((row) => row.tradeId),
++      story: sessionStory,
++    }),
++    ...(topRisk
++      ? [
++          evidencePoint({
++            id: "daily:top-risk",
++            kind: "risk",
++            label: topRisk,
++            detail: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
++            relatedTradeIds: sessionStoryFocus
++              ? sessionStoryRelatedTradeIds
++              : relatedTradeIds,
++          }),
++        ]
++      : []),
++    ...(topStrength
++      ? [
++          evidencePoint({
++            id: "daily:top-strength",
++            kind: "strength",
++            label: topStrength,
++            detail: args.dailyCoach.preserveNextSession,
++            relatedTradeIds,
++          }),
++        ]
++      : []),
++    ...(notes.length > 0
++      ? [
++          evidencePoint({
++            id: "daily:notes",
++            kind: "note",
++            label: "Saved trade notes",
++            detail: noteInsight(notes),
++            relatedTradeIds: sessionRows.map((row) => row.tradeId),
++          }),
++        ]
++      : []),
++    ...(dayNotes.length > 0
++      ? [
++          evidencePoint({
++            id: "daily:day-notes",
++            kind: "note",
++            label: "Saved day notes",
++            detail: combinedNoteInsight({
++              sessionNotes: dayNotes,
++              tradeNotes: [],
++            }),
++            relatedTradeIds: sessionRows.map((row) => row.tradeId),
++          }),
++        ]
++      : []),
++  ];
++  const allNotes = [...dayNotes, ...notes];
++
++  return buildReflection({
++    kind: "daily",
++    report: args.report,
++    label: args.dailyCoach.sessionDate,
++    startDate: args.dailyCoach.sessionDate,
++    endDate: args.dailyCoach.sessionDate,
++    tradeCount: sessionRows.length,
++    noteCount: allNotes.length,
++    grossTotalRealizedPnl,
++    title: "Daily Notes",
++    headline: topRisk
++      ? `Journal this today: ${topRisk}.`
++      : "Journal what changed from the first trade to the last.",
++    summary: periodInterpretationSummary({
++      kind: "daily",
++      primaryIssue: topRisk,
++      noteCount: allNotes.length,
++      nextFocus: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
++    }),
++    whatWentWell: args.dailyCoach.preserveNextSession,
++    whatNeedsWork: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
++    noteInsight: combinedNoteInsight({
++      sessionNotes: dayNotes,
++      tradeNotes: notes,
++    }),
++    progressInsight: args.dailyCoach.sessionTimeInsight,
++    nextFocus: sessionStoryFocus ?? args.dailyCoach.fixNextSession,
++    relatedTradeIds,
++    evidence,
++    notes: allNotes,
++    comparison: null,
++    topRisks: topRisk ? [topRisk] : [],
++    topStrengths: topStrength ? [topStrength] : [],
++  });
++}
++
++function buildWeeklyReflection(args: {
++  report: SavedTraderAnalyticsReport;
++  sessionNotes?: SavedSessionNote[];
++  trades: SavedExecutionTrade[];
++  weeklyReview: TraderWeeklyReviewDashboard;
++  ruleCompliance: TraderRuleComplianceSummary;
++  focusQueue: TraderFocusQueueItem[];
++  comparison: TraderAnalyticsComparison | null;
++}): TraderPeriodReflection {
++  const rows = reportRowsWithTradeIds(args.report);
++  const latestDate = latestSessionDate(rows) ?? args.report.reportPeriod.endDate;
++  const weekStartDate = marketWeekStart(latestDate);
++  const weekEndDate = marketWeekEnd(latestDate);
++  const weekRows = rows.filter(
++    (row) => row.sessionDate >= weekStartDate && row.sessionDate <= weekEndDate,
++  );
++  const activeRows = weekRows.length > 0 ? weekRows : rows;
++  const relatedTradeIds =
++    args.focusQueue[0]?.relatedTradeIds.length
++      ? args.focusQueue[0].relatedTradeIds.filter((tradeId) =>
++          activeRows.some((row) => row.tradeId === tradeId),
++        )
++      : activeRows.map((row) => row.tradeId);
++  const activeRelatedTradeIds =
++    relatedTradeIds.length > 0 ? relatedTradeIds : activeRows.map((row) => row.tradeId);
++  const notes = notesForTradeIds({
++    trades: args.trades,
++    tradeIds: activeRows.map((row) => row.tradeId),
++  });
++  const dayNotes = sessionNotesForPeriod({
++    sessionNotes: args.sessionNotes,
++    startDate: weekStartDate,
++    endDate: weekEndDate,
++  });
++  const topRisk =
++    topLabel(activeRows, (row) => row.topRisk?.label) ??
++    args.weeklyReview.topRiskLabel;
++  const topStrength =
++    topLabel(activeRows, (row) => row.topStrength?.label) ??
++    args.weeklyReview.topStrengthLabel;
++  const grossTotalRealizedPnl = activeRows.reduce(
++    (total, row) => total + row.grossRealizedPnl,
++    0,
++  );
++  const comparisonEvidence = behaviorTrendEvidence(args.comparison);
++  const ruleEvidence =
++    args.ruleCompliance.totalViolations > 0
++      ? evidencePoint({
++          id: "weekly:rule-compliance",
++          kind: "rule",
++          label: "Rule compliance",
++          detail: args.ruleCompliance.summary,
++          relatedTradeIds: args.ruleCompliance.worstViolation?.tradeIds ?? [],
++        })
++      : null;
++  const evidence = [
++    evidencePoint({
++      id: "weekly:pnl",
++      kind: "pnl",
++      label: "Weekly gross P/L",
++      detail: `${formatSigned(grossTotalRealizedPnl)} across ${activeRows.length} completed trade${activeRows.length === 1 ? "" : "s"}.`,
++      relatedTradeIds: activeRows.map((row) => row.tradeId),
++    }),
++    ...(topRisk
++      ? [
++          evidencePoint({
++            id: "weekly:top-risk",
++            kind: "risk",
++            label: topRisk,
++            detail:
++              args.focusQueue[0]?.summary ??
++              `${topRisk} is the main current review risk.`,
++            relatedTradeIds: activeRelatedTradeIds,
++          }),
++        ]
++      : []),
++    ...(topStrength
++      ? [
++          evidencePoint({
++            id: "weekly:top-strength",
++            kind: "strength",
++            label: topStrength,
++            detail: `${topStrength} is the clearest current behavior to preserve.`,
++            relatedTradeIds: activeRelatedTradeIds,
++          }),
++        ]
++      : []),
++    ...(ruleEvidence ? [ruleEvidence] : []),
++    ...(comparisonEvidence ? [comparisonEvidence] : []),
++    ...(notes.length > 0
++      ? [
++          evidencePoint({
++            id: "weekly:notes",
++            kind: "note",
++            label: "Saved trade notes",
++            detail: noteInsight(notes),
++            relatedTradeIds: activeRows.map((row) => row.tradeId),
++          }),
++        ]
++      : []),
++    ...(dayNotes.length > 0
++      ? [
++          evidencePoint({
++            id: "weekly:day-notes",
++            kind: "note",
++            label: "Saved day notes",
++            detail: combinedNoteInsight({
++              sessionNotes: dayNotes,
++              tradeNotes: [],
++            }),
++            relatedTradeIds: activeRows.map((row) => row.tradeId),
++          }),
++        ]
++      : []),
++  ];
++  const label = `Week of ${weekStartDate}`;
++  const allNotes = [...dayNotes, ...notes];
++  const nextFocus = weeklyTradingRuleFocus({
++    fallback: args.weeklyReview.nextAction,
++    topRisk,
++  });
++
++  return buildReflection({
++    kind: "weekly",
++    report: args.report,
++    label,
++    startDate: weekStartDate,
++    endDate: weekEndDate,
++    tradeCount: activeRows.length,
++    noteCount: allNotes.length,
++    grossTotalRealizedPnl,
++    title: "Weekly Coaching Review",
++    headline: topRisk
++      ? `This week?s coaching question: did ${lowerFirst(topRisk)} repeat?`
++      : "This week?s coaching review should find the repeated decision.",
++    summary: periodInterpretationSummary({
++      kind: "weekly",
++      primaryIssue: topRisk,
++      noteCount: allNotes.length,
++      nextFocus,
++    }),
++    whatWentWell: topStrength
++      ? `Preserve ${lowerFirst(topStrength)} when the setup appears again.`
++      : "Find the best clean trade and write down what made it repeatable.",
++    whatNeedsWork:
++      args.focusQueue[0]?.summary ??
++      args.weeklyReview.primaryFocusTitle ??
++      args.weeklyReview.nextAction,
++    noteInsight: combinedNoteInsight({
++      sessionNotes: dayNotes,
++      tradeNotes: notes,
++    }),
++    progressInsight: progressInsight(
++      args.comparison,
++      "No prior weekly summary is available yet, so this review starts the baseline.",
++    ),
++    nextFocus,
++    relatedTradeIds: activeRelatedTradeIds,
++    evidence,
++    notes: allNotes,
++    comparison: args.comparison,
++    topRisks: topRisk ? [topRisk] : [],
++    topStrengths: topStrength ? [topStrength] : [],
++  });
++}
++
++function monthLabel(value: string): string {
++  const date = new Date(`${value}-01T12:00:00.000Z`);
++
++  if (Number.isNaN(date.getTime())) {
++    return value;
++  }
++
++  return date.toLocaleDateString("en-US", {
++    month: "long",
++    timeZone: "UTC",
++    year: "numeric",
++  });
++}
++
++function easternDateTimeParts(now: Date): {
++  date: string;
++  hour: number;
++  minute: number;
++} {
++  const parts = new Intl.DateTimeFormat("en-US", {
++    day: "2-digit",
++    hour: "2-digit",
++    hourCycle: "h23",
++    minute: "2-digit",
++    month: "2-digit",
++    timeZone: "America/New_York",
++    year: "numeric",
++  }).formatToParts(now);
++  const value = (type: Intl.DateTimeFormatPartTypes) =>
++    parts.find((part) => part.type === type)?.value ?? "";
++
++  return {
++    date: `${value("year")}-${value("month")}-${value("day")}`,
++    hour: Number(value("hour")),
++    minute: Number(value("minute")),
++  };
++}
++
++function marketCloseHasPassed(args: {
++  now: Date;
++  periodEndDate: string;
++}): boolean {
++  const parts = easternDateTimeParts(args.now);
++
++  if (parts.date > args.periodEndDate) {
++    return true;
++  }
++
++  if (parts.date < args.periodEndDate) {
++    return false;
++  }
++
++  return parts.hour > 16 || (parts.hour === 16 && parts.minute >= 0);
++}
++
++function easternDateHasReached(args: {
++  now: Date;
++  periodStartDate: string;
++}): boolean {
++  return easternDateTimeParts(args.now).date >= args.periodStartDate;
++}
++
++function currentPeriodRecord(args: {
++  records: PersistedTraderPeriodReflection[];
++  reflection: TraderPeriodReflection;
++  sourceReportGeneratedAt: string;
++}): PersistedTraderPeriodReflection | null {
++  return (
++    args.records.find(
++      (record) =>
++        record.kind === args.reflection.kind &&
++        record.periodStartDate === args.reflection.startDate &&
++        record.periodEndDate === args.reflection.endDate &&
++        record.sourceReportGeneratedAt === args.sourceReportGeneratedAt,
++    ) ?? null
++  );
++}
++
++function periodRecord(args: {
++  records: PersistedTraderPeriodReflection[];
++  reflection: TraderPeriodReflection;
++}): PersistedTraderPeriodReflection | null {
++  return (
++    args.records.find(
++      (record) =>
++        record.kind === args.reflection.kind &&
++        record.periodStartDate === args.reflection.startDate &&
++        record.periodEndDate === args.reflection.endDate,
++    ) ?? null
++  );
++}
++
++function generationAttemptCount(
++  record: PersistedTraderPeriodReflection | null,
++): number {
++  if (!record) {
++    return 0;
++  }
++
++  return Math.max(1, record.generationAttemptCount ?? 1);
++}
++
++function generationAttemptLimit(
++  kind: TraderPeriodReflectionKind,
++): number | null {
++  return kind === "daily" ? DAILY_PERIOD_REFLECTION_GENERATION_LIMIT : null;
++}
++
++function dailyGenerationUseDetail(args: {
++  action: "generate" | "update";
++  attemptCount: number;
++  attemptLimit: number | null;
++}): string {
++  if (args.attemptLimit === null) {
++    return args.action === "generate"
++      ? "Generate this review from the latest saved trades and notes."
++      : "Update this review from the latest saved trades and notes.";
++  }
++
++  const nextAttempt = Math.min(args.attemptCount + 1, args.attemptLimit);
++  const remainingAfter = Math.max(0, args.attemptLimit - nextAttempt);
++  const remainingLabel =
++    remainingAfter === 1
++      ? "1 daily AI generation will remain"
++      : `${remainingAfter} daily AI generations will remain`;
++
++  return args.action === "generate"
++    ? `This will use daily AI generation ${nextAttempt} of ${args.attemptLimit}. After this review, ${remainingLabel}.`
++    : `This will use daily AI generation ${nextAttempt} of ${args.attemptLimit}. After this update, ${remainingLabel}.`;
++}
++
++function dailyAlreadyGeneratedDetail(args: {
++  attemptCount: number;
++  attemptLimit: number | null;
++}): string {
++  if (args.attemptLimit === null) {
++    return "This day already has a saved review for the current evidence. Add a trade or note to unlock an update.";
++  }
++
++  const remaining = Math.max(0, args.attemptLimit - args.attemptCount);
++  const remainingLabel =
++    remaining === 1
++      ? "1 daily AI generation remains"
++      : `${remaining} daily AI generations remain`;
++
++  return `This day already has a saved review for the current evidence. Add a trade or note to unlock an update. ${remainingLabel}.`;
++}
++
++function availabilityBase(args: {
++  existingRecord: PersistedTraderPeriodReflection | null;
++  reflection: TraderPeriodReflection;
++}): Pick<
++  TraderPeriodReflectionGenerationAvailability,
++  | "existingRecordId"
++  | "existingStatus"
++  | "generationAttemptCount"
++  | "generationAttemptLimit"
++  | "periodEndDate"
++  | "periodStartDate"
++> {
++  return {
++    periodStartDate: args.reflection.startDate,
++    periodEndDate: args.reflection.endDate,
++    existingStatus: args.existingRecord?.status ?? null,
++    existingRecordId: args.existingRecord?.id ?? null,
++    generationAttemptCount: generationAttemptCount(args.existingRecord),
++    generationAttemptLimit: generationAttemptLimit(args.reflection.kind),
++  };
++}
++
++function unavailableForSample(
++  reflection: TraderPeriodReflection,
++): TraderPeriodReflectionGenerationAvailability {
++  return {
++    kind: reflection.kind,
++    canGenerate: false,
++    action: null,
++    reason: "not_saved_data",
++    label: "Saved trades required",
++    detail: "Generate reflections after saving real imported trades.",
++    earliestAvailableAt: null,
++    ...availabilityBase({ existingRecord: null, reflection }),
++  };
++}
++
++function recordMatchesCurrentNarrativeContract(
++  record: PersistedTraderPeriodReflection,
++): boolean {
++  return record.reflection.promptSeed.systemInstruction.includes(
++    PERIOD_REFLECTION_NARRATIVE_CONTRACT,
++  );
++}
++
++function availabilityForReflection(args: {
++  now: Date;
++  records: PersistedTraderPeriodReflection[];
++  reflection: TraderPeriodReflection;
++  savedData: boolean;
++  sourceReportGeneratedAt: string;
++}): TraderPeriodReflectionGenerationAvailability {
++  const currentContractRecords = args.records.filter(
++    recordMatchesCurrentNarrativeContract,
++  );
++  const existing = currentPeriodRecord({
++    records: currentContractRecords,
++    reflection: args.reflection,
++    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++  });
++  const existingForPeriod = periodRecord({
++    records: currentContractRecords,
++    reflection: args.reflection,
++  });
++  const existingForAttemptCount = periodRecord({
++    records: args.records,
++    reflection: args.reflection,
++  });
++  const attemptCount = generationAttemptCount(existingForAttemptCount);
++  const attemptLimit = generationAttemptLimit(args.reflection.kind);
++  const closeHasPassed = marketCloseHasPassed({
++    now: args.now,
++    periodEndDate: args.reflection.endDate,
++  });
++  const dailyInProgress = args.reflection.kind === "daily" && !closeHasPassed;
++  const dailyLimitReached =
++    attemptLimit !== null && attemptCount >= attemptLimit;
++  const base = availabilityBase({
++    existingRecord: existingForPeriod,
++    reflection: args.reflection,
++  });
++  const baseWithAttemptCount = {
++    ...base,
++    generationAttemptCount: attemptCount,
++  };
++
++  if (!args.savedData) {
++    return unavailableForSample(args.reflection);
++  }
++
++  if (args.reflection.tradeCount <= 0) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: false,
++      action: null,
++      reason: "no_trades",
++      label: "No trades",
++      detail: "This period needs at least one saved trade before a review can be generated.",
++      earliestAvailableAt: null,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (
++    dailyLimitReached &&
++    (existingForPeriod?.status === "stale" ||
++      existingForPeriod?.status === "failed" ||
++      existingForPeriod?.sourceReportGeneratedAt !== args.sourceReportGeneratedAt)
++  ) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: false,
++      action: null,
++      reason: "generation_limit_reached",
++      label: "Daily limit reached",
++      detail: `This trading day already used ${attemptLimit} AI review generation${attemptLimit === 1 ? "" : "s"}. New notes will still be included in the weekly review.`,
++      earliestAvailableAt: null,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (
++    existingForPeriod &&
++    existingForPeriod.sourceReportGeneratedAt !== args.sourceReportGeneratedAt
++  ) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: true,
++      action: "update",
++      reason: "source_changed",
++      label: args.reflection.kind === "daily" && dailyInProgress
++        ? "Update daily prompt"
++        : args.reflection.kind === "daily"
++          ? "Update daily prompt"
++          : "Update coaching review",
++      detail:
++        args.reflection.kind === "daily"
++          ? dailyGenerationUseDetail({
++              action: "update",
++              attemptCount,
++              attemptLimit,
++            })
++          : "New saved trade evidence changed this period. Update the review when you are ready.",
++      earliestAvailableAt: null,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (
++    existing &&
++    (existing.status === "generated" || existing.status === "fallback")
++  ) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: false,
++      action: null,
++      reason: "already_generated",
++      label: "Already generated",
++      detail:
++        args.reflection.kind === "daily"
++          ? dailyAlreadyGeneratedDetail({
++              attemptCount,
++              attemptLimit,
++            })
++          : "This period already has one saved review. Add trades or notes to unlock an update.",
++      earliestAvailableAt: null,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (
++    args.reflection.kind === "daily" &&
++    !easternDateHasReached({
++      now: args.now,
++      periodStartDate: args.reflection.startDate,
++    })
++  ) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: false,
++      action: null,
++      reason: "too_early",
++      label: "Available on trade date",
++      detail: `Daily reviews become available on ${args.reflection.startDate} after the first saved trade.`,
++      earliestAvailableAt: `${args.reflection.startDate} 00:00 America/New_York`,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (
++    args.reflection.kind !== "daily" &&
++    !closeHasPassed
++  ) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: false,
++      action: null,
++      reason: "too_early",
++      label: "Available after close",
++      detail: `${periodKindLabel(args.reflection.kind)} reviews unlock after 4:00 PM Eastern on ${args.reflection.endDate}.`,
++      earliestAvailableAt: `${args.reflection.endDate} 16:00 America/New_York`,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  if (existing && (existing.status === "stale" || existing.status === "failed")) {
++    return {
++      kind: args.reflection.kind,
++      canGenerate: true,
++      action: "update",
++      reason: "stale_or_failed",
++      label:
++        args.reflection.kind === "daily"
++          ? "Update daily prompt"
++          : "Update coaching review",
++      detail:
++        existing.status === "stale"
++          ? args.reflection.kind === "daily"
++            ? dailyGenerationUseDetail({
++                action: "update",
++                attemptCount,
++                attemptLimit,
++              })
++            : "This review is stale because the underlying evidence changed."
++          : "The last generation attempt failed; retry when ready.",
++      earliestAvailableAt: null,
++      ...baseWithAttemptCount,
++    };
++  }
++
++  return {
++    kind: args.reflection.kind,
++    canGenerate: true,
++    action: "generate",
++    reason: "ready",
++    label: args.reflection.kind === "daily"
++      ? dailyInProgress
++        ? "Generate day prompt"
++        : "Generate daily prompt"
++      : args.reflection.kind === "weekly"
++        ? "Generate weekly coaching"
++        : "Generate monthly lookback",
++    detail: dailyInProgress
++      ? dailyGenerationUseDetail({
++          action: "generate",
++          attemptCount,
++          attemptLimit,
++        })
++      : args.reflection.kind === "daily"
++        ? dailyGenerationUseDetail({
++            action: "generate",
++            attemptCount,
++            attemptLimit,
++          })
++        : "This period is ready for one saved review.",
++    earliestAvailableAt: null,
++    ...baseWithAttemptCount,
++  };
++}
++
++function buildDefaultAvailabilitySet(args: {
++  daily: TraderPeriodReflection;
++  monthly: TraderPeriodReflection;
++  now?: Date;
++  savedData?: boolean;
++  sourceReportGeneratedAt: string;
++  weekly: TraderPeriodReflection;
++}): TraderPeriodReflectionGenerationAvailabilitySet {
++  return buildTraderPeriodReflectionGenerationAvailabilitySet({
++    now: args.now,
++    records: [],
++    savedData: args.savedData ?? false,
++    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++    reflections: {
++      daily: args.daily,
++      weekly: args.weekly,
++      monthly: args.monthly,
++    },
++  });
++}
++
++export function buildTraderPeriodReflectionGenerationAvailabilitySet(args: {
++  now?: Date;
++  records: PersistedTraderPeriodReflection[];
++  savedData: boolean;
++  sourceReportGeneratedAt: string;
++  reflections: {
++    daily: TraderPeriodReflection;
++    weekly: TraderPeriodReflection;
++    monthly: TraderPeriodReflection;
++  };
++}): TraderPeriodReflectionGenerationAvailabilitySet {
++  const now = args.now ?? new Date();
++
++  return {
++    daily: availabilityForReflection({
++      now,
++      records: args.records,
++      reflection: args.reflections.daily,
++      savedData: args.savedData,
++      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++    }),
++    weekly: availabilityForReflection({
++      now,
++      records: args.records,
++      reflection: args.reflections.weekly,
++      savedData: args.savedData,
++      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++    }),
++    monthly: availabilityForReflection({
++      now,
++      records: args.records,
++      reflection: args.reflections.monthly,
++      savedData: args.savedData,
++      sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++    }),
++  };
++}
++
++function buildMonthlyReflection(args: {
++  report: SavedTraderAnalyticsReport;
++  reportHistory: SavedTraderAnalyticsReport[];
++  sessionNotes?: SavedSessionNote[];
++  trades: SavedExecutionTrade[];
++  weekly: TraderPeriodReflection;
++  comparison: TraderAnalyticsComparison | null;
++}): TraderPeriodReflection {
++  const rows = reportRowsWithTradeIds(args.report);
++  const latestDate = latestSessionDate(rows) ?? args.report.reportPeriod.endDate;
++  const monthKey = latestDate.slice(0, 7);
++  const monthEndDate = lastWeekdayOfMonth(monthKey);
++  const monthRows = rows.filter((row) => row.sessionDate.startsWith(monthKey));
++  const activeRows = monthRows.length > 0 ? monthRows : rows;
++  const activeTradeIds = activeRows.map((row) => row.tradeId);
++  const notes = notesForTradeIds({
++    trades: args.trades,
++    tradeIds: activeTradeIds,
++  });
++  const dayNotes = sessionNotesForPeriod({
++    sessionNotes: args.sessionNotes,
++    startDate: `${monthKey}-01`,
++    endDate: monthEndDate,
++  });
++  const grossTotalRealizedPnl = activeRows.reduce(
++    (total, row) => total + row.grossRealizedPnl,
++    0,
++  );
++  const topRisk =
++    topLabel(activeRows, (row) => row.topRisk?.label) ??
++    args.report.report.topRisks[0]?.label ??
++    null;
++  const topStrength =
++    topLabel(activeRows, (row) => row.topStrength?.label) ??
++    args.report.report.topStrengths[0]?.label ??
++    null;
++  const sameMonthSnapshots = args.reportHistory.filter((report) =>
++    report.reportPeriod.endDate.startsWith(monthKey),
++  );
++  const comparisonEvidence = behaviorTrendEvidence(args.comparison);
++  const evidence = [
++    evidencePoint({
++      id: "monthly:pnl",
++      kind: "pnl",
++      label: "Monthly gross P/L",
++      detail: `${formatSigned(grossTotalRealizedPnl)} across ${activeRows.length} completed trade${activeRows.length === 1 ? "" : "s"}.`,
++      relatedTradeIds: activeTradeIds,
++    }),
++    evidencePoint({
++      id: "monthly:snapshots",
++      kind: "comparison",
++      label: "Saved review context",
++      detail: `${sameMonthSnapshots.length} saved review point${sameMonthSnapshots.length === 1 ? "" : "s"} are available for this month.`,
++      relatedTradeIds: activeTradeIds,
++    }),
++    ...(topRisk
++      ? [
++          evidencePoint({
++            id: "monthly:top-risk",
++            kind: "risk",
++            label: topRisk,
++            detail: `${topRisk} is the most visible mistake to watch in this month lookback.`,
++            relatedTradeIds: activeTradeIds,
++          }),
++        ]
++      : []),
++    ...(topStrength
++      ? [
++          evidencePoint({
++            id: "monthly:top-strength",
++            kind: "strength",
++            label: topStrength,
++            detail: `${topStrength} is the clearest behavior to carry into next month.`,
++            relatedTradeIds: activeTradeIds,
++          }),
++        ]
++      : []),
++    ...(comparisonEvidence ? [comparisonEvidence] : []),
++    ...(notes.length > 0
++      ? [
++          evidencePoint({
++            id: "monthly:notes",
++            kind: "note",
++            label: "Saved trade notes",
++            detail: noteInsight(notes),
++            relatedTradeIds: activeTradeIds,
++          }),
++        ]
++      : []),
++    ...(dayNotes.length > 0
++      ? [
++          evidencePoint({
++            id: "monthly:day-notes",
++            kind: "note",
++            label: "Saved day notes",
++            detail: combinedNoteInsight({
++              sessionNotes: dayNotes,
++              tradeNotes: [],
++            }),
++            relatedTradeIds: activeTradeIds,
++          }),
++        ]
++      : []),
++  ];
++  const label = monthLabel(monthKey);
++  const allNotes = [...dayNotes, ...notes];
++
++  return buildReflection({
++    kind: "monthly",
++    report: args.report,
++    label,
++    startDate: `${monthKey}-01`,
++    endDate: monthEndDate,
++    tradeCount: activeRows.length,
++    noteCount: allNotes.length,
++    grossTotalRealizedPnl,
++    title: "Monthly Lookback",
++    headline: topRisk
++      ? `${label} should answer whether this pattern improved: ${topRisk}.`
++      : `${label} should separate real improvement from repeated behavior.`,
++    summary: periodInterpretationSummary({
++      kind: "monthly",
++      primaryIssue: topRisk,
++      noteCount: allNotes.length,
++      nextFocus: args.weekly.nextFocus,
++    }),
++    whatWentWell: topStrength
++      ? `Keep building around ${lowerFirst(topStrength)}.`
++      : args.weekly.whatWentWell,
++    whatNeedsWork: topRisk
++      ? `Check whether this pattern repeated across more than one week: ${topRisk}.`
++      : args.weekly.whatNeedsWork,
++    noteInsight: combinedNoteInsight({
++      sessionNotes: dayNotes,
++      tradeNotes: notes,
++    }),
++    progressInsight: progressInsight(
++      args.comparison,
++      "Monthly progress will become clearer after at least one prior weekly or monthly summary exists.",
++    ),
++    nextFocus: `Carry this into next month: ${sentenceCase(args.weekly.nextFocus)}`,
++    relatedTradeIds: activeTradeIds,
++    evidence,
++    notes: allNotes,
++    comparison: args.comparison,
++    topRisks: topRisk ? [topRisk] : [],
++    topStrengths: topStrength ? [topStrength] : [],
++  });
++}
++
++export function buildTraderPeriodReflectionSystem(args: {
++  report: SavedTraderAnalyticsReport;
++  reportHistory: SavedTraderAnalyticsReport[];
++  sessionNotes?: SavedSessionNote[];
++  trades: SavedExecutionTrade[];
++  dailyCoach: DailyCoachReport;
++  weeklyReview: TraderWeeklyReviewDashboard;
++  ruleCompliance: TraderRuleComplianceSummary;
++  focusQueue: TraderFocusQueueItem[];
++  comparison: TraderAnalyticsComparison | null;
++  sessionStories?: DailySessionReflectionStory[];
++}): TraderPeriodReflectionSystem {
++  const daily = buildDailyReflection({
++    report: args.report,
++    trades: args.trades,
++    dailyCoach: args.dailyCoach,
++    sessionStories: args.sessionStories,
++    sessionNotes: args.sessionNotes,
++  });
++  const weekly = buildWeeklyReflection({
++    report: args.report,
++    sessionNotes: args.sessionNotes,
++    trades: args.trades,
++    weeklyReview: args.weeklyReview,
++    ruleCompliance: args.ruleCompliance,
++    focusQueue: args.focusQueue,
++    comparison: args.comparison,
++  });
++  const monthly = buildMonthlyReflection({
++    report: args.report,
++    reportHistory: args.reportHistory,
++    sessionNotes: args.sessionNotes,
++    trades: args.trades,
++    weekly,
++    comparison: args.comparison,
++  });
++
++  return {
++    daily,
++    weekly,
++    monthly,
++    generation: buildDefaultAvailabilitySet({
++      daily,
++      weekly,
++      monthly,
++      sourceReportGeneratedAt: args.report.generatedAt,
++    }),
++    policy: {
++      evidenceFirst: true,
++      provider: "openai_responses_api",
++      aiNarrativeEnabled: false,
++      providerStatus: "not_configured",
++      requiredEnvVars: ["OPENAI_API_KEY"],
++      modelEnvVar: "OPENAI_REFLECTION_MODEL",
++      summary:
++        "Reflection summaries are evidence-first. The product view builds OpenAI Responses API-ready prompt input and deterministic fallback language; the server writer can persist AI-generated narrative when the provider is configured and triggered.",
++      nextAction:
++        "Configure OPENAI_API_KEY and trigger the server-side reflection writer to save generated summaries.",
++    },
++  };
++}
++
++function persistedReflectionId(args: {
++  accountId: string;
++  kind: TraderPeriodReflectionKind;
++  periodStartDate: string;
++  periodEndDate: string;
++  userId: string;
++}): string {
++  return [
++    "period-reflection",
++    args.userId,
++    args.accountId,
++    args.kind,
++    args.periodStartDate,
++    args.periodEndDate,
++  ].join(":");
++}
++
++export function buildPersistedTraderPeriodReflection(args: {
++  accountId: string;
++  createdAt?: string;
++  errorMessage?: string | null;
++  generationAttemptCount?: number;
++  model?: string | null;
++  provider?: TraderPeriodReflectionProvider;
++  reflection: TraderPeriodReflection;
++  sourceReportGeneratedAt: string;
++  staleReason?: TraderPeriodReflectionStaleReason | null;
++  status?: TraderPeriodReflectionGenerationStatus;
++  updatedAt?: string;
++  usage?: TraderPeriodReflectionUsage | null;
++  userId: string;
++}): PersistedTraderPeriodReflection {
++  const now = args.updatedAt ?? args.createdAt ?? new Date().toISOString();
++  const periodStartDate = args.reflection.startDate;
++  const periodEndDate = args.reflection.endDate;
++
++  return {
++    id: persistedReflectionId({
++      accountId: args.accountId,
++      kind: args.reflection.kind,
++      periodStartDate,
++      periodEndDate,
++      userId: args.userId,
++    }),
++    userId: args.userId,
++    accountId: args.accountId,
++    reportId: args.reflection.reportId,
++    kind: args.reflection.kind,
++    periodStartDate,
++    periodEndDate,
++    status: args.status ?? "fallback",
++    provider: args.provider ?? "deterministic_reflection_v1",
++    model: args.model ?? null,
++    sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++    createdAt: args.createdAt ?? now,
++    updatedAt: now,
++    reflection: args.reflection,
++    errorMessage: args.errorMessage ?? null,
++    generationAttemptCount: Math.max(1, args.generationAttemptCount ?? 1),
++    staleReason: args.staleReason ?? null,
++    usage: args.usage ?? null,
++  };
++}
++
++function matchingGeneratedReflection(args: {
++  fallback: TraderPeriodReflection;
++  records: PersistedTraderPeriodReflection[];
++  sourceReportGeneratedAt: string;
++}): TraderPeriodReflection | null {
++  const record = args.records.find(
++    (candidate) =>
++      candidate.kind === args.fallback.kind &&
++      candidate.periodStartDate === args.fallback.startDate &&
++      candidate.periodEndDate === args.fallback.endDate &&
++      candidate.sourceReportGeneratedAt === args.sourceReportGeneratedAt &&
++      candidate.status === "generated" &&
++      recordMatchesCurrentNarrativeContract(candidate),
++  );
++
++  return record?.reflection ?? null;
++}
++
++export function mergePersistedTraderPeriodReflections(args: {
++  accountId: string;
++  records: PersistedTraderPeriodReflection[];
++  sourceReportGeneratedAt: string;
++  system: TraderPeriodReflectionSystem;
++  userId: string;
++}): TraderPeriodReflectionSystem {
++  const records = args.records.filter(
++    (record) => record.userId === args.userId && record.accountId === args.accountId,
++  );
++
++  return {
++    ...args.system,
++    daily:
++      matchingGeneratedReflection({
++        fallback: args.system.daily,
++        records,
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++      }) ?? args.system.daily,
++    weekly:
++      matchingGeneratedReflection({
++        fallback: args.system.weekly,
++        records,
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++      }) ?? args.system.weekly,
++    monthly:
++      matchingGeneratedReflection({
++        fallback: args.system.monthly,
++        records,
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++      }) ?? args.system.monthly,
++  };
++}
+diff --git a/src/lib/trader-analytics/server/period-reflection-generation.ts b/src/lib/trader-analytics/server/period-reflection-generation.ts
+new file mode 100644
+index 00000000..7d1046d3
+--- /dev/null
++++ b/src/lib/trader-analytics/server/period-reflection-generation.ts
+@@ -0,0 +1,772 @@
++import {
++  buildPersistedTraderPeriodReflection,
++  PERIOD_REFLECTION_NARRATIVE_CONTRACT,
++} from "../product/period-reflections";
++import type {
++  PersistedTraderPeriodReflectionGenerationEvent,
++  PersistedTraderPeriodReflection,
++  TraderAnalyticsAccountId,
++  TraderAnalyticsUserId,
++  TraderPeriodReflection,
++  TraderPeriodReflectionKind,
++  TraderPeriodReflectionTokenUsage,
++  TraderPeriodReflectionUsage,
++} from "../product/types";
++
++export const DEFAULT_OPENAI_REFLECTION_MODEL = "gpt-5.4-mini";
++export const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
++export const OPENAI_REFLECTION_PRICING_SOURCE =
++  "openai_api_pricing_2026_06_13";
++
++type FetchLike = typeof fetch;
++
++interface OpenAIReflectionModelPricing {
++  inputUsdPerMillion: number;
++  cachedInputUsdPerMillion: number;
++  outputUsdPerMillion: number;
++}
++
++const knownOpenAIReflectionModelPricing: Record<
++  string,
++  OpenAIReflectionModelPricing
++> = {
++  "gpt-5.5": {
++    inputUsdPerMillion: 5,
++    cachedInputUsdPerMillion: 0.5,
++    outputUsdPerMillion: 30,
++  },
++  "gpt-5.4": {
++    inputUsdPerMillion: 2.5,
++    cachedInputUsdPerMillion: 0.25,
++    outputUsdPerMillion: 15,
++  },
++  "gpt-5.4-mini": {
++    inputUsdPerMillion: 0.75,
++    cachedInputUsdPerMillion: 0.075,
++    outputUsdPerMillion: 4.5,
++  },
++  "gpt-5.4-nano": {
++    inputUsdPerMillion: 0.1,
++    cachedInputUsdPerMillion: 0.01,
++    outputUsdPerMillion: 0.6,
++  },
++};
++
++export interface TraderPeriodReflectionRepository {
++  listPeriodReflections(args: {
++    accountId?: string;
++    kind?: TraderPeriodReflectionKind;
++    userId: TraderAnalyticsUserId;
++  }): PersistedTraderPeriodReflection[];
++  savePeriodReflection(
++    record: PersistedTraderPeriodReflection,
++  ): PersistedTraderPeriodReflection;
++  savePeriodReflectionGenerationEvent?: (
++    event: PersistedTraderPeriodReflectionGenerationEvent,
++  ) => PersistedTraderPeriodReflectionGenerationEvent;
++}
++
++export interface OpenAIReflectionWriterConfig {
++  apiKey?: string | null;
++  endpoint?: string;
++  fetchImpl?: FetchLike;
++  model?: string | null;
++}
++
++export interface GenerateTraderPeriodReflectionArgs {
++  accountId: TraderAnalyticsAccountId;
++  generatedAt?: string;
++  openai?: OpenAIReflectionWriterConfig;
++  reflection: TraderPeriodReflection;
++  repository: TraderPeriodReflectionRepository;
++  sourceReportGeneratedAt: string;
++  userId: TraderAnalyticsUserId;
++}
++
++export interface TraderPeriodReflectionNarrativeOutput {
++  headline: string;
++  summary: string;
++  whatWentWell: string;
++  whatNeedsWork: string;
++  noteInsight: string;
++  progressInsight: string;
++  nextFocus: string;
++}
++
++interface TraderPeriodReflectionNarrativeResult {
++  narrative: TraderPeriodReflectionNarrativeOutput;
++  usage: TraderPeriodReflectionUsage | null;
++}
++
++interface OpenAIReflectionPromptMemory {
++  kind: TraderPeriodReflectionKind;
++  periodStartDate: string;
++  periodEndDate: string;
++  status: PersistedTraderPeriodReflection["status"];
++  provider: PersistedTraderPeriodReflection["provider"];
++  headline: string;
++  summary: string;
++  whatNeedsWork: string;
++  nextFocus: string;
++  generatedAt: string;
++}
++
++const narrativeOutputKeys: Array<keyof TraderPeriodReflectionNarrativeOutput> = [
++  "headline",
++  "summary",
++  "whatWentWell",
++  "whatNeedsWork",
++  "noteInsight",
++  "progressInsight",
++  "nextFocus",
++];
++
++const traderReflectionResponseSchema = {
++  type: "object",
++  properties: {
++    headline: { type: "string" },
++    summary: { type: "string" },
++    whatWentWell: { type: "string" },
++    whatNeedsWork: { type: "string" },
++    noteInsight: { type: "string" },
++    progressInsight: { type: "string" },
++    nextFocus: { type: "string" },
++  },
++  required: narrativeOutputKeys,
++  additionalProperties: false,
++} as const;
++
++function compact(value: string, maxLength = 240): string {
++  const normalized = value.replace(/\s+/g, " ").trim();
++
++  if (normalized.length <= maxLength) {
++    return normalized;
++  }
++
++  return `${normalized.slice(0, maxLength - 1).trim()}...`;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function nonNegativeInteger(value: unknown): number | null {
++  if (typeof value !== "number" || !Number.isFinite(value)) {
++    return null;
++  }
++
++  return Math.max(0, Math.trunc(value));
++}
++
++function numericUsageField(
++  record: Record<string, unknown> | null,
++  key: string,
++): number | null {
++  return record ? nonNegativeInteger(record[key]) : null;
++}
++
++function nestedRecord(
++  record: Record<string, unknown>,
++  key: string,
++): Record<string, unknown> | null {
++  const value = record[key];
++
++  return isRecord(value) ? value : null;
++}
++
++function pricingForModel(model: string): {
++  model: string;
++  pricing: OpenAIReflectionModelPricing | null;
++} {
++  const normalized = model.trim().toLowerCase();
++  const modelKey = Object.keys(knownOpenAIReflectionModelPricing)
++    .sort((left, right) => right.length - left.length)
++    .find((key) => normalized === key || normalized.startsWith(`${key}-`));
++
++  if (!modelKey) {
++    return {
++      model: normalized || model,
++      pricing: null,
++    };
++  }
++
++  return {
++    model: modelKey,
++    pricing: knownOpenAIReflectionModelPricing[modelKey] ?? null,
++  };
++}
++
++function estimateOpenAIReflectionCost(args: {
++  model: string;
++  tokenUsage: TraderPeriodReflectionTokenUsage;
++}): TraderPeriodReflectionUsage["costEstimate"] {
++  const { model, pricing } = pricingForModel(args.model);
++
++  if (!pricing) {
++    return {
++      currency: "USD",
++      estimatedCostUsd: null,
++      inputUsdPerMillion: null,
++      cachedInputUsdPerMillion: null,
++      outputUsdPerMillion: null,
++      pricingModel: model,
++      pricingSource: "unknown_model",
++    };
++  }
++
++  const cachedInputTokens = Math.min(
++    args.tokenUsage.inputTokens,
++    args.tokenUsage.cachedInputTokens,
++  );
++  const freshInputTokens = Math.max(
++    0,
++    args.tokenUsage.inputTokens - cachedInputTokens,
++  );
++  const estimatedCostUsd =
++    (freshInputTokens * pricing.inputUsdPerMillion +
++      cachedInputTokens * pricing.cachedInputUsdPerMillion +
++      args.tokenUsage.outputTokens * pricing.outputUsdPerMillion) /
++    1_000_000;
++
++  return {
++    currency: "USD",
++    estimatedCostUsd: Number(estimatedCostUsd.toFixed(8)),
++    inputUsdPerMillion: pricing.inputUsdPerMillion,
++    cachedInputUsdPerMillion: pricing.cachedInputUsdPerMillion,
++    outputUsdPerMillion: pricing.outputUsdPerMillion,
++    pricingModel: model,
++    pricingSource: OPENAI_REFLECTION_PRICING_SOURCE,
++  };
++}
++
++export function buildOpenAIReflectionUsage(args: {
++  body: unknown;
++  model: string;
++}): TraderPeriodReflectionUsage | null {
++  if (!isRecord(args.body) || !isRecord(args.body.usage)) {
++    return null;
++  }
++
++  const usage = args.body.usage;
++  const inputDetails =
++    nestedRecord(usage, "input_tokens_details") ??
++    nestedRecord(usage, "prompt_tokens_details");
++  const outputDetails =
++    nestedRecord(usage, "output_tokens_details") ??
++    nestedRecord(usage, "completion_tokens_details");
++  const inputTokens =
++    numericUsageField(usage, "input_tokens") ??
++    numericUsageField(usage, "prompt_tokens") ??
++    0;
++  const outputTokens =
++    numericUsageField(usage, "output_tokens") ??
++    numericUsageField(usage, "completion_tokens") ??
++    0;
++  const cachedInputTokens =
++    numericUsageField(inputDetails, "cached_tokens") ?? 0;
++  const reasoningOutputTokens =
++    numericUsageField(outputDetails, "reasoning_tokens") ?? 0;
++  const totalTokens =
++    numericUsageField(usage, "total_tokens") ?? inputTokens + outputTokens;
++
++  if (inputTokens + outputTokens + totalTokens === 0) {
++    return null;
++  }
++
++  const tokenUsage: TraderPeriodReflectionTokenUsage = {
++    inputTokens,
++    cachedInputTokens,
++    outputTokens,
++    reasoningOutputTokens,
++    totalTokens,
++  };
++
++  return {
++    tokenUsage,
++    costEstimate: estimateOpenAIReflectionCost({
++      model: args.model,
++      tokenUsage,
++    }),
++  };
++}
++
++function samePeriod(
++  record: PersistedTraderPeriodReflection,
++  reflection: TraderPeriodReflection,
++): boolean {
++  return (
++    record.kind === reflection.kind &&
++    record.periodStartDate === reflection.startDate &&
++    record.periodEndDate === reflection.endDate
++  );
++}
++
++function uniqueById(
++  records: PersistedTraderPeriodReflection[],
++): PersistedTraderPeriodReflection[] {
++  const seen = new Set<string>();
++  const unique: PersistedTraderPeriodReflection[] = [];
++
++  for (const record of records) {
++    if (seen.has(record.id)) {
++      continue;
++    }
++
++    seen.add(record.id);
++    unique.push(record);
++  }
++
++  return unique;
++}
++
++function memoryForPrompt(
++  record: PersistedTraderPeriodReflection,
++): OpenAIReflectionPromptMemory {
++  return {
++    kind: record.kind,
++    periodStartDate: record.periodStartDate,
++    periodEndDate: record.periodEndDate,
++    status: record.status,
++    provider: record.provider,
++    headline: compact(record.reflection.headline),
++    summary: compact(record.reflection.summary, 360),
++    whatNeedsWork: compact(record.reflection.whatNeedsWork),
++    nextFocus: compact(record.reflection.nextFocus),
++    generatedAt: record.updatedAt,
++  };
++}
++
++function recordMatchesCurrentNarrativeContract(
++  record: PersistedTraderPeriodReflection,
++): boolean {
++  return record.reflection.promptSeed.systemInstruction.includes(
++    PERIOD_REFLECTION_NARRATIVE_CONTRACT,
++  );
++}
++
++export function selectPriorPeriodReflectionMemory(args: {
++  accountId: TraderAnalyticsAccountId;
++  reflection: TraderPeriodReflection;
++  repository: TraderPeriodReflectionRepository;
++  userId: TraderAnalyticsUserId;
++}): PersistedTraderPeriodReflection[] {
++  const sameKind = args.repository.listPeriodReflections({
++    userId: args.userId,
++    accountId: args.accountId,
++    kind: args.reflection.kind,
++  });
++  const monthlyWeekly =
++    args.reflection.kind === "monthly"
++      ? args.repository
++          .listPeriodReflections({
++            userId: args.userId,
++            accountId: args.accountId,
++            kind: "weekly",
++          })
++          .filter(
++            (record) =>
++              record.periodStartDate >= args.reflection.startDate &&
++              record.periodEndDate <= args.reflection.endDate,
++          )
++      : [];
++
++  return uniqueById([...sameKind, ...monthlyWeekly])
++    .filter(recordMatchesCurrentNarrativeContract)
++    .filter((record) => !samePeriod(record, args.reflection))
++    .filter((record) => record.periodEndDate <= args.reflection.endDate)
++    .sort((left, right) => right.periodEndDate.localeCompare(left.periodEndDate))
++    .slice(0, 6);
++}
++
++export function buildOpenAITraderPeriodReflectionRequest(args: {
++  model: string;
++  previousReflections: PersistedTraderPeriodReflection[];
++  reflection: TraderPeriodReflection;
++}): Record<string, unknown> {
++  const deterministicDraft = {
++    headline: args.reflection.headline,
++    summary: args.reflection.summary,
++    whatWentWell: args.reflection.whatWentWell,
++    whatNeedsWork: args.reflection.whatNeedsWork,
++    noteInsight: args.reflection.noteInsight,
++    progressInsight: args.reflection.progressInsight,
++    nextFocus: args.reflection.nextFocus,
++  };
++  const promptPackage = {
++    period: {
++      kind: args.reflection.kind,
++      label: args.reflection.label,
++      startDate: args.reflection.startDate,
++      endDate: args.reflection.endDate,
++      reportId: args.reflection.reportId,
++    },
++    currentEvidence: args.reflection.promptSeed.input,
++    deterministicDraft,
++    evidence: args.reflection.evidence.map((item) => ({
++      kind: item.kind,
++      label: item.label,
++      detail: item.detail,
++      relatedTradeIds: item.relatedTradeIds,
++    })),
++    previousReflectionMemory: args.previousReflections.map(memoryForPrompt),
++  };
++
++  return {
++    model: args.model,
++    store: false,
++    input: [
++      {
++        role: "system",
++        content: [
++          args.reflection.promptSeed.systemInstruction,
++          "You are the final narrative writer for Trader Intelligence period reflections.",
++          "Use only the supplied evidence and prior reflection memory. Do not invent trades, emotions, indicators, market conditions, or improvement claims.",
++          "Do not merely restate the deterministic draft, P/L totals, trade count, best trade, or worst trade. The interface already shows those facts.",
++          "Add value by identifying the repeated trade-management behavior, what changed or repeated, and the next trading rule. If there are saved notes, synthesize what the trader said as evidence; if notes are missing, say the conclusion is behavior-only.",
++          "For weekly and monthly output, do not tell the trader what their journal should capture, what to inspect, or that the week result is not the point. Speak directly about what their trades show and what behavior should change next.",
++          "The nextFocus field must be a trading rule or behavior focus, not an instruction to open, inspect, review, or write notes.",
++          "Avoid awkward phrases such as \"decision point to inspect\", \"not the week's result\", and \"your journal should capture\".",
++          "Avoid internal product terms in user-facing text, including \"snapshot\", \"report\", \"evidence package\", \"source data\", and \"deterministic draft\". Say \"prior period\", \"earlier period\", or \"your trades\" instead.",
++          "For daily output, stay humble: one day can produce a replay question, not a proven habit. For weekly and monthly output, compare repeated behavior and prior reflection memory when available.",
++          "Write in normal second-person language as a direct human coach.",
++        ].join("\n\n"),
++      },
++      {
++        role: "user",
++        content: [
++          args.reflection.promptSeed.userInstruction,
++          "Return concise JSON matching the provided schema. Keep each field specific and useful.",
++          JSON.stringify(promptPackage, null, 2),
++        ].join("\n\n"),
++      },
++    ],
++    text: {
++      format: {
++        type: "json_schema",
++        name: "trader_period_reflection_v1",
++        schema: traderReflectionResponseSchema,
++        strict: true,
++      },
++    },
++    max_output_tokens: 1200,
++  };
++}
++
++function validateNarrativeOutput(
++  value: unknown,
++): TraderPeriodReflectionNarrativeOutput {
++  if (!isRecord(value)) {
++    throw new Error("OpenAI reflection output was not an object.");
++  }
++
++  const output = {} as TraderPeriodReflectionNarrativeOutput;
++
++  for (const key of narrativeOutputKeys) {
++    const field = value[key];
++
++    if (typeof field !== "string" || field.trim().length === 0) {
++      throw new Error(`OpenAI reflection output is missing ${key}.`);
++    }
++
++    output[key] = field.trim();
++  }
++
++  return output;
++}
++
++function responseOutputText(body: unknown): string {
++  if (!isRecord(body)) {
++    throw new Error("OpenAI response body was not an object.");
++  }
++
++  if (typeof body.output_text === "string" && body.output_text.trim()) {
++    return body.output_text;
++  }
++
++  if (Array.isArray(body.output)) {
++    for (const item of body.output) {
++      if (!isRecord(item) || !Array.isArray(item.content)) {
++        continue;
++      }
++
++      for (const content of item.content) {
++        if (
++          isRecord(content) &&
++          typeof content.text === "string" &&
++          content.text.trim()
++        ) {
++          return content.text;
++        }
++      }
++    }
++  }
++
++  throw new Error("OpenAI response did not include output_text.");
++}
++
++async function readOpenAIError(response: Response): Promise<string> {
++  const fallback = `OpenAI Responses API request failed with ${response.status}.`;
++
++  try {
++    const text = await response.text();
++
++    if (!text) {
++      return fallback;
++    }
++
++    const body = JSON.parse(text);
++
++    if (isRecord(body.error) && typeof body.error.message === "string") {
++      return `${fallback} ${body.error.message}`;
++    }
++
++    return `${fallback} ${compact(text)}`;
++  } catch {
++    return fallback;
++  }
++}
++
++async function requestOpenAIReflectionNarrative(args: {
++  apiKey: string;
++  endpoint: string;
++  fetchImpl: FetchLike;
++  model: string;
++  previousReflections: PersistedTraderPeriodReflection[];
++  reflection: TraderPeriodReflection;
++}): Promise<TraderPeriodReflectionNarrativeResult> {
++  const response = await args.fetchImpl(args.endpoint, {
++    method: "POST",
++    headers: {
++      Authorization: `Bearer ${args.apiKey}`,
++      "Content-Type": "application/json",
++    },
++    body: JSON.stringify(
++      buildOpenAITraderPeriodReflectionRequest({
++        model: args.model,
++        previousReflections: args.previousReflections,
++        reflection: args.reflection,
++      }),
++    ),
++  });
++
++  if (!response.ok) {
++    throw new Error(await readOpenAIError(response));
++  }
++
++  const body = await response.json();
++  const text = responseOutputText(body);
++  const parsed = JSON.parse(text);
++
++  return {
++    narrative: validateNarrativeOutput(parsed),
++    usage: buildOpenAIReflectionUsage({
++      body,
++      model: args.model,
++    }),
++  };
++}
++
++function generatedReflection(args: {
++  generatedAt: string;
++  narrative: TraderPeriodReflectionNarrativeOutput;
++  reflection: TraderPeriodReflection;
++}): TraderPeriodReflection {
++  return {
++    ...args.reflection,
++    generatedAt: args.generatedAt,
++    headline: args.narrative.headline,
++    summary: args.narrative.summary,
++    whatWentWell: args.narrative.whatWentWell,
++    whatNeedsWork: args.narrative.whatNeedsWork,
++    noteInsight: args.narrative.noteInsight,
++    progressInsight: args.narrative.progressInsight,
++    nextFocus: args.narrative.nextFocus,
++    narrativeSource: "openai_responses_api",
++  };
++}
++
++function currentPeriodRecord(args: {
++  accountId: TraderAnalyticsAccountId;
++  reflection: TraderPeriodReflection;
++  repository: TraderPeriodReflectionRepository;
++  userId: TraderAnalyticsUserId;
++}): PersistedTraderPeriodReflection | null {
++  return (
++    args.repository
++      .listPeriodReflections({
++        userId: args.userId,
++        accountId: args.accountId,
++        kind: args.reflection.kind,
++      })
++      .find(
++        (record) =>
++          record.periodStartDate === args.reflection.startDate &&
++          record.periodEndDate === args.reflection.endDate,
++      ) ?? null
++  );
++}
++
++function nextGenerationAttemptCount(
++  record: PersistedTraderPeriodReflection | null,
++): number {
++  return Math.max(1, (record?.generationAttemptCount ?? 0) + 1);
++}
++
++function generationEventId(
++  record: PersistedTraderPeriodReflection,
++): string {
++  return [
++    "period-reflection-generation-event",
++    record.userId,
++    record.accountId,
++    record.kind,
++    record.periodStartDate,
++    record.periodEndDate,
++    record.generationAttemptCount,
++    record.updatedAt,
++  ].join(":");
++}
++
++function generationEventFromRecord(
++  record: PersistedTraderPeriodReflection,
++): PersistedTraderPeriodReflectionGenerationEvent {
++  return {
++    id: generationEventId(record),
++    userId: record.userId,
++    accountId: record.accountId,
++    reflectionRecordId: record.id,
++    reportId: record.reportId,
++    kind: record.kind,
++    periodStartDate: record.periodStartDate,
++    periodEndDate: record.periodEndDate,
++    status: record.status,
++    provider: record.provider,
++    model: record.model,
++    sourceReportGeneratedAt: record.sourceReportGeneratedAt,
++    createdAt: record.updatedAt,
++    generationAttemptCount: record.generationAttemptCount,
++    errorMessage: record.errorMessage,
++    usage: record.usage ?? null,
++  };
++}
++
++function saveGenerationEventIfSupported(args: {
++  record: PersistedTraderPeriodReflection;
++  repository: TraderPeriodReflectionRepository;
++}): PersistedTraderPeriodReflection {
++  args.repository.savePeriodReflectionGenerationEvent?.(
++    generationEventFromRecord(args.record),
++  );
++
++  return args.record;
++}
++
++export async function generateAndSaveTraderPeriodReflection(
++  args: GenerateTraderPeriodReflectionArgs,
++): Promise<PersistedTraderPeriodReflection> {
++  const generatedAt = args.generatedAt ?? new Date().toISOString();
++  const previousCurrentPeriodRecord = currentPeriodRecord({
++    repository: args.repository,
++    userId: args.userId,
++    accountId: args.accountId,
++    reflection: args.reflection,
++  });
++  const generationAttemptCount = nextGenerationAttemptCount(
++    previousCurrentPeriodRecord,
++  );
++  const createdAt = previousCurrentPeriodRecord?.createdAt ?? generatedAt;
++  const apiKey = args.openai?.apiKey ?? process.env.OPENAI_API_KEY ?? "";
++  const model =
++    args.openai?.model ??
++    process.env.OPENAI_REFLECTION_MODEL ??
++    DEFAULT_OPENAI_REFLECTION_MODEL;
++  const endpoint = args.openai?.endpoint ?? OPENAI_RESPONSES_ENDPOINT;
++  const fetchImpl = args.openai?.fetchImpl ?? fetch;
++
++  if (!apiKey.trim()) {
++    const record = args.repository.savePeriodReflection(
++      buildPersistedTraderPeriodReflection({
++        userId: args.userId,
++        accountId: args.accountId,
++        reflection: args.reflection,
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++        createdAt,
++        updatedAt: generatedAt,
++        generationAttemptCount,
++        status: "fallback",
++        provider: "deterministic_reflection_v1",
++      }),
++    );
++
++    return saveGenerationEventIfSupported({
++      repository: args.repository,
++      record,
++    });
++  }
++
++  const previousReflections = selectPriorPeriodReflectionMemory({
++    repository: args.repository,
++    userId: args.userId,
++    accountId: args.accountId,
++    reflection: args.reflection,
++  });
++
++  try {
++    const result = await requestOpenAIReflectionNarrative({
++      apiKey,
++      endpoint,
++      fetchImpl,
++      model,
++      previousReflections,
++      reflection: args.reflection,
++    });
++
++    const record = args.repository.savePeriodReflection(
++      buildPersistedTraderPeriodReflection({
++        userId: args.userId,
++        accountId: args.accountId,
++        reflection: generatedReflection({
++          reflection: args.reflection,
++          narrative: result.narrative,
++          generatedAt,
++        }),
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++        createdAt,
++        updatedAt: generatedAt,
++        generationAttemptCount,
++        status: "generated",
++        provider: "openai_responses_api",
++        model,
++        usage: result.usage,
++      }),
++    );
++
++    return saveGenerationEventIfSupported({
++      repository: args.repository,
++      record,
++    });
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error);
++
++    const record = args.repository.savePeriodReflection(
++      buildPersistedTraderPeriodReflection({
++        userId: args.userId,
++        accountId: args.accountId,
++        reflection: args.reflection,
++        sourceReportGeneratedAt: args.sourceReportGeneratedAt,
++        createdAt,
++        updatedAt: generatedAt,
++        generationAttemptCount,
++        status: "failed",
++        provider: "openai_responses_api",
++        model,
++        errorMessage: compact(message, 480),
++      }),
++    );
++
++    return saveGenerationEventIfSupported({
++      repository: args.repository,
++      record,
++    });
++  }
++}
+diff --git a/src/lib/trader-analytics/server/period-reflection-service.ts b/src/lib/trader-analytics/server/period-reflection-service.ts
+new file mode 100644
+index 00000000..ac437ba3
+--- /dev/null
++++ b/src/lib/trader-analytics/server/period-reflection-service.ts
+@@ -0,0 +1,328 @@
++import { buildProductTraderAnalyticsViewModel } from "../index";
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  SqliteImportCommitRepository,
++} from "../product/import-commit/sqlite-import-commit-repository";
++import type {
++  PersistedTraderPeriodReflection,
++  TraderAnalyticsAccountId,
++  TraderAnalyticsUserId,
++  TraderPeriodReflection,
++  TraderPeriodReflectionGenerationAvailability,
++  TraderPeriodReflectionGenerationAvailabilitySet,
++  TraderPeriodReflectionGenerationStatus,
++  TraderPeriodReflectionKind,
++} from "../product/types";
++import {
++  generateAndSaveTraderPeriodReflection,
++  type OpenAIReflectionWriterConfig,
++} from "./period-reflection-generation";
++
++export const TRADER_PERIOD_REFLECTION_GENERATION_KINDS: TraderPeriodReflectionKind[] =
++  ["daily", "weekly", "monthly"];
++
++export interface TraderPeriodReflectionGenerationRunResult {
++  contractVersion: "trader_period_reflection_generation_run_v1";
++  source: "saved_sqlite";
++  userId: TraderAnalyticsUserId;
++  accountId: TraderAnalyticsAccountId;
++  latestReportId: string;
++  sourceReportGeneratedAt: string;
++  generatedAt: string;
++  requestedKinds: TraderPeriodReflectionKind[];
++  availability: TraderPeriodReflectionGenerationAvailabilitySet;
++  records: PersistedTraderPeriodReflection[];
++  statusCounts: Record<TraderPeriodReflectionGenerationStatus, number>;
++  usageSummary: TraderPeriodReflectionGenerationUsageSummary;
++  providerConfigured: boolean;
++  nextAction: string;
++}
++
++export interface TraderPeriodReflectionGenerationUsageSummary {
++  recordCount: number;
++  meteredRecordCount: number;
++  knownCostRecordCount: number;
++  unknownCostRecordCount: number;
++  estimatedCostUsd: number | null;
++  inputTokens: number;
++  cachedInputTokens: number;
++  outputTokens: number;
++  reasoningOutputTokens: number;
++  totalTokens: number;
++}
++
++export class TraderPeriodReflectionGenerationUnavailableError extends Error {
++  readonly unavailable: TraderPeriodReflectionGenerationAvailability[];
++
++  constructor(unavailable: TraderPeriodReflectionGenerationAvailability[]) {
++    super(
++      `Reflection generation is not available for ${unavailable.map((item) => item.kind).join(", ")}.`,
++    );
++    this.name = "TraderPeriodReflectionGenerationUnavailableError";
++    this.unavailable = unavailable;
++  }
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function uniqueKinds(
++  kinds: TraderPeriodReflectionKind[],
++): TraderPeriodReflectionKind[] {
++  return TRADER_PERIOD_REFLECTION_GENERATION_KINDS.filter((kind) =>
++    kinds.includes(kind),
++  );
++}
++
++export function parseTraderPeriodReflectionGenerationKinds(
++  value: unknown,
++): TraderPeriodReflectionKind[] {
++  if (value === undefined) {
++    return TRADER_PERIOD_REFLECTION_GENERATION_KINDS;
++  }
++
++  if (!Array.isArray(value)) {
++    throw new Error("kinds must be an array of daily, weekly, or monthly.");
++  }
++
++  const kinds = value.map((item) => {
++    if (
++      item === "daily" ||
++      item === "weekly" ||
++      item === "monthly"
++    ) {
++      return item;
++    }
++
++    throw new Error("kinds must only include daily, weekly, or monthly.");
++  });
++  const unique = uniqueKinds(kinds);
++
++  if (unique.length === 0) {
++    throw new Error("kinds must include at least one period.");
++  }
++
++  return unique;
++}
++
++export function parseTraderPeriodReflectionGenerationRequest(
++  document: unknown,
++): {
++  generatedAt?: string;
++  kinds: TraderPeriodReflectionKind[];
++} {
++  if (document === undefined) {
++    return { kinds: TRADER_PERIOD_REFLECTION_GENERATION_KINDS };
++  }
++
++  if (!isRecord(document)) {
++    throw new Error("Request body must be an object.");
++  }
++
++  const generatedAt =
++    typeof document.generatedAt === "string" && document.generatedAt.trim()
++      ? document.generatedAt.trim()
++      : undefined;
++
++  return {
++    generatedAt,
++    kinds: parseTraderPeriodReflectionGenerationKinds(document.kinds),
++  };
++}
++
++function reflectionByKind(args: {
++  kind: TraderPeriodReflectionKind;
++  reflections: {
++    daily: TraderPeriodReflection;
++    weekly: TraderPeriodReflection;
++    monthly: TraderPeriodReflection;
++  };
++}): TraderPeriodReflection {
++  switch (args.kind) {
++    case "daily":
++      return args.reflections.daily;
++    case "weekly":
++      return args.reflections.weekly;
++    case "monthly":
++      return args.reflections.monthly;
++  }
++}
++
++function availabilityByKind(args: {
++  availability: TraderPeriodReflectionGenerationAvailabilitySet;
++  kind: TraderPeriodReflectionKind;
++}): TraderPeriodReflectionGenerationAvailability {
++  switch (args.kind) {
++    case "daily":
++      return args.availability.daily;
++    case "weekly":
++      return args.availability.weekly;
++    case "monthly":
++      return args.availability.monthly;
++  }
++}
++
++function statusCounts(
++  records: PersistedTraderPeriodReflection[],
++): Record<TraderPeriodReflectionGenerationStatus, number> {
++  return records.reduce<Record<TraderPeriodReflectionGenerationStatus, number>>(
++    (counts, record) => {
++      counts[record.status] += 1;
++      return counts;
++    },
++    {
++      fallback: 0,
++      failed: 0,
++      generated: 0,
++      stale: 0,
++    },
++  );
++}
++
++function usageSummary(
++  records: PersistedTraderPeriodReflection[],
++): TraderPeriodReflectionGenerationUsageSummary {
++  let estimatedCostUsd = 0;
++  let meteredRecordCount = 0;
++  let knownCostRecordCount = 0;
++  let unknownCostRecordCount = 0;
++  let inputTokens = 0;
++  let cachedInputTokens = 0;
++  let outputTokens = 0;
++  let reasoningOutputTokens = 0;
++  let totalTokens = 0;
++
++  for (const record of records) {
++    const usage = record.usage ?? null;
++
++    if (!usage) {
++      continue;
++    }
++
++    meteredRecordCount += 1;
++    inputTokens += usage.tokenUsage.inputTokens;
++    cachedInputTokens += usage.tokenUsage.cachedInputTokens;
++    outputTokens += usage.tokenUsage.outputTokens;
++    reasoningOutputTokens += usage.tokenUsage.reasoningOutputTokens;
++    totalTokens += usage.tokenUsage.totalTokens;
++
++    if (usage.costEstimate.estimatedCostUsd === null) {
++      unknownCostRecordCount += 1;
++    } else {
++      knownCostRecordCount += 1;
++      estimatedCostUsd += usage.costEstimate.estimatedCostUsd;
++    }
++  }
++
++  return {
++    recordCount: records.length,
++    meteredRecordCount,
++    knownCostRecordCount,
++    unknownCostRecordCount,
++    estimatedCostUsd:
++      meteredRecordCount > 0 && knownCostRecordCount === 0
++        ? null
++        : Number(estimatedCostUsd.toFixed(8)),
++    inputTokens,
++    cachedInputTokens,
++    outputTokens,
++    reasoningOutputTokens,
++    totalTokens,
++  };
++}
++
++function nextActionForRecords(
++  records: PersistedTraderPeriodReflection[],
++): string {
++  if (records.every((record) => record.status === "generated")) {
++    return "Generated AI trading reflections are saved and ready to display.";
++  }
++
++  if (records.some((record) => record.status === "failed")) {
++    return "Review OpenAI provider errors; deterministic fallback summaries were saved for failed periods.";
++  }
++
++  return "Configure OPENAI_API_KEY to replace deterministic fallback summaries with AI-generated reflections.";
++}
++
++export async function runTraderPeriodReflectionGeneration(args?: {
++  accountId?: TraderAnalyticsAccountId;
++  generatedAt?: string;
++  kinds?: TraderPeriodReflectionKind[];
++  openai?: OpenAIReflectionWriterConfig;
++  repository?: SqliteImportCommitRepository;
++  userId?: TraderAnalyticsUserId;
++}): Promise<TraderPeriodReflectionGenerationRunResult> {
++  const repository = args?.repository ?? new SqliteImportCommitRepository();
++  const userId = args?.userId ?? DEMO_USER_ID;
++  const accountId = args?.accountId ?? DEMO_ACCOUNT_ID;
++  const reports = repository.listReports(userId);
++
++  if (reports.length === 0) {
++    throw new Error("No saved analytics report is available for reflection generation.");
++  }
++
++  const generatedAt = args?.generatedAt ?? new Date().toISOString();
++  const viewModel = buildProductTraderAnalyticsViewModel({
++    repository,
++    userId,
++    storageMode: "local_sqlite_single_user",
++    includePersistedPeriodReflections: false,
++    periodReflectionNow: new Date(generatedAt),
++  });
++  const requestedKinds = uniqueKinds(
++    args?.kinds ?? TRADER_PERIOD_REFLECTION_GENERATION_KINDS,
++  );
++  const unavailable = requestedKinds
++    .map((kind) =>
++      availabilityByKind({
++        availability: viewModel.periodReflections.generation,
++        kind,
++      }),
++    )
++    .filter((availability) => !availability.canGenerate);
++
++  if (unavailable.length > 0) {
++    throw new TraderPeriodReflectionGenerationUnavailableError(unavailable);
++  }
++
++  const records: PersistedTraderPeriodReflection[] = [];
++
++  for (const kind of requestedKinds) {
++    records.push(
++      await generateAndSaveTraderPeriodReflection({
++        repository,
++        userId,
++        accountId,
++        reflection: reflectionByKind({
++          kind,
++          reflections: viewModel.periodReflections,
++        }),
++        sourceReportGeneratedAt: viewModel.latestReport.generatedAt,
++        generatedAt,
++        openai: args?.openai,
++      }),
++    );
++  }
++
++  return {
++    contractVersion: "trader_period_reflection_generation_run_v1",
++    source: "saved_sqlite",
++    userId,
++    accountId,
++    latestReportId: viewModel.latestReport.id,
++    sourceReportGeneratedAt: viewModel.latestReport.generatedAt,
++    generatedAt,
++    requestedKinds,
++    availability: viewModel.periodReflections.generation,
++    records,
++    statusCounts: statusCounts(records),
++    usageSummary: usageSummary(records),
++    providerConfigured: records.some(
++      (record) => record.provider === "openai_responses_api",
++    ),
++    nextAction: nextActionForRecords(records),
++  };
++}
+diff --git a/src/lib/trader-analytics/server/period-reflection-usage-report.ts b/src/lib/trader-analytics/server/period-reflection-usage-report.ts
+new file mode 100644
+index 00000000..d66e5e5e
+--- /dev/null
++++ b/src/lib/trader-analytics/server/period-reflection-usage-report.ts
+@@ -0,0 +1,329 @@
++import {
++  DEFAULT_OPENAI_REFLECTION_MODEL,
++} from "./period-reflection-generation";
++import {
++  DEMO_ACCOUNT_ID,
++  DEMO_USER_ID,
++  SqliteImportCommitRepository,
++} from "../product/import-commit/sqlite-import-commit-repository";
++import type {
++  PersistedTraderPeriodReflectionGenerationEvent,
++  TraderAnalyticsAccountId,
++  TraderAnalyticsUserId,
++  TraderPeriodReflectionGenerationStatus,
++  TraderPeriodReflectionKind,
++  TraderPeriodReflectionProvider,
++} from "../product/types";
++
++export interface TraderPeriodReflectionUsageSummary {
++  eventCount: number;
++  meteredEventCount: number;
++  knownCostEventCount: number;
++  unknownCostEventCount: number;
++  estimatedCostUsd: number | null;
++  inputTokens: number;
++  cachedInputTokens: number;
++  outputTokens: number;
++  reasoningOutputTokens: number;
++  totalTokens: number;
++}
++
++export interface TraderPeriodReflectionUsageModelRow
++  extends TraderPeriodReflectionUsageSummary {
++  model: string;
++}
++
++export interface TraderPeriodReflectionUsageKindRow
++  extends TraderPeriodReflectionUsageSummary {
++  kind: TraderPeriodReflectionKind;
++}
++
++export interface TraderPeriodReflectionRecentUsageEvent {
++  id: string;
++  createdAt: string;
++  kind: TraderPeriodReflectionKind;
++  periodStartDate: string;
++  periodEndDate: string;
++  status: TraderPeriodReflectionGenerationStatus;
++  provider: TraderPeriodReflectionProvider;
++  model: string | null;
++  generationAttemptCount: number;
++  estimatedCostUsd: number | null;
++  totalTokens: number;
++  errorMessage: string | null;
++}
++
++export interface TraderPeriodReflectionProviderReadiness {
++  provider: "openai_responses_api";
++  status: "configured" | "not_configured";
++  openaiApiKeyConfigured: boolean;
++  configuredModel: string;
++  defaultModel: string;
++  modelSource: "default" | "environment";
++  nextAction: string;
++}
++
++export interface TraderPeriodReflectionUsageReport {
++  contractVersion: "trader_period_reflection_usage_report_v1";
++  generatedAt: string;
++  userId: TraderAnalyticsUserId;
++  accountId: TraderAnalyticsAccountId;
++  providerReadiness: TraderPeriodReflectionProviderReadiness;
++  summary: TraderPeriodReflectionUsageSummary;
++  statusCounts: Record<TraderPeriodReflectionGenerationStatus, number>;
++  providerCounts: Record<TraderPeriodReflectionProvider, number>;
++  modelRows: TraderPeriodReflectionUsageModelRow[];
++  kindRows: TraderPeriodReflectionUsageKindRow[];
++  recentEvents: TraderPeriodReflectionRecentUsageEvent[];
++  limitation: string;
++  nextAction: string;
++}
++
++export interface TraderPeriodReflectionUsageReportRepository {
++  listPeriodReflectionGenerationEvents(args: {
++    accountId?: string;
++    kind?: TraderPeriodReflectionKind;
++    userId: TraderAnalyticsUserId;
++  }): PersistedTraderPeriodReflectionGenerationEvent[];
++}
++
++const emptyUsageSummary = (): TraderPeriodReflectionUsageSummary => ({
++  eventCount: 0,
++  meteredEventCount: 0,
++  knownCostEventCount: 0,
++  unknownCostEventCount: 0,
++  estimatedCostUsd: 0,
++  inputTokens: 0,
++  cachedInputTokens: 0,
++  outputTokens: 0,
++  reasoningOutputTokens: 0,
++  totalTokens: 0,
++});
++
++function providerReadiness(args?: {
++  apiKey?: string | null;
++  model?: string | null;
++}): TraderPeriodReflectionProviderReadiness {
++  const configuredModel = args?.model?.trim() || DEFAULT_OPENAI_REFLECTION_MODEL;
++  const openaiApiKeyConfigured = Boolean(args?.apiKey?.trim());
++
++  return {
++    provider: "openai_responses_api",
++    status: openaiApiKeyConfigured ? "configured" : "not_configured",
++    openaiApiKeyConfigured,
++    configuredModel,
++    defaultModel: DEFAULT_OPENAI_REFLECTION_MODEL,
++    modelSource: args?.model?.trim() ? "environment" : "default",
++    nextAction: openaiApiKeyConfigured
++      ? "OpenAI reflection generation is configured. Generate one saved-data reflection and confirm usage appears here."
++      : "Configure OPENAI_API_KEY before live AI reflection calls. The app will keep saving deterministic fallback summaries until then.",
++  };
++}
++
++function addEventToSummary(
++  summary: TraderPeriodReflectionUsageSummary,
++  event: PersistedTraderPeriodReflectionGenerationEvent,
++): void {
++  summary.eventCount += 1;
++
++  if (!event.usage) {
++    return;
++  }
++
++  summary.meteredEventCount += 1;
++  summary.inputTokens += event.usage.tokenUsage.inputTokens;
++  summary.cachedInputTokens += event.usage.tokenUsage.cachedInputTokens;
++  summary.outputTokens += event.usage.tokenUsage.outputTokens;
++  summary.reasoningOutputTokens += event.usage.tokenUsage.reasoningOutputTokens;
++  summary.totalTokens += event.usage.tokenUsage.totalTokens;
++
++  if (event.usage.costEstimate.estimatedCostUsd === null) {
++    summary.unknownCostEventCount += 1;
++    return;
++  }
++
++  summary.knownCostEventCount += 1;
++  summary.estimatedCostUsd =
++    (summary.estimatedCostUsd ?? 0) +
++    event.usage.costEstimate.estimatedCostUsd;
++}
++
++function finalizeSummary(
++  summary: TraderPeriodReflectionUsageSummary,
++): TraderPeriodReflectionUsageSummary {
++  return {
++    ...summary,
++    estimatedCostUsd:
++      summary.meteredEventCount > 0 && summary.knownCostEventCount === 0
++        ? null
++        : Number((summary.estimatedCostUsd ?? 0).toFixed(8)),
++  };
++}
++
++function modelKey(event: PersistedTraderPeriodReflectionGenerationEvent): string {
++  return event.model ?? event.provider;
++}
++
++function sortedModelRows(
++  events: PersistedTraderPeriodReflectionGenerationEvent[],
++): TraderPeriodReflectionUsageModelRow[] {
++  const rows = new Map<string, TraderPeriodReflectionUsageSummary>();
++
++  for (const event of events) {
++    const key = modelKey(event);
++    const row = rows.get(key) ?? emptyUsageSummary();
++    addEventToSummary(row, event);
++    rows.set(key, row);
++  }
++
++  return [...rows.entries()]
++    .map(([model, summary]) => ({
++      model,
++      ...finalizeSummary(summary),
++    }))
++    .sort(
++      (left, right) =>
++        (right.estimatedCostUsd ?? 0) - (left.estimatedCostUsd ?? 0) ||
++        right.eventCount - left.eventCount ||
++        left.model.localeCompare(right.model),
++    );
++}
++
++function sortedKindRows(
++  events: PersistedTraderPeriodReflectionGenerationEvent[],
++): TraderPeriodReflectionUsageKindRow[] {
++  const rows = new Map<
++    TraderPeriodReflectionKind,
++    TraderPeriodReflectionUsageSummary
++  >();
++
++  for (const event of events) {
++    const row = rows.get(event.kind) ?? emptyUsageSummary();
++    addEventToSummary(row, event);
++    rows.set(event.kind, row);
++  }
++
++  return (["daily", "weekly", "monthly"] as const)
++    .filter((kind) => rows.has(kind))
++    .map((kind) => ({
++      kind,
++      ...finalizeSummary(rows.get(kind) ?? emptyUsageSummary()),
++    }));
++}
++
++function statusCounts(
++  events: PersistedTraderPeriodReflectionGenerationEvent[],
++): Record<TraderPeriodReflectionGenerationStatus, number> {
++  return events.reduce<Record<TraderPeriodReflectionGenerationStatus, number>>(
++    (counts, event) => {
++      counts[event.status] += 1;
++      return counts;
++    },
++    {
++      fallback: 0,
++      failed: 0,
++      generated: 0,
++      stale: 0,
++    },
++  );
++}
++
++function providerCounts(
++  events: PersistedTraderPeriodReflectionGenerationEvent[],
++): Record<TraderPeriodReflectionProvider, number> {
++  return events.reduce<Record<TraderPeriodReflectionProvider, number>>(
++    (counts, event) => {
++      counts[event.provider] += 1;
++      return counts;
++    },
++    {
++      deterministic_reflection_v1: 0,
++      openai_responses_api: 0,
++    },
++  );
++}
++
++function recentEvents(
++  events: PersistedTraderPeriodReflectionGenerationEvent[],
++): TraderPeriodReflectionRecentUsageEvent[] {
++  return [...events]
++    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
++    .slice(0, 20)
++    .map((event) => ({
++      id: event.id,
++      createdAt: event.createdAt,
++      kind: event.kind,
++      periodStartDate: event.periodStartDate,
++      periodEndDate: event.periodEndDate,
++      status: event.status,
++      provider: event.provider,
++      model: event.model,
++      generationAttemptCount: event.generationAttemptCount,
++      estimatedCostUsd: event.usage?.costEstimate.estimatedCostUsd ?? null,
++      totalTokens: event.usage?.tokenUsage.totalTokens ?? 0,
++      errorMessage: event.errorMessage,
++    }));
++}
++
++export function buildTraderPeriodReflectionUsageReport(args: {
++  accountId: TraderAnalyticsAccountId;
++  events: PersistedTraderPeriodReflectionGenerationEvent[];
++  generatedAt?: string;
++  providerReadiness?: TraderPeriodReflectionProviderReadiness;
++  userId: TraderAnalyticsUserId;
++}): TraderPeriodReflectionUsageReport {
++  const summary = emptyUsageSummary();
++  const readiness = args.providerReadiness ?? providerReadiness();
++
++  for (const event of args.events) {
++    addEventToSummary(summary, event);
++  }
++
++  return {
++    contractVersion: "trader_period_reflection_usage_report_v1",
++    generatedAt: args.generatedAt ?? new Date().toISOString(),
++    userId: args.userId,
++    accountId: args.accountId,
++    providerReadiness: readiness,
++    summary: finalizeSummary(summary),
++    statusCounts: statusCounts(args.events),
++    providerCounts: providerCounts(args.events),
++    modelRows: sortedModelRows(args.events),
++    kindRows: sortedKindRows(args.events),
++    recentEvents: recentEvents(args.events),
++    limitation:
++      "This report tracks generation attempts recorded after the usage-event log was added. Older canonical reflection rows may still have usage data, but they are not historical attempt events.",
++    nextAction:
++      readiness.status === "not_configured"
++        ? readiness.nextAction
++        : args.events.length === 0
++        ? "Generate at least one saved-data reflection to start recording usage."
++        : "Review model cost, failed attempts, and daily event counts before raising generation limits.",
++  };
++}
++
++export function readTraderPeriodReflectionUsageReport(args?: {
++  accountId?: TraderAnalyticsAccountId;
++  generatedAt?: string;
++  repository?: TraderPeriodReflectionUsageReportRepository;
++  userId?: TraderAnalyticsUserId;
++}): TraderPeriodReflectionUsageReport {
++  const repository = args?.repository ?? new SqliteImportCommitRepository();
++  const userId = args?.userId ?? DEMO_USER_ID;
++  const accountId = args?.accountId ?? DEMO_ACCOUNT_ID;
++  const events = repository.listPeriodReflectionGenerationEvents({
++    userId,
++    accountId,
++  });
++
++  return buildTraderPeriodReflectionUsageReport({
++    userId,
++    accountId,
++    events,
++    generatedAt: args?.generatedAt,
++    providerReadiness: providerReadiness({
++      apiKey: process.env.OPENAI_API_KEY,
++      model: process.env.OPENAI_REFLECTION_MODEL,
++    }),
++  });
++}

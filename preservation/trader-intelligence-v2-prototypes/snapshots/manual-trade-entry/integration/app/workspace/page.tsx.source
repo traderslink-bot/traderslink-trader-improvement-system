@@ -1,0 +1,947 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import {
+  AdvancedDisclosure,
+  DashboardSideNav,
+  PrimaryActionPanel,
+  WorkflowHandoffPanel,
+  withPageAnchor,
+} from "../app-ui";
+import { buildSavedReviewQueueReadModel } from "../../src/lib/trader-analytics/server/saved-review-queue";
+import { buildSavedOrSampleTraderAnalyticsViewModel } from "../../src/lib/trader-analytics/server/saved-trader-analytics-data";
+import { buildSavedTradeThreadReadModel } from "../../src/lib/trader-analytics/server/saved-trade-threads";
+import {
+  DEMO_ACCOUNT_ID,
+  SqliteImportCommitRepository,
+} from "../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import {
+  importCountLabel,
+  importStatusLabel,
+} from "../../src/lib/trader-analytics/product/import-user-copy";
+import { filterCustomerSavedTrades } from "../../src/lib/trader-analytics/product/customer-data-filter";
+import {
+  canUseAiPeriodReflections,
+  canUseChartContext,
+  readTraderIntelligenceTierFromEnv,
+} from "../../src/lib/trader-analytics/product/tier-config";
+import { PeriodReflectionPanel } from "../period-reflection-panel";
+
+export const metadata: Metadata = {
+  title: "Trader Workspace | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+const workspaceNavItems = [
+  {
+    href: "#overview",
+    label: "Overview",
+    summary: "Current account, next action, and key performance state.",
+  },
+  {
+    href: "#actions",
+    label: "Actions",
+    summary: "Import, review, analytics, coach, and progress routes.",
+  },
+  {
+    href: "#intelligence",
+    label: "Insights",
+    summary: "Analytics preview, day sessions, and review status.",
+  },
+  {
+    href: "#activity",
+    label: "Activity",
+    summary: "Latest import, saved trade state, and follow-up work.",
+  },
+  {
+    href: "#advanced",
+    label: "More",
+    summary: "Supporting tools for later.",
+  },
+] as const;
+
+const supportRoutes = [
+  {
+    href: "/first-run",
+    label: "First run setup",
+    detail: "Use this when the account has not saved a real import yet.",
+  },
+  {
+    href: "/imports",
+    label: "Import history",
+    detail: "Saved imports, imports to finish, duplicate review, and saved output links.",
+  },
+] as const;
+
+function signed(value: number | null | undefined): string {
+  if (typeof value !== "number") {
+    return "n/a";
+  }
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
+}
+
+function formatPercent(value: number | null | undefined): string {
+  return typeof value === "number" ? `${(value * 100).toFixed(1)}%` : "n/a";
+}
+
+function countLabel(value: number, singular: string, plural = `${singular}s`): string {
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function dateLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "No date yet";
+  }
+
+  const parsed = Date.parse(`${value}T12:00:00.000Z`);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+
+  return new Date(parsed).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function pnlTone(value: number | null | undefined): string {
+  if (typeof value !== "number") {
+    return "text-zinc-400";
+  }
+
+  return value >= 0 ? "text-emerald-300" : "text-rose-300";
+}
+
+function getTabCount(
+  queue: ReturnType<typeof buildSavedReviewQueueReadModel> | null,
+  id: ReturnType<typeof buildSavedReviewQueueReadModel>["tabs"][number]["id"],
+): number {
+  return queue?.tabs.find((tab) => tab.id === id)?.count ?? 0;
+}
+
+function DashboardMetric({
+  detail,
+  href,
+  label,
+  tone = "default",
+  value,
+}: {
+  detail: ReactNode;
+  href?: string;
+  label: string;
+  tone?: "default" | "success" | "warning" | "danger" | "info";
+  value: ReactNode;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "text-emerald-300"
+      : tone === "warning"
+        ? "text-amber-300"
+        : tone === "danger"
+          ? "text-rose-300"
+          : tone === "info"
+            ? "text-sky-300"
+            : "text-zinc-50";
+  const content = (
+    <>
+      <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </div>
+      <div className={`mt-3 break-words text-2xl font-semibold ${toneClass}`}>
+        {value}
+      </div>
+      <div className="mt-2 text-xs leading-5 text-zinc-500 sm:text-sm">
+        {detail}
+      </div>
+    </>
+  );
+
+  if (!href) {
+    return <div className="ti-metric-card min-h-[118px] p-4">{content}</div>;
+  }
+
+  return (
+    <Link
+      className="ti-metric-card block min-h-[118px] p-4 transition hover:-translate-y-0.5 hover:border-sky-500"
+      href={href}
+    >
+      {content}
+    </Link>
+  );
+}
+
+function ProductAreaCard({
+  action,
+  detail,
+  href,
+  kicker,
+  metric,
+  tone = "info",
+  title,
+}: {
+  action: string;
+  detail: ReactNode;
+  href: string;
+  kicker: string;
+  metric: ReactNode;
+  tone?: "info" | "success" | "warning" | "danger" | "muted";
+  title: string;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-700/70 bg-emerald-950/20 text-emerald-200"
+      : tone === "warning"
+        ? "border-amber-700/70 bg-amber-950/20 text-amber-200"
+        : tone === "danger"
+          ? "border-rose-700/70 bg-rose-950/20 text-rose-200"
+          : tone === "muted"
+            ? "border-zinc-700/70 bg-zinc-950/35 text-zinc-300"
+            : "border-sky-700/70 bg-sky-950/30 text-sky-200";
+
+  return (
+    <Link
+      className="ti-panel-soft group flex min-h-[188px] flex-col justify-between p-4 transition hover:-translate-y-0.5 hover:border-sky-500"
+      href={href}
+    >
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+              {kicker}
+            </p>
+            <h3 className="mt-2 text-lg font-semibold text-zinc-50">{title}</h3>
+          </div>
+          <span
+            className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold ${toneClass}`}
+          >
+            {metric}
+          </span>
+        </div>
+        <div className="mt-3 text-sm leading-6 text-zinc-400">{detail}</div>
+      </div>
+      <div className="mt-5 text-sm font-semibold text-sky-300 group-hover:text-sky-200">
+        {action}
+      </div>
+    </Link>
+  );
+}
+
+function ActivityCard({
+  action,
+  detail,
+  href,
+  label,
+  title,
+}: {
+  action: string;
+  detail: ReactNode;
+  href: string;
+  label: string;
+  title: string;
+}) {
+  return (
+    <Link
+      className="ti-panel-soft block p-4 transition hover:border-sky-500"
+      href={href}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <h3 className="mt-2 text-sm font-semibold text-zinc-50">{title}</h3>
+      <div className="mt-2 text-xs leading-5 text-zinc-400">{detail}</div>
+      <div className="mt-4 text-xs font-semibold text-sky-300">{action}</div>
+    </Link>
+  );
+}
+
+function RouteLink({
+  detail,
+  href,
+  label,
+}: {
+  detail: string;
+  href: string;
+  label: string;
+}) {
+  return (
+    <Link
+      className="ti-panel-soft block min-h-[112px] p-4 transition hover:border-sky-500"
+      href={href}
+    >
+      <div className="text-sm font-semibold text-zinc-50">{label}</div>
+      <div className="mt-2 text-sm leading-6 text-zinc-400">{detail}</div>
+    </Link>
+  );
+}
+
+export default function WorkspacePage() {
+  const data = buildSavedOrSampleTraderAnalyticsViewModel();
+  const activeTier = readTraderIntelligenceTierFromEnv();
+  const chartTierEnabled = canUseChartContext(activeTier);
+  const aiReflectionEnabled = canUseAiPeriodReflections(activeTier);
+  const hasSavedData = data.mode === "saved";
+  const latestReport = data.viewModel.latestReport;
+  const report = latestReport.report;
+  const savedReviewQueue =
+    hasSavedData
+      ? buildSavedReviewQueueReadModel({
+          repository: data.repository,
+          userId: data.userId,
+          includeChartContext: chartTierEnabled,
+        })
+      : null;
+  const importHistory =
+    hasSavedData
+      ? new SqliteImportCommitRepository().listImportBatchHistory(DEMO_ACCOUNT_ID)
+      : [];
+  const latestImport = importHistory[0] ?? null;
+  const savedTrades = hasSavedData
+    ? filterCustomerSavedTrades(data.repository.listTrades(data.userId))
+    : [];
+  const decisionReviewSnapshots =
+    hasSavedData && chartTierEnabled
+      ? [
+          ...new Set(
+            savedTrades
+              .map((trade) => trade.importBatchId)
+              .filter((batchId): batchId is string => Boolean(batchId)),
+          ),
+        ].flatMap((batchId) =>
+          data.repository.listDecisionReviewSnapshotsForBatch(batchId),
+        )
+      : [];
+  const tradeThreadModel = buildSavedTradeThreadReadModel({
+    decisionReviewSnapshots,
+    report: hasSavedData ? latestReport : null,
+    source: hasSavedData ? "saved_sqlite" : "sample",
+    trades: savedTrades,
+  });
+  const unresolvedCount = getTabCount(savedReviewQueue, "unresolved");
+  const highestPriorityCount = getTabCount(savedReviewQueue, "highest_priority");
+  const marketGapCount = getTabCount(savedReviewQueue, "market_context_unavailable");
+  const openBlockCount = getTabCount(savedReviewQueue, "blocked_open_trade");
+  const completedReviewCount = getTabCount(savedReviewQueue, "completed");
+  const requiredAttentionCount = chartTierEnabled ? unresolvedCount : openBlockCount;
+  const analyticsHref = hasSavedData ? "/analytics/results" : "/upload-csv";
+  const nextAttentionItem = chartTierEnabled
+    ? savedReviewQueue?.items[0] ?? null
+    : savedReviewQueue?.allItems.find(
+        (item) => item.lane === "blocked_open_trade",
+      ) ?? null;
+  const rawNextReviewHref =
+    (nextAttentionItem?.href ?? null) || "/review?queue=blocked_open_trade";
+  const nextReviewHref = rawNextReviewHref.startsWith("/trades/")
+    ? withPageAnchor(rawNextReviewHref, "writing-flow")
+    : rawNextReviewHref;
+  const nextActionHref = hasSavedData
+    ? nextAttentionItem
+      ? nextReviewHref
+      : analyticsHref
+    : "/upload-csv";
+  const nextActionLabel = hasSavedData
+    ? nextAttentionItem
+      ? "Open Swing Trade"
+      : "Open Analytics"
+    : "Upload CSV";
+  const nextActionTitle = hasSavedData
+    ? nextAttentionItem?.title ?? "Saved trade analytics are ready"
+    : "Upload your first CSV";
+  const nextActionBody =
+    nextAttentionItem?.nextAction ??
+    (hasSavedData
+      ? "Your historical import is saved. Start with analytics, then use coaching and progress to decide what to work on."
+      : "Upload a broker CSV and let the app create saved trades before you review anything.");
+  const savedTradeCount = hasSavedData ? savedTrades.length : 0;
+  const sessionCount = tradeThreadModel.sessionStoryCount;
+  const tickerStoryCount = tradeThreadModel.threadCount;
+  const availableCalendarMonths = [
+    ...new Set(
+      tradeThreadModel.sessionStories.map((story) => story.sessionDate.slice(0, 7)),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+  const latestCalendarMonth =
+    availableCalendarMonths[availableCalendarMonths.length - 1] ?? null;
+  const calendarHref = latestCalendarMonth
+    ? `/trades/calendar?month=${latestCalendarMonth}#calendar`
+    : "/trades/calendar#calendar";
+  const latestSession = tradeThreadModel.sessionStories[0] ?? null;
+  const bestSession =
+    [...tradeThreadModel.sessionStories].sort(
+      (left, right) => right.totalGrossRealizedPnl - left.totalGrossRealizedPnl,
+    )[0] ?? null;
+  const worstSession =
+    [...tradeThreadModel.sessionStories].sort(
+      (left, right) => left.totalGrossRealizedPnl - right.totalGrossRealizedPnl,
+    )[0] ?? null;
+  const monthPnl =
+    latestCalendarMonth === null
+      ? null
+      : tradeThreadModel.sessionStories
+          .filter((story) => story.sessionDate.startsWith(latestCalendarMonth))
+          .reduce((total, story) => total + story.totalGrossRealizedPnl, 0);
+  const reportPnl = hasSavedData ? report.pnl.grossTotalRealizedPnl : null;
+  const winRate = hasSavedData ? report.pnl.grossWinRate : null;
+  const completedTradeCount = hasSavedData
+    ? report.sampleSize.completedTradeCount
+    : 0;
+  const uniqueSymbolCount = hasSavedData ? report.sampleSize.symbols.length : 0;
+
+  return (
+    <main className="ti-dashboard-bg min-h-screen px-4 py-5 text-zinc-100 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5">
+        <header className="ti-panel flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <Link
+            aria-label="TradersLink dashboard home"
+            className="flex items-center gap-4"
+            href="/workspace"
+          >
+            <span className="flex h-12 w-[232px] items-center overflow-hidden rounded-md border border-sky-900/60 bg-[#011E56] px-3 shadow-[0_12px_30px_rgba(1,30,86,0.35)]">
+              <Image
+                alt="TradersLink"
+                className="h-auto w-full"
+                height={74}
+                priority
+                src="/logo-horizontal-main.png"
+                width={360}
+              />
+            </span>
+          </Link>
+          <nav
+            aria-label="Primary dashboard routes"
+            className="flex flex-wrap gap-2 text-sm"
+          >
+            <Link className="ti-top-nav-link" href="/upload-csv">
+              Upload
+            </Link>
+            <Link className="ti-top-nav-link" href={calendarHref}>
+              Calendar
+            </Link>
+            <Link className="ti-top-nav-link" href="/review">
+              Review
+            </Link>
+            <Link className="ti-top-nav-link" href="/analytics">
+              Analytics
+            </Link>
+            <Link className="ti-top-nav-link" href="/coach">
+              Coach
+            </Link>
+          </nav>
+        </header>
+
+        <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <DashboardSideNav
+            eyebrow="Dashboard"
+            items={[...workspaceNavItems]}
+            summary="Use this home base to choose the next thing to do."
+          />
+
+          <div className="flex min-w-0 flex-col gap-5">
+            <section
+              className="ti-panel overflow-hidden p-5 sm:p-6 lg:p-7"
+              id="overview"
+            >
+              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-stretch">
+                <div className="flex min-w-0 flex-col justify-between gap-6">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+                      Trader Intelligence Dashboard
+                    </p>
+                    <h1 className="mt-3 text-3xl font-semibold tracking-normal text-zinc-50 sm:text-4xl">
+                      Trader Workspace
+                    </h1>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base">
+                      Start with one simple loop: upload trades, read the
+                      plain-language analytics, then use the coach and progress
+                      views to follow through.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-md border border-sky-900/60 bg-[#011E56]/35 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Current month
+                      </div>
+                      <div className={`mt-2 font-mono text-lg ${pnlTone(monthPnl)}`}>
+                        {signed(monthPnl)}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Swing trades
+                      </div>
+                      <div className="mt-2 font-mono text-lg text-sky-300">
+                        {openBlockCount}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Calendar days
+                      </div>
+                      <div className="mt-2 font-mono text-lg text-zinc-100">
+                        {sessionCount}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <PrimaryActionPanel
+                  actionHref={nextActionHref}
+                  actionLabel={nextActionLabel}
+                  body={nextActionBody}
+                  eyebrow="Your next step"
+                  secondary={
+                    hasSavedData ? (
+                      <div className="grid gap-2 text-xs text-zinc-400">
+                        <div>
+                          Swing trades:{" "}
+                          <span className="font-semibold text-amber-200">
+                            {openBlockCount}
+                          </span>
+                        </div>
+                        <div>
+                          Saved trades:{" "}
+                          <span className="font-semibold text-emerald-200">
+                            {savedTradeCount}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs leading-5 text-zinc-400">
+                        No broker choice is needed here. Pick the CSV and the
+                        app will guide the next step.
+                      </p>
+                    )
+                  }
+                  title={nextActionTitle}
+                  tone={hasSavedData ? "info" : "success"}
+                />
+              </div>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <DashboardMetric
+                detail={
+                  hasSavedData
+                    ? `${completedTradeCount} completed round trips in the current report.`
+                    : "Upload a CSV to replace empty dashboard stats with your trades."
+                }
+                href={hasSavedData ? "/trades/round-trips#trade-list" : "/upload-csv"}
+                label="Saved Trades"
+                tone={hasSavedData ? "default" : "warning"}
+                value={savedTradeCount}
+              />
+              <DashboardMetric
+                detail={
+                  hasSavedData
+                    ? `${uniqueSymbolCount} symbols across ${sessionCount} day sessions.`
+                    : "Ticker stories and day sessions appear after saving trades."
+                }
+                href={hasSavedData ? calendarHref : "/upload-csv"}
+                label="Day Sessions"
+                tone="info"
+                value={sessionCount}
+              />
+              <DashboardMetric
+                detail={
+                  hasSavedData
+                    ? `${formatPercent(winRate)} gross win rate.`
+                    : "Analytics starts after saved imports exist."
+                }
+                href={analyticsHref}
+                label="Gross P/L"
+                tone={typeof reportPnl === "number" && reportPnl < 0 ? "danger" : "success"}
+                value={signed(reportPnl)}
+              />
+              {chartTierEnabled ? (
+                <DashboardMetric
+                  detail={
+                    marketGapCount > 0
+                      ? "These trades are saved but still waiting on chart data."
+                      : hasSavedData
+                        ? "No chart data gaps are blocking the main review list."
+                        : "Chart evidence checks run after a saved import."
+                  }
+                  href={hasSavedData ? "/review?queue=market_context_unavailable" : "/upload-csv"}
+                  label="Chart data still missing"
+                  tone={marketGapCount > 0 ? "warning" : "success"}
+                  value={marketGapCount}
+                />
+              ) : (
+                <DashboardMetric
+                  detail={
+                    hasSavedData
+                      ? "Execution-based coaching is ready from the saved trade set."
+                      : "Coaching starts after saved imports exist."
+                  }
+                  href={hasSavedData ? "/coach" : "/upload-csv"}
+                  label="Coach Focus"
+                  tone="info"
+                  value={highestPriorityCount > 0 ? "Ready" : "Open"}
+                />
+              )}
+            </section>
+
+            <PeriodReflectionPanel
+              canRegenerate={data.mode === "saved" && aiReflectionEnabled}
+              reflections={data.viewModel.periodReflections}
+              title="Latest Trading Reflections"
+            />
+
+            <section id="actions" data-testid="workspace-primary-actions">
+              <WorkflowHandoffPanel
+                body="Use the workspace as the product home: save clean executions, check analytics, then use coaching to decide what to improve."
+                eyebrow="Workspace Flow"
+                items={[
+                  {
+                    action: "Upload CSV",
+                    body: "Start fresh with the simple upload card and let the app show what changed.",
+                    href: "/upload-csv",
+                    label: "1. Upload",
+                    title: "Import trades",
+                    tone: "success",
+                  },
+                  {
+                    action: "Enter trades",
+                    body: "Type exact fills when you do not have a broker CSV.",
+                    href: "/manual-entry",
+                    label: "Manual",
+                    title: "Manual execution entry",
+                    tone: "info",
+                  },
+                  {
+                    action: "Open review",
+                    body: "Replay a saved trade when you want to turn the execution into a written lesson.",
+                    href: nextReviewHref,
+                    label: "2. Review",
+                    title: "Review next trade",
+                    tone: "warning",
+                  },
+                  {
+                    action: "Open report",
+                    body: chartTierEnabled
+                      ? "Check timing, results, behavior, ticker stories, and chart evidence."
+                      : "Check timing, results, behavior, ticker stories, and session patterns.",
+                    href: "/analytics/results",
+                    label: "3. Analyze",
+                    title: "Read analytics",
+                    tone: "info",
+                  },
+                  {
+                    action: "Open coach",
+                    body: "Turn the execution patterns into one fix or repeat path.",
+                    href: "/coach",
+                    label: "4. Follow through",
+                    title: "Use coach",
+                    tone: "info",
+                  },
+                ]}
+                title="Trade review workflow"
+              />
+            </section>
+
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]" id="intelligence">
+              <div className="ti-panel p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+                      Product Areas
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                      Choose what you want to see
+                    </h2>
+                  </div>
+                  <p className="max-w-xl text-sm leading-6 text-zinc-500">
+                    The main dashboard keeps beginner actions first. Deeper
+                    patterns stay available once the trader opens a route.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <ProductAreaCard
+                    action="Open calendar"
+                    detail="Start from the month view, pick a trading day, then drill into ticker stories and round trips."
+                    href={calendarHref}
+                    kicker="Trading calendar"
+                    metric={countLabel(sessionCount, "day")}
+                    title="Review day sessions"
+                    tone="info"
+                  />
+                  <ProductAreaCard
+                    action="Open saved trades"
+                    detail="Browse ticker stories, day sessions, round trips, swing trades, and review-needed trades."
+                    href="/trades/day-sessions#session-stories"
+                    kicker="Saved library"
+                    metric={countLabel(tickerStoryCount, "story", "stories")}
+                    title="Find the trade story"
+                    tone="success"
+                  />
+                  <ProductAreaCard
+                    action={openBlockCount > 0 ? "Open swing trades" : "Open analytics"}
+                    detail={
+                      openBlockCount > 0
+                        ? "Check positions the import still sees as open, or leave them as swing trades until closing executions arrive."
+                        : "Historical executions are saved and ready to analyze without manual trade-by-trade review."
+                    }
+                    href={openBlockCount > 0 ? "/trades/open-swing#trade-list" : analyticsHref}
+                    kicker="Swing trades"
+                    metric={countLabel(openBlockCount, "trade")}
+                    title={openBlockCount > 0 ? "Check open positions" : "No open positions waiting"}
+                    tone={openBlockCount > 0 ? "warning" : "success"}
+                  />
+                  <ProductAreaCard
+                    action="Open analytics"
+                    detail={
+                      chartTierEnabled
+                        ? "Get the bigger picture across results, timing, behavior, ticker stories, sessions, and chart evidence."
+                        : "Get the bigger picture across results, timing, behavior, ticker stories, and sessions."
+                    }
+                    href="/analytics/results"
+                    kicker="Analytics"
+                    metric={formatPercent(winRate)}
+                    title="Understand the pattern"
+                    tone="info"
+                  />
+                  <ProductAreaCard
+                    action="Open coach"
+                    detail="Use one focused coaching sequence instead of scanning every possible behavior at once."
+                    href="/coach"
+                    kicker="Coach"
+                    metric={highestPriorityCount > 0 ? "Focus ready" : "Ready"}
+                    title="Fix or repeat one thing"
+                    tone="info"
+                  />
+                  <ProductAreaCard
+                    action="Open progress"
+                    detail="Track follow-through from saved executions, coaching focus, and any notes you choose to write."
+                    href="/progress#progress-follow-through"
+                    kicker="Progress"
+                    metric={countLabel(completedReviewCount, "note")}
+                    title="Check follow-through"
+                    tone={completedReviewCount > 0 ? "success" : "muted"}
+                  />
+                </div>
+              </div>
+
+              <aside className="ti-panel p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+                  Analytics Preview
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                  Current report
+                </h2>
+                <div className="mt-5 grid gap-3">
+                  <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-4">
+                    <div className="text-xs uppercase tracking-wide text-zinc-500">
+                      Period
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-zinc-100">
+                      {hasSavedData
+                        ? latestReport.reportPeriod.label
+                        : "No saved report yet"}
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                    <div className="rounded-md border border-emerald-900/60 bg-emerald-950/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Best day
+                      </div>
+                      <div className={`mt-2 font-mono text-lg ${pnlTone(bestSession?.totalGrossRealizedPnl)}`}>
+                        {signed(bestSession?.totalGrossRealizedPnl)}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {dateLabel(bestSession?.sessionDate)}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-rose-900/60 bg-rose-950/20 p-4">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Hardest day
+                      </div>
+                      <div className={`mt-2 font-mono text-lg ${pnlTone(worstSession?.totalGrossRealizedPnl)}`}>
+                        {signed(worstSession?.totalGrossRealizedPnl)}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {dateLabel(worstSession?.sessionDate)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-4">
+                    <div className="text-xs uppercase tracking-wide text-zinc-500">
+                      Plain read
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      {hasSavedData
+                        ? report.timeOfDay.entryInsight
+                        : "Upload a CSV to see timing and behavior summaries from your saved trades."}
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </section>
+
+            <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" id="activity">
+              <div className="ti-panel p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+                  Recent Activity
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                  What changed most recently
+                </h2>
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <ActivityCard
+                    action={latestImport ? "Open import" : "Upload CSV"}
+                    detail={
+                      latestImport
+                        ? `${importCountLabel(
+                            latestImport.savedTradeCount,
+                            "trade",
+                          )}, ${importStatusLabel(latestImport.summaryStatus)}`
+                        : "The dashboard is ready for the first broker CSV."
+                    }
+                    href={
+                      latestImport
+                        ? `/imports/${encodeURIComponent(latestImport.batch.id)}`
+                        : "/upload-csv"
+                    }
+                    label="Latest import"
+                    title={latestImport?.batch.brokerLabel ?? "No saved import yet"}
+                  />
+                  <ActivityCard
+                    action={latestSession ? "Open day session" : "Open calendar"}
+                    detail={
+                      latestSession
+                        ? `${countLabel(
+                            latestSession.symbolCount,
+                            "ticker",
+                          )}, ${countLabel(latestSession.tradeCount, "round trip")}`
+                        : "Day sessions appear once trades have been saved."
+                    }
+                    href={latestSession?.daySessionHref ?? calendarHref}
+                    label="Latest day"
+                    title={dateLabel(latestSession?.sessionDate)}
+                  />
+                  <ActivityCard
+                    action={nextAttentionItem ? "Open swing trade" : "Open analytics"}
+                    detail={
+                      nextAttentionItem?.priorityReason ??
+                      "Historical executions are saved and ready for analytics."
+                    }
+                    href={nextAttentionItem ? nextReviewHref : analyticsHref}
+                    label="Next attention"
+                    title={nextAttentionItem?.symbol ?? "No required follow-up"}
+                  />
+                </div>
+              </div>
+
+              <aside className="ti-panel p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+                  Status
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                  Attention areas
+                </h2>
+                <div className="mt-5 grid gap-3">
+                  <Link
+                    className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-4 transition hover:border-sky-500"
+                    href="/review?queue=unresolved"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-zinc-100">
+                        Required follow-up
+                      </span>
+                      <span className="font-mono text-sm text-sky-300">
+                        {requiredAttentionCount}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-zinc-500">
+                      {chartTierEnabled
+                        ? "Trades still waiting for a written review, chart evidence check, or final decision."
+                        : "Execution-only follow-up is limited to open swing trades or clearly unfinished position stories."}
+                    </p>
+                  </Link>
+                  <Link
+                    className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-4 transition hover:border-sky-500"
+                    href="/review?queue=blocked_open_trade"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-zinc-100">
+                        Open or active handling
+                      </span>
+                      <span className="font-mono text-sm text-amber-300">
+                        {openBlockCount}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-zinc-500">
+                      These need careful handling before the app treats the
+                      position story as finished.
+                    </p>
+                  </Link>
+                  {chartTierEnabled ? (
+                    <Link
+                      className="rounded-md border border-zinc-800/80 bg-zinc-950/35 p-4 transition hover:border-sky-500"
+                      href="/review?queue=market_context_unavailable"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-zinc-100">
+                          Chart data still missing
+                        </span>
+                        <span className="font-mono text-sm text-amber-300">
+                          {marketGapCount}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-zinc-500">
+                        Chart evidence appears once the data and saved chart
+                        review are ready.
+                      </p>
+                    </Link>
+                  ) : null}
+                </div>
+              </aside>
+            </section>
+
+            <section id="advanced">
+              <AdvancedDisclosure
+                summary="More tools"
+                testId="workspace-additional-review-tools"
+              >
+                <div>
+                  <p className="text-sm leading-6 text-zinc-400">
+                    These routes are useful after the main workflow is running.
+                    They stay below the fold so the dashboard keeps the next
+                    trade-review step first.
+                  </p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <RouteLink
+                      detail="Best trade, biggest leak, repeatable behavior, and next-session focus."
+                      href="/session-recap"
+                      label="Session Recap"
+                    />
+                    <RouteLink
+                      detail="Best/worst trade comparison and lesson extraction once enough trades exist."
+                      href="/compare-trades"
+                      label="Compare Trades"
+                    />
+                    <RouteLink
+                      detail="User setup path across import, review, rule creation, and coaching habits."
+                      href="/onboarding"
+                      label="Onboarding"
+                    />
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    {supportRoutes.map((route) => (
+                      <RouteLink key={route.href} {...route} />
+                    ))}
+                  </div>
+                </div>
+              </AdvancedDisclosure>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

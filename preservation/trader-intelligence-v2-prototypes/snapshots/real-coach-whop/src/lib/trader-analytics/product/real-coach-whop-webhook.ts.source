@@ -1,0 +1,80 @@
+import type { ProcessWhopAppAccessPaymentResult } from "./real-coach-marketplace";
+import {
+  createRealCoachMarketplaceRepository,
+  type RealCoachMarketplaceRepository,
+} from "./real-coach-marketplace";
+
+export interface NormalizedWhopPaymentWebhookEvent {
+  providerEventId: string;
+  providerPaymentId: string | null;
+  eventType: string;
+  metadata: Record<string, unknown> | null;
+  paidAt: string | null;
+  rawEvent: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(
+  value: Record<string, unknown>,
+  key: string,
+): string | null {
+  const raw = value[key];
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+function recordValue(
+  value: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | null {
+  const raw = value[key];
+  return isRecord(raw) ? raw : null;
+}
+
+export function normalizeWhopPaymentWebhookEvent(
+  rawEvent: unknown,
+): NormalizedWhopPaymentWebhookEvent {
+  if (!isRecord(rawEvent)) {
+    throw new Error("Whop webhook payload must be an object.");
+  }
+
+  const data = recordValue(rawEvent, "data");
+  const providerEventId = stringValue(rawEvent, "id");
+  const eventType = stringValue(rawEvent, "type");
+
+  if (!providerEventId || !eventType) {
+    throw new Error("Whop webhook payload is missing id or type.");
+  }
+
+  return {
+    providerEventId,
+    providerPaymentId: data
+      ? stringValue(data, "id") ?? stringValue(data, "payment_id")
+      : null,
+    eventType,
+    metadata: data ? recordValue(data, "metadata") : null,
+    paidAt: data
+      ? stringValue(data, "paid_at") ?? stringValue(rawEvent, "timestamp")
+      : stringValue(rawEvent, "timestamp"),
+    rawEvent,
+  };
+}
+
+export function processVerifiedWhopPaymentWebhook(
+  rawEvent: unknown,
+  repository: RealCoachMarketplaceRepository =
+    createRealCoachMarketplaceRepository(),
+): ProcessWhopAppAccessPaymentResult {
+  const event = normalizeWhopPaymentWebhookEvent(rawEvent);
+
+  return repository.processWhopAppAccessPayment({
+    providerEventId: event.providerEventId,
+    providerPaymentId: event.providerPaymentId,
+    eventType: event.eventType,
+    metadata: event.metadata,
+    rawEvent: event.rawEvent,
+    paidAt: event.paidAt ?? undefined,
+  });
+}

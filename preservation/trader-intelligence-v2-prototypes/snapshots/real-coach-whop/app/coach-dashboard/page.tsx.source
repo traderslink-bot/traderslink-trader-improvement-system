@@ -1,0 +1,417 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import {
+  addCoachPrivateNoteAction,
+  confirmCoachPaymentAction,
+  createCoachActionItemAction,
+  publishCoachFeedbackReportAction,
+} from "../real-coach-actions";
+import { getRealCoachActor } from "../real-coach-auth";
+import { buildSavedOrSampleTraderAnalyticsViewModel } from "../../src/lib/trader-analytics/server/saved-trader-analytics-data";
+import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const metadata: Metadata = {
+  title: "Coach Dashboard | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function CoachDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ coachId?: string | string[] | undefined }>;
+}) {
+  const query = searchParams ? await searchParams : {};
+  const actor = await getRealCoachActor();
+  if (actor?.role !== "coach") {
+    return (
+      <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
+            Back to coaches
+          </Link>
+          <section className="border border-emerald-900/70 bg-emerald-950/10 p-5">
+            <h1 className="text-2xl font-semibold text-zinc-50">
+              Coach view required
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Coach dashboards are scoped to the authenticated coach. Choose a
+              coach view before reviewing students or publishing feedback.
+            </p>
+            <Link
+              className="mt-4 inline-flex border border-emerald-800 px-4 py-2 text-sm text-emerald-300 hover:border-emerald-400"
+              href="/real-coach-session?required=coach&next=/coach-dashboard"
+            >
+              Choose coach view
+            </Link>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  const requestedCoachId = Array.isArray(query.coachId)
+    ? query.coachId[0]
+    : query.coachId;
+  const coachRepository = createRealCoachMarketplaceRepository();
+  const coaches = coachRepository
+    .listCoachProfiles()
+    .filter((coach) => coach.status === "approved" && coach.id === actor.coachId);
+  const selectedCoach =
+    coachRepository.getCoachProfile(actor.coachId) ??
+    (requestedCoachId ? coachRepository.getCoachProfile(requestedCoachId) : null);
+  const analyticsData = buildSavedOrSampleTraderAnalyticsViewModel();
+  const allTrades = analyticsData.repository.listTrades(analyticsData.userId);
+  const allReports = analyticsData.repository.listReports(analyticsData.userId);
+  const relationships = selectedCoach
+    ? coachRepository.listRelationshipsForCoach({ coachId: selectedCoach.id })
+    : [];
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
+            Back to workspace
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Coach Workspace
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            Real Coach Dashboard
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+            Coaches review assigned students in read-only mode and publish
+            private feedback to each student when ready.
+          </p>
+        </header>
+
+        {coaches.length > 1 ? (
+          <nav className="flex flex-wrap gap-2">
+            {coaches.map((coach) => (
+              <Link
+                className={`border px-3 py-2 text-sm ${
+                  selectedCoach?.id === coach.id
+                    ? "border-emerald-800 text-emerald-300"
+                    : "border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                }`}
+                href={`/coach-dashboard?coachId=${encodeURIComponent(coach.id)}`}
+                key={coach.id}
+              >
+                {coach.displayName}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+
+        {!selectedCoach ? (
+          <section className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              No approved coach profile
+            </h2>
+            <p className="mt-2 text-sm text-zinc-500">
+              Approve at least one coach before the coach dashboard has a
+              workspace.
+            </p>
+            <Link
+              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300"
+              href="/admin/coaches"
+            >
+              Open coach admin
+            </Link>
+          </section>
+        ) : null}
+
+        {selectedCoach ? (
+          <section className="border border-zinc-800 bg-zinc-950 p-5">
+            <div className="flex flex-col justify-between gap-4 border-b border-zinc-900 pb-5 sm:flex-row">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Selected coach
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                  {selectedCoach.displayName}
+                </h2>
+              </div>
+              <div className="text-sm text-zinc-500">
+                {relationships.length} active or requested student
+                {relationships.length === 1 ? "" : "s"}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-6">
+              {relationships.length > 0 ? (
+                relationships.map((relationship) => {
+                  const readModel = coachRepository.getCoachStudentReadModel({
+                    relationshipId: relationship.id,
+                    coachId: selectedCoach.id,
+                    trades: allTrades,
+                    reports: allReports,
+                  });
+                  const privateNotes = coachRepository.listPrivateNotes(
+                    relationship.id,
+                  );
+                  const coachReports = coachRepository.listCoachReports(
+                    relationship.id,
+                  );
+
+                  return (
+                    <article
+                      className="border border-zinc-900 bg-zinc-950 p-4"
+                      key={relationship.id}
+                    >
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                        <div>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-zinc-500">
+                                {relationship.userId}
+                              </p>
+                              <h3 className="mt-1 text-lg font-semibold text-zinc-50">
+                                Student account
+                              </h3>
+                            </div>
+                            <span
+                              className={`border px-2 py-1 text-xs uppercase tracking-wide ${
+                                relationship.status === "active"
+                                  ? "border-emerald-900 text-emerald-300"
+                                  : "border-amber-900 text-amber-300"
+                              }`}
+                            >
+                              {relationship.status} /{" "}
+                              {relationship.coachPaymentStatus}
+                            </span>
+                          </div>
+
+                          {relationship.status !== "active" ? (
+                            <form
+                              action={confirmCoachPaymentAction}
+                              className="mt-4 border border-amber-900/70 bg-amber-950/10 p-4"
+                            >
+                              <input
+                                name="relationshipId"
+                                type="hidden"
+                                value={relationship.id}
+                              />
+                              <p className="text-sm leading-6 text-zinc-400">
+                                Confirm the coach-owned Whop payment after it is
+                                verified outside the app.
+                              </p>
+                              <button
+                                className="mt-3 border border-amber-700 px-3 py-2 text-sm text-amber-200 hover:border-amber-400"
+                                type="submit"
+                              >
+                                Mark coach payment confirmed
+                              </button>
+                            </form>
+                          ) : null}
+
+                          {readModel ? (
+                            <div className="mt-5 grid gap-4 md:grid-cols-3">
+                              <div className="border border-zinc-900 p-4">
+                                <p className="text-xs uppercase tracking-wide text-zinc-500">
+                                  Saved trades
+                                </p>
+                                <div className="mt-2 text-2xl font-semibold text-zinc-50">
+                                  {readModel.trades.length}
+                                </div>
+                              </div>
+                              <div className="border border-zinc-900 p-4">
+                                <p className="text-xs uppercase tracking-wide text-zinc-500">
+                                  Latest report
+                                </p>
+                                <div className="mt-2 text-sm font-semibold text-zinc-300">
+                                  {readModel.latestReport?.generatedAt.slice(0, 10) ??
+                                    "No report"}
+                                </div>
+                              </div>
+                              <div className="border border-zinc-900 p-4">
+                                <p className="text-xs uppercase tracking-wide text-zinc-500">
+                                  Actions assigned
+                                </p>
+                                <div className="mt-2 text-2xl font-semibold text-zinc-50">
+                                  {readModel.actionItems.length}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="mt-4 border border-zinc-900 p-4 text-sm text-zinc-500">
+                              Read-only trade access unlocks after coach payment
+                              is confirmed and the relationship is active.
+                            </p>
+                          )}
+
+                          {readModel ? (
+                            <div className="mt-5">
+                              <h4 className="text-sm font-semibold text-zinc-100">
+                                Read-only saved trades
+                              </h4>
+                              <div className="mt-3 grid gap-2">
+                                {readModel.trades.slice(0, 8).map((trade) => (
+                                  <Link
+                                    className="grid gap-2 border border-zinc-900 p-3 text-sm text-zinc-400 hover:border-zinc-700 sm:grid-cols-[120px_minmax(0,1fr)_120px]"
+                                    href={`/trades/${encodeURIComponent(trade.id)}?from=human-coach`}
+                                    key={trade.id}
+                                  >
+                                    <span>{trade.symbol}</span>
+                                    <span>{trade.sessionDate}</span>
+                                    <span>{trade.reviewStatus}</span>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <aside className="grid gap-4">
+                          <form
+                            action={addCoachPrivateNoteAction}
+                            className="border border-zinc-900 p-4"
+                          >
+                            <input
+                              name="relationshipId"
+                              type="hidden"
+                              value={relationship.id}
+                            />
+                            <input
+                              name="coachId"
+                              type="hidden"
+                              value={selectedCoach.id}
+                            />
+                            <h4 className="text-sm font-semibold text-zinc-100">
+                              Private Coach Note
+                            </h4>
+                            <input
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="title"
+                              placeholder="Working note title"
+                            />
+                            <textarea
+                              className="mt-3 min-h-24 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="body"
+                              placeholder="Private coach-only note"
+                              required
+                            />
+                            <button
+                              className="mt-3 border border-zinc-700 px-3 py-2 text-sm text-zinc-200 hover:border-zinc-500"
+                              type="submit"
+                            >
+                              Save private note
+                            </button>
+                            <p className="mt-2 text-xs text-zinc-600">
+                              {privateNotes.length} private note
+                              {privateNotes.length === 1 ? "" : "s"} saved
+                            </p>
+                          </form>
+
+                          <form
+                            action={publishCoachFeedbackReportAction}
+                            className="border border-zinc-900 p-4"
+                          >
+                            <input
+                              name="relationshipId"
+                              type="hidden"
+                              value={relationship.id}
+                            />
+                            <input
+                              name="coachId"
+                              type="hidden"
+                              value={selectedCoach.id}
+                            />
+                            <h4 className="text-sm font-semibold text-zinc-100">
+                              Publish Student Feedback
+                            </h4>
+                            <select
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="kind"
+                            >
+                              <option value="weekly">Weekly review</option>
+                              <option value="monthly">Monthly final review</option>
+                            </select>
+                            <input
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="periodLabel"
+                              placeholder="Week of Jun 14"
+                            />
+                            <input
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="title"
+                              placeholder="Review title"
+                              required
+                            />
+                            <textarea
+                              className="mt-3 min-h-28 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="body"
+                              placeholder="Student-visible private feedback"
+                              required
+                            />
+                            <button
+                              className="mt-3 border border-emerald-800 px-3 py-2 text-sm text-emerald-300 hover:border-emerald-400"
+                              type="submit"
+                            >
+                              Publish feedback
+                            </button>
+                            <p className="mt-2 text-xs text-zinc-600">
+                              {coachReports.length} report
+                              {coachReports.length === 1 ? "" : "s"} saved
+                            </p>
+                          </form>
+
+                          <form
+                            action={createCoachActionItemAction}
+                            className="border border-zinc-900 p-4"
+                          >
+                            <input
+                              name="relationshipId"
+                              type="hidden"
+                              value={relationship.id}
+                            />
+                            <input
+                              name="coachId"
+                              type="hidden"
+                              value={selectedCoach.id}
+                            />
+                            <h4 className="text-sm font-semibold text-zinc-100">
+                              Assign Action Item
+                            </h4>
+                            <input
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="title"
+                              placeholder="Assignment"
+                              required
+                            />
+                            <input
+                              className="mt-3 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="dueLabel"
+                              placeholder="Before next weekly review"
+                            />
+                            <textarea
+                              className="mt-3 min-h-24 w-full border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+                              name="body"
+                              placeholder="What the student should do"
+                              required
+                            />
+                            <button
+                              className="mt-3 border border-sky-800 px-3 py-2 text-sm text-sky-300 hover:border-sky-400"
+                              type="submit"
+                            >
+                              Assign action
+                            </button>
+                          </form>
+                        </aside>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
+                  No students have requested this coach yet.
+                </p>
+              )}
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </main>
+  );
+}

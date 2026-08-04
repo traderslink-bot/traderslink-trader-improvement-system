@@ -1,0 +1,217 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { plainStateLabel } from "../app-ui";
+import { completeCoachActionItemAction } from "../real-coach-actions";
+import { getRealCoachActor } from "../real-coach-auth";
+import { createRealCoachMarketplaceRepository } from "../../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const metadata: Metadata = {
+  title: "Human Coach | Trader Intelligence",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function HumanCoachStudentPage() {
+  const actor = await getRealCoachActor();
+
+  if (actor?.role !== "student") {
+    return (
+      <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/coaches">
+            Back to coaches
+          </Link>
+          <section className="border border-sky-900/70 bg-sky-950/10 p-5">
+            <h1 className="text-2xl font-semibold text-zinc-50">
+              Student view required
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Published coach feedback and assignments are scoped to the active
+              student account. Choose the student view to open this page.
+            </p>
+            <Link
+              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:border-sky-400"
+              href="/real-coach-session?required=student&next=/coach-human"
+            >
+              Choose student view
+            </Link>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  const views = createRealCoachMarketplaceRepository().listStudentCoachViews({
+    userId: actor.userId,
+  });
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <Link className="text-sm text-sky-300 hover:text-sky-200" href="/workspace">
+            Back to workspace
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Human Coaching
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            My Real Coach
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+            Published coach feedback and assigned follow-through work appear
+            here. Coach-only drafts stay private to the coach.
+          </p>
+        </header>
+
+        <nav className="flex flex-wrap gap-3 text-sm">
+          <Link className="text-sky-300 hover:text-sky-200" href="/coaches">
+            Browse coaches
+          </Link>
+          <Link className="text-sky-300 hover:text-sky-200" href="/coach">
+            Open AI coach
+          </Link>
+        </nav>
+
+        {views.length > 0 ? (
+          <section className="grid gap-6">
+            {views.map((view) => (
+              <article
+                className="border border-zinc-800 bg-zinc-950 p-5"
+                key={view.relationship.id}
+              >
+                <div className="flex flex-col justify-between gap-4 border-b border-zinc-900 pb-5 sm:flex-row">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                      {view.relationship.status} / coach payment{" "}
+                      {view.relationship.coachPaymentStatus}
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold text-zinc-50">
+                      {view.coach.displayName}
+                    </h2>
+                    <p className="mt-1 text-sm text-zinc-500">
+                      Active through {view.relationship.expiresAt.slice(0, 10)}
+                    </p>
+                  </div>
+                  <a
+                    className="inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
+                    href={view.coach.whopUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Coach Whop
+                  </a>
+                </div>
+
+                <div className="mt-5 grid gap-5 xl:grid-cols-2">
+                  <section>
+                    <h3 className="text-sm font-semibold text-zinc-100">
+                      Published Feedback
+                    </h3>
+                    <div className="mt-3 grid gap-3">
+                      {view.reports.length > 0 ? (
+                        view.reports.map((report) => (
+                          <div
+                            className="border border-zinc-900 bg-zinc-950 p-4"
+                            key={report.id}
+                          >
+                            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
+                              <span>{report.kind}</span>
+                              <span>{report.periodLabel}</span>
+                            </div>
+                            <h4 className="mt-2 text-sm font-semibold text-zinc-100">
+                              {report.title}
+                            </h4>
+                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
+                              {report.body}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
+                          No published coach feedback yet.
+                        </p>
+                      )}
+                    </div>
+                  </section>
+
+                  <section>
+                    <h3 className="text-sm font-semibold text-zinc-100">
+                      Coach Assignments
+                    </h3>
+                    <div className="mt-3 grid gap-3">
+                      {view.actionItems.length > 0 ? (
+                        view.actionItems.map((item) => (
+                          <div
+                            className="border border-zinc-900 bg-zinc-950 p-4"
+                            key={item.id}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <h4 className="text-sm font-semibold text-zinc-100">
+                                {item.title}
+                              </h4>
+                              <span
+                                className={`border px-2 py-1 text-xs uppercase tracking-wide ${
+                                  item.status === "completed"
+                                    ? "border-emerald-900 text-emerald-300"
+                                    : "border-amber-900 text-amber-300"
+                                }`}
+                              >
+                                {plainStateLabel(item.status)}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-xs uppercase tracking-wide text-zinc-500">
+                              {item.dueLabel}
+                            </p>
+                            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
+                              {item.body}
+                            </p>
+                            {item.status !== "completed" ? (
+                              <form action={completeCoachActionItemAction} className="mt-4">
+                                <input
+                                  name="actionItemId"
+                                  type="hidden"
+                                  value={item.id}
+                                />
+                                <button
+                                  className="border border-emerald-800 px-3 py-2 text-sm text-emerald-300 hover:border-emerald-400"
+                                  type="submit"
+                                >
+                                  Mark complete
+                                </button>
+                              </form>
+                            ) : null}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="border border-zinc-900 p-4 text-sm text-zinc-500">
+                          No coach assignments yet.
+                        </p>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              </article>
+            ))}
+          </section>
+        ) : (
+          <section className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              No real coach connected
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">
+              Choose an approved coach, pay the app access fee for that coach,
+              then request the coach from their profile.
+            </p>
+            <Link
+              className="mt-4 inline-flex border border-sky-800 px-4 py-2 text-sm text-sky-300 hover:text-sky-200"
+              href="/coaches"
+            >
+              Browse coaches
+            </Link>
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}

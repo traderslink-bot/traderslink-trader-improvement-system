@@ -1,0 +1,328 @@
+import { buildProductTraderAnalyticsViewModel } from "../index";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  SqliteImportCommitRepository,
+} from "../product/import-commit/sqlite-import-commit-repository";
+import type {
+  PersistedTraderPeriodReflection,
+  TraderAnalyticsAccountId,
+  TraderAnalyticsUserId,
+  TraderPeriodReflection,
+  TraderPeriodReflectionGenerationAvailability,
+  TraderPeriodReflectionGenerationAvailabilitySet,
+  TraderPeriodReflectionGenerationStatus,
+  TraderPeriodReflectionKind,
+} from "../product/types";
+import {
+  generateAndSaveTraderPeriodReflection,
+  type OpenAIReflectionWriterConfig,
+} from "./period-reflection-generation";
+
+export const TRADER_PERIOD_REFLECTION_GENERATION_KINDS: TraderPeriodReflectionKind[] =
+  ["daily", "weekly", "monthly"];
+
+export interface TraderPeriodReflectionGenerationRunResult {
+  contractVersion: "trader_period_reflection_generation_run_v1";
+  source: "saved_sqlite";
+  userId: TraderAnalyticsUserId;
+  accountId: TraderAnalyticsAccountId;
+  latestReportId: string;
+  sourceReportGeneratedAt: string;
+  generatedAt: string;
+  requestedKinds: TraderPeriodReflectionKind[];
+  availability: TraderPeriodReflectionGenerationAvailabilitySet;
+  records: PersistedTraderPeriodReflection[];
+  statusCounts: Record<TraderPeriodReflectionGenerationStatus, number>;
+  usageSummary: TraderPeriodReflectionGenerationUsageSummary;
+  providerConfigured: boolean;
+  nextAction: string;
+}
+
+export interface TraderPeriodReflectionGenerationUsageSummary {
+  recordCount: number;
+  meteredRecordCount: number;
+  knownCostRecordCount: number;
+  unknownCostRecordCount: number;
+  estimatedCostUsd: number | null;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  reasoningOutputTokens: number;
+  totalTokens: number;
+}
+
+export class TraderPeriodReflectionGenerationUnavailableError extends Error {
+  readonly unavailable: TraderPeriodReflectionGenerationAvailability[];
+
+  constructor(unavailable: TraderPeriodReflectionGenerationAvailability[]) {
+    super(
+      `Reflection generation is not available for ${unavailable.map((item) => item.kind).join(", ")}.`,
+    );
+    this.name = "TraderPeriodReflectionGenerationUnavailableError";
+    this.unavailable = unavailable;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function uniqueKinds(
+  kinds: TraderPeriodReflectionKind[],
+): TraderPeriodReflectionKind[] {
+  return TRADER_PERIOD_REFLECTION_GENERATION_KINDS.filter((kind) =>
+    kinds.includes(kind),
+  );
+}
+
+export function parseTraderPeriodReflectionGenerationKinds(
+  value: unknown,
+): TraderPeriodReflectionKind[] {
+  if (value === undefined) {
+    return TRADER_PERIOD_REFLECTION_GENERATION_KINDS;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("kinds must be an array of daily, weekly, or monthly.");
+  }
+
+  const kinds = value.map((item) => {
+    if (
+      item === "daily" ||
+      item === "weekly" ||
+      item === "monthly"
+    ) {
+      return item;
+    }
+
+    throw new Error("kinds must only include daily, weekly, or monthly.");
+  });
+  const unique = uniqueKinds(kinds);
+
+  if (unique.length === 0) {
+    throw new Error("kinds must include at least one period.");
+  }
+
+  return unique;
+}
+
+export function parseTraderPeriodReflectionGenerationRequest(
+  document: unknown,
+): {
+  generatedAt?: string;
+  kinds: TraderPeriodReflectionKind[];
+} {
+  if (document === undefined) {
+    return { kinds: TRADER_PERIOD_REFLECTION_GENERATION_KINDS };
+  }
+
+  if (!isRecord(document)) {
+    throw new Error("Request body must be an object.");
+  }
+
+  const generatedAt =
+    typeof document.generatedAt === "string" && document.generatedAt.trim()
+      ? document.generatedAt.trim()
+      : undefined;
+
+  return {
+    generatedAt,
+    kinds: parseTraderPeriodReflectionGenerationKinds(document.kinds),
+  };
+}
+
+function reflectionByKind(args: {
+  kind: TraderPeriodReflectionKind;
+  reflections: {
+    daily: TraderPeriodReflection;
+    weekly: TraderPeriodReflection;
+    monthly: TraderPeriodReflection;
+  };
+}): TraderPeriodReflection {
+  switch (args.kind) {
+    case "daily":
+      return args.reflections.daily;
+    case "weekly":
+      return args.reflections.weekly;
+    case "monthly":
+      return args.reflections.monthly;
+  }
+}
+
+function availabilityByKind(args: {
+  availability: TraderPeriodReflectionGenerationAvailabilitySet;
+  kind: TraderPeriodReflectionKind;
+}): TraderPeriodReflectionGenerationAvailability {
+  switch (args.kind) {
+    case "daily":
+      return args.availability.daily;
+    case "weekly":
+      return args.availability.weekly;
+    case "monthly":
+      return args.availability.monthly;
+  }
+}
+
+function statusCounts(
+  records: PersistedTraderPeriodReflection[],
+): Record<TraderPeriodReflectionGenerationStatus, number> {
+  return records.reduce<Record<TraderPeriodReflectionGenerationStatus, number>>(
+    (counts, record) => {
+      counts[record.status] += 1;
+      return counts;
+    },
+    {
+      fallback: 0,
+      failed: 0,
+      generated: 0,
+      stale: 0,
+    },
+  );
+}
+
+function usageSummary(
+  records: PersistedTraderPeriodReflection[],
+): TraderPeriodReflectionGenerationUsageSummary {
+  let estimatedCostUsd = 0;
+  let meteredRecordCount = 0;
+  let knownCostRecordCount = 0;
+  let unknownCostRecordCount = 0;
+  let inputTokens = 0;
+  let cachedInputTokens = 0;
+  let outputTokens = 0;
+  let reasoningOutputTokens = 0;
+  let totalTokens = 0;
+
+  for (const record of records) {
+    const usage = record.usage ?? null;
+
+    if (!usage) {
+      continue;
+    }
+
+    meteredRecordCount += 1;
+    inputTokens += usage.tokenUsage.inputTokens;
+    cachedInputTokens += usage.tokenUsage.cachedInputTokens;
+    outputTokens += usage.tokenUsage.outputTokens;
+    reasoningOutputTokens += usage.tokenUsage.reasoningOutputTokens;
+    totalTokens += usage.tokenUsage.totalTokens;
+
+    if (usage.costEstimate.estimatedCostUsd === null) {
+      unknownCostRecordCount += 1;
+    } else {
+      knownCostRecordCount += 1;
+      estimatedCostUsd += usage.costEstimate.estimatedCostUsd;
+    }
+  }
+
+  return {
+    recordCount: records.length,
+    meteredRecordCount,
+    knownCostRecordCount,
+    unknownCostRecordCount,
+    estimatedCostUsd:
+      meteredRecordCount > 0 && knownCostRecordCount === 0
+        ? null
+        : Number(estimatedCostUsd.toFixed(8)),
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    reasoningOutputTokens,
+    totalTokens,
+  };
+}
+
+function nextActionForRecords(
+  records: PersistedTraderPeriodReflection[],
+): string {
+  if (records.every((record) => record.status === "generated")) {
+    return "Generated AI trading reflections are saved and ready to display.";
+  }
+
+  if (records.some((record) => record.status === "failed")) {
+    return "Review OpenAI provider errors; deterministic fallback summaries were saved for failed periods.";
+  }
+
+  return "Configure OPENAI_API_KEY to replace deterministic fallback summaries with AI-generated reflections.";
+}
+
+export async function runTraderPeriodReflectionGeneration(args?: {
+  accountId?: TraderAnalyticsAccountId;
+  generatedAt?: string;
+  kinds?: TraderPeriodReflectionKind[];
+  openai?: OpenAIReflectionWriterConfig;
+  repository?: SqliteImportCommitRepository;
+  userId?: TraderAnalyticsUserId;
+}): Promise<TraderPeriodReflectionGenerationRunResult> {
+  const repository = args?.repository ?? new SqliteImportCommitRepository();
+  const userId = args?.userId ?? DEMO_USER_ID;
+  const accountId = args?.accountId ?? DEMO_ACCOUNT_ID;
+  const reports = repository.listReports(userId);
+
+  if (reports.length === 0) {
+    throw new Error("No saved analytics report is available for reflection generation.");
+  }
+
+  const generatedAt = args?.generatedAt ?? new Date().toISOString();
+  const viewModel = buildProductTraderAnalyticsViewModel({
+    repository,
+    userId,
+    storageMode: "local_sqlite_single_user",
+    includePersistedPeriodReflections: false,
+    periodReflectionNow: new Date(generatedAt),
+  });
+  const requestedKinds = uniqueKinds(
+    args?.kinds ?? TRADER_PERIOD_REFLECTION_GENERATION_KINDS,
+  );
+  const unavailable = requestedKinds
+    .map((kind) =>
+      availabilityByKind({
+        availability: viewModel.periodReflections.generation,
+        kind,
+      }),
+    )
+    .filter((availability) => !availability.canGenerate);
+
+  if (unavailable.length > 0) {
+    throw new TraderPeriodReflectionGenerationUnavailableError(unavailable);
+  }
+
+  const records: PersistedTraderPeriodReflection[] = [];
+
+  for (const kind of requestedKinds) {
+    records.push(
+      await generateAndSaveTraderPeriodReflection({
+        repository,
+        userId,
+        accountId,
+        reflection: reflectionByKind({
+          kind,
+          reflections: viewModel.periodReflections,
+        }),
+        sourceReportGeneratedAt: viewModel.latestReport.generatedAt,
+        generatedAt,
+        openai: args?.openai,
+      }),
+    );
+  }
+
+  return {
+    contractVersion: "trader_period_reflection_generation_run_v1",
+    source: "saved_sqlite",
+    userId,
+    accountId,
+    latestReportId: viewModel.latestReport.id,
+    sourceReportGeneratedAt: viewModel.latestReport.generatedAt,
+    generatedAt,
+    requestedKinds,
+    availability: viewModel.periodReflections.generation,
+    records,
+    statusCounts: statusCounts(records),
+    usageSummary: usageSummary(records),
+    providerConfigured: records.some(
+      (record) => record.provider === "openai_responses_api",
+    ),
+    nextAction: nextActionForRecords(records),
+  };
+}

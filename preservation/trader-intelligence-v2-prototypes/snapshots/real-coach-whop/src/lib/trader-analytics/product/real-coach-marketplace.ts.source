@@ -1,0 +1,1722 @@
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
+  getTraderIntelligenceDatabase,
+} from "./import-commit/sqlite-import-commit-repository";
+import type {
+  SavedExecutionTrade,
+  SavedTraderAnalyticsReport,
+  TraderAnalyticsUserId,
+} from "./types";
+
+export const PROTOTYPE_ADMIN_USER_ID = "local-prototype-admin";
+export const PROTOTYPE_SEED_COACH_SLUG = "avery-chen";
+const AVERY_CHEN_SEED_BIO = [
+  "A demo approved coach profile for testing the real-person coach workflow.",
+  "Avery reviews saved trades, compares them against the AI coach focus, publishes weekly feedback, and assigns one or two concrete follow-through tasks.",
+  "This seeded profile is local demo data. Replace it with a real approved coach before live use.",
+].join("\n\n");
+
+export type RealCoachProfileStatus = "draft" | "approved" | "hidden";
+export type CoachAccessPassStatus = "paid" | "refunded" | "expired";
+export type CoachRelationshipStatus = "requested" | "active" | "ended";
+export type CoachPaymentStatus = "pending" | "confirmed" | "cancelled";
+export type CoachFeedbackKind = "weekly" | "monthly";
+export type CoachFeedbackStatus = "draft" | "published";
+export type CoachActionItemStatus = "assigned" | "completed";
+export type CoachPaymentEventStatus = "processed" | "ignored" | "failed";
+
+export const COACH_APP_ACCESS_PAYMENT_PURPOSE =
+  "trader_intelligence_coach_app_access";
+
+export interface RealCoachProfile {
+  id: string;
+  slug: string;
+  displayName: string;
+  headline: string;
+  bio: string;
+  specialties: string[];
+  socialLinks: CoachSocialLink[];
+  whopUrl: string;
+  appAccessFeeText: string;
+  coachFeeText: string;
+  studentCap: number;
+  status: RealCoachProfileStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachSocialLink {
+  label: string;
+  url: string;
+}
+
+export interface CoachAccessPass {
+  id: string;
+  coachId: string;
+  userId: TraderAnalyticsUserId;
+  workspaceId: string;
+  accountId: string;
+  status: CoachAccessPassStatus;
+  appFeeText: string;
+  paidAt: string;
+  expiresAt: string;
+  paymentReference: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachStudentRelationship {
+  id: string;
+  coachId: string;
+  userId: TraderAnalyticsUserId;
+  workspaceId: string;
+  accountId: string;
+  accessPassId: string;
+  status: CoachRelationshipStatus;
+  coachPaymentStatus: CoachPaymentStatus;
+  requestedAt: string;
+  consentedAt: string;
+  activatedAt: string | null;
+  expiresAt: string;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachPrivateNote {
+  id: string;
+  relationshipId: string;
+  coachId: string;
+  userId: TraderAnalyticsUserId;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachFeedbackReport {
+  id: string;
+  relationshipId: string;
+  coachId: string;
+  userId: TraderAnalyticsUserId;
+  kind: CoachFeedbackKind;
+  status: CoachFeedbackStatus;
+  periodLabel: string;
+  title: string;
+  body: string;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachActionItem {
+  id: string;
+  relationshipId: string;
+  coachId: string;
+  userId: TraderAnalyticsUserId;
+  reportId: string | null;
+  title: string;
+  body: string;
+  dueLabel: string;
+  status: CoachActionItemStatus;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CoachPaymentEvent {
+  id: string;
+  provider: "whop";
+  providerEventId: string;
+  providerPaymentId: string | null;
+  eventType: string;
+  coachId: string | null;
+  userId: TraderAnalyticsUserId | null;
+  workspaceId: string | null;
+  accountId: string | null;
+  status: CoachPaymentEventStatus;
+  message: string;
+  accessPassId: string | null;
+  rawJson: string;
+  receivedAt: string;
+  createdAt: string;
+}
+
+export interface ProcessWhopAppAccessPaymentInput {
+  providerEventId: string;
+  providerPaymentId?: string | null;
+  eventType: string;
+  metadata: Record<string, unknown> | null;
+  rawEvent: unknown;
+  paidAt?: string;
+  receivedAt?: string;
+}
+
+export interface ProcessWhopAppAccessPaymentResult {
+  status: CoachPaymentEventStatus | "duplicate";
+  message: string;
+  event: CoachPaymentEvent;
+  accessPass: CoachAccessPass | null;
+}
+
+export interface CoachDirectoryCard {
+  coach: RealCoachProfile;
+  activeStudentCount: number;
+  reservedStudentCount: number;
+  availableSeatCount: number;
+  requestsDisabled: boolean;
+}
+
+export interface StudentCoachView {
+  relationship: CoachStudentRelationship;
+  coach: RealCoachProfile;
+  reports: CoachFeedbackReport[];
+  actionItems: CoachActionItem[];
+}
+
+export interface CoachStudentReadModel {
+  relationship: CoachStudentRelationship;
+  coach: RealCoachProfile;
+  trades: SavedExecutionTrade[];
+  latestReport: SavedTraderAnalyticsReport | null;
+  actionItems: CoachActionItem[];
+}
+
+interface RealCoachMarketplaceDatabase {
+  exec(sql: string): void;
+  prepare(sql: string): {
+    get(...params: unknown[]): unknown;
+    all(...params: unknown[]): unknown[];
+    run(...params: unknown[]): { changes: number };
+  };
+}
+
+type CoachProfileRow = {
+  id: string;
+  slug: string;
+  display_name: string;
+  headline: string;
+  bio: string;
+  specialties_json: string;
+  social_links_json: string;
+  whop_url: string;
+  app_access_fee_text: string;
+  coach_fee_text: string;
+  student_cap: number;
+  status: RealCoachProfileStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachAccessPassRow = {
+  id: string;
+  coach_id: string;
+  user_id: string;
+  workspace_id: string;
+  account_id: string;
+  status: CoachAccessPassStatus;
+  app_fee_text: string;
+  paid_at: string;
+  expires_at: string;
+  payment_reference: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachRelationshipRow = {
+  id: string;
+  coach_id: string;
+  user_id: string;
+  workspace_id: string;
+  account_id: string;
+  access_pass_id: string;
+  status: CoachRelationshipStatus;
+  coach_payment_status: CoachPaymentStatus;
+  requested_at: string;
+  consented_at: string;
+  activated_at: string | null;
+  expires_at: string;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachPrivateNoteRow = {
+  id: string;
+  relationship_id: string;
+  coach_id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachFeedbackReportRow = {
+  id: string;
+  relationship_id: string;
+  coach_id: string;
+  user_id: string;
+  kind: CoachFeedbackKind;
+  status: CoachFeedbackStatus;
+  period_label: string;
+  title: string;
+  body: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachActionItemRow = {
+  id: string;
+  relationship_id: string;
+  coach_id: string;
+  user_id: string;
+  report_id: string | null;
+  title: string;
+  body: string;
+  due_label: string;
+  status: CoachActionItemStatus;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CoachPaymentEventRow = {
+  id: string;
+  provider: "whop";
+  provider_event_id: string;
+  provider_payment_id: string | null;
+  event_type: string;
+  coach_id: string | null;
+  user_id: string | null;
+  workspace_id: string | null;
+  account_id: string | null;
+  status: CoachPaymentEventStatus;
+  message: string;
+  access_pass_id: string | null;
+  raw_json: string;
+  received_at: string;
+  created_at: string;
+};
+
+function nowIso(now = new Date()): string {
+  return now.toISOString();
+}
+
+function monthFrom(value: string, months: number): string {
+  const date = new Date(value);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString();
+}
+
+function compactId(prefix: string): string {
+  return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || `coach-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function parseJsonArray<T>(value: string, fallback: T[]): T[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as T[]) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function splitList(value: string): string[] {
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseSocialLinks(value: string): CoachSocialLink[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label, ...urlParts] = line.split("|");
+      const url = urlParts.join("|").trim();
+      return {
+        label: (label ?? "").trim() || "Social",
+        url: url || (label ?? "").trim(),
+      };
+    })
+    .filter((link) => link.url.length > 0);
+}
+
+function toProfile(row: CoachProfileRow): RealCoachProfile {
+  const isAverySeed = row.slug === PROTOTYPE_SEED_COACH_SLUG;
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    displayName: row.display_name,
+    headline: row.headline,
+    bio: isAverySeed ? AVERY_CHEN_SEED_BIO : row.bio,
+    specialties: parseJsonArray<string>(row.specialties_json, []),
+    socialLinks: parseJsonArray<CoachSocialLink>(row.social_links_json, []),
+    whopUrl: row.whop_url,
+    appAccessFeeText: row.app_access_fee_text,
+    coachFeeText: row.coach_fee_text,
+    studentCap: row.student_cap,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toPass(row: CoachAccessPassRow): CoachAccessPass {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    workspaceId: row.workspace_id,
+    accountId: row.account_id,
+    status: row.status,
+    appFeeText: row.app_fee_text,
+    paidAt: row.paid_at,
+    expiresAt: row.expires_at,
+    paymentReference: row.payment_reference,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toRelationship(row: CoachRelationshipRow): CoachStudentRelationship {
+  return {
+    id: row.id,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    workspaceId: row.workspace_id,
+    accountId: row.account_id,
+    accessPassId: row.access_pass_id,
+    status: row.status,
+    coachPaymentStatus: row.coach_payment_status,
+    requestedAt: row.requested_at,
+    consentedAt: row.consented_at,
+    activatedAt: row.activated_at,
+    expiresAt: row.expires_at,
+    endedAt: row.ended_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toPrivateNote(row: CoachPrivateNoteRow): CoachPrivateNote {
+  return {
+    id: row.id,
+    relationshipId: row.relationship_id,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    title: row.title,
+    body: row.body,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toFeedbackReport(row: CoachFeedbackReportRow): CoachFeedbackReport {
+  return {
+    id: row.id,
+    relationshipId: row.relationship_id,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    kind: row.kind,
+    status: row.status,
+    periodLabel: row.period_label,
+    title: row.title,
+    body: row.body,
+    publishedAt: row.published_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toActionItem(row: CoachActionItemRow): CoachActionItem {
+  return {
+    id: row.id,
+    relationshipId: row.relationship_id,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    reportId: row.report_id,
+    title: row.title,
+    body: row.body,
+    dueLabel: row.due_label,
+    status: row.status,
+    completedAt: row.completed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toPaymentEvent(row: CoachPaymentEventRow): CoachPaymentEvent {
+  return {
+    id: row.id,
+    provider: row.provider,
+    providerEventId: row.provider_event_id,
+    providerPaymentId: row.provider_payment_id,
+    eventType: row.event_type,
+    coachId: row.coach_id,
+    userId: row.user_id,
+    workspaceId: row.workspace_id,
+    accountId: row.account_id,
+    status: row.status,
+    message: row.message,
+    accessPassId: row.access_pass_id,
+    rawJson: row.raw_json,
+    receivedAt: row.received_at,
+    createdAt: row.created_at,
+  };
+}
+
+function metadataString(
+  metadata: Record<string, unknown> | null,
+  ...keys: string[]
+): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function stableJson(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return JSON.stringify({ unserializable: true });
+  }
+}
+
+export function runRealCoachMarketplaceMigrations(
+  db: RealCoachMarketplaceDatabase,
+): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS coach_profiles (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      display_name TEXT NOT NULL,
+      headline TEXT NOT NULL,
+      bio TEXT NOT NULL,
+      specialties_json TEXT NOT NULL,
+      social_links_json TEXT NOT NULL,
+      whop_url TEXT NOT NULL,
+      app_access_fee_text TEXT NOT NULL,
+      coach_fee_text TEXT NOT NULL,
+      student_cap INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_profiles_status_idx
+      ON coach_profiles(status);
+
+    CREATE TABLE IF NOT EXISTS coach_access_passes (
+      id TEXT PRIMARY KEY,
+      coach_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      app_fee_text TEXT NOT NULL,
+      paid_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      payment_reference TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_access_passes_user_coach_idx
+      ON coach_access_passes(user_id, coach_id, expires_at);
+
+    CREATE TABLE IF NOT EXISTS coach_student_relationships (
+      id TEXT PRIMARY KEY,
+      coach_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      access_pass_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      coach_payment_status TEXT NOT NULL,
+      requested_at TEXT NOT NULL,
+      consented_at TEXT NOT NULL,
+      activated_at TEXT,
+      expires_at TEXT NOT NULL,
+      ended_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_student_relationships_coach_status_idx
+      ON coach_student_relationships(coach_id, status, expires_at);
+
+    CREATE INDEX IF NOT EXISTS coach_student_relationships_user_status_idx
+      ON coach_student_relationships(user_id, status, expires_at);
+
+    DROP INDEX IF EXISTS coach_student_relationships_active_unique;
+
+    CREATE TABLE IF NOT EXISTS coach_private_notes (
+      id TEXT PRIMARY KEY,
+      relationship_id TEXT NOT NULL,
+      coach_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_private_notes_relationship_idx
+      ON coach_private_notes(relationship_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS coach_feedback_reports (
+      id TEXT PRIMARY KEY,
+      relationship_id TEXT NOT NULL,
+      coach_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      period_label TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      published_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_feedback_reports_relationship_status_idx
+      ON coach_feedback_reports(relationship_id, status, created_at);
+
+    CREATE TABLE IF NOT EXISTS coach_action_items (
+      id TEXT PRIMARY KEY,
+      relationship_id TEXT NOT NULL,
+      coach_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      report_id TEXT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      due_label TEXT NOT NULL,
+      status TEXT NOT NULL,
+      completed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS coach_action_items_relationship_status_idx
+      ON coach_action_items(relationship_id, status, created_at);
+
+    CREATE TABLE IF NOT EXISTS coach_payment_events (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      provider_event_id TEXT NOT NULL,
+      provider_payment_id TEXT,
+      event_type TEXT NOT NULL,
+      coach_id TEXT,
+      user_id TEXT,
+      workspace_id TEXT,
+      account_id TEXT,
+      status TEXT NOT NULL,
+      message TEXT NOT NULL,
+      access_pass_id TEXT,
+      raw_json TEXT NOT NULL,
+      received_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS coach_payment_events_provider_event_idx
+      ON coach_payment_events(provider, provider_event_id);
+
+    CREATE INDEX IF NOT EXISTS coach_payment_events_coach_user_idx
+      ON coach_payment_events(coach_id, user_id, created_at);
+  `);
+}
+
+export class RealCoachMarketplaceRepository {
+  private readonly db: RealCoachMarketplaceDatabase;
+
+  constructor(db: RealCoachMarketplaceDatabase = getTraderIntelligenceDatabase()) {
+    this.db = db;
+    runRealCoachMarketplaceMigrations(this.db);
+  }
+
+  createCoachProfile(input: {
+    displayName: string;
+    headline: string;
+    bio: string;
+    specialtiesText?: string;
+    socialLinksText?: string;
+    whopUrl: string;
+    appAccessFeeText: string;
+    coachFeeText: string;
+    studentCap: number;
+    status?: RealCoachProfileStatus;
+    createdAt?: string;
+  }): RealCoachProfile {
+    const createdAt = input.createdAt ?? nowIso();
+    const profile: RealCoachProfile = {
+      id: compactId("coach"),
+      slug: slugify(input.displayName),
+      displayName: input.displayName.trim(),
+      headline: input.headline.trim(),
+      bio: input.bio.trim(),
+      specialties: splitList(input.specialtiesText ?? ""),
+      socialLinks: parseSocialLinks(input.socialLinksText ?? ""),
+      whopUrl: input.whopUrl.trim(),
+      appAccessFeeText: input.appAccessFeeText.trim() || "$49 / month access",
+      coachFeeText: input.coachFeeText.trim() || "Coach sets fee on Whop",
+      studentCap: Math.max(0, Math.floor(input.studentCap)),
+      status: input.status ?? "draft",
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_profiles (
+          id, slug, display_name, headline, bio, specialties_json,
+          social_links_json, whop_url, app_access_fee_text, coach_fee_text,
+          student_cap, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        profile.id,
+        profile.slug,
+        profile.displayName,
+        profile.headline,
+        profile.bio,
+        JSON.stringify(profile.specialties),
+        JSON.stringify(profile.socialLinks),
+        profile.whopUrl,
+        profile.appAccessFeeText,
+        profile.coachFeeText,
+        profile.studentCap,
+        profile.status,
+        profile.createdAt,
+        profile.updatedAt,
+      );
+
+    return profile;
+  }
+
+  updateCoachStatus(input: {
+    coachId: string;
+    status: RealCoachProfileStatus;
+    updatedAt?: string;
+  }): RealCoachProfile | null {
+    const updatedAt = input.updatedAt ?? nowIso();
+    this.db
+      .prepare(
+        `UPDATE coach_profiles
+         SET status = ?, updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(input.status, updatedAt, input.coachId);
+
+    return this.getCoachProfile(input.coachId);
+  }
+
+  updateCoachCapacity(input: {
+    coachId: string;
+    studentCap: number;
+    updatedAt?: string;
+  }): RealCoachProfile | null {
+    const updatedAt = input.updatedAt ?? nowIso();
+    this.db
+      .prepare(
+        `UPDATE coach_profiles
+         SET student_cap = ?, updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(Math.max(0, Math.floor(input.studentCap)), updatedAt, input.coachId);
+
+    return this.getCoachProfile(input.coachId);
+  }
+
+  ensurePrototypeSeedCoach(input?: { createdAt?: string }): RealCoachProfile {
+    const existing = this.getCoachProfile(PROTOTYPE_SEED_COACH_SLUG);
+    if (existing) {
+      const needsSeedCopyRefresh =
+        existing.bio.includes("prototype approved") ||
+        existing.bio.includes("system coach") ||
+        existing.bio !== AVERY_CHEN_SEED_BIO;
+
+      if (needsSeedCopyRefresh) {
+        const updatedAt = input?.createdAt ?? nowIso();
+        this.db
+          .prepare(
+            `UPDATE coach_profiles
+             SET bio = ?, updated_at = ?
+             WHERE id = ?`,
+          )
+          .run(AVERY_CHEN_SEED_BIO, updatedAt, existing.id);
+      }
+
+      return existing.status === "approved" && !needsSeedCopyRefresh
+        ? existing
+        : (this.updateCoachStatus({
+            coachId: existing.id,
+            status: "approved",
+            updatedAt: input?.createdAt,
+          }) ?? existing);
+    }
+
+    return this.createCoachProfile({
+      displayName: "Avery Chen",
+      headline: "Weekly execution reviews for momentum and small-cap traders.",
+      bio: AVERY_CHEN_SEED_BIO,
+      specialtiesText: [
+        "entry discipline",
+        "adds and scaling",
+        "profit protection",
+        "weekly trade review",
+      ].join(", "),
+      socialLinksText: [
+        "YouTube | https://example.com/avery-trading",
+        "X | https://example.com/avery-x",
+      ].join("\n"),
+      whopUrl: "https://whop.com/trader-intelligence-coach-demo",
+      appAccessFeeText: "$49 / one-month coach access",
+      coachFeeText: "$300 / month through coach-owned Whop",
+      studentCap: 12,
+      status: "approved",
+      createdAt: input?.createdAt,
+    });
+  }
+
+  listCoachProfiles(): RealCoachProfile[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_profiles
+         ORDER BY status = 'approved' DESC, display_name ASC`,
+      )
+      .all()
+      .map((row) => toProfile(row as CoachProfileRow));
+  }
+
+  listApprovedCoachDirectory(now = nowIso()): CoachDirectoryCard[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_profiles
+         WHERE status = 'approved'
+         ORDER BY display_name ASC`,
+      )
+      .all()
+      .map((row) => this.buildDirectoryCard(toProfile(row as CoachProfileRow), now));
+  }
+
+  getCoachProfile(coachIdOrSlug: string): RealCoachProfile | null {
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_profiles
+         WHERE id = ? OR slug = ?
+         LIMIT 1`,
+      )
+      .get(coachIdOrSlug, coachIdOrSlug) as CoachProfileRow | undefined;
+
+    return row ? toProfile(row) : null;
+  }
+
+  buildDirectoryCard(coach: RealCoachProfile, now = nowIso()): CoachDirectoryCard {
+    const activeStudentCount = this.countRelationships({
+      coachId: coach.id,
+      statuses: ["active"],
+      now,
+    });
+    const reservedStudentCount = this.countRelationships({
+      coachId: coach.id,
+      statuses: ["requested", "active"],
+      now,
+    });
+    const availableSeatCount = Math.max(0, coach.studentCap - reservedStudentCount);
+
+    return {
+      coach,
+      activeStudentCount,
+      reservedStudentCount,
+      availableSeatCount,
+      requestsDisabled:
+        coach.status !== "approved" ||
+        coach.studentCap <= 0 ||
+        availableSeatCount <= 0,
+    };
+  }
+
+  grantPrototypeAppAccessPass(input: {
+    coachId: string;
+    userId?: TraderAnalyticsUserId;
+    workspaceId?: string;
+    accountId?: string;
+    paymentReference?: string;
+    paidAt?: string;
+  }): CoachAccessPass {
+    const coach = this.requireCoach(input.coachId);
+    const paidAt = input.paidAt ?? nowIso();
+    const pass: CoachAccessPass = {
+      id: compactId("coach_access"),
+      coachId: coach.id,
+      userId: input.userId ?? DEMO_USER_ID,
+      workspaceId: input.workspaceId ?? DEMO_WORKSPACE_ID,
+      accountId: input.accountId ?? DEMO_ACCOUNT_ID,
+      status: "paid",
+      appFeeText: coach.appAccessFeeText,
+      paidAt,
+      expiresAt: monthFrom(paidAt, 1),
+      paymentReference:
+        input.paymentReference?.trim() ||
+        `prototype-app-access:${coach.slug}:${paidAt}`,
+      createdAt: paidAt,
+      updatedAt: paidAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_access_passes (
+          id, coach_id, user_id, workspace_id, account_id, status,
+          app_fee_text, paid_at, expires_at, payment_reference,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        pass.id,
+        pass.coachId,
+        pass.userId,
+        pass.workspaceId,
+        pass.accountId,
+        pass.status,
+        pass.appFeeText,
+        pass.paidAt,
+        pass.expiresAt,
+        pass.paymentReference,
+        pass.createdAt,
+        pass.updatedAt,
+      );
+
+    return pass;
+  }
+
+  processWhopAppAccessPayment(
+    input: ProcessWhopAppAccessPaymentInput,
+  ): ProcessWhopAppAccessPaymentResult {
+    const receivedAt = input.receivedAt ?? nowIso();
+    const providerEventId = input.providerEventId.trim();
+    const rawJson = stableJson(input.rawEvent);
+    const existing = this.getPaymentEvent({
+      provider: "whop",
+      providerEventId,
+    });
+
+    if (existing) {
+      return {
+        status: "duplicate",
+        message: "Webhook event was already recorded.",
+        event: existing,
+        accessPass: existing.accessPassId
+          ? this.getAccessPass(existing.accessPassId)
+          : null,
+      };
+    }
+
+    const providerPaymentId = input.providerPaymentId?.trim() || null;
+    const purpose = metadataString(
+      input.metadata,
+      "purpose",
+      "paymentPurpose",
+      "payment_purpose",
+    );
+    const coachId = metadataString(input.metadata, "coachId", "coach_id");
+    const userId = metadataString(input.metadata, "userId", "user_id");
+    const workspaceId = metadataString(
+      input.metadata,
+      "workspaceId",
+      "workspace_id",
+    );
+    const accountId = metadataString(input.metadata, "accountId", "account_id");
+
+    if (input.eventType !== "payment.succeeded") {
+      return {
+        status: "ignored",
+        message: `Ignored unsupported Whop event type: ${input.eventType}.`,
+        event: this.insertPaymentEvent({
+          providerEventId,
+          providerPaymentId,
+          eventType: input.eventType,
+          coachId,
+          userId,
+          workspaceId,
+          accountId,
+          status: "ignored",
+          message: `Ignored unsupported Whop event type: ${input.eventType}.`,
+          accessPassId: null,
+          rawJson,
+          receivedAt,
+        }),
+        accessPass: null,
+      };
+    }
+
+    if (purpose !== COACH_APP_ACCESS_PAYMENT_PURPOSE) {
+      return {
+        status: "ignored",
+        message: "Ignored Whop payment because it is not a coach app-access payment.",
+        event: this.insertPaymentEvent({
+          providerEventId,
+          providerPaymentId,
+          eventType: input.eventType,
+          coachId,
+          userId,
+          workspaceId,
+          accountId,
+          status: "ignored",
+          message:
+            "Ignored Whop payment because it is not a coach app-access payment.",
+          accessPassId: null,
+          rawJson,
+          receivedAt,
+        }),
+        accessPass: null,
+      };
+    }
+
+    if (!coachId || !userId || !workspaceId || !accountId) {
+      return {
+        status: "failed",
+        message:
+          "Whop coach app-access payment is missing coachId, userId, workspaceId, or accountId metadata.",
+        event: this.insertPaymentEvent({
+          providerEventId,
+          providerPaymentId,
+          eventType: input.eventType,
+          coachId,
+          userId,
+          workspaceId,
+          accountId,
+          status: "failed",
+          message:
+            "Whop coach app-access payment is missing coachId, userId, workspaceId, or accountId metadata.",
+          accessPassId: null,
+          rawJson,
+          receivedAt,
+        }),
+        accessPass: null,
+      };
+    }
+
+    const coach = this.getCoachProfile(coachId);
+    if (!coach || coach.status !== "approved") {
+      return {
+        status: "failed",
+        message: "Whop coach app-access payment references an unapproved coach.",
+        event: this.insertPaymentEvent({
+          providerEventId,
+          providerPaymentId,
+          eventType: input.eventType,
+          coachId,
+          userId,
+          workspaceId,
+          accountId,
+          status: "failed",
+          message: "Whop coach app-access payment references an unapproved coach.",
+          accessPassId: null,
+          rawJson,
+          receivedAt,
+        }),
+        accessPass: null,
+      };
+    }
+
+    const accessPass = this.grantPrototypeAppAccessPass({
+      coachId: coach.id,
+      userId,
+      workspaceId,
+      accountId,
+      paymentReference: providerPaymentId
+        ? `whop:${providerPaymentId}`
+        : `whop-event:${providerEventId}`,
+      paidAt: input.paidAt ?? receivedAt,
+    });
+    const message = "Whop payment succeeded; coach app access pass granted.";
+
+    return {
+      status: "processed",
+      message,
+      event: this.insertPaymentEvent({
+        providerEventId,
+        providerPaymentId,
+        eventType: input.eventType,
+        coachId: coach.id,
+        userId,
+        workspaceId,
+        accountId,
+        status: "processed",
+        message,
+        accessPassId: accessPass.id,
+        rawJson,
+        receivedAt,
+      }),
+      accessPass,
+    };
+  }
+
+  listPaymentEvents(limit = 25): CoachPaymentEvent[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_payment_events
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(Math.max(1, Math.floor(limit)))
+      .map((row) => toPaymentEvent(row as CoachPaymentEventRow));
+  }
+
+  getActiveAccessPass(input: {
+    coachId: string;
+    userId?: TraderAnalyticsUserId;
+    now?: string;
+  }): CoachAccessPass | null {
+    const now = input.now ?? nowIso();
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_access_passes
+         WHERE coach_id = ?
+           AND user_id = ?
+           AND status = 'paid'
+           AND expires_at > ?
+         ORDER BY expires_at DESC
+         LIMIT 1`,
+      )
+      .get(input.coachId, input.userId ?? DEMO_USER_ID, now) as
+      | CoachAccessPassRow
+      | undefined;
+
+    return row ? toPass(row) : null;
+  }
+
+  private getAccessPass(accessPassId: string): CoachAccessPass | null {
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_access_passes
+         WHERE id = ?
+         LIMIT 1`,
+      )
+      .get(accessPassId) as CoachAccessPassRow | undefined;
+
+    return row ? toPass(row) : null;
+  }
+
+  requestCoach(input: {
+    coachId: string;
+    userId?: TraderAnalyticsUserId;
+    workspaceId?: string;
+    accountId?: string;
+    now?: string;
+  }): { relationship: CoachStudentRelationship | null; reason?: string } {
+    const requestedAt = input.now ?? nowIso();
+    const userId = input.userId ?? DEMO_USER_ID;
+    const coach = this.getCoachProfile(input.coachId);
+
+    if (!coach || coach.status !== "approved") {
+      return { relationship: null, reason: "coach_not_approved" };
+    }
+
+    const card = this.buildDirectoryCard(coach, requestedAt);
+    if (card.requestsDisabled) {
+      return { relationship: null, reason: "coach_capacity_full" };
+    }
+
+    const existing = this.getCurrentRelationship({
+      coachId: coach.id,
+      userId,
+      now: requestedAt,
+    });
+    if (existing) {
+      return { relationship: existing };
+    }
+
+    const accessPass = this.getActiveAccessPass({
+      coachId: coach.id,
+      userId,
+      now: requestedAt,
+    });
+    if (!accessPass) {
+      return { relationship: null, reason: "app_access_fee_required" };
+    }
+
+    const relationship: CoachStudentRelationship = {
+      id: compactId("coach_student"),
+      coachId: coach.id,
+      userId,
+      workspaceId: input.workspaceId ?? accessPass.workspaceId,
+      accountId: input.accountId ?? accessPass.accountId,
+      accessPassId: accessPass.id,
+      status: "requested",
+      coachPaymentStatus: "pending",
+      requestedAt,
+      consentedAt: requestedAt,
+      activatedAt: null,
+      expiresAt: accessPass.expiresAt,
+      endedAt: null,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_student_relationships (
+          id, coach_id, user_id, workspace_id, account_id, access_pass_id,
+          status, coach_payment_status, requested_at, consented_at,
+          activated_at, expires_at, ended_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        relationship.id,
+        relationship.coachId,
+        relationship.userId,
+        relationship.workspaceId,
+        relationship.accountId,
+        relationship.accessPassId,
+        relationship.status,
+        relationship.coachPaymentStatus,
+        relationship.requestedAt,
+        relationship.consentedAt,
+        relationship.activatedAt,
+        relationship.expiresAt,
+        relationship.endedAt,
+        relationship.createdAt,
+        relationship.updatedAt,
+      );
+
+    return { relationship };
+  }
+
+  confirmCoachPayment(input: {
+    relationshipId: string;
+    confirmedAt?: string;
+  }): CoachStudentRelationship | null {
+    const confirmedAt = input.confirmedAt ?? nowIso();
+    this.db
+      .prepare(
+        `UPDATE coach_student_relationships
+         SET status = 'active',
+             coach_payment_status = 'confirmed',
+             activated_at = COALESCE(activated_at, ?),
+             updated_at = ?
+         WHERE id = ?
+           AND status IN ('requested', 'active')`,
+      )
+      .run(confirmedAt, confirmedAt, input.relationshipId);
+
+    return this.getRelationship(input.relationshipId);
+  }
+
+  listRelationshipsForCoach(input: {
+    coachId: string;
+    includeEnded?: boolean;
+  }): CoachStudentRelationship[] {
+    const rows = input.includeEnded
+      ? this.db
+          .prepare(
+            `SELECT *
+             FROM coach_student_relationships
+             WHERE coach_id = ?
+             ORDER BY requested_at DESC`,
+          )
+          .all(input.coachId)
+      : this.db
+          .prepare(
+            `SELECT *
+             FROM coach_student_relationships
+             WHERE coach_id = ?
+               AND status IN ('requested', 'active')
+             ORDER BY requested_at DESC`,
+          )
+          .all(input.coachId);
+
+    return rows.map((row) => toRelationship(row as CoachRelationshipRow));
+  }
+
+  listStudentCoachViews(input: {
+    userId?: TraderAnalyticsUserId;
+  } = {}): StudentCoachView[] {
+    const userId = input.userId ?? DEMO_USER_ID;
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_student_relationships
+         WHERE user_id = ?
+           AND status IN ('requested', 'active')
+         ORDER BY requested_at DESC`,
+      )
+      .all(userId)
+      .map((row) => toRelationship(row as CoachRelationshipRow))
+      .flatMap((relationship) => {
+        const coach = this.getCoachProfile(relationship.coachId);
+        if (!coach) {
+          return [];
+        }
+
+        return [
+          {
+            relationship,
+            coach,
+            reports: this.listPublishedReports(relationship.id),
+            actionItems: this.listActionItems(relationship.id),
+          },
+        ];
+      });
+  }
+
+  getCoachStudentReadModel(input: {
+    relationshipId: string;
+    coachId: string;
+    trades: SavedExecutionTrade[];
+    reports: SavedTraderAnalyticsReport[];
+    now?: string;
+  }): CoachStudentReadModel | null {
+    const now = input.now ?? nowIso();
+    const relationship = this.getRelationship(input.relationshipId);
+
+    if (
+      !relationship ||
+      relationship.coachId !== input.coachId ||
+      relationship.status !== "active" ||
+      relationship.expiresAt <= now
+    ) {
+      return null;
+    }
+
+    const coach = this.getCoachProfile(relationship.coachId);
+    if (!coach) {
+      return null;
+    }
+
+    return {
+      relationship,
+      coach,
+      trades: input.trades.filter((trade) => trade.userId === relationship.userId),
+      latestReport:
+        input.reports
+          .filter((report) => report.userId === relationship.userId)
+          .sort((a, b) => b.generatedAt.localeCompare(a.generatedAt))[0] ?? null,
+      actionItems: this.listActionItems(relationship.id),
+    };
+  }
+
+  addPrivateNote(input: {
+    relationshipId: string;
+    coachId: string;
+    title: string;
+    body: string;
+    createdAt?: string;
+  }): CoachPrivateNote | null {
+    const relationship = this.getRelationship(input.relationshipId);
+    if (!relationship || relationship.coachId !== input.coachId) {
+      return null;
+    }
+
+    const createdAt = input.createdAt ?? nowIso();
+    const note: CoachPrivateNote = {
+      id: compactId("coach_note"),
+      relationshipId: relationship.id,
+      coachId: relationship.coachId,
+      userId: relationship.userId,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_private_notes (
+          id, relationship_id, coach_id, user_id, title, body,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        note.id,
+        note.relationshipId,
+        note.coachId,
+        note.userId,
+        note.title,
+        note.body,
+        note.createdAt,
+        note.updatedAt,
+      );
+
+    return note;
+  }
+
+  listPrivateNotes(relationshipId: string): CoachPrivateNote[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_private_notes
+         WHERE relationship_id = ?
+         ORDER BY created_at DESC`,
+      )
+      .all(relationshipId)
+      .map((row) => toPrivateNote(row as CoachPrivateNoteRow));
+  }
+
+  createFeedbackReport(input: {
+    relationshipId: string;
+    coachId: string;
+    kind: CoachFeedbackKind;
+    periodLabel: string;
+    title: string;
+    body: string;
+    publish?: boolean;
+    createdAt?: string;
+  }): CoachFeedbackReport | null {
+    const relationship = this.getRelationship(input.relationshipId);
+    if (!relationship || relationship.coachId !== input.coachId) {
+      return null;
+    }
+
+    const createdAt = input.createdAt ?? nowIso();
+    const status: CoachFeedbackStatus = input.publish ? "published" : "draft";
+    const report: CoachFeedbackReport = {
+      id: compactId("coach_report"),
+      relationshipId: relationship.id,
+      coachId: relationship.coachId,
+      userId: relationship.userId,
+      kind: input.kind,
+      status,
+      periodLabel: input.periodLabel.trim(),
+      title: input.title.trim(),
+      body: input.body.trim(),
+      publishedAt: status === "published" ? createdAt : null,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_feedback_reports (
+          id, relationship_id, coach_id, user_id, kind, status, period_label,
+          title, body, published_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        report.id,
+        report.relationshipId,
+        report.coachId,
+        report.userId,
+        report.kind,
+        report.status,
+        report.periodLabel,
+        report.title,
+        report.body,
+        report.publishedAt,
+        report.createdAt,
+        report.updatedAt,
+      );
+
+    return report;
+  }
+
+  listPublishedReports(relationshipId: string): CoachFeedbackReport[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_feedback_reports
+         WHERE relationship_id = ?
+           AND status = 'published'
+         ORDER BY published_at DESC, created_at DESC`,
+      )
+      .all(relationshipId)
+      .map((row) => toFeedbackReport(row as CoachFeedbackReportRow));
+  }
+
+  listCoachReports(relationshipId: string): CoachFeedbackReport[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_feedback_reports
+         WHERE relationship_id = ?
+         ORDER BY created_at DESC`,
+      )
+      .all(relationshipId)
+      .map((row) => toFeedbackReport(row as CoachFeedbackReportRow));
+  }
+
+  createActionItem(input: {
+    relationshipId: string;
+    coachId: string;
+    reportId?: string | null;
+    title: string;
+    body: string;
+    dueLabel: string;
+    createdAt?: string;
+  }): CoachActionItem | null {
+    const relationship = this.getRelationship(input.relationshipId);
+    if (!relationship || relationship.coachId !== input.coachId) {
+      return null;
+    }
+
+    const createdAt = input.createdAt ?? nowIso();
+    const actionItem: CoachActionItem = {
+      id: compactId("coach_action"),
+      relationshipId: relationship.id,
+      coachId: relationship.coachId,
+      userId: relationship.userId,
+      reportId: input.reportId ?? null,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      dueLabel: input.dueLabel.trim(),
+      status: "assigned",
+      completedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_action_items (
+          id, relationship_id, coach_id, user_id, report_id, title, body,
+          due_label, status, completed_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        actionItem.id,
+        actionItem.relationshipId,
+        actionItem.coachId,
+        actionItem.userId,
+        actionItem.reportId,
+        actionItem.title,
+        actionItem.body,
+        actionItem.dueLabel,
+        actionItem.status,
+        actionItem.completedAt,
+        actionItem.createdAt,
+        actionItem.updatedAt,
+      );
+
+    return actionItem;
+  }
+
+  completeActionItem(input: {
+    actionItemId: string;
+    userId?: TraderAnalyticsUserId;
+    completedAt?: string;
+  }): CoachActionItem | null {
+    const completedAt = input.completedAt ?? nowIso();
+    this.db
+      .prepare(
+        `UPDATE coach_action_items
+         SET status = 'completed',
+             completed_at = ?,
+             updated_at = ?
+         WHERE id = ?
+           AND user_id = ?`,
+      )
+      .run(completedAt, completedAt, input.actionItemId, input.userId ?? DEMO_USER_ID);
+
+    return this.getActionItem(input.actionItemId);
+  }
+
+  listActionItems(relationshipId: string): CoachActionItem[] {
+    return this.db
+      .prepare(
+        `SELECT *
+         FROM coach_action_items
+         WHERE relationship_id = ?
+         ORDER BY status = 'assigned' DESC, created_at DESC`,
+      )
+      .all(relationshipId)
+      .map((row) => toActionItem(row as CoachActionItemRow));
+  }
+
+  getRelationship(relationshipId: string): CoachStudentRelationship | null {
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_student_relationships
+         WHERE id = ?
+         LIMIT 1`,
+      )
+      .get(relationshipId) as CoachRelationshipRow | undefined;
+
+    return row ? toRelationship(row) : null;
+  }
+
+  getCurrentRelationship(input: {
+    coachId: string;
+    userId?: TraderAnalyticsUserId;
+    now?: string;
+  }): CoachStudentRelationship | null {
+    const now = input.now ?? nowIso();
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_student_relationships
+         WHERE coach_id = ?
+           AND user_id = ?
+           AND status IN ('requested', 'active')
+           AND expires_at > ?
+         ORDER BY requested_at DESC
+         LIMIT 1`,
+      )
+      .get(input.coachId, input.userId ?? DEMO_USER_ID, now) as
+      | CoachRelationshipRow
+      | undefined;
+
+    return row ? toRelationship(row) : null;
+  }
+
+  private getActionItem(actionItemId: string): CoachActionItem | null {
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_action_items
+         WHERE id = ?
+         LIMIT 1`,
+      )
+      .get(actionItemId) as CoachActionItemRow | undefined;
+
+    return row ? toActionItem(row) : null;
+  }
+
+  private getPaymentEvent(input: {
+    provider: "whop";
+    providerEventId: string;
+  }): CoachPaymentEvent | null {
+    const row = this.db
+      .prepare(
+        `SELECT *
+         FROM coach_payment_events
+         WHERE provider = ?
+           AND provider_event_id = ?
+         LIMIT 1`,
+      )
+      .get(input.provider, input.providerEventId) as
+      | CoachPaymentEventRow
+      | undefined;
+
+    return row ? toPaymentEvent(row) : null;
+  }
+
+  private insertPaymentEvent(input: {
+    providerEventId: string;
+    providerPaymentId: string | null;
+    eventType: string;
+    coachId: string | null;
+    userId: TraderAnalyticsUserId | null;
+    workspaceId: string | null;
+    accountId: string | null;
+    status: CoachPaymentEventStatus;
+    message: string;
+    accessPassId: string | null;
+    rawJson: string;
+    receivedAt: string;
+  }): CoachPaymentEvent {
+    const createdAt = input.receivedAt;
+    const event: CoachPaymentEvent = {
+      id: compactId("coach_payment_event"),
+      provider: "whop",
+      providerEventId: input.providerEventId,
+      providerPaymentId: input.providerPaymentId,
+      eventType: input.eventType,
+      coachId: input.coachId,
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      status: input.status,
+      message: input.message,
+      accessPassId: input.accessPassId,
+      rawJson: input.rawJson,
+      receivedAt: input.receivedAt,
+      createdAt,
+    };
+
+    this.db
+      .prepare(
+        `INSERT INTO coach_payment_events (
+          id, provider, provider_event_id, provider_payment_id, event_type,
+          coach_id, user_id, workspace_id, account_id, status, message,
+          access_pass_id, raw_json, received_at, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        event.id,
+        event.provider,
+        event.providerEventId,
+        event.providerPaymentId,
+        event.eventType,
+        event.coachId,
+        event.userId,
+        event.workspaceId,
+        event.accountId,
+        event.status,
+        event.message,
+        event.accessPassId,
+        event.rawJson,
+        event.receivedAt,
+        event.createdAt,
+      );
+
+    return event;
+  }
+
+  private countRelationships(input: {
+    coachId: string;
+    statuses: CoachRelationshipStatus[];
+    now: string;
+  }): number {
+    const placeholders = input.statuses.map(() => "?").join(", ");
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS count
+         FROM coach_student_relationships
+         WHERE coach_id = ?
+           AND status IN (${placeholders})
+           AND expires_at > ?`,
+      )
+      .get(input.coachId, ...input.statuses, input.now) as
+      | { count: number }
+      | undefined;
+
+    return Number(row?.count ?? 0);
+  }
+
+  private requireCoach(coachId: string): RealCoachProfile {
+    const coach = this.getCoachProfile(coachId);
+    if (!coach) {
+      throw new Error(`Coach profile not found: ${coachId}`);
+    }
+
+    return coach;
+  }
+}
+
+export function createRealCoachMarketplaceRepository(): RealCoachMarketplaceRepository {
+  return new RealCoachMarketplaceRepository();
+}

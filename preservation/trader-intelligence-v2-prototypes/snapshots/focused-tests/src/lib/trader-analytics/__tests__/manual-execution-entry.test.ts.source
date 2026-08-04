@@ -1,0 +1,76 @@
+import { describe, expect, it } from "vitest";
+
+import { buildManualExecutionEntryCsv } from "../product/manual-execution-entry";
+import { parseBrokerExecutionCsv } from "../../execution-sources/csv";
+
+describe("manual execution entry", () => {
+  it("builds a generic execution CSV that the importer can save as a closed trade", () => {
+    const built = buildManualExecutionEntryCsv([
+      {
+        id: "row-1",
+        date: "2026-06-12",
+        time: "10:30:15",
+        symbol: "aapl",
+        side: "BUY",
+        quantity: "50",
+        price: "180.50",
+      },
+      {
+        id: "row-2",
+        date: "2026-06-12",
+        time: "10:45:15",
+        symbol: "AAPL",
+        side: "SELL",
+        quantity: "50",
+        price: "181.25",
+      },
+    ]);
+
+    expect(built.issues).toEqual([]);
+    expect(built.csvText.split("\n")[0]).toBe(
+      "Date,Time,Symbol,Side,Quantity,Price,Commission,Fees,Amount,Currency",
+    );
+
+    const parsed = parseBrokerExecutionCsv({
+      broker: "generic_execution_csv",
+      csvText: built.csvText,
+      timestampTimezone: "America/New_York",
+    });
+
+    expect(parsed.acceptedExecutionCount).toBe(2);
+    expect(parsed.requests).toHaveLength(1);
+    expect(parsed.requests[0]).toMatchObject({
+      symbol: "AAPL",
+      tradeDirection: "long",
+    });
+    expect(parsed.executions[0]).toMatchObject({
+      commission: 0,
+      fees: 0,
+      netAmount: -9025,
+    });
+    expect(parsed.executions[1]).toMatchObject({
+      commission: 0,
+      fees: 0,
+      netAmount: 9062.5,
+    });
+  });
+
+  it("blocks incomplete manual rows before they reach the import pipeline", () => {
+    const built = buildManualExecutionEntryCsv([
+      {
+        id: "row-1",
+        date: "2026-06-12",
+        time: "",
+        symbol: "",
+        side: "",
+        quantity: "0",
+        price: "",
+      },
+    ]);
+
+    expect(built.includedRowCount).toBe(1);
+    expect(built.issues.map((issue) => issue.field)).toEqual(
+      expect.arrayContaining(["time", "symbol", "side", "quantity", "price"]),
+    );
+  });
+});

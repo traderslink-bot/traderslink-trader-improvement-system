@@ -1,0 +1,1194 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-18",
+  "canonicalBaseCommit": "4f9e440116258c9548a2d13f7ea057a9075101c6",
+  "sourceWorktreeHead": "6dca4dc05dce6310a79beef53019212a56d5a9d5",
+  "sourceWorktree": "C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2",
+  "sourceBranch": "codex/trader-ui-product-pass",
+  "sourceStashInspected": {
+    "reference": "stash@{2026-05-19 17:58:53 -0400}",
+    "object": "5abbb7ce7ec9784a8bd71c4994590e168838c9e3",
+    "used": false,
+    "reason": "predates the prototypes and contains a private SQLite backup"
+  },
+  "preservedFileCount": 41,
+  "files": [
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "app/manual-entry/manual-entry-client.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/app/manual-entry/manual-entry-client.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/manual-entry/manual-entry-client.tsx",
+      "sha256": "3834815fd30c3419f0897f9d20e5966fb8236b2e83cfdf7e49dc3f7d8c6a671b",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/manual-execution-entry",
+        "react"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "app/manual-entry/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/app/manual-entry/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/manual-entry/page.tsx",
+      "sha256": "547446e8365f303cbb48d71031b079f2435c931a9e4ed65da27d45d9c9f70e29",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "./manual-entry-client",
+        "next",
+        "next/image",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "src/lib/trader-analytics/product/manual-execution-entry.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/src/lib/trader-analytics/product/manual-execution-entry.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/product/manual-execution-entry.ts",
+      "sha256": "7be826f8d1e5da1e445b6c203bebcd1edf00efc7c589991af585314a50fcaab4",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/api/trader-reflections/generate/route.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/api/trader-reflections/generate/route.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/api/trader-reflections/generate/route.ts",
+      "sha256": "fc4ace73058ec9ed99ae585b75d05707085f4246d65237f635c54f3fa888a380",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../../../src/lib/trader-analytics/product/tier-config",
+        "../../../../src/lib/trader-analytics/server/period-reflection-service"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/admin/reflection-usage/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/admin/reflection-usage/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/admin/reflection-usage/page.tsx",
+      "sha256": "bb7040acd149e1d404a22dd2b24f89f6e5737ac3ea222f7997c6cac3829960e4",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../../src/lib/trader-analytics/server/period-reflection-usage-report",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/period-reflection-panel.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/period-reflection-panel.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/period-reflection-panel.tsx",
+      "sha256": "252d4c19c490b56abc05ff7198ebeb720e69462d1ca5b3826acddff6bbae3996",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../src/lib/trader-analytics/product/types",
+        "./period-reflection-regenerate-button",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/period-reflection-regenerate-button.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/app/period-reflection-regenerate-button.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/period-reflection-regenerate-button.tsx",
+      "sha256": "b0fee47c91dba55d8701e24894d3f5434cf25481b6ec13f27211056c05331c88",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../src/lib/trader-analytics/product/types",
+        "@mui/icons-material/RefreshRounded",
+        "next/navigation",
+        "react"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/docs/trader-reflection-ai-summary-plan.md",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/docs/trader-reflection-ai-summary-plan.md.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/docs/trader-reflection-ai-summary-plan.md",
+      "sha256": "c15406dbb2ba8a07e419c4b02d6f44f8835fdf9b211b5c8547af362821a05d73",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/product/period-reflections.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/product/period-reflections.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/product/period-reflections.ts",
+      "sha256": "30d344ae240bd1e03f079ceb496206b462893a3b8b401f09bfb72889f78b6264",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "./types"
+      ],
+      "environmentVariables": [
+        "OPENAI_API_KEY",
+        "OPENAI_REFLECTION_MODEL"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/server/period-reflection-generation.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-generation.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/server/period-reflection-generation.ts",
+      "sha256": "e74321871bc4593678e81904cff49888d74cef89cca5d179515538645518d5c7",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../product/period-reflections",
+        "../product/types"
+      ],
+      "environmentVariables": [
+        "OPENAI_API_KEY",
+        "OPENAI_REFLECTION_MODEL"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/server/period-reflection-service.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-service.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/server/period-reflection-service.ts",
+      "sha256": "ca0649971c90ce7c0bc8a153772c3a54c42c1e0c4d885d263375ae99de446aee",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../index",
+        "../product/import-commit/sqlite-import-commit-repository",
+        "../product/types",
+        "./period-reflection-generation"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/server/period-reflection-usage-report.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/src/lib/trader-analytics/server/period-reflection-usage-report.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/server/period-reflection-usage-report.ts",
+      "sha256": "13a91787e3a6896ea2e6246ac7cdef2e24ecfefdb1f6874c9108e4ed74ad027d",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../product/import-commit/sqlite-import-commit-repository",
+        "../product/types",
+        "./period-reflection-generation"
+      ],
+      "environmentVariables": [
+        "OPENAI_API_KEY",
+        "OPENAI_REFLECTION_MODEL"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/api/real-coach/whop-webhook/route.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/api/real-coach/whop-webhook/route.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/api/real-coach/whop-webhook/route.ts",
+      "sha256": "290dfb5c57274a42d8beca6f4a3af8ba32af0cfbd1fa934f6cbbf03a04f50923",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../../../src/lib/trader-analytics/product/real-coach-whop-webhook",
+        "@whop/sdk",
+        "next/server"
+      ],
+      "environmentVariables": [
+        "WHOP_WEBHOOK_SECRET"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/admin/coaches/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/admin/coaches/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/admin/coaches/page.tsx",
+      "sha256": "46d8c31be119b8bbec599231f757109a9c13e5e6ed5c13793a2e6e94392424d8",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../../real-coach-actions",
+        "../../real-coach-auth",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/coach-dashboard/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coach-dashboard/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/coach-dashboard/page.tsx",
+      "sha256": "591880dc94ee4d58439b370edebab4e145be062584780a7758fcb1b4ce4cd02b",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../../src/lib/trader-analytics/server/saved-trader-analytics-data",
+        "../real-coach-actions",
+        "../real-coach-auth",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/coaches/[coachId]/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coaches/[coachId]/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/coaches/[coachId]/page.tsx",
+      "sha256": "03eb137a39cb5335560e77f44992b3ac6c2708d6d4302d0a8a007e868a229861",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../../real-coach-actions",
+        "../../real-coach-auth",
+        "next",
+        "next/link",
+        "next/navigation"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/coaches/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coaches/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/coaches/page.tsx",
+      "sha256": "4bf2ebbb2ddf6e06ae277962dd50da6398b3c0242a0fdbc2a3158fbf89a6c139",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../real-coach-auth",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/coach-human/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/coach-human/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/coach-human/page.tsx",
+      "sha256": "8e11f74af42916db413fabaf5538aa531c782afb8be70d9ba9111c8898da3ecc",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../app-ui",
+        "../real-coach-actions",
+        "../real-coach-auth",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/real-coach-actions.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-actions.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/real-coach-actions.ts",
+      "sha256": "b09abd54d7aa5e816bd59e0172edeba5cfc62f68742f8557ab08e5b11675cf40",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../src/lib/trader-analytics/product/real-coach-marketplace",
+        "./real-coach-auth",
+        "next/cache",
+        "next/navigation"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/real-coach-auth.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-auth.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/real-coach-auth.ts",
+      "sha256": "d3e8d09157c3c6897174d0b3e5da7705d24966a96c3cb22886283c71413d1ed7",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository",
+        "../src/lib/trader-analytics/product/real-coach-marketplace",
+        "next/headers"
+      ],
+      "environmentVariables": [
+        "NODE_ENV"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/real-coach-session/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/app/real-coach-session/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/real-coach-session/page.tsx",
+      "sha256": "f7654046d1fe177fff0efa02cac382471b95df597fbd44f5e2d1a423af942bfe",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/real-coach-marketplace",
+        "../real-coach-actions",
+        "../real-coach-auth",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "src/lib/trader-analytics/product/real-coach-marketplace.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/src/lib/trader-analytics/product/real-coach-marketplace.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/product/real-coach-marketplace.ts",
+      "sha256": "425f9bb9f72eaea9d8c78623d93524ef140cbbd06e9ca9b961062a6193bc5fa0",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "./import-commit/sqlite-import-commit-repository",
+        "./types"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "src/lib/trader-analytics/product/real-coach-whop-webhook.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/src/lib/trader-analytics/product/real-coach-whop-webhook.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/product/real-coach-whop-webhook.ts",
+      "sha256": "4df86b17ec78ab231fac24958cb96de6b571b10045617caf7a3a7d5791707eaa",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "./real-coach-marketplace"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "focused-tests",
+      "originalPath": "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts",
+      "sha256": "f4dffbf27caab728df51c7729b4e9c3d77d7f360c075c1c33d05b4c08ca49579",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "../../execution-sources/csv",
+        "../product/manual-execution-entry",
+        "vitest"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; synthetic fixtures and mocked provider behavior only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Recovered focused test source; current origin/main reconstruction requires compatibility work for GA0-A1 data-mode boundaries.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "focused-tests",
+      "originalPath": "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+      "sha256": "15bea06a1fbda7a15e484648ce54d288ea1513539ab0f73585de638d0f2ced59",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts"
+      ],
+      "dependencies": [
+        "../../../../app/api/trader-reflections/generate/route",
+        "../index",
+        "../product/import-commit/sqlite-import-commit-repository",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "vitest"
+      ],
+      "environmentVariables": [
+        "OPENAI_API_KEY",
+        "OPENAI_REFLECTION_MODEL",
+        "TRADER_INTELLIGENCE_DB_PATH",
+        "TRADER_INTELLIGENCE_TIER"
+      ],
+      "privateDataRisk": "low; synthetic fixtures and mocked provider behavior only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Recovered focused test source; current origin/main reconstruction requires compatibility work for GA0-A1 data-mode boundaries.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "focused-tests",
+      "originalPath": "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+      "sha256": "2ba8113cc811ebe681802f9f46d1e6e7d909243f4f83c53a4f479f53b7b32eb9",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts"
+      ],
+      "dependencies": [
+        "../product/period-reflections",
+        "../product/types",
+        "../server/period-reflection-generation",
+        "vitest"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; synthetic fixtures and mocked provider behavior only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Recovered focused test source; current origin/main reconstruction requires compatibility work for GA0-A1 data-mode boundaries.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "focused-tests",
+      "originalPath": "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts",
+      "sha256": "99e0caa7a1052da24d94c9e30e196a96259bb15a5f9ee051d88884e9315a7b41",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../product/types",
+        "../server/period-reflection-usage-report",
+        "vitest"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; synthetic fixtures and mocked provider behavior only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Recovered focused test source; current origin/main reconstruction requires compatibility work for GA0-A1 data-mode boundaries.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "focused-tests",
+      "originalPath": "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/focused-tests/src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/focused-tests.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts",
+      "sha256": "cde90400579a99485417e34678099a1049cfa6301a706df30b6f3ecc49f9fe84",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "../product/import-commit/sqlite-import-commit-repository",
+        "../product/real-coach-marketplace",
+        "../product/types",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "vitest"
+      ],
+      "environmentVariables": [
+        "TRADER_INTELLIGENCE_DB_PATH"
+      ],
+      "privateDataRisk": "low; synthetic fixtures and mocked provider behavior only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Recovered focused test source; current origin/main reconstruction requires compatibility work for GA0-A1 data-mode boundaries.",
+      "includedInPatch": true
+    },
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "app/upload-csv/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/app/upload-csv/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M app/upload-csv/page.tsx",
+      "sha256": "07b03f5560cf4cbb808a6a81d507c4575d87ff1bffa675e9191e030dd4abff68",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "./upload-csv-client",
+        "next",
+        "next/image",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "app/workspace/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/app/workspace/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M app/workspace/page.tsx",
+      "sha256": "6d0561640752e3ab8354f5bda8126ae44248ef4d7920cdb283db0a7d1d50cf05",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/customer-data-filter",
+        "../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository",
+        "../../src/lib/trader-analytics/product/import-user-copy",
+        "../../src/lib/trader-analytics/product/tier-config",
+        "../../src/lib/trader-analytics/server/saved-review-queue",
+        "../../src/lib/trader-analytics/server/saved-trade-threads",
+        "../../src/lib/trader-analytics/server/saved-trader-analytics-data",
+        "../app-ui",
+        "../period-reflection-panel",
+        "next",
+        "next/image",
+        "next/link",
+        "react"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "manual-trade-entry",
+      "originalPath": "src/lib/trader-analytics/product/platform-module.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/manual-trade-entry/integration/src/lib/trader-analytics/product/platform-module.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/manual-trade-entry.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/product/platform-module.ts",
+      "sha256": "1b47c91bf0c78ecffe98dfe2149b45974dabef34930a81f32cc80159d12758f7",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/manual-execution-entry.test.ts"
+      ],
+      "dependencies": [
+        "../../execution-sources/csv",
+        "./product-workflow"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required against canonical execution, correction, and user-entered provenance contracts. Do not apply directly to runtime.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/workspace/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/app/workspace/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M app/workspace/page.tsx",
+      "sha256": "6d0561640752e3ab8354f5bda8126ae44248ef4d7920cdb283db0a7d1d50cf05",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/customer-data-filter",
+        "../../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository",
+        "../../src/lib/trader-analytics/product/import-user-copy",
+        "../../src/lib/trader-analytics/product/tier-config",
+        "../../src/lib/trader-analytics/server/saved-review-queue",
+        "../../src/lib/trader-analytics/server/saved-trade-threads",
+        "../../src/lib/trader-analytics/server/saved-trader-analytics-data",
+        "../app-ui",
+        "../period-reflection-panel",
+        "next",
+        "next/image",
+        "next/link",
+        "react"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "app/coach/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/app/coach/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M app/coach/page.tsx",
+      "sha256": "c10c974d5ae4bd9e0ca08b082986533079bcb687d4269e209b3f3c5d139b5fac",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../src/lib/trader-analytics/product/coach-overall-focus",
+        "../../src/lib/trader-analytics/product/tier-config",
+        "../../src/lib/trader-analytics/product/trade-display-copy",
+        "../../src/lib/trader-analytics/server/analytics-behavior-report",
+        "../../src/lib/trader-analytics/server/saved-import-source-caution",
+        "../../src/lib/trader-analytics/server/saved-review-queue",
+        "../../src/lib/trader-analytics/server/saved-trade-threads",
+        "../../src/lib/trader-analytics/server/saved-trader-analytics-data",
+        "../app-ui",
+        "../behavior-report-panel",
+        "../period-reflection-panel",
+        "../saved-import-source-caution",
+        "../saved-review-queue-summary",
+        "./coach-behavior-sequence",
+        "next",
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/index.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/index.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/index.ts",
+      "sha256": "f0c26ad06e21e2e9325bc5546fb250ff2e257d0666592983e00a47ceb39bd0cb",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "./build-trader-analytics-report",
+        "./charts/build-trader-analytics-chart-data",
+        "./product/broker-csv-repair-save-fixture-matrix",
+        "./product/buy-sell-execution-fixture-matrix",
+        "./product/coach-action-loop",
+        "./product/coaching-behavior-evidence-matrix",
+        "./product/coaching-fixture-expectation-matrix",
+        "./product/coaching-language-quality",
+        "./product/coaching-language-readiness",
+        "./product/csv-dry-run-automated-qa",
+        "./product/csv-dry-run-workflow",
+        "./product/functional-readiness",
+        "./product/import-commit/import-commit-planner",
+        "./product/import-commit/in-memory-import-commit-repository",
+        "./product/import-diagnostics",
+        "./product/import-facing-route-contract",
+        "./product/import-preview",
+        "./product/import-trial-experience",
+        "./product/import-user-copy",
+        "./product/period-reflections",
+        "./product/platform-module",
+        "./product/product-expansion",
+        "./product/product-intelligence",
+        "./product/product-polish",
+        "./product/product-workflow",
+        "./product/production-guardrails",
+        "./product/productization",
+        "./product/repository",
+        "./product/review-habit-loop",
+        "./product/rule-tracker",
+        "./product/sample-data",
+        "./product/saved-import-coaching-language-qa-matrix",
+        "./product/selectors",
+        "./product/trade-display-copy",
+        "./product/trade-notes",
+        "./product/trader-improvement",
+        "./product/types",
+        "./product/view-model",
+        "./run-trader-analytics-report",
+        "./types/trader-analytics-chart",
+        "./types/trader-analytics-report"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository.ts",
+      "sha256": "762818558320b33d2087afb9a33db239fa5448c9b6e50e61bf5d2345a091d69d",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../../execution-feedback/summary/build-execution-feedback-summary",
+        "../../build-trader-analytics-report",
+        "../functional-readiness",
+        "../trade-notes",
+        "../types",
+        "./import-commit-planner",
+        "./in-memory-import-commit-repository",
+        "better-sqlite3",
+        "node:fs",
+        "node:path"
+      ],
+      "environmentVariables": [
+        "TRADER_INTELLIGENCE_DB_PATH"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/product/tier-config.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/tier-config.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/product/tier-config.ts",
+      "sha256": "2f460ca78f01bd9af17ad06cb0f826b8665753e9fe541fc706c36cff21068abb",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/product/types.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/types.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/product/types.ts",
+      "sha256": "c1ee139a036cbf0e896608fea751efd0d18fa94616955a31c5ae5d0ab714f301",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../execution-feedback/summary/build-execution-feedback-summary",
+        "../../execution-sources/csv",
+        "../../raw-trade-timeline/types/session-context",
+        "../../trade-analysis/request/trade-analysis-request-contract",
+        "../types/trader-analytics-report"
+      ],
+      "environmentVariables": [
+        "OPENAI_REFLECTION_MODEL"
+      ],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "ai-period-reflections",
+      "originalPath": "src/lib/trader-analytics/product/view-model.ts",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/ai-period-reflections/integration/src/lib/trader-analytics/product/view-model.ts.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/ai-period-reflections.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M src/lib/trader-analytics/product/view-model.ts",
+      "sha256": "88bd342e7e23bfafe7469d3f5aa9bb38b24e020dfb0511179087da089c30ff56",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/period-reflection-api-route.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-generation.test.ts",
+        "src/lib/trader-analytics/__tests__/period-reflection-usage-report.test.ts"
+      ],
+      "dependencies": [
+        "../../execution-feedback/summary/build-execution-feedback-summary",
+        "../../trade-analysis/request/trade-analysis-request-contract",
+        "../build-trader-analytics-report",
+        "../server/saved-trade-threads",
+        "./coach-action-loop",
+        "./customer-data-filter",
+        "./import-preview",
+        "./import-trial-experience",
+        "./period-reflections",
+        "./product-expansion",
+        "./product-intelligence",
+        "./product-polish",
+        "./production-guardrails",
+        "./productization",
+        "./review-habit-loop",
+        "./rule-tracker",
+        "./selectors",
+        "./trader-improvement",
+        "./types"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective V3 rebuild required after deterministic analytics and evidence contracts; AI remains explanatory only. Modified V2 integration snapshots are mixed and snapshot-only.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/admin/admin-dashboard.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/app/admin/admin-dashboard.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/admin/admin-dashboard.tsx",
+      "sha256": "2bf294018a090522f04a1e7c3ddffe466a8b3b3ad345ed0f253d7f98b5a3dc57",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "next/link"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "app/admin/page.tsx",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/app/admin/page.tsx.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "untracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "?? app/admin/page.tsx",
+      "sha256": "c54dd7449fcc4760b835eb95d694e596e435b874b5901ece03ed13efecf7ebba",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [
+        "./admin-dashboard",
+        "next"
+      ],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": false
+    },
+    {
+      "feature": "real-coach-whop",
+      "originalPath": "package.json",
+      "preservedSnapshotPath": "preservation/trader-intelligence-v2-prototypes/snapshots/real-coach-whop/integration/package.json.source",
+      "patchPath": "preservation/trader-intelligence-v2-prototypes/patches/real-coach-whop.patch",
+      "sourceKind": "modified tracked file",
+      "sourceReference": "worktree:C:/Users/jerac/Documents/TraderLink/trader-intelligence-v2; branch=codex/trader-ui-product-pass; head=6dca4dc05dce6310a79beef53019212a56d5a9d5",
+      "originalGitStatus": "M package.json",
+      "sha256": "e8e13707ae6913bd16d21a844897aba843e022f757b3dfbaaeab2e7212cf9a63",
+      "associatedTests": [
+        "src/lib/trader-analytics/__tests__/real-coach-marketplace.test.ts"
+      ],
+      "dependencies": [],
+      "environmentVariables": [],
+      "privateDataRisk": "low; code and configuration-name references only",
+      "sanitizationPerformed": "none; exact bytes preserved under a non-runtime .source suffix after zero-finding pre-copy secret/private-identifier scan",
+      "completeness": "complete",
+      "conflictsWithCurrentMain": true,
+      "futurePortingNotes": "Selective future product port required. Human-coach evidence sharing and Whop entitlement are separate boundaries; no V2 identity/payment assumption is authoritative.",
+      "includedInPatch": false
+    }
+  ]
+}

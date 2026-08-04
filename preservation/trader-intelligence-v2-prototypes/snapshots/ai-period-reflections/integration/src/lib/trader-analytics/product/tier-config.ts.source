@@ -1,0 +1,88 @@
+export type TraderIntelligenceTier = "free_execution" | "chart_context";
+
+export type TraderIntelligenceAiAddOn = "none" | "ai_coach";
+
+export interface TraderIntelligenceTierConfig {
+  id: TraderIntelligenceTier;
+  label: string;
+  includesChartContext: boolean;
+  includesExecutionAnalytics: boolean;
+}
+
+export interface TraderIntelligenceAiAddOnConfig {
+  id: TraderIntelligenceAiAddOn;
+  label: string;
+  includesAi: boolean;
+}
+
+export const TRADER_INTELLIGENCE_TIERS: Record<
+  TraderIntelligenceTier,
+  TraderIntelligenceTierConfig
+> = {
+  free_execution: {
+    id: "free_execution",
+    label: "Free",
+    includesChartContext: false,
+    includesExecutionAnalytics: true,
+  },
+  chart_context: {
+    id: "chart_context",
+    label: "Chart",
+    includesChartContext: true,
+    includesExecutionAnalytics: true,
+  },
+};
+
+export const TRADER_INTELLIGENCE_AI_ADD_ONS: Record<
+  TraderIntelligenceAiAddOn,
+  TraderIntelligenceAiAddOnConfig
+> = {
+  none: {
+    id: "none",
+    label: "No AI add-on",
+    includesAi: false,
+  },
+  ai_coach: {
+    id: "ai_coach",
+    label: "AI Coach add-on",
+    includesAi: true,
+  },
+};
+
+export const DEFAULT_TRADER_INTELLIGENCE_TIER =
+  TRADER_INTELLIGENCE_TIERS.chart_context;
+
+export const DEFAULT_TRADER_INTELLIGENCE_AI_ADD_ON =
+  TRADER_INTELLIGENCE_AI_ADD_ONS.none;
+
+export function resolveTraderIntelligenceTier(
+  value: string | null | undefined,
+): TraderIntelligenceTierConfig {
+  if (value === "free_execution" || value === "chart_context") {
+    return TRADER_INTELLIGENCE_TIERS[value];
+  }
+
+  return DEFAULT_TRADER_INTELLIGENCE_TIER;
+}
+
+export function readTraderIntelligenceTierFromEnv(
+  env: Partial<Record<string, string | undefined>> = process.env,
+): TraderIntelligenceTierConfig {
+  return resolveTraderIntelligenceTier(env.TRADER_INTELLIGENCE_TIER);
+}
+
+export function canUseChartContext(
+  tier: TraderIntelligenceTierConfig,
+): boolean {
+  return tier.includesChartContext;
+}
+
+export function canUseAiPeriodReflections(
+  tier: TraderIntelligenceTierConfig,
+): boolean {
+  return tier.id === "chart_context";
+}
+
+export function canUseAiCoach(addOn: TraderIntelligenceAiAddOnConfig): boolean {
+  return addOn.includesAi;
+}

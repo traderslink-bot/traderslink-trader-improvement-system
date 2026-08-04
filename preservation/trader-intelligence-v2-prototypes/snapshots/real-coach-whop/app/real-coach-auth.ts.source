@@ -1,0 +1,146 @@
+import { cookies } from "next/headers";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
+} from "../src/lib/trader-analytics/product/import-commit/sqlite-import-commit-repository";
+import { PROTOTYPE_ADMIN_USER_ID } from "../src/lib/trader-analytics/product/real-coach-marketplace";
+
+export const REAL_COACH_ACTOR_COOKIE = "ti_real_coach_actor";
+
+export type RealCoachActor =
+  | {
+      role: "admin";
+      userId: string;
+    }
+  | {
+      role: "student";
+      userId: string;
+      workspaceId: string;
+      accountId: string;
+    }
+  | {
+      role: "coach";
+      userId: string;
+      coachId: string;
+    };
+
+type RealCoachActorRole = RealCoachActor["role"];
+
+function encodeActor(actor: RealCoachActor): string {
+  return Buffer.from(JSON.stringify(actor), "utf8").toString("base64url");
+}
+
+function decodeActor(value: string | undefined): RealCoachActor | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as Partial<RealCoachActor>;
+
+    if (parsed.role === "admin" && typeof parsed.userId === "string") {
+      return {
+        role: "admin",
+        userId: parsed.userId,
+      };
+    }
+
+    if (parsed.role === "student" && typeof parsed.userId === "string") {
+      return {
+        role: "student",
+        userId: parsed.userId,
+        workspaceId:
+          typeof parsed.workspaceId === "string"
+            ? parsed.workspaceId
+            : DEMO_WORKSPACE_ID,
+        accountId:
+          typeof parsed.accountId === "string"
+            ? parsed.accountId
+            : DEMO_ACCOUNT_ID,
+      };
+    }
+
+    if (
+      parsed.role === "coach" &&
+      typeof parsed.userId === "string" &&
+      typeof parsed.coachId === "string"
+    ) {
+      return {
+        role: "coach",
+        userId: parsed.userId,
+        coachId: parsed.coachId,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export async function getRealCoachActor(): Promise<RealCoachActor | null> {
+  const cookieStore = await cookies();
+  return decodeActor(cookieStore.get(REAL_COACH_ACTOR_COOKIE)?.value);
+}
+
+export async function setRealCoachActor(actor: RealCoachActor): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(REAL_COACH_ACTOR_COOKIE, encodeActor(actor), {
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
+export async function clearRealCoachActor(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(REAL_COACH_ACTOR_COOKIE);
+}
+
+export function prototypeAdminActor(): RealCoachActor {
+  return {
+    role: "admin",
+    userId: PROTOTYPE_ADMIN_USER_ID,
+  };
+}
+
+export function prototypeStudentActor(): RealCoachActor {
+  return {
+    role: "student",
+    userId: DEMO_USER_ID,
+    workspaceId: DEMO_WORKSPACE_ID,
+    accountId: DEMO_ACCOUNT_ID,
+  };
+}
+
+export function prototypeCoachActor(coachId: string): RealCoachActor {
+  return {
+    role: "coach",
+    userId: `coach:${coachId}`,
+    coachId,
+  };
+}
+
+export function actorHasRole(
+  actor: RealCoachActor | null,
+  role: RealCoachActorRole,
+): actor is Extract<RealCoachActor, { role: typeof role }> {
+  return actor?.role === role;
+}
+
+export function actorLabel(actor: RealCoachActor | null): string {
+  if (!actor) {
+    return "No coach access role selected";
+  }
+
+  if (actor.role === "coach") {
+    return `Coach view: ${actor.coachId}`;
+  }
+
+  return `${actor.role[0]?.toUpperCase()}${actor.role.slice(1)} view`;
+}

@@ -1,0 +1,327 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  readTraderPeriodReflectionUsageReport,
+  type TraderPeriodReflectionUsageKindRow,
+  type TraderPeriodReflectionUsageModelRow,
+} from "../../../src/lib/trader-analytics/server/period-reflection-usage-report";
+
+export const metadata: Metadata = {
+  title: "AI Reflection Usage | Trader Intelligence",
+};
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function formatUsd(value: number | null): string {
+  if (value === null) {
+    return "unknown";
+  }
+
+  if (value < 0.01 && value > 0) {
+    return `$${value.toFixed(6)}`;
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(value);
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function summaryMetric(args: {
+  detail: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="border border-zinc-800 bg-zinc-950 p-4">
+      <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {args.label}
+      </div>
+      <div className="mt-2 text-2xl font-semibold text-zinc-50">
+        {args.value}
+      </div>
+      <div className="mt-1 text-sm leading-6 text-zinc-500">{args.detail}</div>
+    </div>
+  );
+}
+
+function modelRowCost(
+  row: TraderPeriodReflectionUsageModelRow | TraderPeriodReflectionUsageKindRow,
+): string {
+  return formatUsd(row.estimatedCostUsd);
+}
+
+export default function AdminReflectionUsagePage() {
+  const report = readTraderPeriodReflectionUsageReport();
+
+  return (
+    <main className="min-h-screen bg-zinc-950 px-5 py-8 text-zinc-100 sm:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="border-b border-zinc-800 pb-6">
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Link className="text-sky-300 hover:text-sky-200" href="/admin">
+              Back to admin tools
+            </Link>
+            <Link
+              className="text-zinc-500 hover:text-zinc-300"
+              href="/workspace"
+            >
+              Workspace
+            </Link>
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-amber-300">
+            AI Operations
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50">
+            AI Reflection Usage
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+            Admin view of saved daily, weekly, and monthly AI reflection
+            generation events. Use this to watch model spend, failed attempts,
+            and generation volume before changing user-facing limits.
+          </p>
+        </header>
+
+        <section className="grid gap-4 border border-zinc-800 bg-zinc-950 p-5 lg:grid-cols-[1fr_1fr_1.2fr]">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              AI Service
+            </div>
+            <div className="mt-2 text-lg font-semibold text-zinc-50">
+              OpenAI Responses API
+            </div>
+            <div
+              className={
+                report.providerReadiness.status === "configured"
+                  ? "mt-1 text-sm text-emerald-300"
+                  : "mt-1 text-sm text-amber-300"
+              }
+            >
+              {report.providerReadiness.openaiApiKeyConfigured
+                ? "OPENAI_API_KEY configured"
+                : "OPENAI_API_KEY not configured"}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Reflection Model
+            </div>
+            <div className="mt-2 text-lg font-semibold text-zinc-50">
+              {report.providerReadiness.configuredModel}
+            </div>
+            <div className="mt-1 text-sm text-zinc-500">
+              {report.providerReadiness.modelSource === "environment"
+                ? "Set by OPENAI_REFLECTION_MODEL"
+                : "Using default model"}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Service Next Action
+            </div>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              {report.providerReadiness.nextAction}
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {summaryMetric({
+            label: "Estimated cost",
+            value: formatUsd(report.summary.estimatedCostUsd),
+            detail: `${formatNumber(report.summary.knownCostEventCount)} known-cost event${report.summary.knownCostEventCount === 1 ? "" : "s"}.`,
+          })}
+          {summaryMetric({
+            label: "Events",
+            value: formatNumber(report.summary.eventCount),
+            detail: `${formatNumber(report.summary.meteredEventCount)} with OpenAI token usage.`,
+          })}
+          {summaryMetric({
+            label: "Tokens",
+            value: formatNumber(report.summary.totalTokens),
+            detail: `${formatNumber(report.summary.inputTokens)} input, ${formatNumber(report.summary.outputTokens)} output.`,
+          })}
+          {summaryMetric({
+            label: "Failures",
+            value: formatNumber(report.statusCounts.failed),
+            detail: `${formatNumber(report.statusCounts.generated)} generated and ${formatNumber(report.statusCounts.fallback)} fallback attempts.`,
+          })}
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
+          <div className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              Model Spend
+            </h2>
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[680px] text-left text-sm">
+                <thead className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+                  <tr>
+                    <th className="py-3 pr-4 font-semibold">Model</th>
+                    <th className="py-3 pr-4 font-semibold">Events</th>
+                    <th className="py-3 pr-4 font-semibold">Cost</th>
+                    <th className="py-3 pr-4 font-semibold">Input</th>
+                    <th className="py-3 pr-4 font-semibold">Output</th>
+                    <th className="py-3 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-900 text-zinc-300">
+                  {report.modelRows.length === 0 ? (
+                    <tr>
+                      <td className="py-4 text-zinc-500" colSpan={6}>
+                        No reflection generation events have been recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    report.modelRows.map((row) => (
+                      <tr key={row.model}>
+                        <td className="py-3 pr-4 font-medium text-zinc-100">
+                          {row.model}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {formatNumber(row.eventCount)}
+                        </td>
+                        <td className="py-3 pr-4">{modelRowCost(row)}</td>
+                        <td className="py-3 pr-4">
+                          {formatNumber(row.inputTokens)}
+                        </td>
+                        <td className="py-3 pr-4">
+                          {formatNumber(row.outputTokens)}
+                        </td>
+                        <td className="py-3">
+                          {formatNumber(row.totalTokens)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="border border-zinc-800 bg-zinc-950 p-5">
+            <h2 className="text-sm font-semibold text-zinc-100">
+              Period Mix
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {report.kindRows.length === 0 ? (
+                <p className="text-sm leading-6 text-zinc-500">
+                  No period usage is available yet.
+                </p>
+              ) : (
+                report.kindRows.map((row) => (
+                  <div
+                    className="border border-zinc-900 p-4"
+                    key={row.kind}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-sm font-semibold capitalize text-zinc-100">
+                        {row.kind}
+                      </h3>
+                      <span className="text-sm text-emerald-300">
+                        {modelRowCost(row)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                      {formatNumber(row.eventCount)} event
+                      {row.eventCount === 1 ? "" : "s"} using{" "}
+                      {formatNumber(row.totalTokens)} total token
+                      {row.totalTokens === 1 ? "" : "s"}.
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="border border-zinc-800 bg-zinc-950 p-5">
+          <h2 className="text-sm font-semibold text-zinc-100">
+            Recent Events
+          </h2>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[860px] text-left text-sm">
+              <thead className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th className="py-3 pr-4 font-semibold">Time</th>
+                  <th className="py-3 pr-4 font-semibold">Period</th>
+                  <th className="py-3 pr-4 font-semibold">Status</th>
+                  <th className="py-3 pr-4 font-semibold">Model</th>
+                  <th className="py-3 pr-4 font-semibold">Attempt</th>
+                  <th className="py-3 pr-4 font-semibold">Tokens</th>
+                  <th className="py-3 font-semibold">Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-900 text-zinc-300">
+                {report.recentEvents.length === 0 ? (
+                  <tr>
+                    <td className="py-4 text-zinc-500" colSpan={7}>
+                      Generate a saved-data reflection to create the first usage
+                      event.
+                    </td>
+                  </tr>
+                ) : (
+                  report.recentEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td className="py-3 pr-4">
+                        {formatDateTime(event.createdAt)}
+                      </td>
+                      <td className="py-3 pr-4 capitalize">
+                        {event.kind} {event.periodStartDate}
+                      </td>
+                      <td className="py-3 pr-4">{event.status}</td>
+                      <td className="py-3 pr-4">
+                        {event.model ?? event.provider}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {formatNumber(event.generationAttemptCount)}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {formatNumber(event.totalTokens)}
+                      </td>
+                      <td className="py-3">
+                        {formatUsd(event.estimatedCostUsd)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="border border-amber-900/70 bg-amber-950/10 p-4">
+          <h2 className="text-sm font-semibold text-amber-200">
+            Tracking Boundary
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            {report.limitation}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            {report.nextAction}
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}

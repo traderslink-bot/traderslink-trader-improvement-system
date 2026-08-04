@@ -1,0 +1,477 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  DEMO_ACCOUNT_ID,
+  DEMO_USER_ID,
+  DEMO_WORKSPACE_ID,
+  resetTraderIntelligenceDatabaseForTests,
+} from "../product/import-commit/sqlite-import-commit-repository";
+import {
+  COACH_APP_ACCESS_PAYMENT_PURPOSE,
+  RealCoachMarketplaceRepository,
+  PROTOTYPE_SEED_COACH_SLUG,
+} from "../product/real-coach-marketplace";
+import type {
+  SavedExecutionTrade,
+  SavedTraderAnalyticsReport,
+} from "../product/types";
+
+let tempDir = "";
+let originalDbPath: string | undefined;
+
+beforeEach(() => {
+  originalDbPath = process.env.TRADER_INTELLIGENCE_DB_PATH;
+  tempDir = mkdtempSync(join(tmpdir(), "trader-intelligence-coaches-"));
+  process.env.TRADER_INTELLIGENCE_DB_PATH = join(tempDir, "test.sqlite");
+  resetTraderIntelligenceDatabaseForTests();
+});
+
+afterEach(() => {
+  resetTraderIntelligenceDatabaseForTests();
+  if (originalDbPath === undefined) {
+    delete process.env.TRADER_INTELLIGENCE_DB_PATH;
+  } else {
+    process.env.TRADER_INTELLIGENCE_DB_PATH = originalDbPath;
+  }
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+function createCoach(
+  repository: RealCoachMarketplaceRepository,
+  args: { name: string; cap?: number; status?: "draft" | "approved" | "hidden" },
+) {
+  return repository.createCoachProfile({
+    displayName: args.name,
+    headline: `${args.name} headline`,
+    bio: `${args.name} bio`,
+    specialtiesText: "entries, exits",
+    socialLinksText: "YouTube | https://example.com",
+    whopUrl: "https://whop.com/example",
+    appAccessFeeText: "$49 / month",
+    coachFeeText: "$300 / month on Whop",
+    studentCap: args.cap ?? 2,
+    status: args.status ?? "approved",
+    createdAt: "2026-06-01T12:00:00.000Z",
+  });
+}
+
+function paidPass(
+  repository: RealCoachMarketplaceRepository,
+  coachId: string,
+  userId = DEMO_USER_ID,
+  paidAt = "2026-06-01T12:00:00.000Z",
+) {
+  return repository.grantPrototypeAppAccessPass({
+    coachId,
+    userId,
+    workspaceId: DEMO_WORKSPACE_ID,
+    accountId: DEMO_ACCOUNT_ID,
+    paidAt,
+  });
+}
+
+describe("RealCoachMarketplaceRepository", () => {
+  it("seeds one approved prototype coach idempotently", () => {
+    const repository = new RealCoachMarketplaceRepository();
+
+    const first = repository.ensurePrototypeSeedCoach({
+      createdAt: "2026-06-01T12:00:00.000Z",
+    });
+    const second = repository.ensurePrototypeSeedCoach({
+      createdAt: "2026-06-01T12:05:00.000Z",
+    });
+
+    expect(first.slug).toBe(PROTOTYPE_SEED_COACH_SLUG);
+    expect(second.id).toBe(first.id);
+    const directory = repository.listApprovedCoachDirectory(
+      "2026-06-01T12:10:00.000Z",
+    );
+
+    expect(directory).toHaveLength(1);
+    expect(directory[0]).toMatchObject({
+      coach: {
+        displayName: "Avery Chen",
+        status: "approved",
+      },
+      requestsDisabled: false,
+    });
+  });
+
+  it("only lists approved visible coaches in the public directory", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    createCoach(repository, { name: "Approved Coach", status: "approved" });
+    createCoach(repository, { name: "Draft Coach", status: "draft" });
+    createCoach(repository, { name: "Hidden Coach", status: "hidden" });
+
+    expect(
+      repository.listApprovedCoachDirectory("2026-06-02T12:00:00.000Z").map(
+        (item) => item.coach.displayName,
+      ),
+    ).toEqual(["Approved Coach"]);
+  });
+
+  it("reserves capacity for requested students before coach payment is confirmed", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, {
+      name: "Capacity Coach",
+      cap: 1,
+    });
+
+    paidPass(repository, coach.id, "student-one");
+    paidPass(repository, coach.id, "student-two");
+
+    const first = repository.requestCoach({
+      coachId: coach.id,
+      userId: "student-one",
+      now: "2026-06-02T12:00:00.000Z",
+    });
+    const second = repository.requestCoach({
+      coachId: coach.id,
+      userId: "student-two",
+      now: "2026-06-02T12:01:00.000Z",
+    });
+
+    expect(first.relationship?.status).toBe("requested");
+    expect(second).toMatchObject({
+      relationship: null,
+      reason: "coach_capacity_full",
+    });
+    expect(
+      repository.buildDirectoryCard(coach, "2026-06-02T12:02:00.000Z"),
+    ).toMatchObject({
+      availableSeatCount: 0,
+      requestsDisabled: true,
+    });
+  });
+
+  it("requires a current one-month app access pass before requesting a coach", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Access Coach" });
+
+    expect(
+      repository.requestCoach({
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        now: "2026-06-02T12:00:00.000Z",
+      }),
+    ).toMatchObject({
+      relationship: null,
+      reason: "app_access_fee_required",
+    });
+
+    paidPass(
+      repository,
+      coach.id,
+      DEMO_USER_ID,
+      "2026-06-01T12:00:00.000Z",
+    );
+
+    expect(
+      repository.getActiveAccessPass({
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        now: "2026-07-02T12:00:00.000Z",
+      }),
+    ).toBeNull();
+  });
+
+  it("allows a new monthly request after an older request expires", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Renewal Coach" });
+
+    paidPass(
+      repository,
+      coach.id,
+      DEMO_USER_ID,
+      "2026-06-01T12:00:00.000Z",
+    );
+    const first = repository.requestCoach({
+      coachId: coach.id,
+      userId: DEMO_USER_ID,
+      now: "2026-06-02T12:00:00.000Z",
+    });
+
+    paidPass(
+      repository,
+      coach.id,
+      DEMO_USER_ID,
+      "2026-07-05T12:00:00.000Z",
+    );
+    const second = repository.requestCoach({
+      coachId: coach.id,
+      userId: DEMO_USER_ID,
+      now: "2026-07-05T12:01:00.000Z",
+    });
+
+    expect(first.relationship?.id).not.toBe(second.relationship?.id);
+    expect(second.relationship?.status).toBe("requested");
+  });
+
+  it("allows read-only student trade access only after relationship activation", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Review Coach" });
+    paidPass(repository, coach.id);
+    const relationship = repository.requestCoach({
+      coachId: coach.id,
+      userId: DEMO_USER_ID,
+      now: "2026-06-02T12:00:00.000Z",
+    }).relationship;
+
+    expect(relationship).not.toBeNull();
+
+    const trades = [
+      {
+        id: "trade-one",
+        userId: DEMO_USER_ID,
+        symbol: "AAPL",
+        sessionDate: "2026-06-02",
+        reviewStatus: "new",
+      } as SavedExecutionTrade,
+    ];
+    const reports = [
+      {
+        id: "report-one",
+        userId: DEMO_USER_ID,
+        generatedAt: "2026-06-02T13:00:00.000Z",
+      } as SavedTraderAnalyticsReport,
+    ];
+
+    expect(
+      repository.getCoachStudentReadModel({
+        relationshipId: relationship!.id,
+        coachId: coach.id,
+        trades,
+        reports,
+        now: "2026-06-02T12:30:00.000Z",
+      }),
+    ).toBeNull();
+
+    repository.confirmCoachPayment({
+      relationshipId: relationship!.id,
+      confirmedAt: "2026-06-02T12:40:00.000Z",
+    });
+
+    expect(
+      repository.getCoachStudentReadModel({
+        relationshipId: relationship!.id,
+        coachId: coach.id,
+        trades,
+        reports,
+        now: "2026-06-02T12:45:00.000Z",
+      }),
+    ).toMatchObject({
+      trades: [{ id: "trade-one" }],
+      latestReport: { id: "report-one" },
+    });
+  });
+
+  it("keeps private coach notes out of the student view while exposing published feedback", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Feedback Coach" });
+    paidPass(repository, coach.id);
+    const relationship = repository.requestCoach({
+      coachId: coach.id,
+      userId: DEMO_USER_ID,
+      now: "2026-06-02T12:00:00.000Z",
+    }).relationship!;
+    repository.confirmCoachPayment({ relationshipId: relationship.id });
+
+    repository.addPrivateNote({
+      relationshipId: relationship.id,
+      coachId: coach.id,
+      title: "Private",
+      body: "secret coach working note",
+    });
+    repository.createFeedbackReport({
+      relationshipId: relationship.id,
+      coachId: coach.id,
+      kind: "weekly",
+      periodLabel: "Week one",
+      title: "Student weekly review",
+      body: "Replay the top three entries.",
+      publish: true,
+    });
+
+    const studentView = repository.listStudentCoachViews({ userId: DEMO_USER_ID });
+
+    expect(studentView[0]?.reports).toMatchObject([
+      { title: "Student weekly review" },
+    ]);
+    expect(JSON.stringify(studentView)).not.toContain("secret coach working note");
+  });
+
+  it("lets the assigned student complete coach action items", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Action Coach" });
+    paidPass(repository, coach.id);
+    const relationship = repository.requestCoach({
+      coachId: coach.id,
+      userId: DEMO_USER_ID,
+      now: "2026-06-02T12:00:00.000Z",
+    }).relationship!;
+    repository.confirmCoachPayment({ relationshipId: relationship.id });
+
+    const action = repository.createActionItem({
+      relationshipId: relationship.id,
+      coachId: coach.id,
+      title: "Review three trades",
+      body: "Write one sentence about each entry.",
+      dueLabel: "Before Friday",
+    })!;
+
+    repository.completeActionItem({
+      actionItemId: action.id,
+      userId: "other-student",
+      completedAt: "2026-06-03T12:00:00.000Z",
+    });
+    expect(repository.listActionItems(relationship.id)[0]?.status).toBe("assigned");
+
+    repository.completeActionItem({
+      actionItemId: action.id,
+      userId: DEMO_USER_ID,
+      completedAt: "2026-06-03T12:05:00.000Z",
+    });
+    expect(repository.listActionItems(relationship.id)[0]).toMatchObject({
+      status: "completed",
+      completedAt: "2026-06-03T12:05:00.000Z",
+    });
+  });
+
+  it("grants app access from an idempotent Whop payment succeeded event", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Webhook Coach" });
+    const rawEvent = {
+      id: "evt_whop_paid",
+      type: "payment.succeeded",
+      data: { id: "pay_whop_paid" },
+    };
+
+    const result = repository.processWhopAppAccessPayment({
+      providerEventId: "evt_whop_paid",
+      providerPaymentId: "pay_whop_paid",
+      eventType: "payment.succeeded",
+      metadata: {
+        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        workspaceId: DEMO_WORKSPACE_ID,
+        accountId: DEMO_ACCOUNT_ID,
+      },
+      rawEvent,
+      paidAt: "2026-06-04T12:00:00.000Z",
+      receivedAt: "2026-06-04T12:00:05.000Z",
+    });
+    const duplicate = repository.processWhopAppAccessPayment({
+      providerEventId: "evt_whop_paid",
+      providerPaymentId: "pay_whop_paid",
+      eventType: "payment.succeeded",
+      metadata: {
+        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        workspaceId: DEMO_WORKSPACE_ID,
+        accountId: DEMO_ACCOUNT_ID,
+      },
+      rawEvent,
+      receivedAt: "2026-06-04T12:01:00.000Z",
+    });
+
+    expect(result).toMatchObject({
+      status: "processed",
+      accessPass: {
+        coachId: coach.id,
+        paymentReference: "whop:pay_whop_paid",
+      },
+    });
+    expect(
+      repository.getActiveAccessPass({
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        now: "2026-06-04T12:01:00.000Z",
+      }),
+    ).toMatchObject({ id: result.accessPass?.id });
+    expect(duplicate).toMatchObject({
+      status: "duplicate",
+      accessPass: { id: result.accessPass?.id },
+    });
+    expect(repository.listPaymentEvents()).toHaveLength(1);
+  });
+
+  it("ignores unrelated Whop payments instead of granting app access", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const coach = createCoach(repository, { name: "Unrelated Payment Coach" });
+
+    const result = repository.processWhopAppAccessPayment({
+      providerEventId: "evt_unrelated",
+      providerPaymentId: "pay_unrelated",
+      eventType: "payment.succeeded",
+      metadata: {
+        purpose: "coach_owned_monthly_payment",
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        workspaceId: DEMO_WORKSPACE_ID,
+        accountId: DEMO_ACCOUNT_ID,
+      },
+      rawEvent: { id: "evt_unrelated", type: "payment.succeeded" },
+      receivedAt: "2026-06-04T12:00:00.000Z",
+    });
+
+    expect(result).toMatchObject({
+      status: "ignored",
+      accessPass: null,
+    });
+    expect(
+      repository.getActiveAccessPass({
+        coachId: coach.id,
+        userId: DEMO_USER_ID,
+        now: "2026-06-04T12:01:00.000Z",
+      }),
+    ).toBeNull();
+  });
+
+  it("fails closed when app-access Whop metadata is incomplete or coach is not approved", () => {
+    const repository = new RealCoachMarketplaceRepository();
+    const draftCoach = createCoach(repository, {
+      name: "Draft Webhook Coach",
+      status: "draft",
+    });
+
+    const missingMetadata = repository.processWhopAppAccessPayment({
+      providerEventId: "evt_missing_metadata",
+      providerPaymentId: "pay_missing_metadata",
+      eventType: "payment.succeeded",
+      metadata: {
+        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
+        coachId: draftCoach.id,
+      },
+      rawEvent: { id: "evt_missing_metadata", type: "payment.succeeded" },
+      receivedAt: "2026-06-04T12:00:00.000Z",
+    });
+    const unapprovedCoach = repository.processWhopAppAccessPayment({
+      providerEventId: "evt_unapproved",
+      providerPaymentId: "pay_unapproved",
+      eventType: "payment.succeeded",
+      metadata: {
+        purpose: COACH_APP_ACCESS_PAYMENT_PURPOSE,
+        coachId: draftCoach.id,
+        userId: DEMO_USER_ID,
+        workspaceId: DEMO_WORKSPACE_ID,
+        accountId: DEMO_ACCOUNT_ID,
+      },
+      rawEvent: { id: "evt_unapproved", type: "payment.succeeded" },
+      receivedAt: "2026-06-04T12:01:00.000Z",
+    });
+
+    expect(missingMetadata).toMatchObject({
+      status: "failed",
+      accessPass: null,
+    });
+    expect(unapprovedCoach).toMatchObject({
+      status: "failed",
+      accessPass: null,
+    });
+    expect(repository.listPaymentEvents()).toHaveLength(2);
+  });
+});

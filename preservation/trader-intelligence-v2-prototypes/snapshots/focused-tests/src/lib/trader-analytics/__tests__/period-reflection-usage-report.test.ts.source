@@ -1,0 +1,177 @@
+import { describe, expect, it } from "vitest";
+import type { PersistedTraderPeriodReflectionGenerationEvent } from "../product/types";
+import { buildTraderPeriodReflectionUsageReport } from "../server/period-reflection-usage-report";
+
+function event(
+  overrides: Partial<PersistedTraderPeriodReflectionGenerationEvent> = {},
+): PersistedTraderPeriodReflectionGenerationEvent {
+  const createdAt = overrides.createdAt ?? "2026-05-08T22:05:00.000Z";
+
+  return {
+    id: overrides.id ?? `event:${createdAt}`,
+    userId: overrides.userId ?? "user-1",
+    accountId: overrides.accountId ?? "account-1",
+    reflectionRecordId: overrides.reflectionRecordId ?? "reflection-1",
+    reportId: overrides.reportId ?? "report-1",
+    kind: overrides.kind ?? "daily",
+    periodStartDate: overrides.periodStartDate ?? "2026-05-08",
+    periodEndDate: overrides.periodEndDate ?? "2026-05-08",
+    status: overrides.status ?? "generated",
+    provider: overrides.provider ?? "openai_responses_api",
+    model: Object.hasOwn(overrides, "model")
+      ? overrides.model ?? null
+      : "gpt-5.4-mini",
+    sourceReportGeneratedAt:
+      overrides.sourceReportGeneratedAt ?? "2026-05-08T21:00:00.000Z",
+    createdAt,
+    generationAttemptCount: overrides.generationAttemptCount ?? 1,
+    errorMessage: overrides.errorMessage ?? null,
+    usage:
+      overrides.usage === undefined
+        ? {
+            tokenUsage: {
+              inputTokens: 4000,
+              cachedInputTokens: 1000,
+              outputTokens: 800,
+              reasoningOutputTokens: 50,
+              totalTokens: 4800,
+            },
+            costEstimate: {
+              currency: "USD",
+              estimatedCostUsd: 0.005925,
+              inputUsdPerMillion: 0.75,
+              cachedInputUsdPerMillion: 0.075,
+              outputUsdPerMillion: 4.5,
+              pricingModel: "gpt-5.4-mini",
+              pricingSource: "openai_api_pricing_2026_06_13",
+            },
+          }
+        : overrides.usage,
+  };
+}
+
+describe("period reflection usage report", () => {
+  it("aggregates append-only generation events by model and period kind", () => {
+    const report = buildTraderPeriodReflectionUsageReport({
+      userId: "user-1",
+      accountId: "account-1",
+      generatedAt: "2026-05-09T12:00:00.000Z",
+      events: [
+        event({
+          id: "daily:first",
+          generationAttemptCount: 1,
+        }),
+        event({
+          id: "daily:second",
+          generationAttemptCount: 2,
+          createdAt: "2026-05-08T22:15:00.000Z",
+          usage: {
+            tokenUsage: {
+              inputTokens: 2000,
+              cachedInputTokens: 0,
+              outputTokens: 400,
+              reasoningOutputTokens: 20,
+              totalTokens: 2400,
+            },
+            costEstimate: {
+              currency: "USD",
+              estimatedCostUsd: 0.0033,
+              inputUsdPerMillion: 0.75,
+              cachedInputUsdPerMillion: 0.075,
+              outputUsdPerMillion: 4.5,
+              pricingModel: "gpt-5.4-mini",
+              pricingSource: "openai_api_pricing_2026_06_13",
+            },
+          },
+        }),
+        event({
+          id: "weekly:fallback",
+          createdAt: "2026-05-08T22:20:00.000Z",
+          kind: "weekly",
+          status: "fallback",
+          provider: "deterministic_reflection_v1",
+          model: null,
+          usage: null,
+        }),
+      ],
+    });
+
+    expect(report.summary).toMatchObject({
+      eventCount: 3,
+      meteredEventCount: 2,
+      knownCostEventCount: 2,
+      estimatedCostUsd: 0.009225,
+      inputTokens: 6000,
+      outputTokens: 1200,
+      totalTokens: 7200,
+    });
+    expect(report.providerReadiness).toMatchObject({
+      provider: "openai_responses_api",
+      status: "not_configured",
+      openaiApiKeyConfigured: false,
+      configuredModel: "gpt-5.4-mini",
+      defaultModel: "gpt-5.4-mini",
+      modelSource: "default",
+    });
+    expect(report.statusCounts).toMatchObject({
+      fallback: 1,
+      generated: 2,
+    });
+    expect(report.modelRows).toMatchObject([
+      {
+        model: "gpt-5.4-mini",
+        eventCount: 2,
+        estimatedCostUsd: 0.009225,
+      },
+      {
+        model: "deterministic_reflection_v1",
+        eventCount: 1,
+        estimatedCostUsd: 0,
+      },
+    ]);
+    expect(report.kindRows).toMatchObject([
+      {
+        kind: "daily",
+        eventCount: 2,
+      },
+      {
+        kind: "weekly",
+        eventCount: 1,
+      },
+    ]);
+    expect(report.recentEvents.map((item) => item.id)).toEqual([
+      "weekly:fallback",
+      "daily:second",
+      "daily:first",
+    ]);
+  });
+
+  it("surfaces configured provider readiness without exposing the API key", () => {
+    const report = buildTraderPeriodReflectionUsageReport({
+      userId: "user-1",
+      accountId: "account-1",
+      events: [],
+      providerReadiness: {
+        provider: "openai_responses_api",
+        status: "configured",
+        openaiApiKeyConfigured: true,
+        configuredModel: "gpt-5.4-nano",
+        defaultModel: "gpt-5.4-mini",
+        modelSource: "environment",
+        nextAction:
+          "OpenAI reflection generation is configured. Generate one saved-data reflection and confirm usage appears here.",
+      },
+    });
+
+    expect(report.providerReadiness).toMatchObject({
+      status: "configured",
+      openaiApiKeyConfigured: true,
+      configuredModel: "gpt-5.4-nano",
+      modelSource: "environment",
+    });
+    expect(JSON.stringify(report)).not.toContain("sk-");
+    expect(report.nextAction).toBe(
+      "Generate at least one saved-data reflection to start recording usage.",
+    );
+  });
+});
