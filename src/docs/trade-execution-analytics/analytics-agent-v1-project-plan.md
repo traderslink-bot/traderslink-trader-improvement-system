@@ -52,6 +52,11 @@ comparison, daily/weekly/monthly review, pre-entry daily state/path, daily
 transitions, best/worst day and price range, a limited ticker P/L summary,
 drawdown, fees, and data quality.
 
+The focused session extension adds deterministic session comparison and explicit
+premarket, regular-session, and after-hours/post-market execution questions.
+It reuses only the engine's existing `session` grouping and filter; it does not
+introduce market-data session analysis or change hourly time-of-day semantics.
+
 The completion branch adds a typed composition contract for caller-supplied
 execution filters, groupings, metrics, and P/L ranking. It is bounded and may
 not inject account, currency, or date filters: owner/account authority stays

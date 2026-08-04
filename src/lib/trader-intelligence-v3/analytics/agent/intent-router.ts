@@ -29,8 +29,16 @@ function result(
   preEntryDailyState: AnalyticsAgentIntentResolution["preEntryDailyState"] = null,
   preEntryDailyPath: AnalyticsAgentIntentResolution["preEntryDailyPath"] = null,
   ranking: AnalyticsAgentIntentResolution["ranking"] = null,
+  session: AnalyticsAgentIntentResolution["session"] = null,
 ): AnalyticsAgentIntentResolution {
-  return Object.freeze({ intent, previousOutcome, priceRange: range, priorStreak, preEntryDailyState, preEntryDailyPath, ranking });
+  return Object.freeze({ intent, previousOutcome, priceRange: range, priorStreak, preEntryDailyState, preEntryDailyPath, ranking, session });
+}
+
+function requestedSession(question: string): AnalyticsAgentIntentResolution["session"] {
+  if (hasAny(question, ["premarket", "pre market", "pre-market"])) return "premarket";
+  if (hasAny(question, ["after hours", "after-hours", "post market", "post-market", "postmarket"])) return "after_hours";
+  if (hasAny(question, ["regular session", "regular market", "regular hours", "market hours"])) return "regular";
+  return null;
 }
 
 /**
@@ -75,6 +83,15 @@ export function resolveAnalyticsAgentIntent(
   if (hasAny(normalized, ["give back", "giving back", "giveback", "drawdown", "green then red", "red then green"])) return result("giveback_drawdown");
   if (hasAny(normalized, ["after a loss", "after loss", "revenge trade"])) return result("prior_outcome_behavior", "loss");
   if (hasAny(normalized, ["after a win", "after win", "after wins"])) return result("prior_outcome_behavior", "gain");
+  const session = requestedSession(normalized);
+  if (session !== null || hasAny(normalized, ["market session", "trading session", "session performance"])) {
+    const sessionRanking: AnalyticsAgentIntentResolution["ranking"] = hasAny(normalized, ["least profitable", "worst session"])
+      ? "ascending"
+      : hasAny(normalized, ["most profitable", "best session"])
+        ? "descending"
+        : null;
+    return result("session_performance", null, null, null, null, null, sessionRanking, session);
+  }
   if (hasAny(normalized, ["compare periods", "compare this period", "compare this month with last month", "compare this week with last week", "compare this month to last month", "compare this week to last week", "this month compared with last month", "this week compared with last week", "versus last period", "vs last period", "this week vs", "this month vs", "period over period"])) return result("period_comparison");
   if (hasAny(normalized, ["hold time", "holding time", "how long do i hold", "quick trades", "scalps", "longer holds"])) return result("holding_time_performance");
   if (hasAny(normalized, ["long vs short", "long versus short", "shorts versus longs", "longs versus shorts", "longs compare with shorts", "short vs long", "direction performance"])) return result("direction_performance");
@@ -83,8 +100,17 @@ export function resolveAnalyticsAgentIntent(
   if (hasAny(normalized, ["repeat attempt", "same ticker", "same symbol", "overtrade"])) return result("repeat_attempt_behavior");
   const range = priceRange(normalized);
   if (range !== null || hasAny(normalized, ["price range", "low priced", "penny stock"])) return result("price_range_performance", null, range);
-  if (hasAny(normalized, ["ticker", "tickers", "symbol", "stocks hurt", "stocks help"])) return result("ticker_performance");
-  if (hasAny(normalized, ["time of day", "times of day", "time do i", "market open", "premarket", "late day", "opening"])) return result("time_of_day_performance");
+  if (hasAny(normalized, ["ticker", "tickers", "symbol", "stocks hurt", "stocks help"])) {
+    const tickerRanking: AnalyticsAgentIntentResolution["ranking"] = hasAny(normalized, [
+      "lost the most money", "biggest loser", "worst ticker", "tickers hurt", "stocks hurt",
+    ])
+      ? "ascending"
+      : hasAny(normalized, ["made the most money", "make the most money", "most money on", "best ticker", "strongest ticker", "top winner", "tickers help", "stocks help"])
+        ? "descending"
+        : null;
+    return result("ticker_performance", null, null, null, null, null, tickerRanking);
+  }
+  if (hasAny(normalized, ["time of day", "times of day", "time do i", "market open", "late day", "opening"])) return result("time_of_day_performance");
   if (hasAny(normalized, ["data quality", "missing data", "can this result be trusted", "manual trades incomplete"])) return result("data_quality");
   if (hasAny(normalized, ["p l", "p/l", "profit factor", "expectancy", "win rate", "how am i doing", "overall", "net pnl", "net p l"])) return result("core_performance");
   return result("unsupported_unknown");

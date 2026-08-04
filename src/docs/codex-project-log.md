@@ -1,3 +1,25 @@
+# 2026-07-27 - Analytics Agent v1 session questions started
+
+**Branch:** `agent/analytics-agent-v1-session-questions`, based on merged
+Analytics Agent v1 completion at `4c76178c1ba9a0b4d5c55e31d941490ebb30eb64`.
+
+Add only deterministic execution-session questions backed by the existing
+Trade Execution Analytics Engine: a market-session comparison plus explicit
+premarket, regular-session, and after-hours/post-market performance queries.
+This is separate from hourly time-of-day analysis. No market/candle authority,
+UI, Coach, simulations, ingestion, deployment, or model parsing is in scope.
+
+**Implementation checkpoint:** market-session questions group completed trades
+by the engine's `session` dimension. “Most profitable” ranks net P/L
+descending and “least profitable” ascending. Premarket, regular-market, and
+after-hours/post-market requests each issue one aggregate query with the exact
+engine session filter. The focused Analytics Agent suite passes 23 tests.
+
+**Follow-up correction:** explicit best/worst ticker language now carries a
+ranking direction into the existing ticker grouping plan. “Made the most,”
+“best ticker,” and equivalent strength wording rank net P/L descending; loss
+and weakness wording rank ascending.
+
 # 2026-07-27 - Analytics Agent v1 full deterministic completion started
 
 **Branch:** `agent/analytics-agent-v1-completion`, created clean from merged
