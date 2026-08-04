@@ -123,7 +123,7 @@ function isTickerDataPatch(value: unknown): value is LiveWatchlistTickerDataPatc
     ) &&
     (
       (value as LiveWatchlistTickerDataPatch).marketDataStatus === undefined ||
-      ["live", "stale", "possible_halt", "halted"].includes((value as LiveWatchlistTickerDataPatch).marketDataStatus ?? "")
+      ["live", "stale", "halted"].includes((value as LiveWatchlistTickerDataPatch).marketDataStatus ?? "")
     ) &&
     (
       (value as LiveWatchlistTickerDataPatch).marketDataStatusUpdatedAt === undefined ||
